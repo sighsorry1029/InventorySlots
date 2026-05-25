@@ -1,0 +1,354 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')"/>
+    <Import Project="environment.props"/>
+    <PropertyGroup>
+        <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
+        <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+        <ProjectGuid>{A57F2112-F59E-48EF-9D76-F2E4580F7401}</ProjectGuid>
+        <OutputType>Library</OutputType>
+        <AppDesignerFolder>Properties</AppDesignerFolder>
+        <RootNamespace>InventorySlots</RootNamespace>
+        <AssemblyName>InventorySlots</AssemblyName>
+        <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+        <FileAlignment>512</FileAlignment>
+        <LangVersion>preview</LangVersion>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+        <PlatformTarget>AnyCPU</PlatformTarget>
+        <DebugSymbols>true</DebugSymbols>
+        <DebugType>full</DebugType>
+        <Optimize>false</Optimize>
+        <OutputPath>bin\Debug\</OutputPath>
+        <DefineConstants>DEBUG;TRACE</DefineConstants>
+        <ErrorReport>prompt</ErrorReport>
+        <WarningLevel>4</WarningLevel>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+        <PlatformTarget>AnyCPU</PlatformTarget>
+        <DebugSymbols>false</DebugSymbols>
+        <DebugType>none</DebugType>
+        <Optimize>true</Optimize>
+        <OutputPath>bin\Release\</OutputPath>
+        <DefineConstants>TRACE</DefineConstants>
+        <ErrorReport>prompt</ErrorReport>
+        <WarningLevel>4</WarningLevel>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
+    <Choose>
+        <When Condition="($(OS) == 'Windows_NT') AND $(GamePath) == ''">
+            <PropertyGroup>
+                <GamePath Condition="!Exists('$(GamePath)')">$([MSBuild]::GetRegistryValueFromView('HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Steam App 892970', 'InstallLocation', null, RegistryView.Registry64, RegistryView.Registry32))</GamePath>
+                <_SteamLibraryPath>$([MSBuild]::GetRegistryValueFromView('HKEY_CURRENT_USER\SOFTWARE\Valve\Steam', 'SteamPath', null, RegistryView.Registry32))</_SteamLibraryPath>
+                <GamePath Condition="!Exists('$(GamePath)') AND '$(_SteamLibraryPath)' != ''">$(_SteamLibraryPath)\steamapps\common\Valheim</GamePath>
+                <GamePath Condition="!Exists('$(GamePath)') AND Exists('$(ValheimGamePath)')">$(ValheimGamePath)</GamePath>
+                <GamePath Condition="!Exists('$(GamePath)')">C:\Program Files\Steam\steamapps\common\Valheim</GamePath>
+                <GamePath Condition="!Exists('$(GamePath)')">C:\Program Files (x86)\Steam\steamapps\common\Valheim</GamePath>
+                <BepInExPath Condition="!Exists('$(BepInExPath)') AND Exists('$(GamePath)')">$(GamePath)\BepInEx</BepInExPath>
+                <CorlibPath Condition="!Exists('$(CorlibPath)') AND Exists('$(GamePath)')">$(GamePath)\valheim_Data\Managed</CorlibPath>
+                <PublicizedAssembliesPath Condition="!Exists('$(PublicizedAssembliesPath)') AND Exists('$(GamePath)')">$(GamePath)\valheim_Data\Managed\publicized_assemblies</PublicizedAssembliesPath>
+                <AfterTargets Condition="'$(AfterTargets)' == ''">ILRepacker</AfterTargets>
+            </PropertyGroup>
+        </When>
+    </Choose>
+    <ItemGroup>
+        <Reference Include="0Harmony">
+            <HintPath>$(BepInExPath)\core\0Harmony.dll</HintPath>
+        </Reference>
+        <Reference Include="assembly_guiutils">
+            <HintPath>$(PublicizedAssembliesPath)\assembly_guiutils_publicized.dll</HintPath>
+        </Reference>
+        <Reference Include="assembly_utils">
+            <HintPath>$(PublicizedAssembliesPath)\assembly_utils_publicized.dll</HintPath>
+        </Reference>
+        <Reference Include="assembly_valheim">
+            <HintPath>$(PublicizedAssembliesPath)\assembly_valheim_publicized.dll</HintPath>
+        </Reference>
+        <Reference Include="BepInEx">
+            <HintPath>$(BepInExPath)\core\BepInEx.dll</HintPath>
+        </Reference>
+        <Reference Include="ServerSync">
+            <HintPath>Libs\ServerSync.dll</HintPath>
+        </Reference>
+        <Reference Include="YamlDotNet">
+            <HintPath>$(UserProfile)\.nuget\packages\yamldotnet\16.3.0\lib\net47\YamlDotNet.dll</HintPath>
+        </Reference>
+        <Reference Include="System"/>
+        <Reference Include="System.Core"/>
+        <Reference Include="System.Data"/>
+        <Reference Include="System.Xml"/>
+        <Reference Include="UnityEngine">
+            <HintPath>$(CorlibPath)\UnityEngine.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine.AssetBundleModule">
+            <HintPath>$(CorlibPath)\UnityEngine.AssetBundleModule.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine.AnimationModule">
+            <HintPath>$(CorlibPath)\UnityEngine.AnimationModule.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine.CoreModule">
+            <HintPath>$(CorlibPath)\UnityEngine.CoreModule.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine.IMGUIModule">
+            <HintPath>$(CorlibPath)\UnityEngine.IMGUIModule.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine.InputLegacyModule">
+            <HintPath>$(CorlibPath)\UnityEngine.InputLegacyModule.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine.PhysicsModule">
+            <HintPath>$(CorlibPath)\UnityEngine.PhysicsModule.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine.UI">
+            <HintPath>$(CorlibPath)\UnityEngine.UI.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine.UIModule">
+            <HintPath>$(CorlibPath)\UnityEngine.UIModule.dll</HintPath>
+        </Reference>
+        <Reference Include="Unity.TextMeshPro">
+            <HintPath>$(GamePath)\valheim_Data\Managed\Unity.TextMeshPro.dll</HintPath>
+        </Reference>
+    </ItemGroup>
+    <ItemGroup>
+        <Compile Include="AzuCraftyBoxesCompat.cs"/>
+        <Compile Include="AzuCraftyBoxesCompatAdapter.cs"/>
+        <Compile Include="BackpackCompat.cs"/>
+        <Compile Include="BackpackCompatAdapters.cs"/>
+        <Compile Include="BetterArcheryCompat.cs"/>
+        <Compile Include="BetterArcheryCompatAdapter.cs"/>
+        <Compile Include="ClientStateCore.cs"/>
+        <Compile Include="ClientStateModels.cs"/>
+        <Compile Include="CompatReflection.cs"/>
+        <Compile Include="CompatRegistry.cs"/>
+        <Compile Include="CompatState.cs"/>
+        <Compile Include="ConfigState.cs"/>
+        <Compile Include="ControllerHotkeys.cs"/>
+        <Compile Include="ContainerAccessPolicy.cs"/>
+        <Compile Include="ContainerActions.cs"/>
+        <Compile Include="ContainerTransferCore.cs"/>
+        <Compile Include="ContainerGuiPatches.cs"/>
+        <Compile Include="ContainerQuickStack.cs"/>
+        <Compile Include="ContainerRestock.cs"/>
+        <Compile Include="ContainerSort.cs"/>
+        <Compile Include="ContainerTakeAll.cs"/>
+        <Compile Include="ContainerWorldPatches.cs"/>
+        <Compile Include="ControllerHotkeyConfigDrawer.cs"/>
+        <Compile Include="CustomEquipmentProjectionCache.cs"/>
+        <Compile Include="CustomEquipmentVisualController.cs"/>
+        <Compile Include="CraftingBottomControls.cs"/>
+        <Compile Include="CraftingBottomControlFrame.cs"/>
+        <Compile Include="CraftingConfig.cs"/>
+        <Compile Include="CraftingConstants.cs"/>
+        <Compile Include="CraftingFavorites.cs"/>
+        <Compile Include="CraftingFrameFastPath.cs"/>
+        <Compile Include="CraftingGridInteraction.cs"/>
+        <Compile Include="CraftingRecipeGridAvailability.cs"/>
+        <Compile Include="CraftingRequirementStrip.cs"/>
+        <Compile Include="CraftingRedesign.cs"/>
+        <Compile Include="CraftingRedesignGrid.cs"/>
+        <Compile Include="CraftingGroupsAndSearch.cs"/>
+        <Compile Include="CraftingRecipeCategories.cs"/>
+        <Compile Include="CraftingRecipeActions.cs"/>
+        <Compile Include="CraftingRecipeViewCore.cs"/>
+        <Compile Include="CraftingRecipeView.cs"/>
+        <Compile Include="CraftingPatches.cs"/>
+        <Compile Include="CraftingScrollbar.cs"/>
+        <Compile Include="CraftingState.cs"/>
+        <Compile Include="CraftingTabAdapter.cs"/>
+        <Compile Include="CraftingTabAdapterModels.cs"/>
+        <Compile Include="CraftingTooltipRecipeRows.cs"/>
+        <Compile Include="CraftingUiStamps.cs"/>
+        <Compile Include="CraftingVanillaBridge.cs"/>
+        <Compile Include="DeathAndTombstonePatches.cs"/>
+        <Compile Include="DeathKeep.cs"/>
+        <Compile Include="EquipmentProjection.cs"/>
+        <Compile Include="EquipmentProjectionPatchHandlers.cs"/>
+        <Compile Include="EquipmentProjectionPatches.cs"/>
+        <Compile Include="EquipmentRoutingPatches.cs"/>
+        <Compile Include="EpicLootCompat.cs"/>
+        <Compile Include="ForeignSlotRecovery.cs"/>
+        <Compile Include="FoodStatCore.cs"/>
+        <Compile Include="GlobalInputGuards.cs"/>
+        <Compile Include="ItemClassifier.cs"/>
+        <Compile Include="ItemClassifierController.cs"/>
+        <Compile Include="ItemGroupRegistry.cs"/>
+        <Compile Include="ItemSortCategorizer.cs"/>
+        <Compile Include="ItemSortController.cs"/>
+        <Compile Include="JewelcraftingCraftingSocketUiCompatAdapter.cs"/>
+        <Compile Include="JewelcraftingCraftingTabState.cs"/>
+        <Compile Include="JewelcraftingCompat.cs"/>
+        <Compile Include="JewelcraftingCraftingTabCompat.cs"/>
+        <Compile Include="JewelcraftingGemCuttingCompatAdapter.cs"/>
+        <Compile Include="JewelcraftingGemCompatAdapter.cs"/>
+        <Compile Include="JewelcraftingGemTooltipCompat.cs"/>
+        <Compile Include="JewelcraftingPinnedTooltipCompat.cs"/>
+        <Compile Include="JewelcraftingSlotCompatAdapter.cs"/>
+        <Compile Include="JewelcraftingTooltipCompat.cs"/>
+        <Compile Include="JewelcraftingTooltipCompatAdapter.cs"/>
+        <Compile Include="JewelcraftingTooltipCore.cs"/>
+        <Compile Include="JewelcraftingTooltipLayoutCompat.cs"/>
+        <Compile Include="JewelcraftingTooltipNativeFlow.cs"/>
+        <Compile Include="JewelcraftingVisualCompatAdapter.cs"/>
+        <Compile Include="InventorySlotsYamlModels.cs"/>
+        <Compile Include="InventorySlotsApi.cs"/>
+        <Compile Include="InventorySlotsModels.cs"/>
+        <Compile Include="InventorySlotsConfigCore.cs"/>
+        <Compile Include="InventoryState.cs"/>
+        <Compile Include="InventoryDefinitionController.cs"/>
+        <Compile Include="InventorySlotSafetyCore.cs"/>
+        <Compile Include="ItemRequiresSkillLevelCompat.cs"/>
+        <Compile Include="ItemRequiresSkillLevelCompatAdapter.cs"/>
+        <Compile Include="MagicSupremacyCompat.cs"/>
+        <Compile Include="MagicSupremacyCompatAdapter.cs"/>
+        <Compile Include="MyLittleUICompat.cs"/>
+        <Compile Include="InventoryLifecyclePatches.cs"/>
+        <Compile Include="InventoryInteractionPatches.cs"/>
+        <Compile Include="InventoryPlacementPatches.cs"/>
+        <Compile Include="InventoryPlacementCore.cs"/>
+        <Compile Include="InventoryActionCellPolicyCore.cs"/>
+        <Compile Include="InventoryCellKind.cs"/>
+        <Compile Include="InventoryPlacementPolicyCore.cs"/>
+        <Compile Include="InventoryPlacementPolicy.cs"/>
+        <Compile Include="InventoryPatchHandlers.cs"/>
+        <Compile Include="InventoryActionPanels.cs"/>
+        <Compile Include="InventoryContainerPanels.cs"/>
+        <Compile Include="InventoryClientState.cs"/>
+        <Compile Include="InventoryFavorites.cs"/>
+        <Compile Include="InventoryHints.cs"/>
+        <Compile Include="HoverTooltipAlpha.cs"/>
+        <Compile Include="HoverTooltipSourceCore.cs"/>
+        <Compile Include="InventoryHoverTooltipScroll.cs"/>
+        <Compile Include="InventoryIntegrityAudit.cs"/>
+        <Compile Include="InventoryIntegrityValidation.cs"/>
+        <Compile Include="InventoryKeyHints.cs"/>
+        <Compile Include="InventoryMarkers.cs"/>
+        <Compile Include="InventoryQuickSlotPanels.cs"/>
+        <Compile Include="InventoryQuickSlotsHud.cs"/>
+        <Compile Include="InventoryRows.cs"/>
+        <Compile Include="InventoryScrollbar.cs"/>
+        <Compile Include="InventoryTrashPanel.cs"/>
+        <Compile Include="InventorySlotsSimpleTooltipHover.cs"/>
+        <Compile Include="InventorySlotsTooltipDisplayData.cs"/>
+        <Compile Include="InventorySlotLayout.cs"/>
+        <Compile Include="InventorySlotPanels.cs"/>
+        <Compile Include="InventoryUiPatches.cs"/>
+        <Compile Include="LocalizationManager\Localizer.cs"/>
+        <Compile Include="InventoryStatPanels.cs"/>
+        <Compile Include="InventoryUiController.cs"/>
+        <Compile Include="PinnedTooltipCrafting.cs"/>
+        <Compile Include="PinnedTooltipInventory.cs"/>
+        <Compile Include="PinnedTooltipPanels.cs"/>
+        <Compile Include="PinnedTooltips.cs"/>
+        <Compile Include="QuickSlotInputController.cs"/>
+        <Compile Include="RestockTargetLimitConfigDrawer.cs"/>
+        <Compile Include="RestockTargetLimitCore.cs"/>
+        <Compile Include="RecycleNReclaimCompat.cs"/>
+        <Compile Include="RecycleNReclaimCompatAdapter.cs"/>
+        <Compile Include="RecycleNReclaimCraftingTabCompat.cs"/>
+        <Compile Include="VeiledRecipesCompat.cs"/>
+        <Compile Include="VeiledRecipesCompatAdapter.cs"/>
+        <Compile Include="Plugin.cs"/>
+        <Compile Include="PluginConfigBinding.cs"/>
+        <Compile Include="PluginLifecycle.cs"/>
+        <Compile Include="PluginMetadata.cs"/>
+        <Compile Include="PluginRuntimeState.cs"/>
+        <Compile Include="PluginUtility.cs"/>
+        <Compile Include="Properties\AssemblyInfo.cs"/>
+        <Compile Include="SortKeyFactory.cs"/>
+        <Compile Include="SortKeyModels.cs"/>
+        <Compile Include="SortKeyComparerCore.cs"/>
+        <Compile Include="ScrollableTooltipBody.cs"/>
+        <Compile Include="SimpleTooltipOwnershipCore.cs"/>
+        <Compile Include="SlotActionBackupController.cs"/>
+        <Compile Include="SlotEquipController.cs"/>
+        <Compile Include="SlotEquipPatchHandlers.cs"/>
+        <Compile Include="StationConversionTokenCache.cs"/>
+        <Compile Include="TombstoneSafety.cs"/>
+        <Compile Include="TooltipOwnership.cs"/>
+        <Compile Include="TooltipSourceCacheCore.cs"/>
+        <Compile Include="TooltipState.cs"/>
+        <Compile Include="UiScrollInput.cs"/>
+        <Compile Include="UiLayout.cs"/>
+        <Compile Include="UpgradeFavoriteCore.cs"/>
+        <Compile Include="VersionHandshake.cs"/>
+        <Compile Include="YamlConfiguration.cs"/>
+        <Compile Include="YamlConfigurationDefaults.cs"/>
+        <Compile Include="YamlItemMatcher.cs"/>
+    </ItemGroup>
+    <ItemGroup>
+        <Content Include="App.config"/>
+        <Content Include="config\InventorySlots.yml"/>
+        <Content Include="environment.props"/>
+        <Content Include="ILRepack.targets"/>
+        <Content Include="Libs\ServerSync.dll">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <Content Include="$(UserProfile)\.nuget\packages\yamldotnet\16.3.0\lib\net47\YamlDotNet.dll">
+            <Link>YamlDotNet.dll</Link>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <Content Include="LICENSE.txt"/>
+        <Content Include="README.md"/>
+        <Content Include="Thunderstore\CHANGELOG.md"/>
+        <Content Include="Thunderstore\icon.png"/>
+        <Content Include="Thunderstore\manifest.json"/>
+        <EmbeddedResource Include="translations\English.yml"/>
+        <EmbeddedResource Include="translations\Korean.yml"/>
+    </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.44.1">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="YamlDotNet" Version="16.3.0"/>
+    </ItemGroup>
+    <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>
+    <Target Name="GetAssemblyVersion" AfterTargets="$(AfterTargets)">
+        <GetAssemblyIdentity AssemblyFiles="$(TargetPath)">
+            <Output TaskParameter="Assemblies" ItemName="Targets"/>
+        </GetAssemblyIdentity>
+        <ItemGroup>
+            <AssemblyVersions Include="@(Targets->'%(Version)')"/>
+        </ItemGroup>
+        <Error Text="Failed to get Assembly Version." Condition="'%(AssemblyVersions.Identity)' == ''"/>
+        <PropertyGroup>
+            <AssemblyVersion>%(AssemblyVersions.Identity)</AssemblyVersion>
+            <Major>$(AssemblyVersion.Split('.')[0])</Major>
+            <Minor>$(AssemblyVersion.Split('.')[1])</Minor>
+            <Patch>$(AssemblyVersion.Split('.')[2])</Patch>
+            <PackageName>$(AssemblyName)_v$(Major).$(Minor).$(Patch)</PackageName>
+            <PackageVersion>$(Major).$(Minor).$(Patch)</PackageVersion>
+            <PackageDir>$(ProjectDir)\Thunderstore\$(PackageName)</PackageDir>
+            <ThunderstoreZip>$(ProjectDir)\Thunderstore\$(PackageName).zip</ThunderstoreZip>
+            <NexusPackageDir>$(ProjectDir)\Nexus\$(PackageName)</NexusPackageDir>
+            <NexusZip>$(ProjectDir)\Nexus\$(PackageName).zip</NexusZip>
+        </PropertyGroup>
+    </Target>
+    <Target Name="PackageRelease" AfterTargets="GetAssemblyVersion" Condition="'$(Configuration)' == 'Release'">
+        <Delete Files="$(ProjectDir)\Thunderstore\README.md" Condition="Exists('$(ProjectDir)\Thunderstore\README.md')"/>
+        <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;$ErrorActionPreference = 'Stop'; $p = '$(ProjectDir)\Thunderstore\manifest.json'; $text = Get-Content -Raw -LiteralPath $p; $text = [regex]::Replace($text, '(\x22version_number\x22\s*:\s*\x22)[^\x22]+(\x22)', '${1}$(PackageVersion)${2}'); Set-Content -LiteralPath $p -Value $text -Encoding UTF8&quot;"/>
+
+        <RemoveDir Directories="$(PackageDir)" Condition="Exists('$(PackageDir)')"/>
+        <MakeDir Directories="$(PackageDir)"/>
+        <Copy SourceFiles="$(TargetPath)" DestinationFiles="$(PackageDir)\$(AssemblyName).dll"/>
+        <Copy SourceFiles="$(ProjectDir)\README.md" DestinationFiles="$(PackageDir)\README.md"/>
+        <Copy SourceFiles="$(ProjectDir)\Thunderstore\CHANGELOG.md" DestinationFiles="$(PackageDir)\CHANGELOG.md"/>
+        <Copy SourceFiles="$(ProjectDir)\Thunderstore\manifest.json" DestinationFiles="$(PackageDir)\manifest.json"/>
+        <Copy SourceFiles="$(ProjectDir)\Thunderstore\icon.png" DestinationFiles="$(PackageDir)\icon.png"/>
+        <Copy SourceFiles="$(ProjectDir)\translations\English.yml" DestinationFiles="$(PackageDir)\$(AssemblyName).English.yml"/>
+        <Delete Files="$(ThunderstoreZip)" Condition="Exists('$(ThunderstoreZip)')"/>
+        <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;Compress-Archive -Path '$(PackageDir)\*' -DestinationPath '$(ThunderstoreZip)' -Force&quot;"/>
+
+        <RemoveDir Directories="$(NexusPackageDir)" Condition="Exists('$(NexusPackageDir)')"/>
+        <MakeDir Directories="$(NexusPackageDir)" Condition="Exists('$(ProjectDir)\Nexus')"/>
+        <Copy SourceFiles="$(TargetPath)" DestinationFiles="$(NexusPackageDir)\$(AssemblyName).dll" Condition="Exists('$(ProjectDir)\Nexus')"/>
+        <Delete Files="$(NexusZip)" Condition="Exists('$(NexusZip)')"/>
+        <Exec Condition="Exists('$(ProjectDir)\Nexus')" Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;Compress-Archive -Path '$(NexusPackageDir)\*' -DestinationPath '$(NexusZip)' -Force&quot;"/>
+    </Target>
+    <Target Name="CopyOutputDLL" AfterTargets="GetAssemblyVersion">
+        <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(CopyOutputDLLPath)" Condition="'$(CopyOutputDLLPath)' != '' AND Exists('$(CopyOutputDLLPath)')"/>
+        <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(CopyOutputDLLPath2)" Condition="'$(CopyOutputDLLPath2)' != '' AND Exists('$(CopyOutputDLLPath2)')"/>
+        <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(CopyOutputDLLPath3)" Condition="'$(CopyOutputDLLPath3)' != '' AND Exists('$(CopyOutputDLLPath3)')"/>
+    </Target>
+</Project>

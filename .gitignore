@@ -1,0 +1,19 @@
+# Build output
+bin/
+obj/
+
+# IDE and user files
+.vs/
+.idea/
+*.suo
+*.user
+*.rsuser
+
+# Release package output
+Thunderstore/InventorySlots_v*/
+Thunderstore/*.zip
+Nexus/InventorySlots_v*/
+Nexus/*.zip
+
+# Local reference material
+reference/

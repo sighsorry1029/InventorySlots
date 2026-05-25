@@ -1,0 +1,55 @@
+inventoryslots_search: Search
+inventoryslots_style: Style
+inventoryslots_sort_group_first: Group first
+inventoryslots_sort_group_first_tooltip: Sort by category, then resource tier.
+inventoryslots_sort_tier_first: Tier first
+inventoryslots_sort_tier_first_tooltip: Sort by resource tier, then category.
+inventoryslots_keyhint_favorite: Favorite
+inventoryslots_keyhint_tooltip: Tooltip
+inventoryslots_max: Max
+inventoryslots_group_favorite: Favorite
+inventoryslots_group_favorite_short: Favor
+inventoryslots_group_melee: Melee
+inventoryslots_group_ranged: Ranged
+inventoryslots_group_ranged_short: Range
+inventoryslots_group_magic: Magic
+inventoryslots_group_equipment: Equipment
+inventoryslots_group_equipment_short: Equip
+inventoryslots_group_food: Food
+inventoryslots_group_consumable: Consumable
+inventoryslots_group_consumable_short: Use
+inventoryslots_group_meadbase: Meadbase
+inventoryslots_group_meadbase_short: Base
+inventoryslots_group_tool: Tool
+inventoryslots_group_misc: Misc
+inventoryslots_button_take_all: Take all
+inventoryslots_button_place_stacks: Place stacks
+inventoryslots_button_place_all: Place all
+inventoryslots_button_take_stacks: Take stacks
+inventoryslots_button_sort: Sort
+inventoryslots_trash_title: Trash
+inventoryslots_trash_tooltip: Drop a held inventory item here to delete it after confirmation.
+inventoryslots_trash_confirm_format: "Delete {item}?"
+inventoryslots_trash_delete: Delete
+inventoryslots_trash_action: Trash
+inventoryslots_trash_no_item: Pick up an item first.
+inventoryslots_trash_player_inventory_only: Only player inventory items can be trashed.
+inventoryslots_trash_item_missing: That item is no longer available.
+inventoryslots_trash_hotbar_item: Hotbar items cannot be trashed.
+inventoryslots_trash_favorite_item: Favorite items cannot be trashed.
+inventoryslots_craft_button_count_format: "{label} x{count}"
+inventoryslots_crafting_progress_count_format: "{label} x{count}"
+inventoryslots_action_container: Container
+inventoryslots_action_take_all: Take All
+inventoryslots_action_take_stacks: Take stacks
+inventoryslots_action_stack: Stack
+inventoryslots_action_place_all: Place All
+inventoryslots_action_sort: Sort
+inventoryslots_action_sort_inventory: Sort Inv
+inventoryslots_action_sort_requested: Sort requested.
+inventoryslots_action_result_format: "{action}: {count}"
+inventoryslots_container_not_ready: Container is not ready.
+inventoryslots_hold_to_restock: Hold to restock
+inventoryslots_hotbar_switch_hint: "Switch\n[{key}]"
+inventoryslots_quick_slot_format: "Quick {index}"
+inventoryslots_clear_favorites_hint_format: "{key}: clear favorites"

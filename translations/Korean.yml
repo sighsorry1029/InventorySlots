@@ -1,0 +1,55 @@
+inventoryslots_search: 검색
+inventoryslots_style: 스타일
+inventoryslots_sort_group_first: 그룹 우선
+inventoryslots_sort_group_first_tooltip: 분류를 먼저, 그다음 자원 티어로 정렬합니다.
+inventoryslots_sort_tier_first: 티어 우선
+inventoryslots_sort_tier_first_tooltip: 자원 티어를 먼저, 그다음 분류로 정렬합니다.
+inventoryslots_keyhint_favorite: 즐겨찾기
+inventoryslots_keyhint_tooltip: 툴팁
+inventoryslots_max: 최대
+inventoryslots_group_favorite: 즐겨찾기
+inventoryslots_group_favorite_short: 즐겨
+inventoryslots_group_melee: 근접
+inventoryslots_group_ranged: 원거리
+inventoryslots_group_ranged_short: 원거리
+inventoryslots_group_magic: 마법
+inventoryslots_group_equipment: 장비
+inventoryslots_group_equipment_short: 장비
+inventoryslots_group_food: 음식
+inventoryslots_group_consumable: 소모품
+inventoryslots_group_consumable_short: 소모
+inventoryslots_group_meadbase: 양조 재료
+inventoryslots_group_meadbase_short: 양조
+inventoryslots_group_tool: 도구
+inventoryslots_group_misc: 기타
+inventoryslots_button_take_all: 모두 가져오기
+inventoryslots_button_place_stacks: 스택 넣기
+inventoryslots_button_place_all: 모두 놓기
+inventoryslots_button_take_stacks: 묶음 갖기
+inventoryslots_button_sort: 정렬
+inventoryslots_trash_title: 휴지통
+inventoryslots_trash_tooltip: 들고 있는 인벤토리 아이템을 여기에 놓으면 확인 후 삭제합니다.
+inventoryslots_trash_confirm_format: "{item}을(를) 삭제할까요?"
+inventoryslots_trash_delete: 삭제
+inventoryslots_trash_action: 삭제
+inventoryslots_trash_no_item: 먼저 아이템을 집어 주세요.
+inventoryslots_trash_player_inventory_only: 플레이어 인벤토리 아이템만 삭제할 수 있습니다.
+inventoryslots_trash_item_missing: 해당 아이템을 더 이상 찾을 수 없습니다.
+inventoryslots_trash_hotbar_item: 핫바 아이템은 삭제할 수 없습니다.
+inventoryslots_trash_favorite_item: 즐겨찾기 아이템은 삭제할 수 없습니다.
+inventoryslots_craft_button_count_format: "{label} x{count}"
+inventoryslots_crafting_progress_count_format: "{label} 중 x{count}"
+inventoryslots_action_container: 컨테이너
+inventoryslots_action_take_all: 모두 가져오기
+inventoryslots_action_take_stacks: 스택 가져오기
+inventoryslots_action_stack: 스택 넣기
+inventoryslots_action_place_all: 모두 넣기
+inventoryslots_action_sort: 정렬
+inventoryslots_action_sort_inventory: 인벤 정렬
+inventoryslots_action_sort_requested: 정렬 요청됨.
+inventoryslots_action_result_format: "{action}: {count}"
+inventoryslots_container_not_ready: 컨테이너를 사용할 수 없습니다.
+inventoryslots_hold_to_restock: 누르고 있으면 보충
+inventoryslots_hotbar_switch_hint: "전환\n[{key}]"
+inventoryslots_quick_slot_format: "퀵 {index}"
+inventoryslots_clear_favorites_hint_format: "{key}: 즐겨찾기 해제"
