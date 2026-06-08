@@ -42,6 +42,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         CraftingController.ClearHoveredRecipe();
+        CraftingController.RequestRecipeHoverMouseSync();
         InvalidateCraftingRecipeGridLayout();
         int pageStart = _craftingRecipePage * GetCraftingRecipeGridCapacity();
         if (pageStart >= 0 && pageStart < CraftingRecipes.View.Count)
@@ -94,6 +95,7 @@ public sealed partial class InventorySlotsPlugin
         InvalidateCraftingRecipeGridLayout();
         MarkCraftingRecipeScrollbarDirty();
         CraftingController.ClearHoveredRecipe();
+        CraftingController.RequestRecipeHoverMouseSync();
         return true;
     }
 
@@ -485,6 +487,52 @@ public sealed partial class InventorySlotsPlugin
 
         CraftingController.SetHoveredRecipe(index);
         SetCurrentCraftingRecipeTooltip(tooltip);
+    }
+
+    private static void SyncCraftingRecipeHoverWithMouseIfRequested()
+    {
+        if (!CraftingController.ConsumeRecipeHoverMouseSync() ||
+            !TryGetCraftingRecipeCellUnderMouse(out int index, out UITooltip? tooltip))
+        {
+            return;
+        }
+
+        SetCraftingRecipeHover(index, tooltip);
+    }
+
+    private static bool TryGetCraftingRecipeCellUnderMouse(out int index, out UITooltip? tooltip)
+    {
+        index = -1;
+        tooltip = null;
+
+        RectTransform? grid = _craftingRecipeGrid;
+        if (grid == null || IsUnityNull(grid) || !grid.gameObject.activeInHierarchy)
+        {
+            return false;
+        }
+
+        Vector2 mouse = GetUiMousePosition();
+        int pageStart = _craftingRecipePage * GetCraftingRecipeGridCapacity();
+        for (int slotIndex = 0; slotIndex < CraftingRecipes.GridCells.Count; slotIndex++)
+        {
+            CraftingRecipeGridCell cell = CraftingRecipes.GridCells[slotIndex];
+            if (cell.Go == null ||
+                IsUnityNull(cell.Go) ||
+                !cell.Go.activeInHierarchy ||
+                !RectContainsScreenPoint(cell.Rect, mouse))
+            {
+                continue;
+            }
+
+            int viewIndex = pageStart + slotIndex;
+            index = viewIndex >= 0 && viewIndex < CraftingRecipes.View.Count
+                ? CraftingRecipes.View[viewIndex].OriginalIndex
+                : cell.Marker.Index;
+            tooltip = cell.Tooltip;
+            return index >= 0;
+        }
+
+        return false;
     }
 
     private static void ClearCraftingRecipeHover(int index, UITooltip? tooltip)

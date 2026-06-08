@@ -115,6 +115,7 @@ public sealed partial class InventorySlotsPlugin
         public string HoverGemIconSignature = "";
         public float HoverTooltipScrollOffset;
         public float HoverTooltipMaxScroll;
+        public bool RecipeHoverMouseSyncPending;
     }
 
     private sealed class CraftingRefreshRuntimeState
@@ -343,6 +344,22 @@ public sealed partial class InventorySlotsPlugin
 
         public static bool IsHoveredRecipe(int index) =>
             CraftingUi.HoveredRecipeIndex == index;
+
+        public static void RequestRecipeHoverMouseSync()
+        {
+            CraftingUi.RecipeHoverMouseSyncPending = true;
+        }
+
+        public static bool ConsumeRecipeHoverMouseSync()
+        {
+            if (!CraftingUi.RecipeHoverMouseSyncPending)
+            {
+                return false;
+            }
+
+            CraftingUi.RecipeHoverMouseSyncPending = false;
+            return true;
+        }
 
         public static void InvalidateRecipeGridZoomHint()
         {

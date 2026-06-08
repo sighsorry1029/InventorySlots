@@ -20,6 +20,8 @@ public sealed partial class InventorySlotsPlugin
 
     private static void UpdateCraftingTooltipRecipeOverlay(InventoryGui gui)
     {
+        SyncCraftingRecipeHoverWithMouseIfRequested();
+
         if (!IsCraftingHoverTooltipEnabled() ||
             CraftingController.HoveredRecipeIndex < 0 ||
             !IsCraftingTooltipRecipeOverlayTargetValid() ||
