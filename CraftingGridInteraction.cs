@@ -149,8 +149,9 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        CraftingUi.RecipeGridZoomHint = EnsureInventoryHintLabel(gui.m_crafting, CraftingRecipeGridZoomHintName, ref CraftingUi.RecipeGridZoomHintText);
-        if (CraftingUi.RecipeGridZoomHint == null || CraftingUi.RecipeGridZoomHintText == null)
+        TMP_Text? rootText = null;
+        CraftingUi.RecipeGridZoomHint = EnsureInventoryHintLabel(gui.m_crafting, CraftingRecipeGridZoomHintName, ref rootText);
+        if (CraftingUi.RecipeGridZoomHint == null || rootText == null)
         {
             return;
         }
@@ -161,7 +162,22 @@ public sealed partial class InventorySlotsPlugin
         float gap = CraftingRecipeGridZoomHintFixedTextIconGap;
         string label = $"{modifierText}+";
         float height = Mathf.Max(iconHeight, textSize * 1.45f);
-        float textWidth = Mathf.Ceil(Mathf.Max(textSize * 1.4f, CraftingUi.RecipeGridZoomHintText.GetPreferredValues(label, 1000f, iconHeight).x + 1f));
+
+        rootText.text = "";
+        rootText.enabled = false;
+        rootText.raycastTarget = false;
+
+        TMP_Text labelText = EnsureHintText(CraftingUi.RecipeGridZoomHint, "Label", label);
+        CraftingUi.RecipeGridZoomHintText = labelText;
+        labelText.enabled = true;
+        labelText.fontSize = textSize;
+        labelText.alignment = TextAlignmentOptions.Left;
+        labelText.textWrappingMode = TextWrappingModes.NoWrap;
+        labelText.overflowMode = TextOverflowModes.Overflow;
+        labelText.color = InventoryWheelHintColor;
+        labelText.raycastTarget = false;
+
+        float textWidth = Mathf.Ceil(Mathf.Max(textSize * 1.4f, labelText.GetPreferredValues(label, 1000f, iconHeight).x + 1f));
         float width = textWidth + gap + iconWidth;
         Vector2 size = new(width, height);
         Vector2 position = GetCraftingRecipeGridZoomHintPosition(grid, size);
@@ -181,17 +197,6 @@ public sealed partial class InventorySlotsPlugin
             InventoryWheelHintColor.g,
             InventoryWheelHintColor.b,
             InventoryWheelHintColor.a);
-        if (CraftingUi.RecipeGridZoomHint.gameObject.activeSelf &&
-            CraftingUi.RecipeGridZoomHintStamp.Equals(stamp) &&
-            CraftingUi.RecipeGridZoomHint.parent == gui.m_crafting &&
-            RectLayoutMatches(CraftingUi.RecipeGridZoomHint, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), position, size))
-        {
-            CraftingUi.RecipeGridZoomHint.SetAsLastSibling();
-            return;
-        }
-
-        CraftingUi.RecipeGridZoomHintText.text = label;
-        CraftingUi.RecipeGridZoomHintText.fontSize = textSize;
 
         if (CraftingUi.RecipeGridZoomHint.parent != gui.m_crafting)
         {
@@ -201,23 +206,14 @@ public sealed partial class InventorySlotsPlugin
         SetCenteredRectLayout(CraftingUi.RecipeGridZoomHint, position, size);
         CraftingUi.RecipeGridZoomHint.SetAsLastSibling();
 
-        RectTransform textRect = (RectTransform)CraftingUi.RecipeGridZoomHintText.transform;
-        if (textRect != CraftingUi.RecipeGridZoomHint)
-        {
-            textRect.anchorMin = new Vector2(0f, 0.5f);
-            textRect.anchorMax = new Vector2(0f, 0.5f);
-            textRect.pivot = new Vector2(0f, 0.5f);
-            textRect.anchoredPosition = Vector2.zero;
-            textRect.sizeDelta = new Vector2(textWidth, height);
-            textRect.localScale = Vector3.one;
-            textRect.localRotation = Quaternion.identity;
-        }
-
-        CraftingUi.RecipeGridZoomHintText.alignment = TextAlignmentOptions.Left;
-        CraftingUi.RecipeGridZoomHintText.textWrappingMode = TextWrappingModes.NoWrap;
-        CraftingUi.RecipeGridZoomHintText.overflowMode = TextOverflowModes.Overflow;
-        CraftingUi.RecipeGridZoomHintText.color = InventoryWheelHintColor;
-        CraftingUi.RecipeGridZoomHintText.raycastTarget = false;
+        RectTransform textRect = (RectTransform)labelText.transform;
+        textRect.anchorMin = new Vector2(0f, 0.5f);
+        textRect.anchorMax = new Vector2(0f, 0.5f);
+        textRect.pivot = new Vector2(0f, 0.5f);
+        textRect.anchoredPosition = Vector2.zero;
+        textRect.sizeDelta = new Vector2(textWidth, height);
+        textRect.localScale = Vector3.one;
+        textRect.localRotation = Quaternion.identity;
 
         RectTransform icon = EnsureHintImage(CraftingUi.RecipeGridZoomHint, "MouseWheelIcon");
         icon.anchorMin = new Vector2(0f, 0.5f);

@@ -45,12 +45,14 @@ public sealed partial class InventorySlotsPlugin
         const float gemGap = 5f;
         const float minSlotSize = 30f;
         const float minGap = 4f;
-        CraftingHoverTooltipContent content = GetCraftingHoverTooltipContent(pair);
+        CraftingHoverTooltipMode mode = GetCraftingHoverTooltipMode();
+        bool showDetails = mode == CraftingHoverTooltipMode.Full;
+        CraftingHoverTooltipContent content = GetCraftingHoverTooltipContent(pair, showDetails);
         bool veiledMasked = IsVeiledRecipeMasked(pair);
-        ItemData? jewelcraftingTooltipItem = veiledMasked ? null : GetCraftingJewelcraftingTooltipItem(pair);
+        ItemData? jewelcraftingTooltipItem = showDetails && !veiledMasked ? GetCraftingJewelcraftingTooltipItem(pair) : null;
         string gemSignature = GetCraftingHoverGemIconSignature(jewelcraftingTooltipItem);
         List<JewelcraftingGemIconData> gemIcons = GetCraftingHoverGemIcons(jewelcraftingTooltipItem, gemSignature);
-        bool hasGemRow = gemIcons.Count > 0;
+        bool hasGemRow = showDetails && gemIcons.Count > 0;
         tooltip.SetActive(true);
         ApplyCraftingHoverTooltipBackground(tooltip.GetComponent<Image>());
         UpdateCraftingHoverTooltipText(content.Topic, content.Body);
@@ -68,14 +70,22 @@ public sealed partial class InventorySlotsPlugin
             panel.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, overlayWidth);
         }
 
-        float height = effectiveSlotSize + padding * 2f + (hasGemRow ? gemGap + effectiveGemIconSize : 0f);
+        float height = showDetails ? effectiveSlotSize + padding * 2f + (hasGemRow ? gemGap + effectiveGemIconSize : 0f) : 0f;
         RectTransform overlay = EnsureCraftingTooltipRecipeOverlay(tooltipRect, panel);
-        LayoutCraftingHoverTooltipPanel(panel, overlay, overlayWidth, height, padding);
+        LayoutCraftingHoverTooltipPanel(panel, overlay, overlayWidth, height, padding, showBody: showDetails && !string.IsNullOrWhiteSpace(content.Body), showOverlay: showDetails);
         DisableCraftingTooltipRecipeOverlayBackground(overlay.GetComponent<Image>());
 
         panel.position = ZInput.mousePosition;
         Utils.ClampUIToScreen(panel);
         tooltip.transform.SetAsLastSibling();
+        if (!showDetails)
+        {
+            overlay.gameObject.SetActive(false);
+            HideCraftingGemIconRow(ref CraftingUi.TooltipGemIconRow);
+            CraftingUi.HoverTooltipVisualSignature = "";
+            return;
+        }
+
         overlay.SetAsLastSibling();
         overlay.gameObject.SetActive(true);
         string visualSignature = GetCraftingHoverTooltipVisualSignature(
@@ -111,8 +121,11 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
+    private static CraftingHoverTooltipMode GetCraftingHoverTooltipMode() =>
+        _showCraftingHoverTooltip != null ? _showCraftingHoverTooltip.Value : CraftingHoverTooltipMode.Full;
+
     private static bool IsCraftingHoverTooltipEnabled() =>
-        _showCraftingHoverTooltip != null && _showCraftingHoverTooltip.Value.IsOn();
+        GetCraftingHoverTooltipMode() != CraftingHoverTooltipMode.Off;
 
     private static void OnCraftingHoverTooltipConfigChanged()
     {
@@ -156,8 +169,14 @@ public sealed partial class InventorySlotsPlugin
         return RectContainsScreenPoint(cell.Rect, GetUiMousePosition());
     }
 
-    private static CraftingHoverTooltipContent GetCraftingHoverTooltipContent(InventoryGui.RecipeDataPair pair)
+    private static CraftingHoverTooltipContent GetCraftingHoverTooltipContent(InventoryGui.RecipeDataPair pair, bool includeBody)
     {
+        if (!includeBody)
+        {
+            CraftingController.ClearHoverTooltipContentKey();
+            return new CraftingHoverTooltipContent(GetCraftingRecipeDisplayName(pair), "");
+        }
+
         string cacheKey = GetCraftingHoverTooltipContentKey(pair);
         if (!string.IsNullOrEmpty(cacheKey) &&
             CraftingRecipes.HoverTooltipContentCache.TryGetValue(cacheKey, out CraftingHoverTooltipContent cached))
@@ -316,17 +335,17 @@ public sealed partial class InventorySlotsPlugin
         return true;
     }
 
-    private static void LayoutCraftingHoverTooltipPanel(RectTransform panel, RectTransform overlay, float width, float overlayHeight, float padding)
+    private static void LayoutCraftingHoverTooltipPanel(RectTransform panel, RectTransform overlay, float width, float overlayHeight, float padding, bool showBody, bool showOverlay)
     {
-        string signature = GetCraftingHoverTooltipLayoutSignature(width, overlayHeight, padding);
+        string signature = GetCraftingHoverTooltipLayoutSignature(width, overlayHeight, padding, showBody, showOverlay);
         if (string.Equals(CraftingUi.HoverTooltipLayoutSignature, signature, StringComparison.Ordinal))
         {
             ApplyCraftingHoverTooltipScrollPosition();
             return;
         }
 
-        const float topicGap = 6f;
-        const float rowGap = 8f;
+        float topicGap = showBody ? 6f : 0f;
+        float rowGap = showOverlay ? 8f : 0f;
         float textWidth = Mathf.Max(40f, width - padding * 2f);
         float topicHeight = 0f;
         float bodyHeight = 0f;
@@ -345,16 +364,23 @@ public sealed partial class InventorySlotsPlugin
         {
             TMP_Text body = CraftingUi.HoverTooltipText;
             EnsureCraftingHoverTooltipTextScrollContent(panel, body);
-            body.gameObject.SetActive(true);
+            body.gameObject.SetActive(showBody);
             body.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, textWidth);
-            body.ForceMeshUpdate(ignoreActiveState: true, forceTextReparsing: false);
-            bodyPreferredHeight = GetCraftingHoverTooltipPreferredTextHeight(body, textWidth);
+            if (showBody)
+            {
+                body.ForceMeshUpdate(ignoreActiveState: true, forceTextReparsing: false);
+                bodyPreferredHeight = GetCraftingHoverTooltipPreferredTextHeight(body, textWidth);
+            }
         }
 
         float bodyTop = padding + topicHeight + topicGap;
-        float fixedHeight = bodyTop + rowGap + overlayHeight + padding;
-        float maxBodyHeight = Mathf.Max(CraftingHoverTooltipMinBodyHeight, GetCraftingHoverTooltipMaxPanelHeight() - fixedHeight);
-        bodyHeight = bodyPreferredHeight > 0f ? Mathf.Min(bodyPreferredHeight, maxBodyHeight) : 0f;
+        float fixedHeight = bodyTop + rowGap + (showOverlay ? overlayHeight : 0f) + padding;
+        if (showBody)
+        {
+            float maxBodyHeight = Mathf.Max(CraftingHoverTooltipMinBodyHeight, GetCraftingHoverTooltipMaxPanelHeight() - fixedHeight);
+            bodyHeight = bodyPreferredHeight > 0f ? Mathf.Min(bodyPreferredHeight, maxBodyHeight) : 0f;
+        }
+
         float panelHeight = bodyTop + bodyHeight + rowGap + overlayHeight + padding;
         panel.anchorMin = new Vector2(0f, 1f);
         panel.anchorMax = new Vector2(0f, 1f);
@@ -370,7 +396,14 @@ public sealed partial class InventorySlotsPlugin
 
         if (CraftingUi.HoverTooltipText != null && !IsUnityNull(CraftingUi.HoverTooltipText))
         {
-            LayoutCraftingHoverTooltipTextScroll(panel, textWidth, padding, bodyTop, bodyHeight, bodyPreferredHeight);
+            if (showBody)
+            {
+                LayoutCraftingHoverTooltipTextScroll(panel, textWidth, padding, bodyTop, bodyHeight, bodyPreferredHeight);
+            }
+            else
+            {
+                HideCraftingHoverTooltipBodyScroll();
+            }
         }
 
         overlay.anchorMin = new Vector2(0f, 0f);
@@ -383,7 +416,7 @@ public sealed partial class InventorySlotsPlugin
         CraftingUi.HoverTooltipLayoutSignature = signature;
     }
 
-    private static string GetCraftingHoverTooltipLayoutSignature(float width, float overlayHeight, float padding)
+    private static string GetCraftingHoverTooltipLayoutSignature(float width, float overlayHeight, float padding, bool showBody, bool showOverlay)
     {
         return string.Join(
             "|",
@@ -393,7 +426,9 @@ public sealed partial class InventorySlotsPlugin
             GetCraftingHoverTooltipMaxPanelHeight().ToString("0.###"),
             width.ToString("0.###"),
             overlayHeight.ToString("0.###"),
-            padding.ToString("0.###"));
+            padding.ToString("0.###"),
+            showBody,
+            showOverlay);
     }
 
     private static void LayoutCraftingHoverTextRect(RectTransform rect, float horizontalPadding, float top, float height)
@@ -452,6 +487,21 @@ public sealed partial class InventorySlotsPlugin
             CraftingUi.HoverTooltipTextScroll,
             CraftingUi.HoverTooltipScrollOffset,
             CraftingUi.HoverTooltipMaxScroll);
+    }
+
+    private static void HideCraftingHoverTooltipBodyScroll()
+    {
+        CraftingUi.HoverTooltipScrollOffset = 0f;
+        CraftingUi.HoverTooltipMaxScroll = 0f;
+        if (CraftingUi.HoverTooltipTextScroll.Scrollbar != null && !IsUnityNull(CraftingUi.HoverTooltipTextScroll.Scrollbar))
+        {
+            CraftingUi.HoverTooltipTextScroll.Scrollbar.gameObject.SetActive(false);
+        }
+
+        if (CraftingUi.HoverTooltipTextScroll.ScrollView != null && !IsUnityNull(CraftingUi.HoverTooltipTextScroll.ScrollView))
+        {
+            CraftingUi.HoverTooltipTextScroll.ScrollView.gameObject.SetActive(false);
+        }
     }
 
     private static bool HandleCraftingHoverTooltipWheel()
@@ -1282,13 +1332,7 @@ public sealed partial class InventorySlotsPlugin
         CraftingUi.HoverTooltipVisualSignature = "";
         CraftingUi.HoverGemIconSignature = "";
         CraftingRecipes.HoverGemIconCache.Clear();
-        CraftingUi.HoverTooltipScrollOffset = 0f;
-        CraftingUi.HoverTooltipMaxScroll = 0f;
-        if (CraftingUi.HoverTooltipTextScroll.Scrollbar != null && !IsUnityNull(CraftingUi.HoverTooltipTextScroll.Scrollbar))
-        {
-            CraftingUi.HoverTooltipTextScroll.Scrollbar.gameObject.SetActive(false);
-        }
-
+        HideCraftingHoverTooltipBodyScroll();
         HideCraftingGemIconRow(ref CraftingUi.TooltipGemIconRow);
     }
 

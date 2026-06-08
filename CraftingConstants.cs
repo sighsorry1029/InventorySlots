@@ -43,7 +43,7 @@ public sealed partial class InventorySlotsPlugin
     private const float CraftingRecipeGridCellSpace = 72f;
     private const float CraftingSocketWarningHeight = 58f;
     private const float CraftingRecipeGridZoomHintFixedSize = 16f;
-    private const float CraftingRecipeGridZoomHintFixedTextIconGap = 16f;
+    private const float CraftingRecipeGridZoomHintFixedTextIconGap = 0f;
     private const float CraftingSearchInputWidth = CraftingRecipeGridCellSpace + CraftingRecipeGridCellSize;
     private const int CraftingTooltipRecipeSlotCount = 5;
     private const int CraftingQueueMaxCount = 99;

@@ -157,10 +157,9 @@ public sealed partial class InventorySlotsPlugin
         }
 
         InventoryGui gui = InventoryGui.instance;
-        if (CraftingController.HoveredRecipeIndex >= 0 && TryGetCraftingRecipePair(gui, CraftingController.HoveredRecipeIndex, out _))
+        if (TryGetCraftingPinnedTooltipTargetIndex(gui, out int craftingRecipeIndex))
         {
-            SelectCraftingRecipeFromGrid(CraftingController.HoveredRecipeIndex);
-            ToggleCraftingRecipeTooltip(gui, CraftingController.HoveredRecipeIndex);
+            ToggleCraftingRecipeTooltip(gui, craftingRecipeIndex);
             ResetHoverTooltipAfterPinnedTooltipToggle();
             return;
         }
@@ -170,6 +169,46 @@ public sealed partial class InventorySlotsPlugin
             ToggleInventoryItemTooltip(gui, grid!, pos, item!);
             ResetHoverTooltipAfterPinnedTooltipToggle();
         }
+    }
+
+    private static bool TryGetCraftingPinnedTooltipTargetIndex(InventoryGui gui, out int index)
+    {
+        index = CraftingController.HoveredRecipeIndex;
+        if (index >= 0 && TryGetCraftingRecipePair(gui, index, out _))
+        {
+            return true;
+        }
+
+        index = GetSelectedCraftingRecipeIndexSafe(gui);
+        if (index < 0 || !TryGetCraftingRecipePair(gui, index, out _))
+        {
+            index = -1;
+            return false;
+        }
+
+        int viewIndex = FindCraftingRecipeViewIndex(index);
+        int capacity = GetCraftingRecipeGridCapacity();
+        int slotIndex = viewIndex - _craftingRecipePage * capacity;
+        if (viewIndex < 0 ||
+            slotIndex < 0 ||
+            slotIndex >= capacity ||
+            slotIndex >= CraftingRecipes.GridCells.Count)
+        {
+            index = -1;
+            return false;
+        }
+
+        CraftingRecipeGridCell cell = CraftingRecipes.GridCells[slotIndex];
+        if (cell.Go == null ||
+            IsUnityNull(cell.Go) ||
+            !cell.Go.activeInHierarchy ||
+            !RectContainsScreenPoint(cell.Rect, GetUiMousePosition()))
+        {
+            index = -1;
+            return false;
+        }
+
+        return true;
     }
 
     private static void ResetHoverTooltipAfterPinnedTooltipToggle()

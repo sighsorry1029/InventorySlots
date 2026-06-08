@@ -33,7 +33,7 @@ public sealed partial class InventorySlotsPlugin
     private static ConfigEntry<PinnedTooltipSlotMode> _pinnedTooltipSlots = null!;
     private static ConfigEntry<KeyboardShortcut> _pinnedTooltipKey = null!;
     private static ConfigEntry<float> _pinnedTooltipBackgroundAlpha = null!;
-    private static ConfigEntry<Toggle> _showCraftingHoverTooltip = null!;
+    private static ConfigEntry<CraftingHoverTooltipMode> _showCraftingHoverTooltip = null!;
     private static ConfigEntry<float> _craftingHoverTooltipBackgroundAlpha = null!;
     private static ConfigEntry<float> _inventoryContainerHoverTooltipBackgroundAlpha = null!;
     private static ConfigEntry<float> _containerHoverHoldDuration = null!;

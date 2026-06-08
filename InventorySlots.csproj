@@ -328,7 +328,7 @@
     </Target>
     <Target Name="PackageRelease" AfterTargets="GetAssemblyVersion" Condition="'$(Configuration)' == 'Release'">
         <Delete Files="$(ProjectDir)\Thunderstore\README.md" Condition="Exists('$(ProjectDir)\Thunderstore\README.md')"/>
-        <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;$ErrorActionPreference = 'Stop'; $p = '$(ProjectDir)\Thunderstore\manifest.json'; $text = Get-Content -Raw -LiteralPath $p; $text = [regex]::Replace($text, '(\x22version_number\x22\s*:\s*\x22)[^\x22]+(\x22)', '${1}$(PackageVersion)${2}'); Set-Content -LiteralPath $p -Value $text -Encoding UTF8&quot;"/>
+        <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;$ErrorActionPreference = 'Stop'; $p = '$(ProjectDir)\Thunderstore\manifest.json'; $text = Get-Content -Raw -LiteralPath $p; $updated = [regex]::Replace($text, '(\x22version_number\x22\s*:\s*\x22)[^\x22]+(\x22)', '${1}$(PackageVersion)${2}'); if ($updated -ne $text) { $enc = New-Object System.Text.UTF8Encoding $false; [System.IO.File]::WriteAllText($p, $updated, $enc) }&quot;"/>
 
         <RemoveDir Directories="$(PackageDir)" Condition="Exists('$(PackageDir)')"/>
         <MakeDir Directories="$(PackageDir)"/>

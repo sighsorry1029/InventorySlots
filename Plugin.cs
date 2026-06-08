@@ -141,6 +141,13 @@ public sealed partial class InventorySlotsPlugin : BaseUnityPlugin
         On
     }
 
+    public enum CraftingHoverTooltipMode
+    {
+        Full,
+        TitleOnly,
+        Off
+    }
+
     public enum InventoryRowsDisplayMode
     {
         Fixed,
