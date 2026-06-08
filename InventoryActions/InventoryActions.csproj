@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')"/>
+    <Import Project="..\environment.props"/>
+    <PropertyGroup>
+        <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
+        <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+        <ProjectGuid>{D726C232-E431-4FA0-A593-9BC54AFC9093}</ProjectGuid>
+        <OutputType>Library</OutputType>
+        <RootNamespace>InventoryActions</RootNamespace>
+        <AssemblyName>InventoryActions</AssemblyName>
+        <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+        <FileAlignment>512</FileAlignment>
+        <LangVersion>preview</LangVersion>
+        <Nullable>enable</Nullable>
+        <BuildPackage Condition="'$(BuildPackage)' == ''">true</BuildPackage>
+        <ILRepackTargetsFile>$(MSBuildProjectDirectory)\..\build\ILRepack.targets</ILRepackTargetsFile>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+        <PlatformTarget>AnyCPU</PlatformTarget>
+        <DebugSymbols>true</DebugSymbols>
+        <DebugType>full</DebugType>
+        <Optimize>false</Optimize>
+        <OutputPath>bin\Debug\</OutputPath>
+        <DefineConstants>DEBUG;TRACE</DefineConstants>
+        <WarningLevel>4</WarningLevel>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+        <PlatformTarget>AnyCPU</PlatformTarget>
+        <DebugSymbols>false</DebugSymbols>
+        <DebugType>none</DebugType>
+        <Optimize>true</Optimize>
+        <OutputPath>bin\Release\</OutputPath>
+        <DefineConstants>TRACE</DefineConstants>
+        <WarningLevel>4</WarningLevel>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
+    <ItemGroup>
+        <Reference Include="0Harmony">
+            <HintPath>$(BepInExPath)\core\0Harmony.dll</HintPath>
+        </Reference>
+        <Reference Include="assembly_guiutils">
+            <HintPath>$(PublicizedAssembliesPath)\assembly_guiutils_publicized.dll</HintPath>
+        </Reference>
+        <Reference Include="assembly_utils">
+            <HintPath>$(PublicizedAssembliesPath)\assembly_utils_publicized.dll</HintPath>
+        </Reference>
+        <Reference Include="assembly_valheim">
+            <HintPath>$(PublicizedAssembliesPath)\assembly_valheim_publicized.dll</HintPath>
+        </Reference>
+        <Reference Include="BepInEx">
+            <HintPath>$(BepInExPath)\core\BepInEx.dll</HintPath>
+        </Reference>
+        <Reference Include="ServerSync">
+            <HintPath>Libs\ServerSync.dll</HintPath>
+        </Reference>
+        <Reference Include="YamlDotNet">
+            <HintPath>$(UserProfile)\.nuget\packages\yamldotnet\16.3.0\lib\net47\YamlDotNet.dll</HintPath>
+        </Reference>
+        <Reference Include="System"/>
+        <Reference Include="System.Core"/>
+        <Reference Include="UnityEngine">
+            <HintPath>$(CorlibPath)\UnityEngine.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine.CoreModule">
+            <HintPath>$(CorlibPath)\UnityEngine.CoreModule.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine.IMGUIModule">
+            <HintPath>$(CorlibPath)\UnityEngine.IMGUIModule.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine.InputLegacyModule">
+            <HintPath>$(CorlibPath)\UnityEngine.InputLegacyModule.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine.PhysicsModule">
+            <HintPath>$(CorlibPath)\UnityEngine.PhysicsModule.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine.UI">
+            <HintPath>$(CorlibPath)\UnityEngine.UI.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine.UIModule">
+            <HintPath>$(CorlibPath)\UnityEngine.UIModule.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine.TextRenderingModule">
+            <HintPath>$(CorlibPath)\UnityEngine.TextRenderingModule.dll</HintPath>
+        </Reference>
+        <Reference Include="Unity.TextMeshPro">
+            <HintPath>$(CorlibPath)\Unity.TextMeshPro.dll</HintPath>
+        </Reference>
+    </ItemGroup>
+    <ItemGroup>
+        <Compile Include="Plugin.cs"/>
+        <Compile Include="ConfigAndUtility.cs"/>
+        <Compile Include="RuntimeModels.cs"/>
+        <Compile Include="LocalizationManager\Localizer.cs"/>
+        <Compile Include="Favorites.cs"/>
+        <Compile Include="Actions.cs"/>
+        <Compile Include="RestockTargetLimitCore.cs"/>
+        <Compile Include="RestockTargetLimitConfigDrawer.cs"/>
+        <Compile Include="Ui.cs"/>
+        <Compile Include="Patches.cs"/>
+        <Compile Include="Properties\AssemblyInfo.cs"/>
+    </ItemGroup>
+    <ItemGroup>
+        <Content Include="Thunderstore\manifest.json"/>
+        <Content Include="Thunderstore\README.md"/>
+        <Content Include="Thunderstore\CHANGELOG.md"/>
+        <Content Include="Thunderstore\icon.png"/>
+        <Content Include="Libs\ServerSync.dll">
+            <Link>Libs\ServerSync.dll</Link>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <Content Include="$(UserProfile)\.nuget\packages\yamldotnet\16.3.0\lib\net47\YamlDotNet.dll">
+            <Link>YamlDotNet.dll</Link>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <EmbeddedResource Include="translations\English.yml">
+            <Link>translations\English.yml</Link>
+        </EmbeddedResource>
+        <EmbeddedResource Include="translations\Korean.yml">
+            <Link>translations\Korean.yml</Link>
+        </EmbeddedResource>
+    </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.44.1">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="YamlDotNet" Version="16.3.0"/>
+    </ItemGroup>
+    <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>
+    <Target Name="GetAssemblyVersion" AfterTargets="$(AfterTargets)">
+        <GetAssemblyIdentity AssemblyFiles="$(TargetPath)">
+            <Output TaskParameter="Assemblies" ItemName="Targets"/>
+        </GetAssemblyIdentity>
+        <ItemGroup>
+            <AssemblyVersions Include="@(Targets->'%(Version)')"/>
+        </ItemGroup>
+        <Error Text="Failed to get Assembly Version." Condition="'%(AssemblyVersions.Identity)' == ''"/>
+        <PropertyGroup>
+            <AssemblyVersion>%(AssemblyVersions.Identity)</AssemblyVersion>
+            <Major>$(AssemblyVersion.Split('.')[0])</Major>
+            <Minor>$(AssemblyVersion.Split('.')[1])</Minor>
+            <Patch>$(AssemblyVersion.Split('.')[2])</Patch>
+            <PackageName>$(AssemblyName)_v$(Major).$(Minor).$(Patch)</PackageName>
+            <PackageVersion>$(Major).$(Minor).$(Patch)</PackageVersion>
+            <PackageDir>$(ProjectDir)\Thunderstore\$(PackageName)</PackageDir>
+            <ThunderstoreZip>$(ProjectDir)\Thunderstore\$(PackageName).zip</ThunderstoreZip>
+        </PropertyGroup>
+    </Target>
+    <Target Name="PackageRelease" AfterTargets="GetAssemblyVersion" Condition="'$(Configuration)' == 'Release' AND '$(BuildPackage)' == 'true'">
+        <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;$ErrorActionPreference = 'Stop'; $p = '$(ProjectDir)\Thunderstore\manifest.json'; $text = Get-Content -Raw -LiteralPath $p; $text = [regex]::Replace($text, '(\x22version_number\x22\s*:\s*\x22)[^\x22]+(\x22)', '${1}$(PackageVersion)${2}'); Set-Content -LiteralPath $p -Value $text -Encoding UTF8&quot;"/>
+
+        <RemoveDir Directories="$(PackageDir)" Condition="Exists('$(PackageDir)')"/>
+        <MakeDir Directories="$(PackageDir)"/>
+        <Copy SourceFiles="$(TargetPath)" DestinationFiles="$(PackageDir)\$(AssemblyName).dll"/>
+        <Copy SourceFiles="$(ProjectDir)\Thunderstore\README.md" DestinationFiles="$(PackageDir)\README.md"/>
+        <Copy SourceFiles="$(ProjectDir)\Thunderstore\CHANGELOG.md" DestinationFiles="$(PackageDir)\CHANGELOG.md"/>
+        <Copy SourceFiles="$(ProjectDir)\Thunderstore\manifest.json" DestinationFiles="$(PackageDir)\manifest.json"/>
+        <Copy SourceFiles="$(ProjectDir)\Thunderstore\icon.png" DestinationFiles="$(PackageDir)\icon.png"/>
+        <Copy SourceFiles="$(ProjectDir)translations\English.yml" DestinationFiles="$(PackageDir)\$(AssemblyName).English.yml"/>
+        <Copy SourceFiles="$(ProjectDir)translations\Korean.yml" DestinationFiles="$(PackageDir)\$(AssemblyName).Korean.yml"/>
+        <Delete Files="$(ThunderstoreZip)" Condition="Exists('$(ThunderstoreZip)')"/>
+        <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;Compress-Archive -Path '$(PackageDir)\*' -DestinationPath '$(ThunderstoreZip)' -Force&quot;"/>
+        <RemoveDir Directories="$(PackageDir)" Condition="Exists('$(PackageDir)')"/>
+    </Target>
+    <Target Name="CopyOutputDLL" AfterTargets="GetAssemblyVersion">
+        <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(CopyOutputDLLPath)" Condition="'$(CopyOutputDLLPath)' != '' AND Exists('$(CopyOutputDLLPath)')"/>
+        <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(CopyOutputDLLPath2)" Condition="'$(CopyOutputDLLPath2)' != '' AND Exists('$(CopyOutputDLLPath2)')"/>
+        <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(CopyOutputDLLPath3)" Condition="'$(CopyOutputDLLPath3)' != '' AND Exists('$(CopyOutputDLLPath3)')"/>
+    </Target>
+</Project>

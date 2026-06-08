@@ -1,0 +1,352 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using BepInEx;
+using BepInEx.Configuration;
+using ServerSync;
+using UnityEngine;
+using ItemData = ItemDrop.ItemData;
+
+namespace InventoryActions;
+
+public sealed partial class InventoryActionsPlugin
+{
+    private static readonly ConfigSync ConfigSync = new(ModGUID)
+    {
+        DisplayName = ModName,
+        CurrentVersion = ModVersion,
+        MinimumRequiredVersion = ModVersion
+    };
+
+    private static ConfigEntry<Toggle> _serverConfigLocked = null!;
+    private static ConfigEntry<Toggle> _enableInventoryTrashPanel = null!;
+    private static ConfigEntry<float> _areaQuickStackRange = null!;
+    private static ConfigEntry<float> _areaRestockRange = null!;
+    private static ConfigEntry<Color> _favoriteBorderColor = null!;
+    private static ConfigEntry<float> _containerHoverHoldDuration = null!;
+    private static ConfigEntry<int> _containerActionSuccessFxMode = null!;
+    private static ConfigEntry<float> _containerActionSuccessFxVolume = null!;
+    private static ConfigEntry<KeyboardShortcut> _favoriteModifierKey = null!;
+    private static ConfigEntry<KeyboardShortcut> _containerRestockKey = null!;
+    private static ConfigEntry<string> _restockTargetStackLimitsConfig = null!;
+    private static readonly Color FavoriteBorderDefaultColor = new(0.1f, 0.55f, 1f, 0.95f);
+
+    private static void BindConfigs()
+    {
+        _serverConfigLocked = ConfigEntry(GeneralConfigSection, "Lock Configuration", Toggle.On, "When enabled, only server admins can modify this mod's synced configuration.");
+        _ = ConfigSync.AddLockingConfigEntry(_serverConfigLocked);
+
+        _enableInventoryTrashPanel = ConfigEntry(GeneralConfigSection, "Enable Inventory Trash Panel", Toggle.On, "When enabled, shows a trash panel below the player inventory. Dropping a held player-inventory item on it opens a confirmation dialog before deleting the held amount.");
+        _areaQuickStackRange = ConfigEntry(GeneralConfigSection, "Area Quick Stack Range", 10f, new ConfigDescription("Range in meters for hover Area Quick Stack. Set to 0 to disable area quick stack. The opened-container Place stacks button only uses the current container.", new AcceptableValueRange<float>(0f, 50f)));
+        _areaRestockRange = ConfigEntry(GeneralConfigSection, "Area Take Stacks Range", 10f, new ConfigDescription("Range in meters for hover Area Take Stacks. Set to 0 to disable area take stacks. The opened-container Take stacks button only uses the current container.", new AcceptableValueRange<float>(0f, 50f)));
+
+        _favoriteModifierKey = ConfigEntry(ClientConfigSection, "Favorite Modifier Key", new KeyboardShortcut(KeyCode.LeftAlt), new ConfigDescription(
+            "Hold this and left-click a player inventory cell to toggle that favorite slot. Alt accepts both LeftAlt and RightAlt.",
+            new AcceptableShortcuts(),
+            new ConfigurationManagerAttributes { Order = 900 }),
+            synchronizedSetting: false);
+        _containerRestockKey = ConfigEntry(ClientConfigSection, "Container Restock Key", new KeyboardShortcut(KeyCode.E, KeyCode.LeftAlt), new ConfigDescription(
+            "Hold this while hovering a container to take stacks into favorite slots from that container and nearby containers. Alt accepts both LeftAlt and RightAlt.",
+            new AcceptableShortcuts(),
+            new ConfigurationManagerAttributes { Order = 890 }),
+            synchronizedSetting: false);
+        _favoriteBorderColor = ConfigEntry(ClientConfigSection, "Favorite Border Color", FavoriteBorderDefaultColor, new ConfigDescription(
+            "Color for favorite slot borders. Uses the same RRGGBBAA color format as InventorySlots color configs. Not synced with server.",
+            null,
+            new ConfigurationManagerAttributes { Order = 880 }),
+            synchronizedSetting: false);
+        _favoriteBorderColor.SettingChanged += (_, _) => RefreshFavoriteBorders();
+
+        _containerHoverHoldDuration = ConfigEntry(ClientConfigSection, "Container Hover Hold Duration", ContainerHoverHoldDurationDefault, new ConfigDescription(
+            "Seconds a container must stay hovered while holding E or the Container Restock Key before hover quick stack/restock fires. Lower values make pass-by container actions more responsive. Not synced with server.",
+            new AcceptableValueRange<float>(ContainerHoverHoldDurationMin, ContainerHoverHoldDurationMax),
+            new ConfigurationManagerAttributes { Order = 870 }),
+            synchronizedSetting: false);
+        _containerActionSuccessFxMode = ConfigEntry(
+            ClientConfigSection,
+            "Container Action Success FX Mode",
+            4,
+            new ConfigDescription(
+                "Chest-unlock FX mode for hover hold area actions. 0 disables FX. 1 spawns FX at the interacted container. 2-12 spawns FX at each container whose stack changed, up to this many containers. Opened-container buttons do not spawn FX.",
+                new AcceptableValueRange<int>(0, 12),
+                new ConfigurationManagerAttributes { Order = 860 }),
+            synchronizedSetting: false);
+        _containerActionSuccessFxVolume = ConfigEntry(
+            ClientConfigSection,
+            "Container Action Success FX Volume",
+            1f,
+            new ConfigDescription(
+                "Volume multiplier for InventoryActions container action success FX audio. 0 mutes the FX sound and 1 keeps the original prefab volume.",
+                new AcceptableValueRange<float>(0f, 1f),
+                new ConfigurationManagerAttributes { Order = 850 }),
+            synchronizedSetting: false);
+
+        _restockTargetStackLimitsConfig = ConfigEntry(
+            RestockConfigSection,
+            "Restock Target Stack Limits",
+            "",
+            new ConfigDescription(
+                "Client-only per-item target stack caps for Take stacks/restock into favorite slots. Keys may be prefab names, internal item names, or localized item names in the current client language, such as Stone: 10, Coins: 500. Separate entries with commas, semicolons, or new lines. Empty uses each item's normal max stack; 0 prevents restocking that item.",
+                null,
+                new ConfigurationManagerAttributes
+                {
+                    Order = 700,
+                    CustomDrawer = DrawRestockTargetStackLimitsConfig
+                }),
+            synchronizedSetting: false);
+        _restockTargetStackLimitsConfig.SettingChanged += (_, _) => RefreshRestockTargetStackLimits();
+        RefreshRestockTargetStackLimits();
+    }
+
+    private static ConfigEntry<T> ConfigEntry<T>(string group, string name, T value, string description, bool synchronizedSetting = true)
+    {
+        return ConfigEntry(group, name, value, new ConfigDescription(description), synchronizedSetting);
+    }
+
+    private static ConfigEntry<T> ConfigEntry<T>(string group, string name, T value, ConfigDescription description, bool synchronizedSetting = true)
+    {
+        ConfigDescription extendedDescription = new(
+            $"{description.Description} [{(synchronizedSetting ? "Synced with Server" : "Not Synced with Server")}]",
+            description.AcceptableValues,
+            description.Tags);
+        ConfigEntry<T> configEntry = _instance.Config.Bind(group, name, value, extendedDescription);
+        ConfigSync.AddConfigEntry(configEntry).SynchronizedConfig = synchronizedSetting;
+        return configEntry;
+    }
+
+    private sealed class AcceptableShortcuts : AcceptableValueBase
+    {
+        public AcceptableShortcuts()
+            : base(typeof(KeyboardShortcut))
+        {
+        }
+
+        public override object Clamp(object value) => value;
+        public override bool IsValid(object value) => true;
+        public override string ToDescriptionString() => $"# Acceptable values: {string.Join(", ", UnityInput.Current.SupportedKeyCodes)}";
+    }
+
+    private sealed class ConfigurationManagerAttributes
+    {
+        public int? Order { get; set; }
+        public bool? Browsable { get; set; }
+        public Action<ConfigEntryBase>? CustomDrawer { get; set; }
+    }
+
+    private static bool IsUnityNull(UnityEngine.Object? obj)
+    {
+        return obj == null;
+    }
+
+    private static bool IsOutOfBounds(Inventory inventory, Vector2i pos)
+    {
+        return inventory == null || pos.x < 0 || pos.y < 0 || pos.x >= inventory.GetWidth() || pos.y >= inventory.GetHeight();
+    }
+
+    private static Inventory? GetPlayerInventory(Player? player)
+    {
+        return player != null ? ((Humanoid)player).GetInventory() : null;
+    }
+
+    private static bool IsPlayerInventory(Player? player, Inventory? inventory)
+    {
+        return player != null && inventory != null && inventory == GetPlayerInventory(player);
+    }
+
+    private static bool IsPlayerActionCell(Inventory inventory, Vector2i pos, bool includeHotbar)
+    {
+        if (IsOutOfBounds(inventory, pos) || pos.y >= Math.Min(VanillaPlayerRows, inventory.GetHeight()))
+        {
+            return false;
+        }
+
+        return pos.y > 0 || includeHotbar;
+    }
+
+    private static bool IsHotbarCell(Vector2i pos) => pos.y == 0;
+
+    private static bool IsRegularActionItem(Player player, Inventory inventory, ItemData item, bool includeHotbar)
+    {
+        return item?.m_shared != null && IsPlayerActionCell(inventory, item.m_gridPos, includeHotbar);
+    }
+
+    private static bool HasNoCustomData(ItemData item)
+    {
+        return item.m_customData == null || item.m_customData.Count == 0;
+    }
+
+    private static bool CanUseContainerActionStacking(ItemData item)
+    {
+        return item?.m_shared != null && HasNoCustomData(item);
+    }
+
+    private static string GetPlayerId(Player player)
+    {
+        PlayerProfile? profile = Game.instance?.GetPlayerProfile();
+        return profile != null ? profile.GetPlayerID().ToString() : player.GetPlayerID().ToString();
+    }
+
+    private static string GetFavoriteFilePath(string playerId)
+    {
+        string safeId = new(playerId.Where(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_').ToArray());
+        if (string.IsNullOrWhiteSpace(safeId))
+        {
+            safeId = "unknown";
+        }
+
+        return Path.Combine(Paths.ConfigPath, $"{ModName}.Favorites.{safeId}.txt");
+    }
+
+    private static string LocalizeUi(string token, string fallback)
+    {
+        if (Localization.instance == null || string.IsNullOrWhiteSpace(token))
+        {
+            return fallback;
+        }
+
+        string localized = Localization.instance.Localize(token);
+        return string.IsNullOrWhiteSpace(localized) || string.Equals(localized, token, StringComparison.Ordinal) ? fallback : localized;
+    }
+
+    private static string GetLocalizedItemName(ItemData item)
+    {
+        string name = item?.m_shared?.m_name ?? "";
+        return Localization.instance != null ? Localization.instance.Localize(name) : name;
+    }
+
+    private static void ShowActionResult(Player player, string action, int moved)
+    {
+        if (player == null)
+        {
+            return;
+        }
+
+        string format = LocalizeUi("$inventoryactions_action_result_format", "{action}: {count}");
+        string message = format
+            .Replace("{action}", action)
+            .Replace("{count}", moved.ToString());
+        player.Message(MessageHud.MessageType.Center, message, 0, null);
+    }
+
+    private static bool ShouldBlockGlobalHotkeys(Player? player = null)
+    {
+        if (player != null && (player.m_isLoading || ((Character)player).InCutscene()))
+        {
+            return true;
+        }
+
+        if (Chat.instance != null && !IsUnityNull(Chat.instance) && Chat.instance.HasFocus())
+        {
+            return true;
+        }
+
+        if (global::Console.IsVisible() ||
+            TextInput.IsVisible() ||
+            Menu.IsVisible() ||
+            Minimap.IsOpen() ||
+            Minimap.InTextInput() ||
+            StoreGui.IsVisible() ||
+            GameCamera.InFreeFly())
+        {
+            return true;
+        }
+
+        if (TextViewer.instance != null && !IsUnityNull(TextViewer.instance) && TextViewer.instance.IsVisible())
+        {
+            return true;
+        }
+
+        return ZNet.instance != null && !IsUnityNull(ZNet.instance) && ZNet.instance.InPasswordDialog();
+    }
+
+    private static bool IsShortcutHeldAllowingAltPair(KeyboardShortcut shortcut)
+    {
+        if (shortcut.MainKey == KeyCode.None || !AreShortcutModifiersHeldAllowingAltPair(shortcut))
+        {
+            return false;
+        }
+
+        return IsShortcutMainKeyHeldAllowingAltPair(shortcut);
+    }
+
+    private static bool AreShortcutModifiersHeldAllowingAltPair(KeyboardShortcut shortcut)
+    {
+        foreach (KeyCode modifier in shortcut.Modifiers)
+        {
+            if (!IsShortcutModifierHeldAllowingAltPair(modifier))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsShortcutModifierHeldAllowingAltPair(KeyCode key)
+    {
+        if (key is KeyCode.LeftAlt or KeyCode.RightAlt)
+        {
+            return Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+        }
+
+        return Input.GetKey(key);
+    }
+
+    private static bool IsShortcutMainKeyHeldAllowingAltPair(KeyboardShortcut shortcut)
+    {
+        if (shortcut.MainKey is KeyCode.LeftAlt or KeyCode.RightAlt)
+        {
+            return Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+        }
+
+        return Input.GetKey(shortcut.MainKey);
+    }
+
+    private static string GetShortcutDisplayText(KeyboardShortcut shortcut)
+    {
+        if (shortcut.MainKey == KeyCode.None)
+        {
+            return "";
+        }
+
+        IEnumerable<string> parts = shortcut.Modifiers
+            .Select(GetShortcutKeyDisplayText)
+            .Concat(new[] { GetShortcutKeyDisplayText(shortcut.MainKey) })
+            .Where(part => !string.IsNullOrWhiteSpace(part));
+        return string.Join("+", parts);
+    }
+
+    private static string GetShortcutKeyDisplayText(KeyCode key)
+    {
+        string text = key.ToString();
+        if (text.StartsWith("Alpha", StringComparison.Ordinal))
+        {
+            return text.Substring("Alpha".Length);
+        }
+
+        return key switch
+        {
+            KeyCode.None => "",
+            KeyCode.LeftAlt or KeyCode.RightAlt => "Alt",
+            KeyCode.LeftControl or KeyCode.RightControl => "Ctrl",
+            KeyCode.LeftShift or KeyCode.RightShift => "Shift",
+            KeyCode.Mouse0 => "M1",
+            KeyCode.Mouse1 => "M2",
+            KeyCode.Mouse2 => "M3",
+            KeyCode.Mouse3 => "M4",
+            KeyCode.Mouse4 => "M5",
+            KeyCode.Mouse5 => "M6",
+            KeyCode.Mouse6 => "M7",
+            KeyCode.Space => "Spc",
+            KeyCode.Escape => "Esc",
+            KeyCode.Return => "Enter",
+            _ => text
+        };
+    }
+}
+
+internal static class ToggleExtensions
+{
+    public static bool IsOn(this InventoryActionsPlugin.Toggle value) => value == InventoryActionsPlugin.Toggle.On;
+}

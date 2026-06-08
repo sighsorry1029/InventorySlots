@@ -1,0 +1,258 @@
+# Slot labels and custom equipment slot definitions. The six vanilla equipment
+# slot ids are fixed and only their names can be changed here.
+# Built-in compatibility slot ids are fixed as well; keep the id values unchanged.
+# Compatibility slots are created when the matching mod/API is loaded. Some
+# compatibility slots also support a non-empty items list as a custom fallback.
+# Other ids create custom equipment slots in the listed order.
+Slots:
+  - id: helmet
+    name: Helmet
+  - id: chest
+    name: Chest
+  - id: legs
+    name: Legs
+  - id: cape
+    name: Cape
+  - id: utility
+    name: Utility
+  - id: trinket
+    name: Trinket
+#  - id: circlet
+#    name: Circlet
+#    items:
+#      - HelmetDverger
+#  - id: wishbone
+#    name: Wishbone
+#    items:
+#      - Wishbone
+#  - id: demister
+#    name: Demister
+#    items:
+#      - Demister
+  - id: jewelcrafting.necklace
+    name: Necklace
+    items: []
+  - id: jewelcrafting.ring
+    name: Ring
+    items: []
+  - id: smoothbrainbackpacks.backpack
+    name: Backpack
+    items: []
+  - id: adventurebackpacks.backpack
+    name: Backpack
+    items: []
+  - id: rustybags.bag
+    name: Bag
+    items: []
+  - id: rustybags.quiver
+    name: Quiver
+    items: []
+  - id: magicsupremacy.belt
+    name: MagicBelt
+    items: []
+
+# Item groups control subgroup order for crafting, inventory, and container
+# sorting. Melee/Ranged/Magic/Equipment/Food/Consumable/Meadbase/Misc are
+# fixed top-level sections. Other keys define custom prefab groups, which can be
+# inserted into those sections or referenced by KeepOnDeath and QuickSlots.
+Groups:
+  Melee:
+    - sword
+    - axe
+    - club
+    - knife
+    - spear
+    - polearm
+    - fists
+    - shield
+    - pickaxe
+    - tool
+  Ranged:
+    - bow
+    - arrow
+    - crossbow
+    - bolt
+    - ammo
+    - bomb
+  Magic:
+    - elementalmagic
+    - bloodmagic
+  Equipment:
+    - helmet
+    - chest
+    - legs
+    - cape
+    - utility
+    - trinket
+#    - customgroup
+  Food:
+    - healthfood
+    - staminafood
+    - eitrfood
+    - feast
+#    - randomrandom
+  Consumable:
+    - mead
+    - potion
+  Meadbase: []
+  Misc:
+    - trophy
+    - valuable
+#  customgroup:
+#    - customprefab
+#    - prefabwhat
+#  randomrandom:
+#    - randomprefab
+#    - prefabprefab
+
+# Items matching these built-in groups, custom groups, or exact prefab/internal
+# names stay in the player inventory instead of moving to the tombstone.
+KeepOnDeath:
+  - Melee
+  - Ranged
+  - Magic
+  - Equipment
+
+# Items matching these top-level groups, subgroups, custom groups, or exact
+# prefab/internal names can be placed in quick slots.
+QuickSlots:
+  - Melee
+  - Ranged
+  - Magic
+  - healthfood
+  - staminafood
+  - eitrfood
+  - mead
+  - potion
+#
+# Resource tier map for crafting recipe sorting. The lowest tier should be
+# listed first by default; InventorySlots sorts higher tiers first in the grid.
+resourceMap:
+  - biome: Meadows
+    materials:
+      - Wood
+      - Stone
+      - Resin
+      - Dandelion
+      - Flint
+      - LeatherScraps
+      - BoneFragments
+      - Honey
+      - Raspberry
+      - Blueberries
+      - DeerHide
+      - DeerMeat
+      - Feathers
+      - GreydwarfEye
+      - RawMeat
+  - biome: BlackForest
+    materials:
+      - HardAntler
+      - Bronze
+      - BronzeNails
+      - Copper
+      - Tin
+      - Ectoplasm
+      - SurtlingCore
+      - TrollHide
+      - BjornHide
+      - FineWood
+      - AncientSeed
+      - Carrot
+      - BjornMeat
+      - BjornPaw
+      - RoundLog
+      - Thistle
+  - biome: Swamp
+    materials:
+      - Iron
+      - Ooze
+      - Entrails
+      - Guck
+      - Bloodbag
+      - Chain
+      - ElderBark
+      - IronNails
+      - Root
+      - Turnip
+      - WitheredBone
+      - CuredSquirrelHamstring
+  - biome: Ocean
+    materials:
+      - Chitin
+      - Resin
+      - SerpentScale
+      - SerpentMeat
+  - biome: Mountain
+    materials:
+      - Silver
+      - Crystal
+      - DragonEgg
+      - JuteRed
+      - Obsidian
+      - WolfClaw
+      - WolfFang
+      - WolfHairBundle
+      - WolfMeat
+      - WolfPelt
+  - biome: Plains
+    materials:
+      - UndeadBjornRibcage
+      - BlackMetal
+      - DragonTear
+      - Barley
+      - BarleyFlour
+      - BoneFragments
+      - ChickenEgg
+      - ChickenMeat
+      - Flax
+      - GoblinTotem
+      - LinenThread
+      - LoxMeat
+      - LoxPelt
+      - Needle
+      - Tar
+  - biome: Mistlands
+    materials:
+      - Eitr
+      - Bilebag
+      - BlackCore
+      - BlackMarble
+      - BugMeat
+      - Carapace
+      - DvergrKeyFragment
+      - DvergrNeedle
+      - GiantBloodSack
+      - HareMeat
+      - JuteBlue
+      - Mandible
+      - Sap
+      - ScaleHide
+      - Softtissue
+      - Wisp
+      - YagluthDrop
+      - YggdrasilWood
+  - biome: AshLands
+    materials:
+      - FlametalNew
+      - AskBladder
+      - AskHide
+      - AsksvinEgg
+      - AsksvinMeat
+      - Blackwood
+      - BoneMawSerpentMeat
+      - BonemawSerpentTooth
+      - CelestialFeather
+      - CeramicPlate
+      - CharcoalResin
+      - CharredBone
+      - CharredCogwheel
+      - Charredskull
+      - Grausten
+      - MoltenCore
+      - MorgenHeart
+      - MorgenSinew
+      - ProustitePowder
+      - SulfurStone
+      - VoltureEgg
+      - VoltureMeat
