@@ -199,11 +199,11 @@ public sealed partial class InventorySlotsPlugin
             size.y,
             warning);
 
-        if (updateLayout || !_craftingSocketWarningStamp.Equals(stamp))
+        if (updateLayout || !CraftingController.CanReuseSocketWarning(stamp))
         {
             SetCraftingTopLeftRect(gui.m_crafting, warningRect, position, size);
             ConfigureCraftingSocketWarningText(_craftingSocketWarningText, warning);
-            _craftingSocketWarningStamp = stamp;
+            CraftingController.StoreSocketWarningStamp(stamp);
         }
 
         warningRect.SetAsLastSibling();
@@ -320,7 +320,7 @@ public sealed partial class InventorySlotsPlugin
             _craftingSocketWarningRect.gameObject.SetActive(false);
         }
 
-        _craftingSocketWarningStamp = default;
+        CraftingController.ResetSocketWarningStamp();
     }
 
     private static int GetSelectedCraftingQuality(InventoryGui gui)

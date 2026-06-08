@@ -30,7 +30,7 @@ public sealed partial class InventorySlotsPlugin
         _craftingRecipeSortMode = OrderedConfigEntry(ClientConfigSection, "Crafting Recipe Sort Mode", CraftingRecipeSortMode.TierThenGroup, "Sorting mode used by crafting station recipe grids. Crafting still keeps favorites and craftable recipes first. TierThenGroup sorts biome/resource tier first, then predefined group. GroupThenTier sorts predefined group first, then biome/resource tier.", order: 870, synchronizedSetting: false);
         _craftingRecipeSortMode.SettingChanged += (_, _) =>
         {
-            _craftingSortModeButtonsStamp = default;
+            CraftingController.ResetSortModeButtonsStamp();
             InvalidateCraftingRecipeView();
         };
 

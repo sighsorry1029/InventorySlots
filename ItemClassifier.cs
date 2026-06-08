@@ -18,6 +18,9 @@ public sealed partial class InventorySlotsPlugin
         "Tankard_dvergr",
         "TankardAnniversary"
     };
+    private static readonly HashSet<string> ToolPrefabOverrideTokens = new(
+        ToolPrefabOverrides.Select(NormalizeResourceToken),
+        StringComparer.OrdinalIgnoreCase);
 
     private sealed class ItemClassification
     {
@@ -414,8 +417,34 @@ public sealed partial class InventorySlotsPlugin
     private static bool MatchTorchCategory(ItemData item) =>
         IsItemTypeOrAttach(item, ItemType.Torch);
 
-    private static bool MatchToolPrefabOverrideCategory(ItemData item) =>
-        ToolPrefabOverrides.Contains(GetItemPrefabName(item));
+    private static bool MatchToolPrefabOverrideCategory(ItemData item)
+    {
+        foreach (string identity in GetToolPrefabOverrideIdentityTokens(item))
+        {
+            if (ToolPrefabOverrides.Contains(identity) ||
+                ToolPrefabOverrideTokens.Contains(NormalizeResourceToken(identity)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static IEnumerable<string> GetToolPrefabOverrideIdentityTokens(ItemData item)
+    {
+        string prefabName = GetItemPrefabName(item);
+        if (!string.IsNullOrWhiteSpace(prefabName))
+        {
+            yield return prefabName;
+        }
+
+        string sharedName = GetSharedName(item);
+        if (!string.IsNullOrWhiteSpace(sharedName))
+        {
+            yield return StripLocalizationToken(sharedName);
+        }
+    }
 
     private static bool IsNonCombatAmmo(ItemData item)
     {

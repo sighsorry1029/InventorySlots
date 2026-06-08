@@ -38,9 +38,23 @@ public sealed partial class InventorySlotsPlugin
                 continue;
             }
 
-            ItemNameTokens[itemPrefab.name] = sharedName!;
-            ItemNameTokens[sharedName!] = sharedName!;
+            AddItemNameToken(itemPrefab.name, sharedName!);
+            AddItemNameToken(sharedName!, sharedName!);
+            AddItemNameToken(StripLocalizationToken(sharedName!), sharedName!);
+            AddItemNameToken(NormalizeResourceToken(itemPrefab.name), sharedName!);
+            AddItemNameToken(NormalizeResourceToken(sharedName!), sharedName!);
         }
+    }
+
+    private static void AddItemNameToken(string? token, string sharedName)
+    {
+        string clean = CleanPrefabName(token?.Trim() ?? "");
+        if (string.IsNullOrWhiteSpace(clean) || ItemNameTokens.ContainsKey(clean))
+        {
+            return;
+        }
+
+        ItemNameTokens[clean] = sharedName;
     }
 
     private static bool ItemMatchesAnyToken(ItemData? item, HashSet<string> tokens)
@@ -58,14 +72,12 @@ public sealed partial class InventorySlotsPlugin
             }
         }
 
-        if (tokens.Contains(item.m_shared.m_name))
+        foreach (string token in tokens)
         {
-            return true;
-        }
-
-        if (!IsUnityNull(item.m_dropPrefab) && tokens.Contains(item.m_dropPrefab.name))
-        {
-            return true;
+            if (ItemMatchesExactPrefabOrName(item, token))
+            {
+                return true;
+            }
         }
 
         return false;
@@ -261,14 +273,81 @@ public sealed partial class InventorySlotsPlugin
         }
 
         string clean = CleanPrefabName(token);
-        return string.Equals(item.m_shared.m_name, token, StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(GetItemPrefabName(item), clean, StringComparison.OrdinalIgnoreCase);
+        return ItemIdentityTokenMatches(GetItemPrefabName(item), clean) ||
+               ItemIdentityTokenMatches(GetSharedName(item), clean) ||
+               ItemIdentityTokenMatches(StripLocalizationToken(GetSharedName(item)), clean) ||
+               ItemMatchesKnownItemNameToken(item, clean);
+    }
+
+    private static bool ItemMatchesKnownItemNameToken(ItemData item, string token)
+    {
+        return TryGetKnownItemSharedName(token, out string knownSharedName) &&
+               ItemIdentityTokenMatches(GetSharedName(item), knownSharedName);
+    }
+
+    private static bool TryGetKnownItemSharedName(string token, out string sharedName)
+    {
+        if (ItemNameTokens.TryGetValue(CleanPrefabName(token), out sharedName))
+        {
+            return true;
+        }
+
+        string normalized = NormalizeResourceToken(token);
+        if (!string.IsNullOrWhiteSpace(normalized) &&
+            ItemNameTokens.TryGetValue(normalized, out sharedName))
+        {
+            return true;
+        }
+
+        sharedName = "";
+        return false;
+    }
+
+    private static bool ItemIdentityTokenMatches(string identity, string token)
+    {
+        string cleanIdentity = CleanPrefabName(identity);
+        string cleanToken = CleanPrefabName(token);
+        if (string.IsNullOrWhiteSpace(cleanIdentity) || string.IsNullOrWhiteSpace(cleanToken))
+        {
+            return false;
+        }
+
+        if (string.Equals(cleanIdentity, cleanToken, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        string normalizedIdentity = NormalizeResourceToken(cleanIdentity);
+        string normalizedToken = NormalizeResourceToken(cleanToken);
+        return !string.IsNullOrWhiteSpace(normalizedIdentity) &&
+               !string.IsNullOrWhiteSpace(normalizedToken) &&
+               string.Equals(normalizedIdentity, normalizedToken, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool ItemMatchesPrefabPattern(ItemData item, string pattern)
     {
         string prefab = GetItemPrefabName(item);
-        return PatternMatches(prefab, pattern);
+        return PatternMatches(prefab, pattern) || ItemMatchesKnownPrefabPattern(item, pattern);
+    }
+
+    private static bool ItemMatchesKnownPrefabPattern(ItemData item, string pattern)
+    {
+        string sharedName = GetSharedName(item);
+        if (string.IsNullOrWhiteSpace(sharedName))
+        {
+            return false;
+        }
+
+        foreach (KeyValuePair<string, string> entry in ItemNameTokens)
+        {
+            if (ItemIdentityTokenMatches(sharedName, entry.Value) &&
+                PatternMatches(entry.Key, pattern))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool ItemMatchesNamePattern(ItemData item, string pattern)

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 using ItemData = ItemDrop.ItemData;
 
@@ -7,8 +6,6 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
-    private static readonly Dictionary<Inventory, int> LoadPreservationInventoryDepth = new();
-
     internal static bool BeginPlayerInventoryLoad(Player player)
     {
         if (IsUnityNull(player))
@@ -45,19 +42,7 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        if (!LoadPreservationInventoryDepth.TryGetValue(inventory, out int depth))
-        {
-            return;
-        }
-
-        if (depth <= 1)
-        {
-            LoadPreservationInventoryDepth.Remove(inventory);
-        }
-        else
-        {
-            LoadPreservationInventoryDepth[inventory] = depth - 1;
-        }
+        EndInventoryLoadPreservation(inventory);
     }
 
     internal static void PreparePlayerInventoryForLoad(Player player)
@@ -102,22 +87,10 @@ public sealed partial class InventorySlotsPlugin
         return ShouldPrepareDetachedPlayerInventoryForLoad(inventory);
     }
 
-    private static bool BeginInventoryLoadPreservation(Inventory? inventory)
-    {
-        if (inventory == null)
-        {
-            return false;
-        }
-
-        LoadPreservationInventoryDepth.TryGetValue(inventory, out int depth);
-        LoadPreservationInventoryDepth[inventory] = depth + 1;
-        return true;
-    }
-
     private static bool ShouldPreserveProgressiveRowsDuringLoad(Inventory inventory, Player? player)
     {
         return inventory != null &&
-               (LoadPreservationInventoryDepth.ContainsKey(inventory) || player != null && player.m_isLoading);
+               (IsInventoryLoadPreserving(inventory) || player != null && player.m_isLoading);
     }
 
     private static void EnsureInventoryHeightForLoad(Inventory? inventory)

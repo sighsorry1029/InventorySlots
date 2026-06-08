@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 using ItemData = ItemDrop.ItemData;
 
@@ -7,8 +6,6 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
-    private static readonly Stack<ItemData?> InventoryAddItemDataStackLookupItems = new();
-
     private static InventoryPlacementScope GetInventoryPlacementScope(Inventory inventory, out Player? player)
     {
         player = null;
@@ -24,7 +21,7 @@ public sealed partial class InventorySlotsPlugin
                 : InventoryPlacementScope.LocalPlayer;
         }
 
-        if (LoadPreservationInventoryDepth.ContainsKey(inventory))
+        if (IsInventoryLoadPreserving(inventory))
         {
             return InventoryPlacementScope.LoadPreservation;
         }
@@ -202,20 +199,17 @@ public sealed partial class InventorySlotsPlugin
 
     internal static bool BeginInventoryAddItemDataStackLookup(ItemData item)
     {
-        InventoryAddItemDataStackLookupItems.Push(item);
+        PushInventoryAddItemDataStackLookupItem(item);
         return true;
     }
 
     internal static void EndInventoryAddItemDataStackLookup(bool active)
     {
-        if (active && InventoryAddItemDataStackLookupItems.Count > 0)
+        if (active)
         {
-            InventoryAddItemDataStackLookupItems.Pop();
+            PopInventoryAddItemDataStackLookupItem();
         }
     }
-
-    private static ItemData? GetCurrentInventoryAddItemDataStackLookupItem() =>
-        InventoryAddItemDataStackLookupItems.Count > 0 ? InventoryAddItemDataStackLookupItems.Peek() : null;
 
     internal static bool TryOverrideGetEmptySlots(Inventory inventory, ref int result)
     {
@@ -432,7 +426,7 @@ public sealed partial class InventorySlotsPlugin
     private static bool TryPrepareLoadPreservationTailInsert(Inventory inventory, Vector2i target)
     {
         if (inventory == null ||
-            !LoadPreservationInventoryDepth.ContainsKey(inventory) ||
+            !IsInventoryLoadPreserving(inventory) ||
             !IsInventorySlotsTailCell(inventory, target))
         {
             return false;

@@ -117,6 +117,21 @@ public sealed partial class InventorySlotsPlugin
         public float HoverTooltipMaxScroll;
     }
 
+    private sealed class CraftingRefreshRuntimeState
+    {
+        public bool RecipeViewDirty = true;
+        public string RecipeViewSignature = "";
+        public bool GroupRailDirty = true;
+        public CraftingGroupRailStamp GroupRailStamp;
+        public bool BottomControlsDirty = true;
+        public string BottomControlsSignature = "";
+        public CraftingStatusHudStamp SocketWarningStamp;
+        public CraftingSortModeButtonsStamp SortModeButtonsStamp;
+        public CraftingFrameFastPathStamp FrameFastPathStamp;
+        public string RecipeListChangeSignature = "";
+        public string SelectedRecipeChangeSignature = "";
+    }
+
     private static class CraftingController
     {
         public static int HoveredRecipeIndex => CraftingUi.HoveredRecipeIndex;
@@ -128,43 +143,43 @@ public sealed partial class InventorySlotsPlugin
             HasModelRefreshWork();
 
         public static bool HasModelRefreshWork() =>
-            _craftingRecipeViewDirty ||
-            _craftingRecipeGridDirty ||
-            _craftingRecipeScrollbarDirty ||
-            _craftingGroupRailDirty;
+            CraftingRefresh.RecipeViewDirty ||
+            CraftingGrid.RecipeGridDirty ||
+            CraftingScrollbar.RecipeScrollbarDirty ||
+            CraftingRefresh.GroupRailDirty;
 
         public static bool HasFrameRebuildWork() =>
             HasModelRefreshWork() ||
-            _craftingBottomControlsDirty;
+            CraftingRefresh.BottomControlsDirty;
 
         public static void MarkRecipeViewDirty()
         {
-            _craftingRecipeViewDirty = true;
-            _craftingRecipeViewSignature = "";
+            CraftingRefresh.RecipeViewDirty = true;
+            CraftingRefresh.RecipeViewSignature = "";
         }
 
         public static void MarkRecipeGridDirty()
         {
-            _craftingRecipeGridDirty = true;
-            _craftingRecipeGridStamp = default;
+            CraftingGrid.RecipeGridDirty = true;
+            CraftingGrid.RecipeGridStamp = default;
         }
 
         public static void MarkRecipeScrollbarDirty()
         {
-            _craftingRecipeScrollbarDirty = true;
-            _craftingRecipeScrollbarStamp = default;
+            CraftingScrollbar.RecipeScrollbarDirty = true;
+            CraftingScrollbar.RecipeScrollbarStamp = default;
         }
 
         public static void MarkGroupRailDirty()
         {
-            _craftingGroupRailDirty = true;
-            _craftingGroupRailStamp = default;
+            CraftingRefresh.GroupRailDirty = true;
+            CraftingRefresh.GroupRailStamp = default;
         }
 
         public static void MarkBottomControlsDirty()
         {
-            _craftingBottomControlsDirty = true;
-            _craftingBottomControlsSignature = "";
+            CraftingRefresh.BottomControlsDirty = true;
+            CraftingRefresh.BottomControlsSignature = "";
         }
 
         public static void MarkSearchInputDirty()
@@ -174,13 +189,13 @@ public sealed partial class InventorySlotsPlugin
         }
 
         public static bool CanReuseRecipeView(string signature) =>
-            !_craftingRecipeViewDirty &&
-            string.Equals(_craftingRecipeViewSignature, signature, StringComparison.Ordinal);
+            !CraftingRefresh.RecipeViewDirty &&
+            string.Equals(CraftingRefresh.RecipeViewSignature, signature, StringComparison.Ordinal);
 
         public static void StoreRecipeViewSignature(string signature)
         {
-            _craftingRecipeViewSignature = signature;
-            _craftingRecipeViewDirty = false;
+            CraftingRefresh.RecipeViewSignature = signature;
+            CraftingRefresh.RecipeViewDirty = false;
         }
 
         public static bool CanReuseRecipeGrid(CraftingRecipeGridStamp stamp) =>
@@ -204,13 +219,13 @@ public sealed partial class InventorySlotsPlugin
         }
 
         public static bool CanReuseGroupRail(CraftingGroupRailStamp stamp) =>
-            !_craftingGroupRailDirty &&
-            _craftingGroupRailStamp.Equals(stamp);
+            !CraftingRefresh.GroupRailDirty &&
+            CraftingRefresh.GroupRailStamp.Equals(stamp);
 
         public static void StoreGroupRailStamp(CraftingGroupRailStamp stamp)
         {
-            _craftingGroupRailStamp = stamp;
-            _craftingGroupRailDirty = false;
+            CraftingRefresh.GroupRailStamp = stamp;
+            CraftingRefresh.GroupRailDirty = false;
         }
 
         public static bool CanReuseSearchInput(CraftingSearchInputStamp stamp) =>
@@ -224,13 +239,80 @@ public sealed partial class InventorySlotsPlugin
         }
 
         public static bool NeedsBottomControlsLayout(string signature) =>
-            _craftingBottomControlsDirty ||
-            !string.Equals(_craftingBottomControlsSignature, signature, StringComparison.Ordinal);
+            CraftingRefresh.BottomControlsDirty ||
+            !string.Equals(CraftingRefresh.BottomControlsSignature, signature, StringComparison.Ordinal);
 
         public static void StoreBottomControlsSignature(string signature)
         {
-            _craftingBottomControlsSignature = signature;
-            _craftingBottomControlsDirty = false;
+            CraftingRefresh.BottomControlsSignature = signature;
+            CraftingRefresh.BottomControlsDirty = false;
+        }
+
+        public static bool CanReuseFrameFastPath(CraftingFrameFastPathStamp stamp) =>
+            CraftingRefresh.FrameFastPathStamp.Equals(stamp);
+
+        public static void StoreFrameFastPathStamp(CraftingFrameFastPathStamp stamp)
+        {
+            CraftingRefresh.FrameFastPathStamp = stamp;
+        }
+
+        public static void ResetFrameFastPathStamp()
+        {
+            CraftingRefresh.FrameFastPathStamp = default;
+        }
+
+        public static bool CanReuseSortModeButtons(CraftingSortModeButtonsStamp stamp) =>
+            CraftingRefresh.SortModeButtonsStamp.Equals(stamp);
+
+        public static void StoreSortModeButtonsStamp(CraftingSortModeButtonsStamp stamp)
+        {
+            CraftingRefresh.SortModeButtonsStamp = stamp;
+        }
+
+        public static void ResetSortModeButtonsStamp()
+        {
+            CraftingRefresh.SortModeButtonsStamp = default;
+        }
+
+        public static bool CanReuseSocketWarning(CraftingStatusHudStamp stamp) =>
+            CraftingRefresh.SocketWarningStamp.Equals(stamp);
+
+        public static void StoreSocketWarningStamp(CraftingStatusHudStamp stamp)
+        {
+            CraftingRefresh.SocketWarningStamp = stamp;
+        }
+
+        public static void ResetSocketWarningStamp()
+        {
+            CraftingRefresh.SocketWarningStamp = default;
+        }
+
+        public static bool TryStoreRecipeListChangeSignature(string signature)
+        {
+            if (string.Equals(CraftingRefresh.RecipeListChangeSignature, signature, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            CraftingRefresh.RecipeListChangeSignature = signature;
+            return true;
+        }
+
+        public static bool TryStoreSelectedRecipeChangeSignature(string signature)
+        {
+            if (string.Equals(CraftingRefresh.SelectedRecipeChangeSignature, signature, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            CraftingRefresh.SelectedRecipeChangeSignature = signature;
+            return true;
+        }
+
+        public static void ResetRecipeChangeSignatures()
+        {
+            CraftingRefresh.RecipeListChangeSignature = "";
+            CraftingRefresh.SelectedRecipeChangeSignature = "";
         }
 
         public static void MarkRecipeViewDirtyCascade()
@@ -279,6 +361,7 @@ public sealed partial class InventorySlotsPlugin
     private static readonly CraftingScrollbarRuntimeState CraftingScrollbar = new();
     private static readonly CraftingQueueRuntimeState CraftingQueue = new();
     private static readonly CraftingUiRuntimeState CraftingUi = new();
+    private static readonly CraftingRefreshRuntimeState CraftingRefresh = new();
     private static readonly Dictionary<Image, bool> CraftingVanillaPanelBackgroundStates = new();
     private static readonly Dictionary<RectTransform, RectTransformSnapshot> CraftingPanelResizeProtectedSnapshots = new();
     private static readonly List<CraftingRecipeGroupFilter> CraftingRecipeGroupFilters = CreateCraftingRecipeGroupFilters();
@@ -306,11 +389,6 @@ public sealed partial class InventorySlotsPlugin
     private static bool _continuingCraftingQueue { get => CraftingQueue.ContinuingQueue; set => CraftingQueue.ContinuingQueue = value; }
     private static bool _updatingCraftingRecipeScrollbar { get => CraftingScrollbar.UpdatingRecipeScrollbar; set => CraftingScrollbar.UpdatingRecipeScrollbar = value; }
     private static bool _craftingRedesignApplied;
-    private static bool _craftingRecipeViewDirty = true;
-    private static bool _craftingRecipeGridDirty { get => CraftingGrid.RecipeGridDirty; set => CraftingGrid.RecipeGridDirty = value; }
-    private static bool _craftingRecipeScrollbarDirty { get => CraftingScrollbar.RecipeScrollbarDirty; set => CraftingScrollbar.RecipeScrollbarDirty = value; }
-    private static bool _craftingGroupRailDirty = true;
-    private static bool _craftingBottomControlsDirty = true;
     private static bool _craftingVanillaRecipeElementsHidden;
     private static bool _craftingVanillaDetailHidden;
     private static bool _craftingVanillaRecipeScrollbarsHidden;
@@ -333,21 +411,11 @@ public sealed partial class InventorySlotsPlugin
     private static string _loadedCraftingFavoritesPlayerId = "";
     private static string _selectedCraftingGroupId = "";
     private static string _craftingSearchQuery = "";
-    private static string _craftingRecipeViewSignature = "";
-    private static CraftingRecipeGridStamp _craftingRecipeGridStamp { get => CraftingGrid.RecipeGridStamp; set => CraftingGrid.RecipeGridStamp = value; }
-    private static CraftingRecipeScrollbarStamp _craftingRecipeScrollbarStamp { get => CraftingScrollbar.RecipeScrollbarStamp; set => CraftingScrollbar.RecipeScrollbarStamp = value; }
-    private static CraftingGroupRailStamp _craftingGroupRailStamp;
     private static string _craftingGroupAvailabilitySignature = "";
     private static string _craftingGroupAvailabilityContextSignature = "";
     private static string _craftingSelectableGroupFilterIdsSignature = "";
     private static string _craftingRecipeGridLayoutSignature { get => CraftingGrid.RecipeGridLayoutSignature; set => CraftingGrid.RecipeGridLayoutSignature = value; }
     private static string _craftingPanelExtensionSignature = "";
-    private static string _craftingBottomControlsSignature = "";
-    private static CraftingStatusHudStamp _craftingSocketWarningStamp;
-    private static CraftingSortModeButtonsStamp _craftingSortModeButtonsStamp;
-    private static CraftingFrameFastPathStamp _craftingFrameFastPathStamp;
-    private static string _craftingRecipeListChangeSignature = "";
-    private static string _craftingSelectedRecipeChangeSignature = "";
     private static string _pendingUpgradeFavoriteItemId = "";
     private static string _pendingUpgradeFavoritePrefab = "";
     private static int _craftingRecipeGridCellCapacity { get => CraftingGrid.RecipeGridCellCapacity; set => CraftingGrid.RecipeGridCellCapacity = value; }

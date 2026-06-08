@@ -994,7 +994,7 @@ public sealed partial class InventorySlotsPlugin
             group.SetAsLastSibling();
         }
 
-        if (_craftingSortModeButtonsStamp.Equals(stamp))
+        if (CraftingController.CanReuseSortModeButtons(stamp))
         {
             return;
         }
@@ -1002,7 +1002,7 @@ public sealed partial class InventorySlotsPlugin
         SetCraftingTopLeftRect(gui.m_crafting, group, position, size);
         ConfigureCraftingSortModeButton(gui, group, CraftingGroupFirstSortButtonName, 0, buttonSize, CraftingRecipeSortMode.GroupThenTier);
         ConfigureCraftingSortModeButton(gui, group, CraftingTierFirstSortButtonName, 1, buttonSize, CraftingRecipeSortMode.TierThenGroup);
-        _craftingSortModeButtonsStamp = stamp;
+        CraftingController.StoreSortModeButtonsStamp(stamp);
     }
 
     private static CraftingSortModeButtonsStamp GetCraftingSortModeButtonsStamp(InventoryGui gui, RectTransform group, Vector2 position, Vector2 size, float buttonSize)
@@ -1044,7 +1044,7 @@ public sealed partial class InventorySlotsPlugin
             _craftingSortModeButtonGroup.SetParent(gui.m_crafting, false);
         }
 
-        _craftingSortModeButtonsStamp = default;
+        CraftingController.ResetSortModeButtonsStamp();
         return _craftingSortModeButtonGroup;
     }
 
@@ -1132,7 +1132,7 @@ public sealed partial class InventorySlotsPlugin
             _craftingRecipeSortMode.Value = mode;
         }
 
-        _craftingSortModeButtonsStamp = default;
+        CraftingController.ResetSortModeButtonsStamp();
         InvalidateCraftingRecipeView();
     }
 

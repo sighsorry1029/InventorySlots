@@ -12,9 +12,9 @@ public sealed partial class InventorySlotsPlugin
         }
 
         CraftingFrameFastPathStamp stamp = CreateCraftingFrameFastPathStamp(gui, adapter);
-        if (!_craftingFrameFastPathStamp.Equals(stamp))
+        if (!CraftingController.CanReuseFrameFastPath(stamp))
         {
-            _craftingFrameFastPathStamp = stamp;
+            CraftingController.StoreFrameFastPathStamp(stamp);
             return false;
         }
 
@@ -90,12 +90,12 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        _craftingFrameFastPathStamp = CreateCraftingFrameFastPathStamp(gui, adapter);
+        CraftingController.StoreFrameFastPathStamp(CreateCraftingFrameFastPathStamp(gui, adapter));
     }
 
     private static void ResetCraftingFrameFastPathStamp()
     {
-        _craftingFrameFastPathStamp = default;
+        CraftingController.ResetFrameFastPathStamp();
     }
 
     private static CraftingFrameFastPathStamp CreateCraftingFrameFastPathStamp(InventoryGui gui, CraftingTabAdapterState adapter)

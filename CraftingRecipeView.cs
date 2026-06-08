@@ -18,12 +18,11 @@ public sealed partial class InventorySlotsPlugin
         }
 
         string signature = GetCraftingRecipeListChangeSignature(gui);
-        if (string.Equals(_craftingRecipeListChangeSignature, signature, StringComparison.Ordinal))
+        if (!CraftingController.TryStoreRecipeListChangeSignature(signature))
         {
             return;
         }
 
-        _craftingRecipeListChangeSignature = signature;
         UpdateCraftingPanelRedesign(gui, CraftingPanelUpdateReason.RecipeListChanged);
     }
 
@@ -35,12 +34,11 @@ public sealed partial class InventorySlotsPlugin
         }
 
         string signature = GetCraftingSelectedRecipeChangeSignature(gui);
-        if (string.Equals(_craftingSelectedRecipeChangeSignature, signature, StringComparison.Ordinal))
+        if (!CraftingController.TryStoreSelectedRecipeChangeSignature(signature))
         {
             return;
         }
 
-        _craftingSelectedRecipeChangeSignature = signature;
         UpdateCraftingPanelRedesign(gui, CraftingPanelUpdateReason.RecipeChanged);
     }
 
@@ -624,7 +622,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static CraftingRecipePairCacheKey GetCraftingRecipePairCacheKey(InventoryGui.RecipeDataPair pair)
     {
-        ItemData? item = pair.ItemData;
+        ItemData? item = GetCraftingRecipeItemData(pair);
         string itemKey = item?.m_shared == null
             ? ""
             : $"{GetItemPrefabName(item)}|{item.m_shared.m_name}|{item.m_variant}|{item.m_quality}";

@@ -111,6 +111,8 @@ public sealed partial class InventorySlotsPlugin
     {
         public readonly Dictionary<ItemData, PendingSlotEquip> PendingSlotEquips = new();
         public readonly Dictionary<ItemData, PendingSlotUnequip> PendingSlotUnequips = new();
+        public readonly Dictionary<Inventory, int> LoadPreservationInventoryDepth = new();
+        public readonly Stack<ItemData?> InventoryAddItemDataStackLookupItems = new();
         public readonly HashSet<string> SlotRecoveryWarnings = new(StringComparer.OrdinalIgnoreCase);
         public readonly HashSet<string> ForeignSlotPreservationWarnings = new(StringComparer.OrdinalIgnoreCase);
         public readonly Dictionary<InventoryStateEnsureReason, int> EnsureCounts = new();
@@ -262,6 +264,54 @@ public sealed partial class InventorySlotsPlugin
     }
     private static DateTime _yamlReloadAfterUtc;
     private static HashSet<Vector2i> FavoriteSlots => InventoryClient.FavoriteSlots;
+
+    private static bool BeginInventoryLoadPreservation(Inventory? inventory)
+    {
+        if (inventory == null)
+        {
+            return false;
+        }
+
+        InventorySafety.LoadPreservationInventoryDepth.TryGetValue(inventory, out int depth);
+        InventorySafety.LoadPreservationInventoryDepth[inventory] = depth + 1;
+        return true;
+    }
+
+    private static void EndInventoryLoadPreservation(Inventory? inventory)
+    {
+        if (inventory == null ||
+            !InventorySafety.LoadPreservationInventoryDepth.TryGetValue(inventory, out int depth))
+        {
+            return;
+        }
+
+        if (depth <= 1)
+        {
+            InventorySafety.LoadPreservationInventoryDepth.Remove(inventory);
+            return;
+        }
+
+        InventorySafety.LoadPreservationInventoryDepth[inventory] = depth - 1;
+    }
+
+    private static bool IsInventoryLoadPreserving(Inventory? inventory) =>
+        inventory != null && InventorySafety.LoadPreservationInventoryDepth.ContainsKey(inventory);
+
+    private static void PushInventoryAddItemDataStackLookupItem(ItemData item) =>
+        InventorySafety.InventoryAddItemDataStackLookupItems.Push(item);
+
+    private static void PopInventoryAddItemDataStackLookupItem()
+    {
+        if (InventorySafety.InventoryAddItemDataStackLookupItems.Count > 0)
+        {
+            InventorySafety.InventoryAddItemDataStackLookupItems.Pop();
+        }
+    }
+
+    private static ItemData? GetCurrentInventoryAddItemDataStackLookupItem() =>
+        InventorySafety.InventoryAddItemDataStackLookupItems.Count > 0
+            ? InventorySafety.InventoryAddItemDataStackLookupItems.Peek()
+            : null;
 
     internal static bool IsCompletingSlotUnequip => InventorySafety.SlotUnequipInProgress;
     internal static bool IsHandlingSlotDropOutside => InventorySafety.HandlingSlotDropOutside;

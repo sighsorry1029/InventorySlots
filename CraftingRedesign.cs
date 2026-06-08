@@ -365,8 +365,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         CraftingController.ClearHoveredRecipe();
-        _craftingRecipeListChangeSignature = "";
-        _craftingSelectedRecipeChangeSignature = "";
+        CraftingController.ResetRecipeChangeSignatures();
         CraftingRecipes.View.Clear();
         CraftingRecipes.ViewIndexByOriginal.Clear();
         InvalidateCraftingRecipeView();
