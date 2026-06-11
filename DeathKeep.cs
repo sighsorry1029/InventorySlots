@@ -282,7 +282,7 @@ public sealed partial class InventorySlotsPlugin
                 return false;
             }
 
-            return slot!.Accepts(item);
+            return CanUseSpecialSlot(player, inventory, item, slot!);
         }
 
         return IsUsableRegularCell(inventory, player, target);

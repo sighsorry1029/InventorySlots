@@ -126,6 +126,7 @@
         <Compile Include="ConfigState.cs"/>
         <Compile Include="ControllerHotkeys.cs"/>
         <Compile Include="ContainerAccessPolicy.cs"/>
+        <Compile Include="ContainerActionCore.cs"/>
         <Compile Include="ContainerActions.cs"/>
         <Compile Include="ContainerTransferCore.cs"/>
         <Compile Include="ContainerGuiPatches.cs"/>

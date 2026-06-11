@@ -9,6 +9,7 @@
   <ItemGroup>
     <Compile Include="..\ClientStateCore.cs" Link="ClientStateCore.cs" />
     <Compile Include="..\ClientStateModels.cs" Link="ClientStateModels.cs" />
+    <Compile Include="..\ContainerActionCore.cs" Link="ContainerActionCore.cs" />
     <Compile Include="..\ContainerTransferCore.cs" Link="ContainerTransferCore.cs" />
     <Compile Include="..\CraftingRecipeViewCore.cs" Link="CraftingRecipeViewCore.cs" />
     <Compile Include="..\CraftingTabAdapterModels.cs" Link="CraftingTabAdapterModels.cs" />
@@ -17,6 +18,9 @@
     <Compile Include="..\InventorySlotsConfigCore.cs" Link="InventorySlotsConfigCore.cs" />
     <Compile Include="..\InventoryActionCellPolicyCore.cs" Link="InventoryActionCellPolicyCore.cs" />
     <Compile Include="..\InventoryCellKind.cs" Link="InventoryCellKind.cs" />
+    <Compile Include="..\InventoryActions\InventoryActionCellPolicyCore.cs" Link="InventoryActions\InventoryActionCellPolicyCore.cs" />
+    <Compile Include="..\InventoryActions\InventoryCellKind.cs" Link="InventoryActions\InventoryCellKind.cs" />
+    <Compile Include="..\InventoryActions\ContainerActionCore.cs" Link="InventoryActions\ContainerActionCore.cs" />
     <Compile Include="..\InventoryPlacementPolicyCore.cs" Link="InventoryPlacementPolicyCore.cs" />
     <Compile Include="..\InventorySlotSafetyCore.cs" Link="InventorySlotSafetyCore.cs" />
     <Compile Include="..\InventorySlotsYamlModels.cs" Link="InventorySlotsYamlModels.cs" />

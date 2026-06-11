@@ -104,6 +104,20 @@ public sealed partial class InventorySlotsPlugin
         public RectTransform? SearchInputRect;
         public RectTransform? RecipeGridZoomHint;
         public TMP_Text? RecipeGridZoomHintText;
+        public RectTransform? GroupRail;
+        public TMP_InputField? CountInput;
+        public RectTransform? CountInputRect;
+        public RectTransform? CountInputViewport;
+        public RectTransform? UpgradeProgressionRect;
+        public TMP_Text? UpgradeProgressionText;
+        public RectTransform? SortModeButtonGroup;
+        public RectTransform? ControlsBackground;
+        public RectTransform? SocketWarningRect;
+        public TMP_Text? SocketWarningText;
+        public Transform? RequiredStationLevelOriginalRoot;
+        public RectTransform? RequiredStationLevelHitbox;
+        public RectTransformSnapshot? PanelRootSnapshot;
+        public Vector2 PanelOriginalSizeDelta;
         public bool SearchInputDirty = true;
         public int HoveredRecipeIndex = -1;
         public CraftingSearchInputStamp SearchInputStamp;
@@ -388,21 +402,21 @@ public sealed partial class InventorySlotsPlugin
 
     private static RectTransform? _craftingRecipeGrid { get => CraftingGrid.RecipeGrid; set => CraftingGrid.RecipeGrid = value; }
     private static RectTransform? _craftingRecipeScrollbar { get => CraftingScrollbar.RecipeScrollbar; set => CraftingScrollbar.RecipeScrollbar = value; }
-    private static RectTransform? _craftingGroupRail;
+    private static RectTransform? _craftingGroupRail { get => CraftingUi.GroupRail; set => CraftingUi.GroupRail = value; }
     private static Scrollbar? _craftingRecipeScrollbarComponent { get => CraftingScrollbar.RecipeScrollbarComponent; set => CraftingScrollbar.RecipeScrollbarComponent = value; }
-    private static TMP_InputField? _craftingCountInput;
-    private static RectTransform? _craftingCountInputRect;
-    private static RectTransform? _craftingCountInputViewport;
-    private static RectTransform? _craftingUpgradeProgressionRect;
-    private static TMP_Text? _craftingUpgradeProgressionText;
-    private static RectTransform? _craftingSortModeButtonGroup;
-    private static RectTransform? _craftingControlsBackground;
-    private static RectTransform? _craftingSocketWarningRect;
-    private static TMP_Text? _craftingSocketWarningText;
-    private static Transform? _craftingRequiredStationLevelOriginalRoot;
-    private static RectTransform? _craftingRequiredStationLevelHitbox;
-    private static RectTransformSnapshot? _craftingPanelRootSnapshot;
-    private static Vector2 _craftingPanelOriginalSizeDelta;
+    private static TMP_InputField? _craftingCountInput { get => CraftingUi.CountInput; set => CraftingUi.CountInput = value; }
+    private static RectTransform? _craftingCountInputRect { get => CraftingUi.CountInputRect; set => CraftingUi.CountInputRect = value; }
+    private static RectTransform? _craftingCountInputViewport { get => CraftingUi.CountInputViewport; set => CraftingUi.CountInputViewport = value; }
+    private static RectTransform? _craftingUpgradeProgressionRect { get => CraftingUi.UpgradeProgressionRect; set => CraftingUi.UpgradeProgressionRect = value; }
+    private static TMP_Text? _craftingUpgradeProgressionText { get => CraftingUi.UpgradeProgressionText; set => CraftingUi.UpgradeProgressionText = value; }
+    private static RectTransform? _craftingSortModeButtonGroup { get => CraftingUi.SortModeButtonGroup; set => CraftingUi.SortModeButtonGroup = value; }
+    private static RectTransform? _craftingControlsBackground { get => CraftingUi.ControlsBackground; set => CraftingUi.ControlsBackground = value; }
+    private static RectTransform? _craftingSocketWarningRect { get => CraftingUi.SocketWarningRect; set => CraftingUi.SocketWarningRect = value; }
+    private static TMP_Text? _craftingSocketWarningText { get => CraftingUi.SocketWarningText; set => CraftingUi.SocketWarningText = value; }
+    private static Transform? _craftingRequiredStationLevelOriginalRoot { get => CraftingUi.RequiredStationLevelOriginalRoot; set => CraftingUi.RequiredStationLevelOriginalRoot = value; }
+    private static RectTransform? _craftingRequiredStationLevelHitbox { get => CraftingUi.RequiredStationLevelHitbox; set => CraftingUi.RequiredStationLevelHitbox = value; }
+    private static RectTransformSnapshot? _craftingPanelRootSnapshot { get => CraftingUi.PanelRootSnapshot; set => CraftingUi.PanelRootSnapshot = value; }
+    private static Vector2 _craftingPanelOriginalSizeDelta { get => CraftingUi.PanelOriginalSizeDelta; set => CraftingUi.PanelOriginalSizeDelta = value; }
 
     private static bool _continuingCraftingQueue { get => CraftingQueue.ContinuingQueue; set => CraftingQueue.ContinuingQueue = value; }
     private static bool _updatingCraftingRecipeScrollbar { get => CraftingScrollbar.UpdatingRecipeScrollbar; set => CraftingScrollbar.UpdatingRecipeScrollbar = value; }

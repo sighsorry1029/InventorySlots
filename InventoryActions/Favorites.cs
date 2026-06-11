@@ -28,7 +28,7 @@ public sealed partial class InventoryActionsPlugin
             return true;
         }
 
-        if (!IsPlayerActionCell(inventory, pos, includeHotbar: true))
+        if (!CanFavoriteCell(inventory, pos))
         {
             return true;
         }

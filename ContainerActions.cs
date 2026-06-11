@@ -256,14 +256,9 @@ public sealed partial class InventorySlotsPlugin
     private static int CountMovedFromContainerSource(Inventory sourceInventory, ItemData sourceItem, int before, int requestedAmount, bool moveSucceeded, out bool remotePending)
     {
         int after = sourceInventory.m_inventory.Contains(sourceItem) ? sourceItem.m_stack : 0;
-        int moved = Math.Max(0, before - after);
-        remotePending = false;
-        if (moved == 0 && moveSucceeded && IsRemoteMultiUserChestInventory(sourceInventory))
-        {
-            remotePending = true;
-            moved = requestedAmount;
-        }
-
+        bool useFallback = IsRemoteMultiUserChestInventory(sourceInventory);
+        int moved = ContainerActionCore.CountMovedAmount(before, after, requestedAmount, moveSucceeded, useFallback);
+        remotePending = Math.Max(0, before - after) == 0 && moveSucceeded && useFallback && moved > 0;
         return moved;
     }
 
@@ -277,8 +272,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static int CompareGridOrder(Vector2i a, Vector2i b)
     {
-        int y = a.y.CompareTo(b.y);
-        return y != 0 ? y : a.x.CompareTo(b.x);
+        return ContainerActionCore.CompareGridOrder(a.x, a.y, b.x, b.y);
     }
 
     private static void ShowActionResult(Player player, string action, int moved)

@@ -55,6 +55,7 @@ TestRunner.Run(
     ("Action cell policy favorites include quickslots", Tests.ActionCellPolicyFavoritesIncludeQuickslots),
     ("Action cell policy keeps quickslots out of container action sources", Tests.ActionCellPolicyKeepsQuickslotsOutOfContainerActionSources),
     ("Action cell policy restock targets include hotbar and quickslots", Tests.ActionCellPolicyRestockTargetsIncludeHotbarAndQuickslots),
+    ("InventoryActions action cell policy copy mirrors InventorySlots behavior", Tests.InventoryActionsActionCellPolicyCopyMirrorsInventorySlotsBehavior),
     ("Keep-on-death equipment prefers regular cell before unrelated special slot", Tests.KeepOnDeathEquipmentPrefersRegularCellBeforeUnrelatedSpecialSlot),
     ("Keep-on-death quickslot avoids unrelated special slot when packed", Tests.KeepOnDeathQuickslotAvoidsUnrelatedSpecialSlotWhenPacked),
     ("Keep-on-death equipment prefers same-kind special slot", Tests.KeepOnDeathEquipmentPrefersSameKindSpecialSlot),
@@ -71,6 +72,7 @@ TestRunner.Run(
     ("Tooltip source cache trims oldest entries", Tests.TooltipSourceCacheTrimsOldestEntries),
     ("Container transfer sums moved amounts and callbacks", Tests.ContainerTransferSumsMovedAmountsAndCallbacks),
     ("Container transfer stays quiet when nothing moves", Tests.ContainerTransferStaysQuietWhenNothingMoves),
+    ("InventoryActions container action core copy mirrors InventorySlots behavior", Tests.InventoryActionsContainerActionCoreCopyMirrorsInventorySlotsBehavior),
     ("Restock target limits parse config entries", Tests.RestockTargetLimitsParseConfigEntries),
     ("Restock target limit resolves aliases and clamps to max stack", Tests.RestockTargetLimitResolvesAliasesAndClampsToMaxStack),
     ("Restock target limit resolves localized item names", Tests.RestockTargetLimitResolvesLocalizedItemNames),
@@ -831,6 +833,32 @@ internal static class Tests
         Assert.False(InventoryActionCellPolicyCore.CanUseFavoriteRestockTarget(InventoryCellKind.Outside), "outside cells should not be restock targets");
     }
 
+    public static void InventoryActionsActionCellPolicyCopyMirrorsInventorySlotsBehavior()
+    {
+        string[] slotsKindNames = Enum.GetNames(typeof(InventoryCellKind));
+        string[] actionsKindNames = Enum.GetNames(typeof(InventoryActions.InventoryCellKind));
+        Assert.Equal(string.Join(",", slotsKindNames), string.Join(",", actionsKindNames));
+
+        foreach (string name in slotsKindNames)
+        {
+            InventoryCellKind slotsKind = Enum.Parse<InventoryCellKind>(name);
+            InventoryActions.InventoryCellKind actionsKind = Enum.Parse<InventoryActions.InventoryCellKind>(name);
+
+            Assert.Equal(
+                InventoryActionCellPolicyCore.CanFavoriteSlot(slotsKind),
+                InventoryActions.InventoryActionCellPolicyCore.CanFavoriteSlot(actionsKind));
+            Assert.Equal(
+                InventoryActionCellPolicyCore.CanUseFavoriteRestockTarget(slotsKind),
+                InventoryActions.InventoryActionCellPolicyCore.CanUseFavoriteRestockTarget(actionsKind));
+            Assert.Equal(
+                InventoryActionCellPolicyCore.CanUseContainerActionSource(slotsKind, includeHotbar: false),
+                InventoryActions.InventoryActionCellPolicyCore.CanUseContainerActionSource(actionsKind, includeHotbar: false));
+            Assert.Equal(
+                InventoryActionCellPolicyCore.CanUseContainerActionSource(slotsKind, includeHotbar: true),
+                InventoryActions.InventoryActionCellPolicyCore.CanUseContainerActionSource(actionsKind, includeHotbar: true));
+        }
+    }
+
     public static void KeepOnDeathEquipmentPrefersRegularCellBeforeUnrelatedSpecialSlot()
     {
         InventorySlotSafetyCore.KeepOnDeathRestorePlan plan = InventorySlotSafetyCore.SelectKeepOnDeathRestorePlan(
@@ -1101,6 +1129,41 @@ internal static class Tests
         Assert.Equal(0, moved);
         Assert.Equal(0, changedCount);
         Assert.Equal(0, anyMovedCount);
+    }
+
+    public static void InventoryActionsContainerActionCoreCopyMirrorsInventorySlotsBehavior()
+    {
+        (int Before, int After, int Requested, bool MoveSucceeded, bool UseFallback)[] movedCases =
+        {
+            (10, 3, 7, true, false),
+            (10, 10, 4, true, true),
+            (10, 10, 4, true, false),
+            (10, 12, 4, true, true),
+            (10, 10, 4, false, true),
+            (10, 10, -4, true, true)
+        };
+
+        foreach ((int before, int after, int requested, bool moveSucceeded, bool useFallback) in movedCases)
+        {
+            Assert.Equal(
+                ContainerActionCore.CountMovedAmount(before, after, requested, moveSucceeded, useFallback),
+                InventoryActions.ContainerActionCore.CountMovedAmount(before, after, requested, moveSucceeded, useFallback));
+        }
+
+        (int LeftX, int LeftY, int RightX, int RightY)[] gridCases =
+        {
+            (0, 0, 1, 0),
+            (1, 0, 0, 1),
+            (4, 3, 4, 3),
+            (7, 2, 0, 2)
+        };
+
+        foreach ((int leftX, int leftY, int rightX, int rightY) in gridCases)
+        {
+            Assert.Equal(
+                ContainerActionCore.CompareGridOrder(leftX, leftY, rightX, rightY),
+                InventoryActions.ContainerActionCore.CompareGridOrder(leftX, leftY, rightX, rightY));
+        }
     }
 
     public static void RestockTargetLimitsParseConfigEntries()

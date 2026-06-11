@@ -286,11 +286,13 @@ public sealed partial class InventorySlotsPlugin
         }
         else
         {
-            textRect = CreateTextRect("Text", _craftingSocketWarningRect, out _craftingSocketWarningText);
+            textRect = CreateTextRect("Text", _craftingSocketWarningRect, out TMP_Text socketWarningText);
+            _craftingSocketWarningText = socketWarningText;
         }
 
         SetStretchRectLayoutCached(textRect, new Vector2(12f, 5f), new Vector2(-12f, -5f), "crafting-socket-warning-text");
-        ConfigureCraftingSocketWarningText(_craftingSocketWarningText, _craftingSocketWarningText.text);
+        TMP_Text warningText = _craftingSocketWarningText!;
+        ConfigureCraftingSocketWarningText(warningText, warningText.text);
         return _craftingSocketWarningRect;
     }
 
@@ -421,14 +423,15 @@ public sealed partial class InventorySlotsPlugin
             background.color = new Color(0f, 0f, 0f, 0.42f);
             background.raycastTarget = true;
 
-            RectTransform textRect = CreateTextRect("Text", _craftingUpgradeProgressionRect, out _craftingUpgradeProgressionText);
+            RectTransform textRect = CreateTextRect("Text", _craftingUpgradeProgressionRect, out TMP_Text upgradeProgressionText);
+            _craftingUpgradeProgressionText = upgradeProgressionText;
             SetStretchRectLayoutCached(textRect, new Vector2(4f, 3f), new Vector2(-4f, -3f), "crafting-upgrade-progression-text");
-            _craftingUpgradeProgressionText.fontSize = 20f;
-            _craftingUpgradeProgressionText.alignment = TextAlignmentOptions.Center;
-            _craftingUpgradeProgressionText.color = new Color(1f, 0.84f, 0.42f, 1f);
-            _craftingUpgradeProgressionText.textWrappingMode = TextWrappingModes.NoWrap;
-            _craftingUpgradeProgressionText.overflowMode = TextOverflowModes.Overflow;
-            _craftingUpgradeProgressionText.raycastTarget = false;
+            upgradeProgressionText.fontSize = 20f;
+            upgradeProgressionText.alignment = TextAlignmentOptions.Center;
+            upgradeProgressionText.color = new Color(1f, 0.84f, 0.42f, 1f);
+            upgradeProgressionText.textWrappingMode = TextWrappingModes.NoWrap;
+            upgradeProgressionText.overflowMode = TextOverflowModes.Overflow;
+            upgradeProgressionText.raycastTarget = false;
         }
         else
         {

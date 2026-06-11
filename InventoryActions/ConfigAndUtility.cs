@@ -156,12 +156,30 @@ public sealed partial class InventoryActionsPlugin
 
     private static bool IsPlayerActionCell(Inventory inventory, Vector2i pos, bool includeHotbar)
     {
+        InventoryCellKind kind = GetInventoryCellKind(inventory, pos);
+        return InventoryActionCellPolicyCore.CanUseContainerActionSource(kind, includeHotbar);
+    }
+
+    private static bool CanFavoriteCell(Inventory inventory, Vector2i pos)
+    {
+        InventoryCellKind kind = GetInventoryCellKind(inventory, pos);
+        return InventoryActionCellPolicyCore.CanFavoriteSlot(kind);
+    }
+
+    private static bool CanUseFavoriteRestockTargetCell(Inventory inventory, Vector2i pos)
+    {
+        InventoryCellKind kind = GetInventoryCellKind(inventory, pos);
+        return InventoryActionCellPolicyCore.CanUseFavoriteRestockTarget(kind);
+    }
+
+    private static InventoryCellKind GetInventoryCellKind(Inventory inventory, Vector2i pos)
+    {
         if (IsOutOfBounds(inventory, pos) || pos.y >= Math.Min(VanillaPlayerRows, inventory.GetHeight()))
         {
-            return false;
+            return InventoryCellKind.Outside;
         }
 
-        return pos.y > 0 || includeHotbar;
+        return pos.y == 0 ? InventoryCellKind.Hotbar : InventoryCellKind.RegularUnlocked;
     }
 
     private static bool IsHotbarCell(Vector2i pos) => pos.y == 0;

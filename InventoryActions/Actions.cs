@@ -423,7 +423,7 @@ public sealed partial class InventoryActionsPlugin
     private static bool ShouldRestockFavoriteItem(Player player, Inventory inventory, ItemData item)
     {
         if (item?.m_shared == null ||
-            !IsPlayerActionCell(inventory, item.m_gridPos, includeHotbar: true) ||
+            !CanUseFavoriteRestockTargetCell(inventory, item.m_gridPos) ||
             !IsFavoriteSlot(player, item.m_gridPos) ||
             !CanUseContainerActionStacking(item))
         {
@@ -1434,14 +1434,12 @@ public sealed partial class InventoryActionsPlugin
     private static int CountMovedFromContainerSource(Inventory sourceInventory, ItemData sourceItem, int before, int requestedAmount, bool moveSucceeded)
     {
         int after = sourceInventory.m_inventory.Contains(sourceItem) ? sourceItem.m_stack : 0;
-        int moved = Math.Max(0, before - after);
-        return moved == 0 && moveSucceeded ? requestedAmount : moved;
+        return ContainerActionCore.CountMovedAmount(before, after, requestedAmount, moveSucceeded, useMoveSucceededFallback: true);
     }
 
     private static int CompareGridOrder(Vector2i a, Vector2i b)
     {
-        int y = a.y.CompareTo(b.y);
-        return y != 0 ? y : a.x.CompareTo(b.x);
+        return ContainerActionCore.CompareGridOrder(a.x, a.y, b.x, b.y);
     }
 
     private readonly struct SfxVolumeMemberCache

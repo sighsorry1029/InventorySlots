@@ -187,7 +187,7 @@ public sealed partial class InventorySlotsPlugin
             }
         }
 
-        foreach (SlotDefinition slot in SlotDefinitions.Where(slot => slot.Kind == SlotKind.Quick && IsQuickSlotUnlocked(player, slot) && slot.Accepts(item)))
+        foreach (SlotDefinition slot in SlotDefinitions.Where(slot => slot.Kind == SlotKind.Quick && CanUseSpecialSlot(player, inventory, item, slot)))
         {
             Vector2i candidate = GetSlotGridPos(inventory, slot);
             if (!claimed.Contains(candidate))

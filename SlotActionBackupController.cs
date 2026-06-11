@@ -220,9 +220,10 @@ public sealed partial class InventorySlotsPlugin
     private static bool TryRestoreBackupItem(Player player, Inventory inventory, ItemData backupItem, Vector2i target)
     {
         ItemData item = backupItem.Clone();
-        if (!IsOutOfBounds(inventory, target) && TryGetSlotAtGridPos(inventory, target, out SlotDefinition? slot) && slot!.Accepts(item) && inventory.GetItemAt(target.x, target.y) == null)
+        if (!IsOutOfBounds(inventory, target) &&
+            TryGetEmptyUsableSpecialSlotAtCell(player, inventory, item, target, out SlotDefinition? slot))
         {
-            return TryEquipIntoSlot(player, inventory, item, slot);
+            return TryEquipIntoSlot(player, inventory, item, slot!);
         }
 
         if (TryAutoPlaceItemInSpecialSlot(player, inventory, item))

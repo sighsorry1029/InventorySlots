@@ -602,7 +602,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool TryQueueSlotEquip(Player player, Inventory inventory, ItemData item, SlotDefinition slot)
     {
-        if (player == null || inventory == null || item == null || slot == null || slot.Kind == SlotKind.Quick || !slot.Accepts(item))
+        if (player == null || inventory == null || item == null || slot == null || slot.Kind == SlotKind.Quick || !CanUseSpecialSlot(player, inventory, item, slot))
         {
             return false;
         }
@@ -669,7 +669,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         slot = gridSlot ?? GetSlotFromItemMarker(item);
-        return slot != null && slot.Kind != SlotKind.Quick && slot.Accepts(item);
+        return slot != null && slot.Kind != SlotKind.Quick && CanUseSpecialSlot(player, inventory, item, slot);
     }
 
     internal static bool TryHandleSlotItemDragOut(InventoryGui gui, InventoryGrid targetGrid, Vector2i pos, InventoryGrid.Modifier mod)
@@ -895,7 +895,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void RestoreSlotItemAfterFailedExternalRemoval(Player player, Inventory inventory, ItemData item, SlotDefinition? slot)
     {
-        if (player == null || inventory == null || item == null || slot == null || !inventory.ContainsItem(item) || !slot.Accepts(item))
+        if (player == null || inventory == null || item == null || slot == null || !inventory.ContainsItem(item) || !CanUseSpecialSlot(player, inventory, item, slot))
         {
             return;
         }

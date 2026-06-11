@@ -132,8 +132,7 @@ public sealed partial class InventorySlotsPlugin
 
         if (kind is InventoryCellKind.Equipment or InventoryCellKind.CustomEquipment or InventoryCellKind.Quick)
         {
-            return TryGetSlotAtGridPos(inventory, pos, out SlotDefinition? slot) &&
-                   CanUseSpecialSlot(player, inventory, item, slot!);
+            return TryGetUsableSpecialSlotAtCell(player, inventory, item, pos, out _);
         }
 
         return kind == InventoryCellKind.Hotbar ||
@@ -199,6 +198,30 @@ public sealed partial class InventorySlotsPlugin
     {
         return CanUseSpecialSlot(player, inventory, item, slot) &&
                FindItemForSlot(player, inventory, slot) == null;
+    }
+
+    private static bool TryGetUsableSpecialSlotAtCell(Player player, Inventory inventory, ItemData item, Vector2i pos, out SlotDefinition? slot)
+    {
+        slot = null;
+        if (!TryGetSlotAtGridPos(inventory, pos, out SlotDefinition? resolved) ||
+            resolved == null ||
+            !CanUseSpecialSlot(player, inventory, item, resolved))
+        {
+            return false;
+        }
+
+        slot = resolved;
+        return true;
+    }
+
+    private static bool TryGetEmptyUsableSpecialSlotAtCell(Player player, Inventory inventory, ItemData item, Vector2i pos, out SlotDefinition? slot)
+    {
+        if (!TryGetUsableSpecialSlotAtCell(player, inventory, item, pos, out slot))
+        {
+            return false;
+        }
+
+        return inventory.GetItemAt(pos.x, pos.y) == null;
     }
 
     private static bool IsRegularActionItem(Player player, Inventory inventory, ItemData item, bool includeHotbar)
