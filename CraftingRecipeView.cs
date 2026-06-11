@@ -170,7 +170,7 @@ public sealed partial class InventorySlotsPlugin
             CraftingRecipes.View.Clear();
             CraftingRecipes.ViewIndexByOriginal.Clear();
             CraftingController.StoreRecipeViewSignature("");
-            InvalidateCraftingRecipeGridLayout();
+            CraftingController.MarkRecipeGridLayoutDirty();
             return true;
         }
 
@@ -204,7 +204,7 @@ public sealed partial class InventorySlotsPlugin
         CraftingRecipes.View.Sort(CompareCraftingRecipeViewEntries);
         RebuildCraftingRecipeViewIndexCache();
         CraftingController.StoreRecipeViewSignature(signature);
-        InvalidateCraftingRecipeGridLayout();
+        CraftingController.MarkRecipeGridLayoutDirty();
         return true;
     }
 

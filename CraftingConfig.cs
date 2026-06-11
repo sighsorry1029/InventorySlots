@@ -20,12 +20,12 @@ public sealed partial class InventorySlotsPlugin
         _showCraftingRecipeGridZoomHint = OrderedConfigEntry(ClientUiConfigSection, "Show Crafting Recipe Grid Zoom Hint", Toggle.On, "Show the Alt + mouse wheel hint above the crafting recipe grid. Not synced with server.", order: 880, synchronizedSetting: false);
         _craftingRecipeGridSize.SettingChanged += (_, _) =>
         {
-            InvalidateCraftingRecipeGridLayout();
-            InvalidateCraftingRecipeGridZoomHint();
+            CraftingController.MarkRecipeGridLayoutDirty();
+            CraftingController.InvalidateRecipeGridZoomHint();
         };
-        _craftingRecipeGridZoomModifier.SettingChanged += (_, _) => InvalidateCraftingRecipeGridZoomHint();
-        _craftingClearFavoritesKey.SettingChanged += (_, _) => MarkCraftingGroupRailDirty();
-        _showCraftingRecipeGridZoomHint.SettingChanged += (_, _) => InvalidateCraftingRecipeGridZoomHint();
+        _craftingRecipeGridZoomModifier.SettingChanged += (_, _) => CraftingController.InvalidateRecipeGridZoomHint();
+        _craftingClearFavoritesKey.SettingChanged += (_, _) => CraftingController.MarkGroupRailDirty();
+        _showCraftingRecipeGridZoomHint.SettingChanged += (_, _) => CraftingController.InvalidateRecipeGridZoomHint();
 
         _craftingRecipeSortMode = OrderedConfigEntry(ClientConfigSection, "Crafting Recipe Sort Mode", CraftingRecipeSortMode.TierThenGroup, "Sorting mode used by crafting station recipe grids. Crafting still keeps favorites and craftable recipes first. TierThenGroup sorts biome/resource tier first, then predefined group. GroupThenTier sorts predefined group first, then biome/resource tier.", order: 870, synchronizedSetting: false);
         _craftingRecipeSortMode.SettingChanged += (_, _) =>
@@ -35,6 +35,6 @@ public sealed partial class InventorySlotsPlugin
         };
 
         _craftingRecipeCraftableBackgroundColor = OrderedConfigEntry(ClientConfigSection, "Craftable Recipe Background Color", CraftingRecipeDefaultCraftableBackgroundColor, "Advanced color for recipe grid cells that can currently be crafted. Not synced with server.", order: 850, synchronizedSetting: false);
-        _craftingRecipeCraftableBackgroundColor.SettingChanged += (_, _) => InvalidateCraftingRecipeGridLayout();
+        _craftingRecipeCraftableBackgroundColor.SettingChanged += (_, _) => CraftingController.MarkRecipeGridLayoutDirty();
     }
 }

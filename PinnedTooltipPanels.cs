@@ -167,7 +167,7 @@ public sealed partial class InventorySlotsPlugin
         RefreshPinnedTooltipLayouts();
         RefreshPinnedTooltipBackgrounds();
         RefreshInventoryPinnedTooltipBorders();
-        InvalidateCraftingRecipeGridLayout();
+        CraftingController.MarkRecipeGridLayoutDirty();
     }
 
     private static void RefreshPinnedTooltipLayouts()

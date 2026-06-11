@@ -43,9 +43,8 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        CraftingController.ClearHoveredRecipe();
-        CraftingController.RequestRecipeHoverMouseSync();
-        InvalidateCraftingRecipeGridLayout();
+        CraftingController.ClearHoveredRecipeAndRequestMouseSync();
+        CraftingController.MarkRecipeGridLayoutDirty();
         int pageStart = _craftingRecipePage * GetCraftingRecipeGridCapacity();
         if (pageStart >= 0 && pageStart < CraftingRecipes.View.Count)
         {
@@ -94,10 +93,9 @@ public sealed partial class InventorySlotsPlugin
         }
 
         EnsureCraftingRecipeCells(gui, grid);
-        InvalidateCraftingRecipeGridLayout();
-        MarkCraftingRecipeScrollbarDirty();
-        CraftingController.ClearHoveredRecipe();
-        CraftingController.RequestRecipeHoverMouseSync();
+        CraftingController.MarkRecipeGridLayoutDirty();
+        CraftingController.MarkRecipeScrollbarDirty();
+        CraftingController.ClearHoveredRecipeAndRequestMouseSync();
         return true;
     }
 
@@ -137,11 +135,6 @@ public sealed partial class InventorySlotsPlugin
         {
             return false;
         }
-    }
-
-    private static void InvalidateCraftingRecipeGridZoomHint()
-    {
-        CraftingController.InvalidateRecipeGridZoomHint();
     }
 
     private static void UpdateCraftingRecipeGridZoomHint(InventoryGui gui, RectTransform grid)
@@ -283,7 +276,7 @@ public sealed partial class InventorySlotsPlugin
             _craftingRecipePage = 0;
             if (_craftingRecipePage != previousPage)
             {
-                InvalidateCraftingRecipeGridLayout();
+                CraftingController.MarkRecipeGridLayoutDirty();
             }
             return;
         }
@@ -295,7 +288,7 @@ public sealed partial class InventorySlotsPlugin
             : Mathf.Clamp(viewIndex / GetCraftingRecipeGridCapacity(), 0, Mathf.Max(0, GetCraftingRecipePageCount(gui) - 1));
         if (_craftingRecipePage != oldPage)
         {
-            InvalidateCraftingRecipeGridLayout();
+            CraftingController.MarkRecipeGridLayoutDirty();
         }
     }
 
@@ -305,7 +298,7 @@ public sealed partial class InventorySlotsPlugin
         _craftingRecipePage = Mathf.Clamp(_craftingRecipePage, 0, Mathf.Max(0, GetCraftingRecipePageCount(gui) - 1));
         if (_craftingRecipePage != oldPage)
         {
-            InvalidateCraftingRecipeGridLayout();
+            CraftingController.MarkRecipeGridLayoutDirty();
         }
     }
 
@@ -869,7 +862,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         SetCraftingRecipeVariant(recipe, variant);
-        InvalidateCraftingRecipeGridLayout();
+        CraftingController.MarkRecipeGridLayoutDirty();
         UpdateCraftingPanelRedesign(gui, CraftingPanelUpdateReason.StateChanged);
     }
 

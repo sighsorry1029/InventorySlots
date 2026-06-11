@@ -285,7 +285,7 @@ public sealed partial class InventorySlotsPlugin
 
         _craftingRecipePage = page;
         CraftingController.ClearHoveredRecipe();
-        InvalidateCraftingRecipeGridLayout();
+        CraftingController.MarkRecipeGridLayoutDirty();
         int pageStart = _craftingRecipePage * GetCraftingRecipeGridCapacity();
         UpdateCraftingRecipeView(gui);
         if (pageStart >= 0 && pageStart < CraftingRecipes.View.Count)

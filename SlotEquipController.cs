@@ -54,7 +54,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static bool TryEquipIntoSlot(Player player, Inventory inventory, ItemData item, SlotDefinition slot)
     {
-        if (item == null || !IsSpecialSlotUnlocked(player, inventory, slot) || !slot.Accepts(item))
+        if (!CanUseSpecialSlot(player, inventory, item, slot))
         {
             return false;
         }
@@ -384,13 +384,13 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool TryFindDedicatedEquipmentSlot(Player player, Inventory inventory, ItemData item, out SlotDefinition? slot)
     {
-        slot = SlotDefinitions.FirstOrDefault(s => s.Kind == SlotKind.CustomEquipment && IsEquipmentSlotUnlocked(player, inventory, s) && s.Accepts(item));
+        slot = SlotDefinitions.FirstOrDefault(s => s.Kind == SlotKind.CustomEquipment && CanUseSpecialSlot(player, inventory, item, s));
         if (slot != null)
         {
             return true;
         }
 
-        slot = SlotDefinitions.FirstOrDefault(s => s.Kind == SlotKind.BuiltIn && IsEquipmentSlotUnlocked(player, inventory, s) && s.Accepts(item));
+        slot = SlotDefinitions.FirstOrDefault(s => s.Kind == SlotKind.BuiltIn && CanUseSpecialSlot(player, inventory, item, s));
         return slot != null;
     }
 
@@ -1091,20 +1091,16 @@ public sealed partial class InventorySlotsPlugin
     internal static bool CanAutoPlaceItemInSpecialSlot(Player player, Inventory inventory, ItemData item)
     {
         return SlotDefinitions.Any(slot =>
-            IsSpecialSlotUnlocked(player, inventory, slot) &&
-            CanAutoAdoptGridSlot(item, slot) &&
-            slot.Accepts(item) &&
-            FindItemForSlot(player, inventory, slot) == null);
+            CanUseEmptySpecialSlot(player, inventory, item, slot) &&
+            CanAutoAdoptGridSlot(item, slot));
     }
 
     internal static bool TryAutoPlaceItemInSpecialSlot(Player player, Inventory inventory, ItemData item)
     {
         foreach (SlotDefinition slot in SlotDefinitions)
         {
-            if (IsSpecialSlotUnlocked(player, inventory, slot) &&
+            if (CanUseEmptySpecialSlot(player, inventory, item, slot) &&
                 CanAutoAdoptGridSlot(item, slot) &&
-                slot.Accepts(item) &&
-                FindItemForSlot(player, inventory, slot) == null &&
                 TryEquipIntoSlot(player, inventory, item, slot))
             {
                 return true;

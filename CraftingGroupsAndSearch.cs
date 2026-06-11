@@ -468,7 +468,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void InvalidateCraftingGroupRailLayout()
     {
-        MarkCraftingGroupRailDirty();
+        CraftingController.MarkGroupRailDirty();
     }
 
     private static TMP_Text EnsureCraftingGroupButtonLabel(RectTransform button)
@@ -772,7 +772,7 @@ public sealed partial class InventorySlotsPlugin
         {
             CraftingUi.SearchInputRect = new GameObject(CraftingSearchInputName, typeof(RectTransform), typeof(Image), typeof(TMP_InputField)).GetComponent<RectTransform>();
             CraftingUi.SearchInputRect.SetParent(gui.m_crafting, false);
-            MarkCraftingSearchInputDirty();
+            CraftingController.MarkSearchInputDirty();
 
             Image background = CraftingUi.SearchInputRect.GetComponent<Image>();
             background.raycastTarget = true;
@@ -817,7 +817,7 @@ public sealed partial class InventorySlotsPlugin
         else
         {
             CraftingUi.SearchInput = CraftingUi.SearchInputRect.GetComponent<TMP_InputField>();
-            MarkCraftingSearchInputDirty();
+            CraftingController.MarkSearchInputDirty();
         }
 
         if (CraftingUi.SearchInput != null && CraftingUi.SearchInput.text != _craftingSearchQuery)
@@ -1326,7 +1326,7 @@ public sealed partial class InventorySlotsPlugin
         _craftingSearchQuery = normalized;
         _craftingRecipePage = 0;
         CraftingController.ClearHoveredRecipe();
-        MarkCraftingSearchInputDirty();
+        CraftingController.MarkSearchInputDirty();
         InvalidateCraftingRecipeView();
     }
 

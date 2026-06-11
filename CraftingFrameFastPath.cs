@@ -46,7 +46,7 @@ public sealed partial class InventorySlotsPlugin
     {
         if (HandleCraftingCountWheel())
         {
-            MarkCraftingBottomControlsDirty();
+            CraftingController.MarkBottomControlsDirty();
             return true;
         }
 

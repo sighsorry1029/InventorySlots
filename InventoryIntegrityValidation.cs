@@ -139,7 +139,7 @@ public sealed partial class InventorySlotsPlugin
 
         foreach (SlotDefinition candidate in SlotDefinitions)
         {
-            if (candidate.Kind == SlotKind.Quick || !IsEquipmentSlotUnlocked(player, inventory, candidate) || !candidate.Accepts(item))
+            if (candidate.Kind == SlotKind.Quick || !CanUseSpecialSlot(player, inventory, item, candidate))
             {
                 continue;
             }
@@ -328,7 +328,7 @@ public sealed partial class InventorySlotsPlugin
     {
         foreach (SlotDefinition slot in SlotDefinitions)
         {
-            if (slot.Kind != SlotKind.Quick || !IsQuickSlotUnlocked(player, slot) || !slot.Accepts(item))
+            if (slot.Kind != SlotKind.Quick || !CanUseSpecialSlot(player, inventory, item, slot))
             {
                 continue;
             }

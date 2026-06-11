@@ -105,7 +105,7 @@ public sealed partial class InventorySlotsPlugin
 
         foreach (SlotDefinition slot in SlotDefinitions)
         {
-            if (!IsSpecialSlotUnlocked(player, inventory, slot) || !slot.Accepts(item) || FindItemForSlot(player, inventory, slot) != null)
+            if (!CanUseEmptySpecialSlot(player, inventory, item, slot))
             {
                 continue;
             }
@@ -133,8 +133,7 @@ public sealed partial class InventorySlotsPlugin
         if (kind is InventoryCellKind.Equipment or InventoryCellKind.CustomEquipment or InventoryCellKind.Quick)
         {
             return TryGetSlotAtGridPos(inventory, pos, out SlotDefinition? slot) &&
-                   IsSpecialSlotUnlocked(player, inventory, slot!) &&
-                   slot!.Accepts(item);
+                   CanUseSpecialSlot(player, inventory, item, slot!);
         }
 
         return kind == InventoryCellKind.Hotbar ||
@@ -186,6 +185,20 @@ public sealed partial class InventorySlotsPlugin
         }
 
         return pos.y == 0 ? InventoryCellKind.Hotbar : InventoryCellKind.RegularUnlocked;
+    }
+
+    private static bool CanUseSpecialSlot(Player player, Inventory inventory, ItemData item, SlotDefinition slot)
+    {
+        return item != null &&
+               slot != null &&
+               IsSpecialSlotUnlocked(player, inventory, slot) &&
+               slot.Accepts(item);
+    }
+
+    private static bool CanUseEmptySpecialSlot(Player player, Inventory inventory, ItemData item, SlotDefinition slot)
+    {
+        return CanUseSpecialSlot(player, inventory, item, slot) &&
+               FindItemForSlot(player, inventory, slot) == null;
     }
 
     private static bool IsRegularActionItem(Player player, Inventory inventory, ItemData item, bool includeHotbar)

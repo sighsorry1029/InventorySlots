@@ -304,41 +304,6 @@ public sealed partial class InventorySlotsPlugin
         ClearRecycleNReclaimSignatureCaches();
     }
 
-    private static void InvalidateCraftingRecipeGridLayout()
-    {
-        CraftingController.MarkRecipeGridLayoutDirty();
-    }
-
-    private static void MarkCraftingRecipeViewDirty()
-    {
-        CraftingController.MarkRecipeViewDirty();
-    }
-
-    private static void MarkCraftingRecipeGridDirty()
-    {
-        CraftingController.MarkRecipeGridDirty();
-    }
-
-    private static void MarkCraftingRecipeScrollbarDirty()
-    {
-        CraftingController.MarkRecipeScrollbarDirty();
-    }
-
-    private static void MarkCraftingGroupRailDirty()
-    {
-        CraftingController.MarkGroupRailDirty();
-    }
-
-    private static void MarkCraftingBottomControlsDirty()
-    {
-        CraftingController.MarkBottomControlsDirty();
-    }
-
-    private static void MarkCraftingSearchInputDirty()
-    {
-        CraftingController.MarkSearchInputDirty();
-    }
-
     internal static void HideCraftingPanelRedesign()
     {
         InventoryGui? gui = InventoryGui.instance;
@@ -486,7 +451,7 @@ public sealed partial class InventorySlotsPlugin
             CraftingUi.RecipeGridZoomHint.gameObject.SetActive(false);
         }
 
-        InvalidateCraftingRecipeGridZoomHint();
+        CraftingController.InvalidateRecipeGridZoomHint();
 
         HideCraftingSocketWarning();
     }

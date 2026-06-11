@@ -27,7 +27,7 @@ public sealed partial class InventorySlotsPlugin
             List<int> remaining = GetActiveCraftingPinnedTooltipIndices();
             remaining.RemoveAll(activeIndex => activeIndex == index);
             RebuildCraftingPinnedTooltips(gui, remaining);
-            InvalidateCraftingRecipeGridLayout();
+            CraftingController.MarkRecipeGridLayoutDirty();
             return;
         }
 
@@ -44,7 +44,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         RebuildCraftingPinnedTooltips(gui, indices);
-        InvalidateCraftingRecipeGridLayout();
+        CraftingController.MarkRecipeGridLayoutDirty();
     }
 
     private static int FindCraftingPinnedTooltipSlot(int index)
@@ -170,7 +170,7 @@ public sealed partial class InventorySlotsPlugin
             ApplyPinnedTooltipDynamicTextLayout(panel, PinnedTooltips.Crafting.Texts[slot]!, slot, CraftingPinnedTooltipFixedOffset, topReserved: 102f, bottomReserved, maxTextViewportHeight: GetPinnedTooltipMaxTextViewportHeight(panel, 102f, bottomReserved));
         }
 
-        InvalidateCraftingRecipeGridLayout();
+        CraftingController.MarkRecipeGridLayoutDirty();
     }
 
     private static bool IsCraftingRecipeTooltipPinned(int index)
@@ -240,7 +240,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         PinnedTooltips.Crafting.RecipeIndices[slot] = -1;
-        InvalidateCraftingRecipeGridLayout();
+        CraftingController.MarkRecipeGridLayoutDirty();
     }
 
     private static string BuildCraftingPinnedTooltipText(InventoryGui.RecipeDataPair pair)

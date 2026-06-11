@@ -345,8 +345,9 @@ public sealed partial class InventorySlotsPlugin
         public static bool IsHoveredRecipe(int index) =>
             CraftingUi.HoveredRecipeIndex == index;
 
-        public static void RequestRecipeHoverMouseSync()
+        public static void ClearHoveredRecipeAndRequestMouseSync()
         {
+            ClearHoveredRecipe();
             CraftingUi.RecipeHoverMouseSyncPending = true;
         }
 

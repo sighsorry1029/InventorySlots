@@ -23,7 +23,7 @@ public sealed partial class InventorySlotsPlugin
                 _craftingCountInputRect.gameObject.SetActive(false);
             }
 
-            MarkCraftingBottomControlsDirty();
+            CraftingController.MarkBottomControlsDirty();
             return;
         }
 
@@ -89,7 +89,7 @@ public sealed partial class InventorySlotsPlugin
         HideCraftingVanillaRequirementSlots(gui);
         HideOwnedCraftingRequirementSlots();
 
-        MarkCraftingBottomControlsDirty();
+        CraftingController.MarkBottomControlsDirty();
     }
 
     private static string GetCraftingBottomControlsLayoutSignature(InventoryGui gui, RectTransform grid, RectTransform? countRect, RectTransform? upgradeProgressionRect, int visibleRequirementCount)

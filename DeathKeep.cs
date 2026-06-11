@@ -189,7 +189,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool CanRestoreKeepOnDeathItemToSlot(Player player, Inventory inventory, ItemData item, SlotDefinition slot)
     {
-        if (slot == null || !IsSpecialSlotUnlocked(player, inventory, slot) || !slot.Accepts(item))
+        if (slot == null || !CanUseSpecialSlot(player, inventory, item, slot))
         {
             return false;
         }
@@ -223,12 +223,7 @@ public sealed partial class InventorySlotsPlugin
                 continue;
             }
 
-            if (!slot.Accepts(item))
-            {
-                continue;
-            }
-
-            if (!IsSpecialSlotUnlocked(player, inventory, slot))
+            if (!CanUseSpecialSlot(player, inventory, item, slot))
             {
                 continue;
             }

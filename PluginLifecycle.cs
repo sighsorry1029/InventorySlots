@@ -112,9 +112,9 @@ public sealed partial class InventorySlotsPlugin
             _uiLocalizationVersion++;
         }
 
-        MarkCraftingSearchInputDirty();
-        MarkCraftingGroupRailDirty();
+        CraftingController.MarkSearchInputDirty();
+        CraftingController.MarkGroupRailDirty();
         ClearCraftingEnglishLocalizationCaches();
-        InvalidateCraftingRecipeGridLayout();
+        CraftingController.MarkRecipeGridLayoutDirty();
     }
 }

@@ -156,7 +156,7 @@ public sealed partial class InventorySlotsPlugin
                 _craftingCountInputRect.gameObject.SetActive(false);
             }
 
-            MarkCraftingBottomControlsDirty();
+            CraftingController.MarkBottomControlsDirty();
             return;
         }
 
