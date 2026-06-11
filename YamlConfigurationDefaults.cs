@@ -22,18 +22,18 @@ Slots:
     name: Utility
   - id: trinket
     name: Trinket
-#  - id: circlet
-#    name: Circlet
-#    items:
-#      - HelmetDverger
-#  - id: wishbone
-#    name: Wishbone
-#    items:
-#      - Wishbone
-#  - id: demister
-#    name: Demister
-#    items:
-#      - Demister
+  - id: circlet
+    name: Circlet
+    items:
+      - HelmetDverger
+  - id: wishbone
+    name: Wishbone
+    items:
+      - Wishbone
+  - id: demister
+    name: Demister
+    items:
+      - Demister
   - id: jewelcrafting.necklace
     name: Necklace
     items: []

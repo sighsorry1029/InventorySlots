@@ -105,7 +105,7 @@ public sealed partial class InventorySlotsPlugin
 
         foreach (SlotDefinition slot in SlotDefinitions)
         {
-            if (!IsQuickSlotUnlocked(player, slot) || !slot.Accepts(item) || FindItemForSlot(player, inventory, slot) != null)
+            if (!IsSpecialSlotUnlocked(player, inventory, slot) || !slot.Accepts(item) || FindItemForSlot(player, inventory, slot) != null)
             {
                 continue;
             }
@@ -132,7 +132,9 @@ public sealed partial class InventorySlotsPlugin
 
         if (kind is InventoryCellKind.Equipment or InventoryCellKind.CustomEquipment or InventoryCellKind.Quick)
         {
-            return TryGetSlotAtGridPos(inventory, pos, out SlotDefinition? slot) && slot!.Accepts(item);
+            return TryGetSlotAtGridPos(inventory, pos, out SlotDefinition? slot) &&
+                   IsSpecialSlotUnlocked(player, inventory, slot!) &&
+                   slot!.Accepts(item);
         }
 
         return kind == InventoryCellKind.Hotbar ||
@@ -152,6 +154,11 @@ public sealed partial class InventorySlotsPlugin
             if (slot!.Kind == SlotKind.Quick && player != null && !IsQuickSlotUnlocked(player, slot))
             {
                 return InventoryCellKind.QuickLocked;
+            }
+
+            if (slot.Kind != SlotKind.Quick && player != null && !IsEquipmentSlotUnlocked(player, inventory, slot))
+            {
+                return InventoryCellKind.EquipmentLocked;
             }
 
             return slot!.Kind switch

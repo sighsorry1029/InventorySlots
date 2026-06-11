@@ -799,6 +799,7 @@ internal static class Tests
 
         Assert.False(InventoryActionCellPolicyCore.CanFavoriteSlot(InventoryCellKind.RegularLocked), "locked regular cells should not be favoriteable");
         Assert.False(InventoryActionCellPolicyCore.CanFavoriteSlot(InventoryCellKind.Equipment), "equipment slots should not be inventory favorites");
+        Assert.False(InventoryActionCellPolicyCore.CanFavoriteSlot(InventoryCellKind.EquipmentLocked), "locked equipment slots should not be inventory favorites");
         Assert.False(InventoryActionCellPolicyCore.CanFavoriteSlot(InventoryCellKind.CustomEquipment), "custom equipment slots should not be inventory favorites");
         Assert.False(InventoryActionCellPolicyCore.CanFavoriteSlot(InventoryCellKind.QuickLocked), "locked quickslots should not be favoriteable");
         Assert.False(InventoryActionCellPolicyCore.CanFavoriteSlot(InventoryCellKind.Outside), "outside cells should not be favoriteable");
@@ -812,6 +813,7 @@ internal static class Tests
 
         Assert.False(InventoryActionCellPolicyCore.CanUseContainerActionSource(InventoryCellKind.Quick, includeHotbar: true), "quickslots should not be quickstack/store/sort sources");
         Assert.False(InventoryActionCellPolicyCore.CanUseContainerActionSource(InventoryCellKind.Equipment, includeHotbar: true), "equipment slots should not be container action sources");
+        Assert.False(InventoryActionCellPolicyCore.CanUseContainerActionSource(InventoryCellKind.EquipmentLocked, includeHotbar: true), "locked equipment slots should not be container action sources");
         Assert.False(InventoryActionCellPolicyCore.CanUseContainerActionSource(InventoryCellKind.RegularLocked, includeHotbar: true), "locked regular cells should not be container action sources");
     }
 
@@ -823,6 +825,7 @@ internal static class Tests
 
         Assert.False(InventoryActionCellPolicyCore.CanUseFavoriteRestockTarget(InventoryCellKind.RegularLocked), "locked regular cells should not be restock targets");
         Assert.False(InventoryActionCellPolicyCore.CanUseFavoriteRestockTarget(InventoryCellKind.Equipment), "equipment slots should not be restock targets");
+        Assert.False(InventoryActionCellPolicyCore.CanUseFavoriteRestockTarget(InventoryCellKind.EquipmentLocked), "locked equipment slots should not be restock targets");
         Assert.False(InventoryActionCellPolicyCore.CanUseFavoriteRestockTarget(InventoryCellKind.CustomEquipment), "custom equipment slots should not be restock targets");
         Assert.False(InventoryActionCellPolicyCore.CanUseFavoriteRestockTarget(InventoryCellKind.QuickLocked), "locked quickslots should not be restock targets");
         Assert.False(InventoryActionCellPolicyCore.CanUseFavoriteRestockTarget(InventoryCellKind.Outside), "outside cells should not be restock targets");

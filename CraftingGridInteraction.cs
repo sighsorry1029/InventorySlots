@@ -14,14 +14,16 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool HandleCraftingRecipeGridWheel(InventoryGui gui, RectTransform grid)
     {
+        Vector2 mouse = GetUiMousePosition();
+        bool scrollbarTargetActive = IsCraftingRecipeScrollbarScrollTargetActive(mouse);
         bool modifierHeld = IsCraftingRecipeGridZoomModifierHeld();
-        if (modifierHeld)
+        if (modifierHeld && !scrollbarTargetActive)
         {
             return false;
         }
 
         int pageCount = GetCraftingRecipePageCount(gui);
-        bool targetActive = IsCraftingRecipeGridScrollTargetActive(grid);
+        bool targetActive = IsCraftingRecipePageScrollTargetActive(grid, mouse, scrollbarTargetActive);
         float wheel = GetUiScrollDelta(UiScrollInputMode.Discrete);
         if (pageCount <= 1 || !targetActive)
         {
@@ -55,7 +57,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool HandleCraftingRecipeGridZoomWheel(InventoryGui gui, RectTransform grid)
     {
-        bool targetActive = IsCraftingRecipeGridScrollTargetActive(grid);
+        bool targetActive = IsCraftingRecipeGridZoomScrollTargetActive(grid, GetUiMousePosition());
         bool modifierHeld = IsCraftingRecipeGridZoomModifierHeld();
         float wheel = GetUiScrollDelta(UiScrollInputMode.Discrete);
         if (!targetActive)
@@ -99,9 +101,22 @@ public sealed partial class InventorySlotsPlugin
         return true;
     }
 
-    private static bool IsCraftingRecipeGridScrollTargetActive(RectTransform grid) =>
-        RectContainsCraftingRecipeIconArea(grid, GetUiMousePosition()) ||
+    private static bool IsCraftingRecipePageScrollTargetActive(RectTransform grid, Vector2 mouse, bool scrollbarTargetActive) =>
+        RectContainsCraftingRecipeIconArea(grid, mouse) ||
+        scrollbarTargetActive ||
         IsGamepadUiScrollActive();
+
+    private static bool IsCraftingRecipeGridZoomScrollTargetActive(RectTransform grid, Vector2 mouse) =>
+        RectContainsCraftingRecipeIconArea(grid, mouse) ||
+        IsGamepadUiScrollActive();
+
+    private static bool IsCraftingRecipeScrollbarScrollTargetActive(Vector2 mouse)
+    {
+        return _craftingRecipeScrollbar != null &&
+               !IsUnityNull(_craftingRecipeScrollbar) &&
+               _craftingRecipeScrollbar.gameObject.activeInHierarchy &&
+               RectContainsScreenPoint(_craftingRecipeScrollbar, mouse);
+    }
 
     private static bool IsCraftingRecipeGridZoomModifierHeld() =>
         _craftingRecipeGridZoomModifier != null && IsShortcutHeldAllowingAltPair(_craftingRecipeGridZoomModifier.Value) ||

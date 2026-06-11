@@ -31,6 +31,7 @@ public sealed partial class InventorySlotsPlugin
             ConfigEntry(ProgressiveSlotsConfigSection, "Quick Slot Row 2 Items", "HardAntler", "Comma-separated item prefab names or internal item names. Discovering any listed item unlocks quick slot row 2."),
             ConfigEntry(ProgressiveSlotsConfigSection, "Quick Slot Row 3 Items", "CryptKey", "Comma-separated item prefab names or internal item names. Discovering any listed item unlocks quick slot row 3.")
         };
+        _equipmentSlotProgressionEnabled = ConfigEntry(ProgressiveSlotsConfigSection, "Enable Equipment Slot Progression", Toggle.On, "When enabled, equipment slots unlock after the player discovers, carries, or has equipped an item accepted by that slot.");
         BindInventoryStateConfigInvalidation();
 
         _deathKeepRulesEnabled = ConfigEntry("1 - General", "Enable Death Keep Rules", Toggle.On, "When enabled, items matching the YAML KeepOnDeath list stay in the player inventory instead of moving to the tombstone. When disabled, KeepOnDeath is ignored and death uses the normal tombstone behavior.");
@@ -171,6 +172,8 @@ public sealed partial class InventorySlotsPlugin
         {
             AddInventoryStateConfigInvalidation(entry);
         }
+
+        AddInventoryStateConfigInvalidation(_equipmentSlotProgressionEnabled);
     }
 
     private static void AddInventoryStateConfigInvalidation<T>(ConfigEntry<T> entry)

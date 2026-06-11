@@ -8,6 +8,7 @@ internal enum InventoryCellKind
     Hotbar,
     ExternalReserved,
     Equipment,
+    EquipmentLocked,
     CustomEquipment,
     Quick,
     QuickLocked

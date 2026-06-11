@@ -22,6 +22,11 @@ public sealed partial class InventorySlotsPlugin
             return quickItem != null && slot.Accepts(quickItem) ? quickItem : null;
         }
 
+        if (!IsEquipmentSlotUnlocked(player, inventory, slot))
+        {
+            return null;
+        }
+
         Humanoid humanoid = player;
         ItemData? builtIn = slot.Id switch
         {
@@ -49,7 +54,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static bool TryEquipIntoSlot(Player player, Inventory inventory, ItemData item, SlotDefinition slot)
     {
-        if (item == null || !slot.Accepts(item))
+        if (item == null || !IsSpecialSlotUnlocked(player, inventory, slot) || !slot.Accepts(item))
         {
             return false;
         }
@@ -266,7 +271,7 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        if (!TryFindDedicatedEquipmentSlot(item, out SlotDefinition? slot))
+        if (!TryFindDedicatedEquipmentSlot(player, inventory, item, out SlotDefinition? slot))
         {
             return false;
         }
@@ -354,7 +359,7 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        return TryFindDedicatedEquipmentSlot(item, out SlotDefinition? slot) && TryEquipIntoDedicatedSlot(player, inventory, item, slot!);
+        return TryFindDedicatedEquipmentSlot(player, inventory, item, out SlotDefinition? slot) && TryEquipIntoDedicatedSlot(player, inventory, item, slot!);
     }
 
     private static bool CanRouteEquipToDedicatedSlot(Player player, Inventory? inventory, ItemData? item)
@@ -377,15 +382,15 @@ public sealed partial class InventorySlotsPlugin
         return inventory.GetItemAt(item.m_gridPos.x, item.m_gridPos.y) == item;
     }
 
-    private static bool TryFindDedicatedEquipmentSlot(ItemData item, out SlotDefinition? slot)
+    private static bool TryFindDedicatedEquipmentSlot(Player player, Inventory inventory, ItemData item, out SlotDefinition? slot)
     {
-        slot = SlotDefinitions.FirstOrDefault(s => s.Kind == SlotKind.CustomEquipment && s.Accepts(item));
+        slot = SlotDefinitions.FirstOrDefault(s => s.Kind == SlotKind.CustomEquipment && IsEquipmentSlotUnlocked(player, inventory, s) && s.Accepts(item));
         if (slot != null)
         {
             return true;
         }
 
-        slot = SlotDefinitions.FirstOrDefault(s => s.Kind == SlotKind.BuiltIn && s.Accepts(item));
+        slot = SlotDefinitions.FirstOrDefault(s => s.Kind == SlotKind.BuiltIn && IsEquipmentSlotUnlocked(player, inventory, s) && s.Accepts(item));
         return slot != null;
     }
 
@@ -1086,7 +1091,7 @@ public sealed partial class InventorySlotsPlugin
     internal static bool CanAutoPlaceItemInSpecialSlot(Player player, Inventory inventory, ItemData item)
     {
         return SlotDefinitions.Any(slot =>
-            IsQuickSlotUnlocked(player, slot) &&
+            IsSpecialSlotUnlocked(player, inventory, slot) &&
             CanAutoAdoptGridSlot(item, slot) &&
             slot.Accepts(item) &&
             FindItemForSlot(player, inventory, slot) == null);
@@ -1096,7 +1101,7 @@ public sealed partial class InventorySlotsPlugin
     {
         foreach (SlotDefinition slot in SlotDefinitions)
         {
-            if (IsQuickSlotUnlocked(player, slot) &&
+            if (IsSpecialSlotUnlocked(player, inventory, slot) &&
                 CanAutoAdoptGridSlot(item, slot) &&
                 slot.Accepts(item) &&
                 FindItemForSlot(player, inventory, slot) == null &&

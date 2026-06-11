@@ -43,7 +43,7 @@ public sealed partial class InventorySlotsPlugin
         int viewportRows = GetInventoryViewportRows(totalRegularRows);
         viewportRows = UpdatePlayerInventoryScroll(playerGrid, viewportRows, totalRegularRows);
         UpdateInventoryPanelDragging();
-        List<SlotDefinition> customPanelSlots = GetCustomPanelSlots();
+        List<SlotDefinition> customPanelSlots = GetCustomPanelSlots(player, inventory);
         List<SlotDefinition> quickPanelSlots = GetQuickPanelSlots(player);
 
         if (playerGrid.m_elements.Count == 0)

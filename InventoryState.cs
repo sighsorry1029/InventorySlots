@@ -139,8 +139,10 @@ public sealed partial class InventorySlotsPlugin
     {
         public readonly List<SlotDefinition> SlotDefinitions = new();
         public readonly List<SlotDefinition> CustomPanelSlotCache = new();
+        public readonly List<SlotDefinition> VisibleCustomPanelSlotCache = new();
         public readonly List<SlotDefinition> QuickPanelSlotCache = new();
         public readonly Dictionary<int, SlotDefinition> QuickSlotDefinitionCache = new();
+        public readonly Dictionary<string, bool> EquipmentSlotUnlockCache = new(StringComparer.Ordinal);
         public readonly Dictionary<string, YamlPredefinedGroup> PredefinedGroupDefinitions = new(StringComparer.OrdinalIgnoreCase);
         public readonly List<string> PredefinedGroupOrder = new();
         public readonly Dictionary<string, List<string>> PredefinedGroupOrders = new(StringComparer.OrdinalIgnoreCase);
@@ -155,6 +157,9 @@ public sealed partial class InventorySlotsPlugin
         public Dictionary<string, int> RestockTargetStackLimits = new(StringComparer.OrdinalIgnoreCase);
         public int SlotDefinitionVersion;
         public int CustomPanelSlotCacheVersion = -1;
+        public int VisibleCustomPanelSlotCacheVersion = -1;
+        public string VisibleCustomPanelSlotCacheSignature = "";
+        public string EquipmentSlotUnlockCacheSignature = "";
         public int QuickPanelSlotCacheVersion = -1;
         public int QuickPanelSlotCacheUnlockedCount = -1;
         public int QuickSlotDefinitionCacheVersion = -1;
@@ -198,6 +203,7 @@ public sealed partial class InventorySlotsPlugin
     private static readonly InventorySortRuntimeState InventorySort = new();
     private static List<SlotDefinition> SlotDefinitions => InventoryDefinitions.SlotDefinitions;
     private static List<SlotDefinition> CustomPanelSlotCache => InventoryDefinitions.CustomPanelSlotCache;
+    private static List<SlotDefinition> VisibleCustomPanelSlotCache => InventoryDefinitions.VisibleCustomPanelSlotCache;
     private static List<SlotDefinition> QuickPanelSlotCache => InventoryDefinitions.QuickPanelSlotCache;
     private static Dictionary<int, SlotDefinition> QuickSlotDefinitionCache => InventoryDefinitions.QuickSlotDefinitionCache;
     private static Dictionary<string, YamlPredefinedGroup> PredefinedGroupDefinitions => InventoryDefinitions.PredefinedGroupDefinitions;
@@ -220,6 +226,11 @@ public sealed partial class InventorySlotsPlugin
     {
         get => InventoryDefinitions.CustomPanelSlotCacheVersion;
         set => InventoryDefinitions.CustomPanelSlotCacheVersion = value;
+    }
+    private static int _visibleCustomPanelSlotCacheVersion
+    {
+        get => InventoryDefinitions.VisibleCustomPanelSlotCacheVersion;
+        set => InventoryDefinitions.VisibleCustomPanelSlotCacheVersion = value;
     }
     private static int _quickPanelSlotCacheVersion
     {

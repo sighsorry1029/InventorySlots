@@ -19,6 +19,7 @@ public sealed partial class InventorySlotsPlugin
     private static ConfigEntry<int> _quickSlotCount = null!;
     private static ConfigEntry<Toggle> _quickSlotProgressionEnabled = null!;
     private static ConfigEntry<string>[] _quickSlotRowUnlockItems = null!;
+    private static ConfigEntry<Toggle> _equipmentSlotProgressionEnabled = null!;
     private static ConfigEntry<Toggle> _deathKeepRulesEnabled = null!;
     private static ConfigEntry<float> _areaQuickStackRange = null!;
     private static ConfigEntry<float> _areaRestockRange = null!;
