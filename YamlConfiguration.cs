@@ -506,6 +506,11 @@ public sealed partial class InventorySlotsPlugin
                 continue;
             }
 
+            if (ShouldSuppressYamlSlotForJewelcraftingGem(id))
+            {
+                continue;
+            }
+
             if (IsJewelcraftingReservedSlotId(id))
             {
                 seenJewelcraftingSlots.Add(id);

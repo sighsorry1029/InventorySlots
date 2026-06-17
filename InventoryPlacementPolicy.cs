@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using ItemData = ItemDrop.ItemData;
 
@@ -85,11 +86,12 @@ public sealed partial class InventorySlotsPlugin
 
     private static Vector2i FindTopFirstEmptySlot(Inventory inventory)
     {
+        HashSet<Vector2i> occupied = BuildOccupiedCellSet(inventory);
         bool found = InventoryPlacementPolicyCore.TrySelectTopFirstCell(
             inventory.GetWidth(),
             inventory.GetHeight(),
             (_, _) => true,
-            (x, y) => inventory.GetItemAt(x, y) != null,
+            (x, y) => IsCellOccupied(occupied, x, y),
             out InventorySlotSafetyCore.GridCell cell);
         return found
             ? new Vector2i(cell.X, cell.Y)
@@ -151,11 +153,12 @@ public sealed partial class InventorySlotsPlugin
     private static bool TryFindFreeRegularLoadPreservationCell(Inventory inventory, out Vector2i pos)
     {
         int regularRows = Math.Min(GetFixedRegularRows(), inventory.GetHeight());
+        HashSet<Vector2i> occupied = BuildOccupiedCellSet(inventory);
         bool found = InventorySlotSafetyCore.TrySelectFirstFreeCell(
             inventory.GetWidth(),
             regularRows,
             (x, y) => !IsExternalReservedForCompat(new Vector2i(x, y)),
-            (x, y) => inventory.GetItemAt(x, y) != null,
+            (x, y) => IsCellOccupied(occupied, x, y),
             out InventorySlotSafetyCore.GridCell cell);
         pos = new Vector2i(cell.X, cell.Y);
         return found;
@@ -172,12 +175,13 @@ public sealed partial class InventorySlotsPlugin
     {
         int count = 0;
         int regularRows = Math.Min(GetFixedRegularRows(), inventory.GetHeight());
+        HashSet<Vector2i> occupied = BuildOccupiedCellSet(inventory);
         for (int y = 0; y < regularRows; y++)
         {
             for (int x = 0; x < inventory.GetWidth(); x++)
             {
                 Vector2i pos = new(x, y);
-                if (!IsExternalReservedForCompat(pos) && inventory.GetItemAt(x, y) == null)
+                if (!IsExternalReservedForCompat(pos) && !IsCellOccupied(occupied, x, y))
                 {
                     count++;
                 }
@@ -231,13 +235,21 @@ public sealed partial class InventorySlotsPlugin
     }
 
     private static int CountAllEmptyCells(Inventory inventory) =>
+        CountAllEmptyCells(inventory, BuildOccupiedCellSet(inventory));
+
+    private static int CountAllEmptyCells(Inventory inventory, HashSet<Vector2i> occupied) =>
         InventoryPlacementPolicyCore.CountTopFirstPolicyEmptyCells(
             inventory.GetWidth(),
             inventory.GetHeight(),
             (_, _) => true,
-            (x, y) => inventory.GetItemAt(x, y) != null);
+            (x, y) => IsCellOccupied(occupied, x, y));
 
     private static int CountUsableRegularEmptyCells(Inventory inventory, Player player)
+    {
+        return CountUsableRegularEmptyCells(inventory, player, BuildOccupiedCellSet(inventory));
+    }
+
+    private static int CountUsableRegularEmptyCells(Inventory inventory, Player player, HashSet<Vector2i> occupied)
     {
         int count = 0;
         int usableRows = Math.Min(GetUsableRegularRows(player), inventory.GetHeight());
@@ -246,13 +258,31 @@ public sealed partial class InventorySlotsPlugin
             for (int x = 0; x < inventory.GetWidth(); x++)
             {
                 Vector2i pos = new(x, y);
-                if (IsUsableRegularCell(inventory, player, pos) && inventory.GetItemAt(x, y) == null)
+                if (IsUsableRegularCell(inventory, player, pos) && !IsCellOccupied(occupied, x, y))
                 {
                     count++;
                 }
             }
         }
 
+        return count;
+    }
+
+    private static int CountUsableRegularEmptyCellsCached(Inventory inventory, Player player)
+    {
+        int context = ComputeInventoryPlacementCacheContext(player, inventory);
+        if (ReferenceEquals(InventorySafety.UsableRegularEmptyCellCacheInventory, inventory) &&
+            InventorySafety.UsableRegularEmptyCellCacheVersion == InventorySafety.InventoryPlacementCacheVersion &&
+            InventorySafety.UsableRegularEmptyCellCacheContext == context)
+        {
+            return InventorySafety.UsableRegularEmptyCellCacheCount;
+        }
+
+        int count = CountUsableRegularEmptyCells(inventory, player);
+        InventorySafety.UsableRegularEmptyCellCacheInventory = inventory;
+        InventorySafety.UsableRegularEmptyCellCacheVersion = InventorySafety.InventoryPlacementCacheVersion;
+        InventorySafety.UsableRegularEmptyCellCacheContext = context;
+        InventorySafety.UsableRegularEmptyCellCacheCount = count;
         return count;
     }
 
@@ -275,14 +305,15 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
-    internal static void OnInventoryCanAddItem(Inventory inventory, ItemData item, int stack, ref bool result)
+    internal static bool TryOverrideCanAddItem(Inventory inventory, ItemData item, int stack, ref bool result)
     {
         if (item?.m_shared == null || !TryGetLocalPlayerInventory(inventory, out Player? player))
         {
-            return;
+            return true;
         }
 
         result = CanAddItemToUsablePlayerSlots(player!, inventory, item, stack);
+        return false;
     }
 
     private static bool CanAddItemToUsablePlayerSlots(Player player, Inventory inventory, ItemData item, int stack)
@@ -293,6 +324,11 @@ public sealed partial class InventorySlotsPlugin
             return true;
         }
 
+        if (TryGetCachedCanAddItemFailure(player, inventory, item, requestedStack))
+        {
+            return false;
+        }
+
         int maxStack = Math.Max(1, item.m_shared.m_maxStackSize);
         long capacity = CountStackSpaceForIncomingItem(inventory, item);
         if (capacity >= requestedStack)
@@ -300,7 +336,7 @@ public sealed partial class InventorySlotsPlugin
             return true;
         }
 
-        capacity += (long)CountUsableRegularEmptyCells(inventory, player) * maxStack;
+        capacity += (long)CountUsableRegularEmptyCellsCached(inventory, player) * maxStack;
         if (capacity >= requestedStack)
         {
             return true;
@@ -311,7 +347,119 @@ public sealed partial class InventorySlotsPlugin
             capacity += maxStack;
         }
 
-        return capacity >= requestedStack;
+        bool canAdd = capacity >= requestedStack;
+        if (!canAdd)
+        {
+            CacheCanAddItemFailure(player, inventory, item, requestedStack);
+        }
+
+        return canAdd;
+    }
+
+    private static bool TryGetCachedCanAddItemFailure(Player player, Inventory inventory, ItemData item, int requestedStack)
+    {
+        if (!CanCacheCanAddItemFailure(item))
+        {
+            return false;
+        }
+
+        int context = ComputeInventoryPlacementCacheContext(player, inventory);
+        int itemKey = ComputeCanAddItemCacheItemKey(item);
+        return ReferenceEquals(InventorySafety.CanAddItemFailureCacheInventory, inventory) &&
+               InventorySafety.CanAddItemFailureCacheVersion == InventorySafety.InventoryPlacementCacheVersion &&
+               InventorySafety.CanAddItemFailureCacheContext == context &&
+               InventorySafety.CanAddItemFailureCacheItemKey == itemKey &&
+               InventorySafety.CanAddItemFailureCacheRequestedStack == requestedStack;
+    }
+
+    private static void CacheCanAddItemFailure(Player player, Inventory inventory, ItemData item, int requestedStack)
+    {
+        if (!CanCacheCanAddItemFailure(item))
+        {
+            return;
+        }
+
+        InventorySafety.CanAddItemFailureCacheInventory = inventory;
+        InventorySafety.CanAddItemFailureCacheVersion = InventorySafety.InventoryPlacementCacheVersion;
+        InventorySafety.CanAddItemFailureCacheContext = ComputeInventoryPlacementCacheContext(player, inventory);
+        InventorySafety.CanAddItemFailureCacheItemKey = ComputeCanAddItemCacheItemKey(item);
+        InventorySafety.CanAddItemFailureCacheRequestedStack = requestedStack;
+    }
+
+    private static bool CanCacheCanAddItemFailure(ItemData item)
+    {
+        return item?.m_shared != null && (HasNoCustomData(item) || IsTrustedCustomDataStackingItem(item));
+    }
+
+    private static int ComputeInventoryPlacementCacheContext(Player player, Inventory inventory)
+    {
+        unchecked
+        {
+            int hash = 17;
+            hash = hash * 31 + (inventory?.GetWidth() ?? 0);
+            hash = hash * 31 + (inventory?.GetHeight() ?? 0);
+            hash = hash * 31 + GetUsableRegularRows(player);
+            hash = hash * 31 + _slotDefinitionVersion;
+            hash = hash * 31 + GetKnownMaterialHash(player);
+            hash = hash * 31 + (inventory?.m_inventory?.Count ?? 0);
+            return hash;
+        }
+    }
+
+    private static int ComputeCanAddItemCacheItemKey(ItemData item)
+    {
+        unchecked
+        {
+            int hash = 17;
+            hash = hash * 31 + StringComparer.Ordinal.GetHashCode(item.m_shared?.m_name ?? "");
+            hash = hash * 31 + StringComparer.OrdinalIgnoreCase.GetHashCode(GetItemPrefabName(item));
+            hash = hash * 31 + item.m_quality;
+            hash = hash * 31 + item.m_worldLevel.GetHashCode();
+            hash = hash * 31 + Math.Max(1, item.m_shared?.m_maxStackSize ?? 1);
+            return hash;
+        }
+    }
+
+    private static HashSet<Vector2i> BuildOccupiedCellSet(Inventory inventory)
+    {
+        HashSet<Vector2i> occupied = new();
+        if (inventory?.m_inventory == null)
+        {
+            return occupied;
+        }
+
+        foreach (ItemData item in inventory.m_inventory)
+        {
+            if (item != null)
+            {
+                occupied.Add(item.m_gridPos);
+            }
+        }
+
+        return occupied;
+    }
+
+    private static bool IsCellOccupied(HashSet<Vector2i> occupied, int x, int y)
+    {
+        return occupied.Contains(new Vector2i(x, y));
+    }
+
+    private static void InvalidateInventoryPlacementCaches()
+    {
+        unchecked
+        {
+            InventorySafety.InventoryPlacementCacheVersion++;
+        }
+
+        InventorySafety.UsableRegularEmptyCellCacheInventory = null;
+        InventorySafety.UsableRegularEmptyCellCacheVersion = -1;
+        InventorySafety.UsableRegularEmptyCellCacheContext = 0;
+        InventorySafety.UsableRegularEmptyCellCacheCount = 0;
+        InventorySafety.CanAddItemFailureCacheInventory = null;
+        InventorySafety.CanAddItemFailureCacheVersion = -1;
+        InventorySafety.CanAddItemFailureCacheContext = 0;
+        InventorySafety.CanAddItemFailureCacheItemKey = 0;
+        InventorySafety.CanAddItemFailureCacheRequestedStack = 0;
     }
 
     private static int CountStackSpaceForIncomingItem(Inventory inventory, ItemData item)

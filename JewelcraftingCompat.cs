@@ -47,6 +47,24 @@ public sealed partial class InventorySlotsPlugin
     private static bool IsJewelcraftingNecklaceSlotEnabled() =>
         TryGetJewelcraftingSlotApi(out JewelcraftingSlotApi? api) && api != null && api.IsNecklaceEnabled();
 
+    private static bool IsJewelcraftingWisplightGemEnabled() =>
+        TryGetJewelcraftingSlotApi(out JewelcraftingSlotApi? api) && api != null && api.IsWisplightGemEnabled();
+
+    private static bool IsJewelcraftingWishboneGemEnabled() =>
+        TryGetJewelcraftingSlotApi(out JewelcraftingSlotApi? api) && api != null && api.IsWishboneGemEnabled();
+
+    private static bool ShouldSuppressYamlSlotForJewelcraftingGem(string slotId)
+    {
+        if (!HasJewelcraftingActive || string.IsNullOrWhiteSpace(slotId))
+        {
+            return false;
+        }
+
+        return string.Equals(slotId, "demister", StringComparison.OrdinalIgnoreCase)
+            ? IsJewelcraftingWisplightGemEnabled()
+            : string.Equals(slotId, "wishbone", StringComparison.OrdinalIgnoreCase) && IsJewelcraftingWishboneGemEnabled();
+    }
+
     private static bool IsJewelcraftingRingItem(ItemData? item) =>
         IsJewelcraftingJewelryItem(item, "JC_Ring_", "$jc_ring_", JewelcraftingRingSlotId);
 
@@ -107,6 +125,8 @@ public sealed partial class InventorySlotsPlugin
     {
         CompatRuntime.LastJewelcraftingRingSlotEnabled = IsJewelcraftingRingSlotEnabled();
         CompatRuntime.LastJewelcraftingNecklaceSlotEnabled = IsJewelcraftingNecklaceSlotEnabled();
+        CompatRuntime.LastJewelcraftingWisplightGemEnabled = IsJewelcraftingWisplightGemEnabled();
+        CompatRuntime.LastJewelcraftingWishboneGemEnabled = IsJewelcraftingWishboneGemEnabled();
         CompatRuntime.JewelcraftingSlotStateInitialized = true;
     }
 
@@ -119,21 +139,30 @@ public sealed partial class InventorySlotsPlugin
 
         bool ringEnabled = IsJewelcraftingRingSlotEnabled();
         bool necklaceEnabled = IsJewelcraftingNecklaceSlotEnabled();
+        bool wisplightGemEnabled = IsJewelcraftingWisplightGemEnabled();
+        bool wishboneGemEnabled = IsJewelcraftingWishboneGemEnabled();
         if (!CompatRuntime.JewelcraftingSlotStateInitialized)
         {
             CompatRuntime.LastJewelcraftingRingSlotEnabled = ringEnabled;
             CompatRuntime.LastJewelcraftingNecklaceSlotEnabled = necklaceEnabled;
+            CompatRuntime.LastJewelcraftingWisplightGemEnabled = wisplightGemEnabled;
+            CompatRuntime.LastJewelcraftingWishboneGemEnabled = wishboneGemEnabled;
             CompatRuntime.JewelcraftingSlotStateInitialized = true;
             return;
         }
 
-        if (ringEnabled == CompatRuntime.LastJewelcraftingRingSlotEnabled && necklaceEnabled == CompatRuntime.LastJewelcraftingNecklaceSlotEnabled)
+        if (ringEnabled == CompatRuntime.LastJewelcraftingRingSlotEnabled &&
+            necklaceEnabled == CompatRuntime.LastJewelcraftingNecklaceSlotEnabled &&
+            wisplightGemEnabled == CompatRuntime.LastJewelcraftingWisplightGemEnabled &&
+            wishboneGemEnabled == CompatRuntime.LastJewelcraftingWishboneGemEnabled)
         {
             return;
         }
 
         CompatRuntime.LastJewelcraftingRingSlotEnabled = ringEnabled;
         CompatRuntime.LastJewelcraftingNecklaceSlotEnabled = necklaceEnabled;
+        CompatRuntime.LastJewelcraftingWisplightGemEnabled = wisplightGemEnabled;
+        CompatRuntime.LastJewelcraftingWishboneGemEnabled = wishboneGemEnabled;
         RebuildSlotDefinitions();
         if (!IsUnityNull(player))
         {

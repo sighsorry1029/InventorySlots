@@ -44,9 +44,9 @@ internal static class InventoryHaveEmptySlotPatch
 [HarmonyPatch(typeof(Inventory), "CanAddItem", typeof(ItemData), typeof(int))]
 internal static class InventoryCanAddItemPatch
 {
-    private static void Postfix(Inventory __instance, ItemData item, int stack, ref bool __result)
+    private static bool Prefix(Inventory __instance, ItemData item, int stack, ref bool __result)
     {
-        InventorySlotsPlugin.OnInventoryCanAddItem(__instance, item, stack, ref __result);
+        return InventorySlotsPlugin.TryOverrideCanAddItem(__instance, item, stack, ref __result);
     }
 }
 

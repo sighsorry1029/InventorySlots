@@ -28,6 +28,8 @@ public sealed partial class InventorySlotsPlugin
         public bool AdventureBackpacksPatchesApplied;
         public bool LastJewelcraftingRingSlotEnabled;
         public bool LastJewelcraftingNecklaceSlotEnabled;
+        public bool LastJewelcraftingWisplightGemEnabled;
+        public bool LastJewelcraftingWishboneGemEnabled;
         public ItemData? LastAdventureBackpackCompatItem;
         public ItemData? LastSmoothbrainBackpackCompatItem;
         public ItemData? LastRustyBagCompatItem;

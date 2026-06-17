@@ -117,6 +117,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void OnPlayerAwake(Player player)
     {
+        InvalidateInventoryPlacementCaches();
         InvalidateCustomEquipmentProjectionCache();
         EnsureInventoryState(player, InventoryStateEnsureReason.PlayerAwake);
     }
@@ -125,6 +126,7 @@ public sealed partial class InventorySlotsPlugin
     {
         if (player == Player.m_localPlayer)
         {
+            InvalidateInventoryPlacementCaches();
             InvalidateCustomEquipmentProjectionCache();
             EnsureInventoryState(player, InventoryStateEnsureReason.PlayerSpawned);
             ApplyAutoFavoriteHotbarSwitchRowForPlayer(player);
@@ -133,6 +135,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void OnPlayerLoaded(Player player)
     {
+        InvalidateInventoryPlacementCaches();
         InvalidateCustomEquipmentProjectionCache();
         ClearPendingSlotActions();
         EnsureInventoryState(player, InventoryStateEnsureReason.PlayerLoad);
@@ -166,6 +169,7 @@ public sealed partial class InventorySlotsPlugin
     {
         if (player == Player.m_localPlayer && !player.m_isLoading)
         {
+            InvalidateInventoryPlacementCaches();
             InvalidateCustomEquipmentProjectionCache();
             ClearCraftingRequirementAvailabilityCache();
             RequestInventoryStateEnsure(player, InventoryStateEnsureReason.InventoryChanged, InventoryStateAuditLevel.SlotLight);

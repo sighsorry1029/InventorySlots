@@ -10,14 +10,20 @@ public sealed partial class InventorySlotsPlugin
     {
         private readonly FieldInfo _ringSlotField;
         private readonly FieldInfo _necklaceSlotField;
+        private readonly FieldInfo? _wisplightGemField;
+        private readonly FieldInfo? _wishboneGemField;
         private readonly MethodInfo? _isJewelryEquippedMethod;
         private ConfigEntryBase? _ringSlotConfig;
         private ConfigEntryBase? _necklaceSlotConfig;
+        private ConfigEntryBase? _wisplightGemConfig;
+        private ConfigEntryBase? _wishboneGemConfig;
 
-        private JewelcraftingSlotApi(FieldInfo ringSlotField, FieldInfo necklaceSlotField, MethodInfo? isJewelryEquippedMethod)
+        private JewelcraftingSlotApi(FieldInfo ringSlotField, FieldInfo necklaceSlotField, FieldInfo? wisplightGemField, FieldInfo? wishboneGemField, MethodInfo? isJewelryEquippedMethod)
         {
             _ringSlotField = ringSlotField;
             _necklaceSlotField = necklaceSlotField;
+            _wisplightGemField = wisplightGemField;
+            _wishboneGemField = wishboneGemField;
             _isJewelryEquippedMethod = isJewelryEquippedMethod;
         }
 
@@ -28,6 +34,8 @@ public sealed partial class InventorySlotsPlugin
             Type? apiType = assembly.GetType("Jewelcrafting.API");
             FieldInfo? ringSlotField = pluginType?.GetField("ringSlot", BindingFlags.Public | BindingFlags.Static);
             FieldInfo? necklaceSlotField = pluginType?.GetField("necklaceSlot", BindingFlags.Public | BindingFlags.Static);
+            FieldInfo? wisplightGemField = pluginType?.GetField("wisplightGem", BindingFlags.Public | BindingFlags.Static);
+            FieldInfo? wishboneGemField = pluginType?.GetField("wishboneGem", BindingFlags.Public | BindingFlags.Static);
             if (ringSlotField == null || necklaceSlotField == null)
             {
                 detail = "ringSlot or necklaceSlot config field was not found";
@@ -40,7 +48,7 @@ public sealed partial class InventorySlotsPlugin
                 null,
                 new[] { typeof(Player), typeof(string) },
                 null);
-            api = new JewelcraftingSlotApi(ringSlotField, necklaceSlotField, isJewelryEquippedMethod);
+            api = new JewelcraftingSlotApi(ringSlotField, necklaceSlotField, wisplightGemField, wishboneGemField, isJewelryEquippedMethod);
             detail = "";
             return true;
         }
@@ -48,6 +56,10 @@ public sealed partial class InventorySlotsPlugin
         public bool IsRingEnabled() => GetCompatConfigEntryToggleOn(_ringSlotField, ref _ringSlotConfig);
 
         public bool IsNecklaceEnabled() => GetCompatConfigEntryToggleOn(_necklaceSlotField, ref _necklaceSlotConfig);
+
+        public bool IsWisplightGemEnabled() => _wisplightGemField != null && GetCompatConfigEntryToggleOn(_wisplightGemField, ref _wisplightGemConfig);
+
+        public bool IsWishboneGemEnabled() => _wishboneGemField != null && GetCompatConfigEntryToggleOn(_wishboneGemField, ref _wishboneGemConfig);
 
         public bool TryGetIsJewelryEquippedMethod(out MethodBase? method)
         {

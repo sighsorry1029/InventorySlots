@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using ItemData = ItemDrop.ItemData;
 
@@ -64,11 +65,12 @@ public sealed partial class InventorySlotsPlugin
 
     internal static bool TryFindFreeRegularCell(Player player, Inventory inventory, out Vector2i pos)
     {
+        HashSet<Vector2i> occupied = BuildOccupiedCellSet(inventory);
         bool found = InventorySlotSafetyCore.TrySelectFirstFreeCell(
             inventory.GetWidth(),
             GetUsableRegularRows(player),
             (x, y) => IsUsableRegularCell(inventory, player, new Vector2i(x, y)),
-            (x, y) => inventory.GetItemAt(x, y) != null,
+            (x, y) => IsCellOccupied(occupied, x, y),
             out InventorySlotSafetyCore.GridCell cell);
         pos = new Vector2i(cell.X, cell.Y);
         return found;

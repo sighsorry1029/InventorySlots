@@ -125,6 +125,16 @@ public sealed partial class InventorySlotsPlugin
         public InventoryStateEnsureReason DeferredEnsureReason = InventoryStateEnsureReason.Unknown;
         public InventoryStateAuditLevel DeferredAuditLevel = InventoryStateAuditLevel.None;
         public int LastFullIntegrityAuditSignature = int.MinValue;
+        public int InventoryPlacementCacheVersion;
+        public Inventory? UsableRegularEmptyCellCacheInventory;
+        public int UsableRegularEmptyCellCacheVersion = -1;
+        public int UsableRegularEmptyCellCacheContext;
+        public int UsableRegularEmptyCellCacheCount;
+        public Inventory? CanAddItemFailureCacheInventory;
+        public int CanAddItemFailureCacheVersion = -1;
+        public int CanAddItemFailureCacheContext;
+        public int CanAddItemFailureCacheItemKey;
+        public int CanAddItemFailureCacheRequestedStack;
         public bool SlotUnequipInProgress;
         public bool SuppressSlotAutoEquip;
         public bool HandlingSlotDropOutside;
