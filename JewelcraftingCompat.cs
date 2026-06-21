@@ -75,6 +75,117 @@ public sealed partial class InventorySlotsPlugin
         IsJewelcraftingRingSlotEnabled() && IsJewelcraftingRingItem(item) ||
         IsJewelcraftingNecklaceSlotEnabled() && IsJewelcraftingNecklaceItem(item);
 
+    private static bool IsJewelcraftingUtilityGemBlocked(ItemData? item)
+    {
+        if (!HasJewelcraftingActive || item?.m_shared == null)
+        {
+            return false;
+        }
+
+        return IsJewelcraftingWisplightGemEnabled() && ItemMatchesExactPrefabOrName(item, "Demister") ||
+               IsJewelcraftingWishboneGemEnabled() && ItemMatchesExactPrefabOrName(item, "Wishbone");
+    }
+
+    private static bool IsJewelcraftingUtilityGemBlockedForSlot(ItemData? item, SlotDefinition? slot) =>
+        slot != null && slot.Kind != SlotKind.Quick && IsJewelcraftingUtilityGemBlocked(item);
+
+    private static bool TryBlockJewelcraftingUtilityGemEquip(Humanoid humanoid, ItemData item, ref bool result)
+    {
+        if (humanoid != (Humanoid)Player.m_localPlayer || !IsJewelcraftingUtilityGemBlocked(item))
+        {
+            return false;
+        }
+
+        result = false;
+        ShowJewelcraftingCannotEquipGemMessage(humanoid);
+        return true;
+    }
+
+    private static void ShowJewelcraftingCannotEquipGemMessage(Humanoid humanoid)
+    {
+        if (humanoid is Character character)
+        {
+            character.Message(MessageHud.MessageType.Center, "$jc_cannot_equip_gem", 0, null);
+        }
+    }
+
+    internal static bool TryOpenJewelcraftingSocketContainerFromInventorySlotsSlot(InventoryGui gui)
+    {
+        if (!HasJewelcraftingActive ||
+            gui == null ||
+            gui.m_playerGrid == null ||
+            !InventoryGui.IsVisible() ||
+            !IsJewelcraftingSocketInteractPressed() ||
+            !TryGetJewelcraftingGemApi(out JewelcraftingGemApi? api) ||
+            api == null ||
+            !TryGetJewelcraftingSpecialSlotItemUnderMouse(gui.m_playerGrid, out ItemData? item) ||
+            item == null ||
+            !api.CanOpenSocketContainerFromInventory(item, IsJewelcraftingGemcutterStationActive()))
+        {
+            return false;
+        }
+
+        return api.TryOpenSocketContainer(gui, item);
+    }
+
+    private static bool IsJewelcraftingSocketInteractPressed() =>
+        ZInput.GetButtonDown("Use") || ZInput.GetButtonDown("JoyUse");
+
+    private static bool TryGetJewelcraftingSpecialSlotItemUnderMouse(InventoryGrid grid, out ItemData? item)
+    {
+        item = null;
+        Inventory? inventory = grid.m_inventory;
+        if (inventory == null || grid.m_elements == null)
+        {
+            return false;
+        }
+
+        int width = inventory.GetWidth();
+        if (width <= 0)
+        {
+            return false;
+        }
+
+        int count = Math.Min(grid.m_elements.Count, width * Math.Max(0, inventory.GetHeight()));
+        for (int i = 0; i < count; i++)
+        {
+            InventoryGrid.Element element = grid.m_elements[i];
+            if (IsUnityNull(element?.m_go) || !element!.m_go.activeInHierarchy)
+            {
+                continue;
+            }
+
+            int y = i / width;
+            int x = i - y * width;
+            Vector2i pos = new(x, y);
+            if (!TryGetSlotAtGridPos(inventory, pos, out SlotDefinition? slot) || slot == null || slot.Kind == SlotKind.Quick)
+            {
+                continue;
+            }
+
+            if (element.m_go.transform is not RectTransform rect || !RectContainsScreenMouse(rect))
+            {
+                continue;
+            }
+
+            item = inventory.GetItemAt(x, y);
+            if (item?.m_shared != null)
+            {
+                return true;
+            }
+        }
+
+        item = null;
+        return false;
+    }
+
+    private static bool RectContainsScreenMouse(RectTransform rect)
+    {
+        Canvas? canvas = rect.GetComponentInParent<Canvas>();
+        Camera? camera = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
+        return RectTransformUtility.RectangleContainsScreenPoint(rect, Input.mousePosition, camera);
+    }
+
     private static bool IsJewelcraftingJewelryItem(ItemData? item, string prefabPrefix, string sharedNamePrefix, string slotId)
     {
         if (item?.m_shared == null)

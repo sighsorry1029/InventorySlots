@@ -161,6 +161,12 @@ public sealed partial class InventorySlotsPlugin : BaseUnityPlugin
         Three = 3
     }
 
+    public enum PlayerStatBarLengthScaling
+    {
+        Linear,
+        Logarithmic
+    }
+
     public enum GamepadUiScrollSource
     {
         RightStickY,

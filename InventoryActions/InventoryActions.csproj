@@ -161,7 +161,6 @@
         <Copy SourceFiles="$(ProjectDir)\Thunderstore\manifest.json" DestinationFiles="$(PackageDir)\manifest.json"/>
         <Copy SourceFiles="$(ProjectDir)\Thunderstore\icon.png" DestinationFiles="$(PackageDir)\icon.png"/>
         <Copy SourceFiles="$(ProjectDir)translations\English.yml" DestinationFiles="$(PackageDir)\$(AssemblyName).English.yml"/>
-        <Copy SourceFiles="$(ProjectDir)translations\Korean.yml" DestinationFiles="$(PackageDir)\$(AssemblyName).Korean.yml"/>
         <Delete Files="$(ThunderstoreZip)" Condition="Exists('$(ThunderstoreZip)')"/>
         <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;Compress-Archive -Path '$(PackageDir)\*' -DestinationPath '$(ThunderstoreZip)' -Force&quot;"/>
         <RemoveDir Directories="$(PackageDir)" Condition="Exists('$(PackageDir)')"/>

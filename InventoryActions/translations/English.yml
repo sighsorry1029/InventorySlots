@@ -35,7 +35,7 @@ inventoryactions_trash_action: Trash
 inventoryactions_trash_no_item: Pick up an item first.
 inventoryactions_trash_player_inventory_only: Only player inventory items can be trashed.
 inventoryactions_trash_item_missing: That item is no longer available.
-inventoryactions_trash_hotbar_item: Hotbar items cannot be trashed.
+inventoryactions_trash_hotbar_item: Only regular inventory items can be trashed.
 inventoryactions_trash_favorite_item: Favorite items cannot be trashed.
 inventoryactions_craft_button_count_format: "{label} x{count}"
 inventoryactions_crafting_progress_count_format: "{label} x{count}"

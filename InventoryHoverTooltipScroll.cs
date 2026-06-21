@@ -36,6 +36,7 @@ public sealed partial class InventorySlotsPlugin
         public bool HoverTooltipNeedsScroll;
         public RectTransform? HoverJewelcraftingTooltipRoot;
         public string HoverJewelcraftingTooltipSignature = "";
+        public int HoverJewelcraftingTooltipLayoutRefreshFrames;
         public GameObject? SimpleNameTooltip;
         public RectTransform? SimpleNameTooltipRect;
         public TMP_Text? SimpleNameTooltipText;
@@ -64,6 +65,7 @@ public sealed partial class InventorySlotsPlugin
     private static bool _inventoryHoverTooltipNeedsScroll { get => InventoryHoverTooltipRuntime.HoverTooltipNeedsScroll; set => InventoryHoverTooltipRuntime.HoverTooltipNeedsScroll = value; }
     private static RectTransform? _inventoryHoverJewelcraftingTooltipRoot { get => InventoryHoverTooltipRuntime.HoverJewelcraftingTooltipRoot; set => InventoryHoverTooltipRuntime.HoverJewelcraftingTooltipRoot = value; }
     private static string _inventoryHoverJewelcraftingTooltipSignature { get => InventoryHoverTooltipRuntime.HoverJewelcraftingTooltipSignature; set => InventoryHoverTooltipRuntime.HoverJewelcraftingTooltipSignature = value; }
+    private static int _inventoryHoverJewelcraftingTooltipLayoutRefreshFrames { get => InventoryHoverTooltipRuntime.HoverJewelcraftingTooltipLayoutRefreshFrames; set => InventoryHoverTooltipRuntime.HoverJewelcraftingTooltipLayoutRefreshFrames = value; }
     private static GameObject? _inventorySimpleNameTooltip { get => InventoryHoverTooltipRuntime.SimpleNameTooltip; set => InventoryHoverTooltipRuntime.SimpleNameTooltip = value; }
     private static RectTransform? _inventorySimpleNameTooltipRect { get => InventoryHoverTooltipRuntime.SimpleNameTooltipRect; set => InventoryHoverTooltipRuntime.SimpleNameTooltipRect = value; }
     private static TMP_Text? _inventorySimpleNameTooltipText { get => InventoryHoverTooltipRuntime.SimpleNameTooltipText; set => InventoryHoverTooltipRuntime.SimpleNameTooltipText = value; }
@@ -640,6 +642,7 @@ public sealed partial class InventorySlotsPlugin
         {
             _inventoryHoverJewelcraftingTooltipSignature = signature;
             ApplyInventoryHoverJewelcraftingSourceFonts();
+            _inventoryHoverJewelcraftingTooltipLayoutRefreshFrames = 2;
             return true;
         }
 
@@ -668,6 +671,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         _inventoryHoverJewelcraftingTooltipSignature = "";
+        _inventoryHoverJewelcraftingTooltipLayoutRefreshFrames = 0;
         return changed;
     }
 
@@ -791,6 +795,12 @@ public sealed partial class InventorySlotsPlugin
 
     private static void LayoutInventoryContainerCustomTooltip(RectTransform panel, bool force)
     {
+        if (_inventoryHoverJewelcraftingTooltipLayoutRefreshFrames > 0)
+        {
+            force = true;
+            _inventoryHoverJewelcraftingTooltipLayoutRefreshFrames--;
+        }
+
         string layoutSignature = GetInventoryHoverTooltipLayoutSignature(panel);
         if (!force && string.Equals(_inventoryHoverTooltipLayoutSignature, layoutSignature, StringComparison.Ordinal))
         {

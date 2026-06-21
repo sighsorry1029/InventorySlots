@@ -159,7 +159,9 @@ public sealed partial class InventorySlotsPlugin
 
         InventoryGridElementUiCache? cache = GetInventoryGridElementUiCache(element);
         string signature = GetEquipmentSlotTooltipSignature(item);
+        bool forceJewelcraftingRefresh = ShouldForceJewelcraftingEquipmentTooltipRefresh(item);
         if (cache != null &&
+            !forceJewelcraftingRefresh &&
             string.Equals(cache.EquipmentTooltipSignature, signature, StringComparison.Ordinal) &&
             !string.IsNullOrWhiteSpace(element.m_tooltip.m_text))
         {
@@ -197,6 +199,14 @@ public sealed partial class InventorySlotsPlugin
         {
             cache.EquipmentTooltipSignature = signature;
         }
+    }
+
+    private static bool ShouldForceJewelcraftingEquipmentTooltipRefresh(ItemData item)
+    {
+        return HasJewelcraftingActive &&
+               TryGetJewelcraftingGemApi(out JewelcraftingGemApi? api) &&
+               api != null &&
+               api.HasSocketContainer(item);
     }
 
     private static void SetDirectEquipmentSlotTooltip(InventoryGrid.Element element, ItemData item)

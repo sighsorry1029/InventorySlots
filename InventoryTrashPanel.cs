@@ -367,11 +367,11 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        if (GetInventoryCellKind(player, inventory, item.m_gridPos) == InventoryCellKind.Hotbar)
+        if (!CanTrashInventoryCell(player, inventory, item.m_gridPos))
         {
             if (showMessage)
             {
-                ShowInventoryTrashMessage(player, "$inventoryslots_trash_hotbar_item", "Hotbar items cannot be trashed.");
+                ShowInventoryTrashMessage(player, "$inventoryslots_trash_hotbar_item", "Only regular inventory items can be trashed.");
             }
 
             return false;
@@ -388,6 +388,12 @@ public sealed partial class InventorySlotsPlugin
         }
 
         return true;
+    }
+
+    private static bool CanTrashInventoryCell(Player player, Inventory inventory, Vector2i pos)
+    {
+        InventoryCellKind kind = GetInventoryCellKind(player, inventory, pos);
+        return InventoryActionCellPolicyCore.CanTrashSlot(kind);
     }
 
     private static void ShowInventoryTrashConfirmDialog(InventoryGui gui, Inventory inventory, ItemData item, int amount)

@@ -61,9 +61,20 @@ public sealed partial class InventorySlotsPlugin
         quickPanel.GetWorldCorners(worldCorners);
         quickPanel.localPosition = currentPosition;
 
-        InventoryPanels.QuickSlotHudAnchoredPosition = hudRoot.InverseTransformPoint(worldCorners[1]);
-        InventoryPanels.QuickSlotHudElementSpace = Mathf.Max(1f, elementSpace);
+        Vector3 anchoredPosition = hudRoot.InverseTransformPoint(worldCorners[1]);
+        float hudElementSpace = Mathf.Max(1f, elementSpace);
+        bool shouldSave =
+            !InventoryPanels.QuickSlotHudAnchorValid ||
+            (InventoryPanels.QuickSlotHudAnchoredPosition - anchoredPosition).sqrMagnitude > 0.0001f ||
+            Mathf.Abs(InventoryPanels.QuickSlotHudElementSpace - hudElementSpace) > 0.01f;
+
+        InventoryPanels.QuickSlotHudAnchoredPosition = anchoredPosition;
+        InventoryPanels.QuickSlotHudElementSpace = hudElementSpace;
         InventoryPanels.QuickSlotHudAnchorValid = true;
+        if (shouldSave && !InventoryPanels.DraggingQuickSlotsPanelOffset)
+        {
+            SaveQuickSlotHudAnchor();
+        }
     }
 
     private static void OnQuickSlotHudFollowsPanelChanged()

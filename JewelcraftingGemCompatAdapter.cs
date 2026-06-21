@@ -14,6 +14,7 @@ public sealed partial class InventorySlotsPlugin
         private readonly MethodInfo _getGemsMethod;
         private readonly MethodInfo? _itemDataMethod;
         private readonly MethodInfo? _itemInfoGetSocketableMethod;
+        private readonly MethodInfo? _itemInfoGetItemContainerMethod;
         private readonly FieldInfo? _socketedGemsField;
         private readonly FieldInfo? _socketNameField;
         private readonly FieldInfo? _socketSeedField;
@@ -24,6 +25,10 @@ public sealed partial class InventorySlotsPlugin
         private readonly MethodInfo? _displayGemEffectPowerMethod;
         private readonly FieldInfo? _openEquipmentField;
         private readonly FieldInfo? _openInventoryField;
+        private readonly MethodInfo? _openSocketContainerMethod;
+        private readonly FieldInfo? _inventoryInteractBehaviourField;
+        private readonly FieldInfo? _inventorySocketingField;
+        private readonly Type? _itemBagType;
         private readonly PropertyInfo? _itemInfoItemDataProperty;
         private readonly MethodInfo? _itemInfoGetAllSocketSeedsMethod;
         private readonly PropertyInfo? _socketSeedSeedProperty;
@@ -35,6 +40,7 @@ public sealed partial class InventorySlotsPlugin
             MethodInfo getGemsMethod,
             MethodInfo? itemDataMethod,
             MethodInfo? itemInfoGetSocketableMethod,
+            MethodInfo? itemInfoGetItemContainerMethod,
             FieldInfo? socketedGemsField,
             FieldInfo? socketNameField,
             FieldInfo? socketSeedField,
@@ -45,6 +51,10 @@ public sealed partial class InventorySlotsPlugin
             MethodInfo? displayGemEffectPowerMethod,
             FieldInfo? openEquipmentField,
             FieldInfo? openInventoryField,
+            MethodInfo? openSocketContainerMethod,
+            FieldInfo? inventoryInteractBehaviourField,
+            FieldInfo? inventorySocketingField,
+            Type? itemBagType,
             PropertyInfo? itemInfoItemDataProperty,
             MethodInfo? itemInfoGetAllSocketSeedsMethod,
             PropertyInfo? socketSeedSeedProperty)
@@ -52,6 +62,7 @@ public sealed partial class InventorySlotsPlugin
             _getGemsMethod = getGemsMethod;
             _itemDataMethod = itemDataMethod;
             _itemInfoGetSocketableMethod = itemInfoGetSocketableMethod;
+            _itemInfoGetItemContainerMethod = itemInfoGetItemContainerMethod;
             _socketedGemsField = socketedGemsField;
             _socketNameField = socketNameField;
             _socketSeedField = socketSeedField;
@@ -62,6 +73,10 @@ public sealed partial class InventorySlotsPlugin
             _displayGemEffectPowerMethod = displayGemEffectPowerMethod;
             _openEquipmentField = openEquipmentField;
             _openInventoryField = openInventoryField;
+            _openSocketContainerMethod = openSocketContainerMethod;
+            _inventoryInteractBehaviourField = inventoryInteractBehaviourField;
+            _inventorySocketingField = inventorySocketingField;
+            _itemBagType = itemBagType;
             _itemInfoItemDataProperty = itemInfoItemDataProperty;
             _itemInfoGetAllSocketSeedsMethod = itemInfoGetAllSocketSeedsMethod;
             _socketSeedSeedProperty = socketSeedSeedProperty;
@@ -86,12 +101,15 @@ public sealed partial class InventorySlotsPlugin
             Type? itemExtensionsType = assembly.GetType("ItemDataManager.ItemExtensions");
             Type? itemInfoType = assembly.GetType("ItemDataManager.ItemInfo");
             Type? socketableType = assembly.GetType("Jewelcrafting.Socketable");
+            Type? itemContainerType = assembly.GetType("Jewelcrafting.ItemContainer");
+            Type? itemBagType = assembly.GetType("Jewelcrafting.ItemBag");
             Type? socketItemType = assembly.GetType("Jewelcrafting.SocketItem");
             Type? jewelcraftingType = assembly.GetType("Jewelcrafting.Jewelcrafting");
             Type? effectDefType = assembly.GetType("Jewelcrafting.GemEffects.EffectDef");
             Type? utilsType = assembly.GetType("Jewelcrafting.Utils");
             Type? effectPowerType = assembly.GetType("Jewelcrafting.GemEffects.EffectPower");
             Type? addFakeSocketsContainerType = assembly.GetType("Jewelcrafting.GemStones+AddFakeSocketsContainer");
+            Type? openFakeSocketsContainerType = assembly.GetType("Jewelcrafting.GemStones+OpenFakeSocketsContainer");
             Type? socketSeedType = assembly.GetType("Jewelcrafting.SocketSeed");
 
             MethodInfo? itemDataMethod = itemExtensionsType?.GetMethod(
@@ -102,13 +120,23 @@ public sealed partial class InventorySlotsPlugin
                 null);
             MethodInfo? itemInfoGetAllSocketSeedsMethod = null;
             MethodInfo? itemInfoGetMethod = null;
+            MethodInfo? itemInfoGetItemContainerMethod = null;
             if (itemInfoType != null)
             {
                 foreach (MethodInfo method in itemInfoType.GetMethods(BindingFlags.Public | BindingFlags.Instance))
                 {
-                    if (socketableType != null && method.Name == "Get" && method.IsGenericMethodDefinition && method.GetParameters().Length == 1)
+                    if (method.Name == "Get" && method.IsGenericMethodDefinition)
                     {
-                        itemInfoGetMethod = method.MakeGenericMethod(socketableType);
+                        ParameterInfo[] parameters = method.GetParameters();
+                        if (socketableType != null && parameters.Length == 1)
+                        {
+                            itemInfoGetMethod = method.MakeGenericMethod(socketableType);
+                        }
+
+                        if (itemContainerType != null && (parameters.Length == 0 || (parameters.Length == 1 && itemInfoGetItemContainerMethod == null)))
+                        {
+                            itemInfoGetItemContainerMethod = method.MakeGenericMethod(itemContainerType);
+                        }
                     }
                     else if (socketSeedType != null && method.Name == "GetAll" && method.IsGenericMethodDefinition && method.GetParameters().Length == 0)
                     {
@@ -134,6 +162,7 @@ public sealed partial class InventorySlotsPlugin
                 getGemsMethod,
                 itemDataMethod,
                 itemInfoGetMethod,
+                itemInfoGetItemContainerMethod,
                 socketableType?.GetField("socketedGems", BindingFlags.Public | BindingFlags.Instance),
                 socketItemType?.GetField("Name", BindingFlags.Public | BindingFlags.Instance),
                 socketItemType?.GetField("Seed", BindingFlags.Public | BindingFlags.Instance),
@@ -144,6 +173,10 @@ public sealed partial class InventorySlotsPlugin
                 displayGemEffectPowerMethod,
                 addFakeSocketsContainerType?.GetField("openEquipment", BindingFlags.Public | BindingFlags.Static),
                 addFakeSocketsContainerType?.GetField("openInventory", BindingFlags.Public | BindingFlags.Static),
+                openFakeSocketsContainerType?.GetMethod("Open", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(InventoryGui), typeof(ItemDrop.ItemData) }, null),
+                jewelcraftingType?.GetField("inventoryInteractBehaviour", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static),
+                jewelcraftingType?.GetField("inventorySocketing", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static),
+                itemBagType,
                 itemInfoType?.GetProperty("ItemData", BindingFlags.Public | BindingFlags.Instance),
                 itemInfoGetAllSocketSeedsMethod,
                 socketSeedType?.GetProperty("Seed", BindingFlags.Public | BindingFlags.Instance));
@@ -152,6 +185,42 @@ public sealed partial class InventorySlotsPlugin
         }
 
         public object? GetGems(ItemDrop.ItemData item) => _getGemsMethod.Invoke(null, new object[] { item });
+
+        public bool CanOpenSocketContainerFromInventory(ItemDrop.ItemData item, bool gemcutterStationActive)
+        {
+            object? itemContainer = GetItemContainer(item);
+            if (itemContainer == null || string.Equals(GetConfigEntryValueName(_inventoryInteractBehaviourField), "Enabled", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            string inventorySocketing = GetConfigEntryValueName(_inventorySocketingField);
+            return string.IsNullOrWhiteSpace(inventorySocketing) ||
+                   string.Equals(inventorySocketing, "On", StringComparison.Ordinal) ||
+                   IsItemBag(itemContainer) ||
+                   gemcutterStationActive;
+        }
+
+        public bool HasSocketContainer(ItemDrop.ItemData item) => GetItemContainer(item) != null;
+
+        public bool TryOpenSocketContainer(InventoryGui gui, ItemDrop.ItemData item)
+        {
+            if (_openSocketContainerMethod == null || gui == null || item?.m_shared == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                object? result = _openSocketContainerMethod.Invoke(null, new object[] { gui, item });
+                return result is bool continueVanilla && !continueVanilla;
+            }
+            catch (Exception ex)
+            {
+                Log.LogDebug($"Jewelcrafting socket container open failed for {GetItemPrefabName(item)}: {ex.Message}");
+                return false;
+            }
+        }
 
         public ItemDrop.ItemData? GetOpenSocketContainerItem()
         {
@@ -168,6 +237,54 @@ public sealed partial class InventorySlotsPlugin
             catch
             {
                 return null;
+            }
+        }
+
+        private object? GetItemContainer(ItemDrop.ItemData item)
+        {
+            if (_itemDataMethod == null || _itemInfoGetItemContainerMethod == null || item?.m_shared == null)
+            {
+                return null;
+            }
+
+            try
+            {
+                object? itemInfo = _itemDataMethod.Invoke(null, new object[] { item });
+                return itemInfo != null ? InvokeItemInfoGet(_itemInfoGetItemContainerMethod, itemInfo) : null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static object? InvokeItemInfoGet(MethodInfo method, object itemInfo)
+        {
+            ParameterInfo[] parameters = method.GetParameters();
+            return parameters.Length == 0
+                ? method.Invoke(itemInfo, Array.Empty<object>())
+                : method.Invoke(itemInfo, new object[] { "" });
+        }
+
+        private bool IsItemBag(object itemContainer) =>
+            _itemBagType != null && _itemBagType.IsInstanceOfType(itemContainer);
+
+        private static string GetConfigEntryValueName(FieldInfo? field)
+        {
+            if (field == null)
+            {
+                return "";
+            }
+
+            try
+            {
+                object? configEntry = field.GetValue(null);
+                object? value = configEntry?.GetType().GetProperty("Value", BindingFlags.Public | BindingFlags.Instance)?.GetValue(configEntry);
+                return value?.ToString() ?? "";
+            }
+            catch
+            {
+                return "";
             }
         }
 

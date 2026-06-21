@@ -468,8 +468,13 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
+        if (!TryGetInventoryPanelDragLocalMousePosition(out Vector2 localMousePosition))
+        {
+            return;
+        }
+
         InventoryPanels.DraggedInventoryPanel = panel;
-        InventoryPanels.InventoryPanelDragStartMouse = Input.mousePosition;
+        InventoryPanels.InventoryPanelDragStartLocalMouse = localMousePosition;
         InventoryPanels.InventoryPanelDragStartOffset = isQuickSlotsPanel ? InventoryPanels.QuickSlotsPanelRuntimeOffset : InventoryPanels.EquipmentSlotsPanelRuntimeOffset;
         InventoryPanels.DraggingQuickSlotsPanelOffset = isQuickSlotsPanel;
         InventoryPanels.DraggingEquipmentSlotsPanelOffset = isEquipmentSlotsPanel;
@@ -552,32 +557,99 @@ public sealed partial class InventorySlotsPlugin
         SaveClientState();
     }
 
-    private static void UpdateInventoryPanelDragging()
+    private static bool UpdateInventoryPanelDragging()
     {
         if (InventoryPanels.DraggedInventoryPanel == null || (!InventoryPanels.DraggingQuickSlotsPanelOffset && !InventoryPanels.DraggingEquipmentSlotsPanelOffset))
         {
-            return;
+            return false;
         }
 
         if (!Input.GetMouseButton(0) || !InventoryPanels.DraggedInventoryPanel.gameObject.activeInHierarchy)
         {
             StopInventoryPanelDrag();
-            return;
+            return false;
         }
 
-        Vector3 delta = Input.mousePosition - InventoryPanels.InventoryPanelDragStartMouse;
+        if (!TryGetInventoryPanelDragLocalMousePosition(out Vector2 localMousePosition))
+        {
+            StopInventoryPanelDrag();
+            return false;
+        }
+
+        Vector2 delta = localMousePosition - InventoryPanels.InventoryPanelDragStartLocalMouse;
         Vector2 nextOffset = new(InventoryPanels.InventoryPanelDragStartOffset.x + delta.x, InventoryPanels.InventoryPanelDragStartOffset.y + delta.y);
         if (InventoryPanels.DraggingQuickSlotsPanelOffset)
         {
             InventoryPanels.QuickSlotsPanelRuntimeOffset = nextOffset;
-            return;
+            return true;
         }
 
         if (InventoryPanels.DraggingEquipmentSlotsPanelOffset)
         {
             InventoryPanels.EquipmentSlotsPanelRuntimeOffset = nextOffset;
-            return;
+            return true;
         }
+
+        return false;
+    }
+
+    private static bool TryUpdateDraggedInventoryPanelPositionOnly(InventoryGrid playerGrid, Vector3 origin, int inventoryWidth)
+    {
+        if (playerGrid == null || playerGrid.m_gridRoot == null)
+        {
+            return false;
+        }
+
+        int key = playerGrid.GetInstanceID();
+        InventoryPanels.CustomSlotPanels.TryGetValue(key, out RectTransform? customPanel);
+        InventoryPanels.QuickSlotPanels.TryGetValue(key, out RectTransform? quickPanel);
+        if (IsUnityNull(customPanel))
+        {
+            customPanel = null;
+        }
+
+        if (IsUnityNull(quickPanel))
+        {
+            quickPanel = null;
+        }
+
+        Vector3 sidePanelBasePosition = GetSidePanelBasePosition(origin, inventoryWidth, playerGrid.m_elementSpace);
+        bool handledDraggedPanel = false;
+        if (customPanel != null)
+        {
+            customPanel.localPosition = sidePanelBasePosition + (Vector3)InventoryPanels.EquipmentSlotsPanelRuntimeOffset;
+            handledDraggedPanel |= InventoryPanels.DraggingEquipmentSlotsPanelOffset;
+        }
+
+        if (quickPanel != null)
+        {
+            bool hasEquipmentPanel = customPanel != null && customPanel.gameObject.activeSelf;
+            float equipmentPanelRows = hasEquipmentPanel ? CustomSlotPanelRows : 0f;
+            float quickPanelYOffset = -(equipmentPanelRows + (hasEquipmentPanel ? EquipmentPanelGapRows : 0f)) * playerGrid.m_elementSpace;
+            Vector3 quickPanelTargetPosition = sidePanelBasePosition + new Vector3(0f, quickPanelYOffset, 0f) + (Vector3)InventoryPanels.QuickSlotsPanelRuntimeOffset;
+            PositionQuickSlotPanel(playerGrid, quickPanel, quickPanelTargetPosition, playerGrid.m_elementSpace);
+            handledDraggedPanel |= InventoryPanels.DraggingQuickSlotsPanelOffset;
+        }
+
+        return handledDraggedPanel;
+    }
+
+    private static bool TryGetInventoryPanelDragLocalMousePosition(out Vector2 localMousePosition)
+    {
+        localMousePosition = Vector2.zero;
+        RectTransform? dragRoot = InventoryGui.instance != null && InventoryGui.instance.m_playerGrid != null
+            ? InventoryGui.instance.m_playerGrid.m_gridRoot
+            : null;
+        if (dragRoot == null)
+        {
+            return false;
+        }
+
+        Canvas? canvas = dragRoot.GetComponentInParent<Canvas>();
+        Camera? camera = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay
+            ? canvas.worldCamera
+            : null;
+        return RectTransformUtility.ScreenPointToLocalPointInRectangle(dragRoot, Input.mousePosition, camera, out localMousePosition);
     }
 
     private static void UpdateVanillaPanelBackground(RectTransform panel, float width, float height)

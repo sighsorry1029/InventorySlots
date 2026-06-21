@@ -22,6 +22,16 @@ internal static class KeyHintsFavoriteHintUpdatePatch
     }
 }
 
+[HarmonyPatch(typeof(InventoryGui), "Update")]
+[HarmonyBefore(new[] { "org.bepinex.plugins.jewelcrafting" })]
+internal static class InventoryGuiJewelcraftingInventorySlotsSocketContainerPatch
+{
+    private static bool Prefix(InventoryGui __instance)
+    {
+        return !InventorySlotsPlugin.TryOpenJewelcraftingSocketContainerFromInventorySlotsSlot(__instance);
+    }
+}
+
 [HarmonyPatch(typeof(UITooltip), "OnHoverStart")]
 [HarmonyAfter(new[] { "randyknapp.mods.epicloot", "org.bepinex.plugins.jewelcrafting", "Azumatt.TooltipExpansion" })]
 internal static class UITooltipNullPrefabGuardPatch

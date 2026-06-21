@@ -192,6 +192,7 @@ public sealed partial class InventorySlotsPlugin
     {
         return item != null &&
                slot != null &&
+               !IsJewelcraftingUtilityGemBlockedForSlot(item, slot) &&
                IsSpecialSlotUnlocked(player, inventory, slot) &&
                slot.Accepts(item);
     }

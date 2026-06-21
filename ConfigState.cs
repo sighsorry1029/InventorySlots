@@ -37,6 +37,7 @@ public sealed partial class InventorySlotsPlugin
     private static ConfigEntry<CraftingHoverTooltipMode> _showCraftingHoverTooltip = null!;
     private static ConfigEntry<float> _craftingHoverTooltipBackgroundAlpha = null!;
     private static ConfigEntry<float> _inventoryContainerHoverTooltipBackgroundAlpha = null!;
+    private static ConfigEntry<PlayerStatBarLengthScaling> _playerStatBarLengthScaling = null!;
     private static ConfigEntry<float> _containerHoverHoldDuration = null!;
     private static ConfigEntry<int> _containerActionSuccessFxMode = null!;
     private static ConfigEntry<float> _containerActionSuccessFxVolume = null!;

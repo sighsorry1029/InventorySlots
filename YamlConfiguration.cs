@@ -489,7 +489,7 @@ public sealed partial class InventorySlotsPlugin
         SlotDefinitions.Add(new SlotDefinition("chest", GetSlotName(yamlSlots, "chest", "Chest"), SlotKind.BuiltIn, item => item?.m_shared?.m_itemType == ItemType.Chest));
         SlotDefinitions.Add(new SlotDefinition("legs", GetSlotName(yamlSlots, "legs", "Legs"), SlotKind.BuiltIn, item => item?.m_shared?.m_itemType == ItemType.Legs));
         SlotDefinitions.Add(new SlotDefinition("cape", GetSlotName(yamlSlots, "cape", "Cape"), SlotKind.BuiltIn, item => item?.m_shared?.m_itemType == ItemType.Shoulder));
-        SlotDefinitions.Add(new SlotDefinition("utility", GetSlotName(yamlSlots, "utility", "Utility"), SlotKind.BuiltIn, item => item?.m_shared?.m_itemType == ItemType.Utility && !IsJewelcraftingDedicatedJewelryItem(item)));
+        SlotDefinitions.Add(new SlotDefinition("utility", GetSlotName(yamlSlots, "utility", "Utility"), SlotKind.BuiltIn, item => item?.m_shared?.m_itemType == ItemType.Utility && !IsJewelcraftingDedicatedJewelryItem(item) && !IsJewelcraftingUtilityGemBlocked(item)));
         SlotDefinitions.Add(new SlotDefinition("trinket", GetSlotName(yamlSlots, "trinket", "Trinket"), SlotKind.BuiltIn, item => item?.m_shared?.m_itemType == ItemType.Trinket));
 
         HashSet<string> seenJewelcraftingSlots = new(StringComparer.OrdinalIgnoreCase);

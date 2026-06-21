@@ -10,4 +10,7 @@ internal static class InventoryActionCellPolicyCore
 
     internal static bool CanUseFavoriteRestockTarget(InventoryCellKind kind) =>
         kind is InventoryCellKind.RegularUnlocked or InventoryCellKind.Hotbar or InventoryCellKind.Quick;
+
+    internal static bool CanTrashSlot(InventoryCellKind kind) =>
+        kind == InventoryCellKind.RegularUnlocked;
 }

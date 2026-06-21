@@ -56,6 +56,11 @@ public sealed partial class InventorySlotsPlugin
     {
         if (!CanUseSpecialSlot(player, inventory, item, slot))
         {
+            if (IsJewelcraftingUtilityGemBlockedForSlot(item, slot))
+            {
+                ShowJewelcraftingCannotEquipGemMessage(player);
+            }
+
             return false;
         }
 
@@ -574,6 +579,14 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
+        if (IsJewelcraftingUtilityGemBlockedForSlot(dragItem, targetSlot))
+        {
+            ShowJewelcraftingCannotEquipGemMessage(player);
+            gui.SetupDragItem(null, null, 1);
+            gui.UpdateCraftingPanel();
+            return true;
+        }
+
         if (!targetSlot.Accepts(dragItem))
         {
             return false;
@@ -1090,17 +1103,14 @@ public sealed partial class InventorySlotsPlugin
 
     internal static bool CanAutoPlaceItemInSpecialSlot(Player player, Inventory inventory, ItemData item)
     {
-        return SlotDefinitions.Any(slot =>
-            CanUseEmptySpecialSlot(player, inventory, item, slot) &&
-            CanAutoAdoptGridSlot(item, slot));
+        return SlotDefinitions.Any(slot => CanAutoPlaceItemInSpecialSlot(player, inventory, item, slot));
     }
 
     internal static bool TryAutoPlaceItemInSpecialSlot(Player player, Inventory inventory, ItemData item)
     {
         foreach (SlotDefinition slot in SlotDefinitions)
         {
-            if (CanUseEmptySpecialSlot(player, inventory, item, slot) &&
-                CanAutoAdoptGridSlot(item, slot) &&
+            if (CanAutoPlaceItemInSpecialSlot(player, inventory, item, slot) &&
                 TryEquipIntoSlot(player, inventory, item, slot))
             {
                 return true;
@@ -1108,6 +1118,12 @@ public sealed partial class InventorySlotsPlugin
         }
 
         return false;
+    }
+
+    private static bool CanAutoPlaceItemInSpecialSlot(Player player, Inventory inventory, ItemData item, SlotDefinition slot)
+    {
+        return CanUseEmptySpecialSlot(player, inventory, item, slot) &&
+               CanAutoAdoptGridSlot(item, slot);
     }
 
 }

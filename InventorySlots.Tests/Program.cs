@@ -55,6 +55,7 @@ TestRunner.Run(
     ("Action cell policy favorites include quickslots", Tests.ActionCellPolicyFavoritesIncludeQuickslots),
     ("Action cell policy keeps quickslots out of container action sources", Tests.ActionCellPolicyKeepsQuickslotsOutOfContainerActionSources),
     ("Action cell policy restock targets include hotbar and quickslots", Tests.ActionCellPolicyRestockTargetsIncludeHotbarAndQuickslots),
+    ("Action cell policy trash allows regular inventory only", Tests.ActionCellPolicyTrashAllowsRegularInventoryOnly),
     ("InventoryActions action cell policy copy mirrors InventorySlots behavior", Tests.InventoryActionsActionCellPolicyCopyMirrorsInventorySlotsBehavior),
     ("Keep-on-death equipment prefers regular cell before unrelated special slot", Tests.KeepOnDeathEquipmentPrefersRegularCellBeforeUnrelatedSpecialSlot),
     ("Keep-on-death quickslot avoids unrelated special slot when packed", Tests.KeepOnDeathQuickslotAvoidsUnrelatedSpecialSlotWhenPacked),
@@ -833,6 +834,21 @@ internal static class Tests
         Assert.False(InventoryActionCellPolicyCore.CanUseFavoriteRestockTarget(InventoryCellKind.Outside), "outside cells should not be restock targets");
     }
 
+    public static void ActionCellPolicyTrashAllowsRegularInventoryOnly()
+    {
+        Assert.True(InventoryActionCellPolicyCore.CanTrashSlot(InventoryCellKind.RegularUnlocked), "regular cells should be trashable");
+
+        Assert.False(InventoryActionCellPolicyCore.CanTrashSlot(InventoryCellKind.Hotbar), "hotbar cells should not be trashable");
+        Assert.False(InventoryActionCellPolicyCore.CanTrashSlot(InventoryCellKind.RegularLocked), "locked regular cells should not be trashable");
+        Assert.False(InventoryActionCellPolicyCore.CanTrashSlot(InventoryCellKind.Equipment), "equipment slots should not be trashable");
+        Assert.False(InventoryActionCellPolicyCore.CanTrashSlot(InventoryCellKind.EquipmentLocked), "locked equipment slots should not be trashable");
+        Assert.False(InventoryActionCellPolicyCore.CanTrashSlot(InventoryCellKind.CustomEquipment), "custom equipment slots should not be trashable");
+        Assert.False(InventoryActionCellPolicyCore.CanTrashSlot(InventoryCellKind.Quick), "quickslots should not be trashable");
+        Assert.False(InventoryActionCellPolicyCore.CanTrashSlot(InventoryCellKind.QuickLocked), "locked quickslots should not be trashable");
+        Assert.False(InventoryActionCellPolicyCore.CanTrashSlot(InventoryCellKind.Outside), "outside cells should not be trashable");
+        Assert.False(InventoryActionCellPolicyCore.CanTrashSlot(InventoryCellKind.ExternalReserved), "external reserved cells should not be trashable");
+    }
+
     public static void InventoryActionsActionCellPolicyCopyMirrorsInventorySlotsBehavior()
     {
         string[] slotsKindNames = Enum.GetNames(typeof(InventoryCellKind));
@@ -850,6 +866,9 @@ internal static class Tests
             Assert.Equal(
                 InventoryActionCellPolicyCore.CanUseFavoriteRestockTarget(slotsKind),
                 InventoryActions.InventoryActionCellPolicyCore.CanUseFavoriteRestockTarget(actionsKind));
+            Assert.Equal(
+                InventoryActionCellPolicyCore.CanTrashSlot(slotsKind),
+                InventoryActions.InventoryActionCellPolicyCore.CanTrashSlot(actionsKind));
             Assert.Equal(
                 InventoryActionCellPolicyCore.CanUseContainerActionSource(slotsKind, includeHotbar: false),
                 InventoryActions.InventoryActionCellPolicyCore.CanUseContainerActionSource(actionsKind, includeHotbar: false));

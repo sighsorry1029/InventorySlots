@@ -71,7 +71,7 @@ public sealed partial class InventorySlotsPlugin
         public Vector3 ContainerWeightPanelBasePosition;
         public float ContainerWeightPanelAppliedYOffset;
         public RectTransform? DraggedInventoryPanel;
-        public Vector3 InventoryPanelDragStartMouse;
+        public Vector2 InventoryPanelDragStartLocalMouse;
         public Vector2 InventoryPanelDragStartOffset;
         public bool UpdatingPlayerInventoryScrollbar;
         public bool PlayerInventoryRowsDragging;

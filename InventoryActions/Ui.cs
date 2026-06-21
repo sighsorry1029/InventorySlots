@@ -143,7 +143,7 @@ public sealed partial class InventoryActionsPlugin
         Runtime.PlayerActionPanel.localScale = Vector3.one;
         Runtime.PlayerActionPanel.localRotation = Quaternion.identity;
 
-        Vector3 position = GetInventorySortPanelPosition(playerGrid, buttonSize, rows);
+        Vector3 position = GetInventorySortPanelPosition(playerGrid, buttonSize, rows) + (Vector3)GetSortButtonPositionOffset();
         Runtime.PlayerActionPanel.localPosition = position;
         DisableActionPanelChildren(Runtime.PlayerActionPanel);
 
@@ -185,7 +185,7 @@ public sealed partial class InventoryActionsPlugin
         Runtime.TrashPanel.localPosition = gridOrigin + new Vector3(
             sortPanelPosition.x - gridOrigin.x + (sortButtonSize - buttonSize) * 0.5f,
             -Mathf.Max(1, rows) * elementSpace - TrashPanelGap,
-            0f);
+            0f) + (Vector3)GetTrashButtonPositionOffset();
 
         DisableActionPanelChildren(Runtime.TrashPanel);
 
@@ -797,11 +797,11 @@ public sealed partial class InventoryActionsPlugin
             return false;
         }
 
-        if (!IsPlayerActionCell(inventory, item.m_gridPos, includeHotbar: false) || IsHotbarCell(item.m_gridPos))
+        if (!CanTrashCell(inventory, item.m_gridPos))
         {
             if (showMessage)
             {
-                ShowInventoryTrashMessage(player, "$inventoryactions_trash_hotbar_item", "Hotbar items cannot be trashed.");
+                ShowInventoryTrashMessage(player, "$inventoryactions_trash_hotbar_item", "Only regular inventory items can be trashed.");
             }
 
             return false;

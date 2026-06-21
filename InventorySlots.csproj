@@ -220,6 +220,7 @@
         <Compile Include="InventoryHints.cs"/>
         <Compile Include="HoverTooltipAlpha.cs"/>
         <Compile Include="HoverTooltipSourceCore.cs"/>
+        <Compile Include="HudStatBarScaling.cs"/>
         <Compile Include="InventoryHoverTooltipScroll.cs"/>
         <Compile Include="InventoryIntegrityAudit.cs"/>
         <Compile Include="InventoryIntegrityValidation.cs"/>

@@ -42,10 +42,6 @@ public sealed partial class InventorySlotsPlugin
         int totalRegularRows = usableRows;
         int viewportRows = GetInventoryViewportRows(totalRegularRows);
         viewportRows = UpdatePlayerInventoryScroll(playerGrid, viewportRows, totalRegularRows);
-        UpdateInventoryPanelDragging();
-        List<SlotDefinition> customPanelSlots = GetCustomPanelSlots(player, inventory);
-        List<SlotDefinition> quickPanelSlots = GetQuickPanelSlots(player);
-
         if (playerGrid.m_elements.Count == 0)
         {
             HideInventorySideHints();
@@ -53,6 +49,16 @@ public sealed partial class InventorySlotsPlugin
         }
 
         Vector3 origin = GetGridOrigin(playerGrid);
+        float displayedRows = viewportRows;
+        playerGrid.m_gridRoot.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, displayedRows * playerGrid.m_elementSpace);
+        if (UpdateInventoryPanelDragging() && TryUpdateDraggedInventoryPanelPositionOnly(playerGrid, origin, width))
+        {
+            return;
+        }
+
+        List<SlotDefinition> customPanelSlots = GetCustomPanelSlots(player, inventory);
+        List<SlotDefinition> quickPanelSlots = GetQuickPanelSlots(player);
+
         UpdatePlayerInventoryPanelBackground(viewportRows);
         UpdateContainerPanelPosition(viewportRows, playerGrid.m_elementSpace);
         RectTransform? customPanel = customPanelSlots.Count > 0 ? EnsureSlotPanel(playerGrid, CustomSlotPanelName, InventoryPanels.CustomSlotPanels) : DisableSlotPanel(playerGrid, CustomSlotPanelName, InventoryPanels.CustomSlotPanels);
@@ -152,8 +158,6 @@ public sealed partial class InventorySlotsPlugin
             }
         }
 
-        float displayedRows = viewportRows;
-        playerGrid.m_gridRoot.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, displayedRows * playerGrid.m_elementSpace);
         if (customPanel != null)
         {
             int columns = GetCustomPanelColumns(customPanelSlots.Count);

@@ -330,15 +330,6 @@ public sealed partial class InventorySlotsPlugin
             CraftingRefresh.SelectedRecipeChangeSignature = "";
         }
 
-        public static void MarkRecipeViewDirtyCascade()
-        {
-            MarkRecipeViewDirty();
-            MarkRecipeGridDirty();
-            MarkRecipeScrollbarDirty();
-            MarkGroupRailDirty();
-            MarkBottomControlsDirty();
-        }
-
         public static void MarkRecipeGridLayoutDirty()
         {
             MarkRecipeGridDirty();

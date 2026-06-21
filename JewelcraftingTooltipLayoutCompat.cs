@@ -780,9 +780,7 @@ public sealed partial class InventorySlotsPlugin
         rect.localScale = Vector3.one;
         rect.localRotation = Quaternion.identity;
 
-        float height = Mathf.Max(1f, text.GetPreferredValues(text.text ?? "", width, 0f).y);
-        text.ForceMeshUpdate(ignoreActiveState: true, forceTextReparsing: false);
-        height = Mathf.Max(height, text.textBounds.size.y);
+        float height = GetStableJewelcraftingTooltipTextHeight(text, width, 1f);
         rect.sizeDelta = new Vector2(width, height);
         return height;
     }
@@ -816,9 +814,7 @@ public sealed partial class InventorySlotsPlugin
                 textRect.localRotation = Quaternion.identity;
             }
 
-            textHeight = Mathf.Max(1f, text.GetPreferredValues(text.text ?? "", textWidth, 0f).y);
-            text.ForceMeshUpdate(ignoreActiveState: true, forceTextReparsing: false);
-            textHeight = Mathf.Max(textHeight, text.textBounds.size.y);
+            textHeight = GetStableJewelcraftingTooltipTextHeight(text, textWidth, InventoryPinnedJewelcraftingNativeIconSize);
         }
 
         float rowHeight = Mathf.Max(InventoryPinnedJewelcraftingNativeIconSize, textHeight + InventoryPinnedJewelcraftingNativeTextPadding);
@@ -868,5 +864,31 @@ public sealed partial class InventorySlotsPlugin
 
         return rowHeight;
     }
+
+    private static float GetStableJewelcraftingTooltipTextHeight(TMP_Text text, float width, float fallbackHeight)
+    {
+        string value = text.text ?? "";
+        text.ForceMeshUpdate(ignoreActiveState: true, forceTextReparsing: true);
+        float preferred = text.GetPreferredValues(value, width, 0f).y;
+        if (!IsFinitePositive(preferred))
+        {
+            preferred = fallbackHeight;
+        }
+
+        float bounds = text.textBounds.size.y;
+        if (IsFinitePositive(bounds) && bounds > preferred)
+        {
+            float saneBoundsLimit = Mathf.Max(preferred * 2f, fallbackHeight * 2f);
+            if (bounds <= saneBoundsLimit)
+            {
+                preferred = bounds;
+            }
+        }
+
+        return Mathf.Max(1f, preferred);
+    }
+
+    private static bool IsFinitePositive(float value) =>
+        value > 0f && !float.IsNaN(value) && !float.IsInfinity(value);
 
 }

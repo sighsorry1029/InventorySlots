@@ -285,12 +285,16 @@ public sealed partial class InventorySlotsPlugin
                lowerName.Contains("frame");
     }
 
-    internal static void InvalidateCraftingRecipeView()
+    private static void InvalidateCraftingRecipeView()
     {
-        CraftingController.MarkRecipeViewDirtyCascade();
+        CraftingController.MarkRecipeViewDirty();
+        CraftingController.MarkRecipeGridDirty();
+        CraftingController.MarkRecipeScrollbarDirty();
+        CraftingController.MarkGroupRailDirty();
+        CraftingController.MarkBottomControlsDirty();
     }
 
-    internal static void ClearCraftingRecipeCaches()
+    private static void ClearCraftingRecipeCaches()
     {
         CraftingRecipes.SearchTextCache.Clear();
         CraftingRecipes.HoverTooltipContentCache.Clear();
@@ -304,7 +308,7 @@ public sealed partial class InventorySlotsPlugin
         ClearRecycleNReclaimSignatureCaches();
     }
 
-    internal static void HideCraftingPanelRedesign()
+    private static void HideCraftingPanelRedesign()
     {
         InventoryGui? gui = InventoryGui.instance;
         CraftingTabAdapterState adapter = GetCraftingTabAdapterState(gui);
@@ -496,7 +500,7 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
-    internal static void TryContinueCraftingQueue(InventoryGui gui)
+    private static void TryContinueCraftingQueue(InventoryGui gui)
     {
         if (_continuingCraftingQueue || _craftingQueueRemaining <= 0 || gui.m_craftTimer >= 0f)
         {

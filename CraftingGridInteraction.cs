@@ -94,7 +94,6 @@ public sealed partial class InventorySlotsPlugin
 
         EnsureCraftingRecipeCells(gui, grid);
         CraftingController.MarkRecipeGridLayoutDirty();
-        CraftingController.MarkRecipeScrollbarDirty();
         CraftingController.ClearHoveredRecipeAndRequestMouseSync();
         return true;
     }

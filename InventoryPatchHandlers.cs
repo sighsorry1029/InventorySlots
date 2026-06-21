@@ -360,10 +360,8 @@ public sealed partial class InventorySlotsPlugin
     {
         StartQuickSlotPanelOutroAnimation();
         PrunePendingSlotActions();
-        RestoreContainerPanelPosition();
-        RestoreContainerWeightPanelPosition();
+        RestoreContainerUiState();
         RestorePlayerStatPanels();
-        HideInventoryActionPanels();
         HideCraftingPanelRedesign();
         HideInventoryPinnedTooltips();
         HideInventoryOwnedHoverTooltips();
@@ -371,6 +369,11 @@ public sealed partial class InventorySlotsPlugin
     }
 
     internal static void OnInventoryGuiCloseContainer()
+    {
+        RestoreContainerUiState();
+    }
+
+    private static void RestoreContainerUiState()
     {
         RestoreContainerPanelPosition();
         RestoreContainerWeightPanelPosition();

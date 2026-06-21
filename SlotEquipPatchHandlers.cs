@@ -33,6 +33,11 @@ public sealed partial class InventorySlotsPlugin
 
     internal static bool TryOverrideHumanoidEquipItem(Humanoid humanoid, ItemData item, ref bool result)
     {
+        if (TryBlockJewelcraftingUtilityGemEquip(humanoid, item, ref result))
+        {
+            return true;
+        }
+
         if (TryCompletePendingSlotEquip(humanoid, item, out bool pendingResult))
         {
             result = pendingResult;

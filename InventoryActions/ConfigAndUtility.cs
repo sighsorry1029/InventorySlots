@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using BepInEx;
@@ -29,8 +30,12 @@ public sealed partial class InventoryActionsPlugin
     private static ConfigEntry<float> _containerActionSuccessFxVolume = null!;
     private static ConfigEntry<KeyboardShortcut> _favoriteModifierKey = null!;
     private static ConfigEntry<KeyboardShortcut> _containerRestockKey = null!;
+    private static ConfigEntry<string> _sortButtonPositionOffset = null!;
+    private static ConfigEntry<string> _trashButtonPositionOffset = null!;
     private static ConfigEntry<string> _restockTargetStackLimitsConfig = null!;
     private static readonly Color FavoriteBorderDefaultColor = new(0.1f, 0.55f, 1f, 0.95f);
+    private static readonly char[] ButtonPositionOffsetSeparators = { ' ', '\t', '\r', '\n', ':', '=', ',', ';', '(', ')', '[', ']' };
+    private static readonly Dictionary<string, ButtonPositionOffsetEditorState> ButtonPositionOffsetEditorStates = new(StringComparer.Ordinal);
 
     private static void BindConfigs()
     {
@@ -81,6 +86,32 @@ public sealed partial class InventoryActionsPlugin
                 new AcceptableValueRange<float>(0f, 1f),
                 new ConfigurationManagerAttributes { Order = 850 }),
             synchronizedSetting: false);
+        _sortButtonPositionOffset = ConfigEntry(
+            ClientConfigSection,
+            "Sort Button Position",
+            "x: 0 y: 0",
+            new ConfigDescription(
+                "Client-only position offset for the player inventory sort button. Format: x: 0 y: 0. Positive x moves right; positive y moves up.",
+                null,
+                new ConfigurationManagerAttributes
+                {
+                    Order = 840,
+                    CustomDrawer = DrawButtonPositionOffsetConfig
+                }),
+            synchronizedSetting: false);
+        _trashButtonPositionOffset = ConfigEntry(
+            ClientConfigSection,
+            "Trash Button Position",
+            "x: 0 y: 0",
+            new ConfigDescription(
+                "Client-only position offset for the inventory trash button. Format: x: 0 y: 0. Positive x moves right; positive y moves up.",
+                null,
+                new ConfigurationManagerAttributes
+                {
+                    Order = 830,
+                    CustomDrawer = DrawButtonPositionOffsetConfig
+                }),
+            synchronizedSetting: false);
 
         _restockTargetStackLimitsConfig = ConfigEntry(
             RestockConfigSection,
@@ -113,6 +144,120 @@ public sealed partial class InventoryActionsPlugin
         ConfigEntry<T> configEntry = _instance.Config.Bind(group, name, value, extendedDescription);
         ConfigSync.AddConfigEntry(configEntry).SynchronizedConfig = synchronizedSetting;
         return configEntry;
+    }
+
+    private static Vector2 GetSortButtonPositionOffset() => GetConfiguredButtonPositionOffset(_sortButtonPositionOffset);
+
+    private static Vector2 GetTrashButtonPositionOffset() => GetConfiguredButtonPositionOffset(_trashButtonPositionOffset);
+
+    private static Vector2 GetConfiguredButtonPositionOffset(ConfigEntry<string>? entry)
+    {
+        if (entry == null)
+        {
+            return Vector2.zero;
+        }
+
+        if (TryParseButtonPositionOffset(entry.Value, out Vector2 offset))
+        {
+            return offset;
+        }
+
+        return Vector2.zero;
+    }
+
+    private static bool TryParseButtonPositionOffset(string? raw, out Vector2 offset)
+    {
+        offset = Vector2.zero;
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return true;
+        }
+
+        string normalized = raw!.ToLowerInvariant().Replace('x', ' ').Replace('y', ' ');
+        string[] values = normalized.Split(ButtonPositionOffsetSeparators, StringSplitOptions.RemoveEmptyEntries);
+        if (values.Length < 2 ||
+            !float.TryParse(values[0], NumberStyles.Float, CultureInfo.InvariantCulture, out float x) ||
+            !float.TryParse(values[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float y))
+        {
+            return false;
+        }
+
+        offset = new Vector2(x, y);
+        return true;
+    }
+
+    private static void DrawButtonPositionOffsetConfig(ConfigEntryBase entry)
+    {
+        string key = $"{entry.Definition.Section}/{entry.Definition.Key}";
+        if (!ButtonPositionOffsetEditorStates.TryGetValue(key, out ButtonPositionOffsetEditorState state))
+        {
+            state = new ButtonPositionOffsetEditorState();
+            ButtonPositionOffsetEditorStates[key] = state;
+        }
+
+        string currentValue = entry.BoxedValue as string ?? "";
+        if (!string.Equals(currentValue, state.LastEntryValue, StringComparison.Ordinal))
+        {
+            if (TryParseButtonPositionOffset(currentValue, out Vector2 offset))
+            {
+                state.X = FormatButtonPositionOffsetValue(offset.x);
+                state.Y = FormatButtonPositionOffsetValue(offset.y);
+            }
+
+            state.LastEntryValue = currentValue;
+        }
+
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("x", GUILayout.Width(12f));
+        string nextX = FilterSignedFloatText(GUILayout.TextField(state.X, GUILayout.Width(70f)));
+        GUILayout.Label("y", GUILayout.Width(12f));
+        string nextY = FilterSignedFloatText(GUILayout.TextField(state.Y, GUILayout.Width(70f)));
+        GUILayout.FlexibleSpace();
+        GUILayout.EndHorizontal();
+
+        if (string.Equals(nextX, state.X, StringComparison.Ordinal) &&
+            string.Equals(nextY, state.Y, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        state.X = nextX;
+        state.Y = nextY;
+        if (!TryParseButtonPositionOffsetValue(state.X, out float x) ||
+            !TryParseButtonPositionOffsetValue(state.Y, out float y))
+        {
+            return;
+        }
+
+        string nextValue = $"x: {FormatButtonPositionOffsetValue(x)} y: {FormatButtonPositionOffsetValue(y)}";
+        state.LastEntryValue = nextValue;
+        if (!string.Equals(currentValue, nextValue, StringComparison.Ordinal))
+        {
+            entry.BoxedValue = nextValue;
+        }
+    }
+
+    private static bool TryParseButtonPositionOffsetValue(string value, out float result) =>
+        float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out result);
+
+    private static string FormatButtonPositionOffsetValue(float value) =>
+        value.ToString("0.###", CultureInfo.InvariantCulture);
+
+    private static string FilterSignedFloatText(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return "";
+        }
+
+        return new string(value.Where(c => char.IsDigit(c) || c == '-' || c == '+' || c == '.').ToArray());
+    }
+
+    private sealed class ButtonPositionOffsetEditorState
+    {
+        public string LastEntryValue { get; set; } = "";
+        public string X { get; set; } = "0";
+        public string Y { get; set; } = "0";
     }
 
     private sealed class AcceptableShortcuts : AcceptableValueBase
@@ -172,6 +317,12 @@ public sealed partial class InventoryActionsPlugin
         return InventoryActionCellPolicyCore.CanUseFavoriteRestockTarget(kind);
     }
 
+    private static bool CanTrashCell(Inventory inventory, Vector2i pos)
+    {
+        InventoryCellKind kind = GetInventoryCellKind(inventory, pos);
+        return InventoryActionCellPolicyCore.CanTrashSlot(kind);
+    }
+
     private static InventoryCellKind GetInventoryCellKind(Inventory inventory, Vector2i pos)
     {
         if (IsOutOfBounds(inventory, pos) || pos.y >= Math.Min(VanillaPlayerRows, inventory.GetHeight()))
@@ -181,8 +332,6 @@ public sealed partial class InventoryActionsPlugin
 
         return pos.y == 0 ? InventoryCellKind.Hotbar : InventoryCellKind.RegularUnlocked;
     }
-
-    private static bool IsHotbarCell(Vector2i pos) => pos.y == 0;
 
     private static bool IsRegularActionItem(Player player, Inventory inventory, ItemData item, bool includeHotbar)
     {
