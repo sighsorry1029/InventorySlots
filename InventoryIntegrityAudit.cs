@@ -1,4 +1,6 @@
 using System;
+using System.Runtime.CompilerServices;
+using UnityEngine;
 using ItemData = ItemDrop.ItemData;
 
 namespace InventorySlots;
@@ -34,16 +36,13 @@ public sealed partial class InventorySlotsPlugin
 
         InventoryStateEnsureReason currentReason = reason;
         InventoryStateAuditLevel currentAuditLevel = NormalizeAuditLevel(auditLevel, reason);
-        for (int pass = 0; pass < MaxInventoryStateAuditPasses; pass++)
+        PerformInventoryStateAudit(player, currentReason, currentAuditLevel);
+        if (!ConsumePendingInventoryEnsure(out currentReason, out currentAuditLevel) || IsUnityNull(player))
         {
-            PerformInventoryStateAudit(player, currentReason, currentAuditLevel);
-            if (!ConsumePendingInventoryEnsure(out currentReason, out currentAuditLevel) || IsUnityNull(player))
-            {
-                return;
-            }
+            return;
         }
 
-        Log.LogDebug($"Inventory safety audit reached follow-up pass limit; deferred reason {currentReason} will wait for the next normal inventory event.");
+        RequestInventoryStateEnsure(player, currentReason, currentAuditLevel);
     }
 
     internal static void RequestInventoryStateEnsure(Player? player, InventoryStateEnsureReason reason, InventoryStateAuditLevel auditLevel)
@@ -55,6 +54,19 @@ public sealed partial class InventorySlotsPlugin
 
         InventorySafety.DeferredEnsureReason = MergeInventoryEnsureReasons(InventorySafety.DeferredEnsureReason, reason);
         InventorySafety.DeferredAuditLevel = MaxAuditLevel(InventorySafety.DeferredAuditLevel, NormalizeAuditLevel(auditLevel, reason));
+        InventorySafety.DeferredEnsureFrame = Math.Max(InventorySafety.DeferredEnsureFrame, Time.frameCount + 1);
+        MarkRecentInventoryActivityForHeavyAudit(reason);
+    }
+
+    private static void MarkRecentInventoryActivityForHeavyAudit(InventoryStateEnsureReason reason)
+    {
+        if (reason is InventoryStateEnsureReason.InventoryChanged
+            or InventoryStateEnsureReason.EquipmentChanged
+            or InventoryStateEnsureReason.InventoryMove
+            or InventoryStateEnsureReason.SlotAction)
+        {
+            InventorySafety.HeavyAuditDelayUntil = Math.Max(InventorySafety.HeavyAuditDelayUntil, Time.time + HeavySafetyAuditActivityDelay);
+        }
     }
 
     private static void ProcessDeferredInventoryStateEnsure(Player player)
@@ -64,15 +76,22 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
+        if (InventorySafety.DeferredEnsureFrame > Time.frameCount)
+        {
+            return;
+        }
+
         InventoryStateEnsureReason reason = InventorySafety.DeferredEnsureReason;
         InventoryStateAuditLevel auditLevel = InventorySafety.DeferredAuditLevel;
         InventorySafety.DeferredEnsureReason = InventoryStateEnsureReason.Unknown;
         InventorySafety.DeferredAuditLevel = InventoryStateAuditLevel.None;
+        InventorySafety.DeferredEnsureFrame = -1;
         EnsureInventoryState(player, reason, auditLevel);
     }
 
     private static void PerformInventoryStateAudit(Player player, InventoryStateEnsureReason reason, InventoryStateAuditLevel auditLevel)
     {
+        InventoryStateAuditLevel normalizedAuditLevel = NormalizeAuditLevel(auditLevel, reason);
         RecordInventoryEnsureReason(reason);
         InventorySafety.PendingEnsureReason = InventoryStateEnsureReason.Unknown;
         InventorySafety.PendingAuditLevel = InventoryStateAuditLevel.None;
@@ -85,7 +104,6 @@ public sealed partial class InventorySlotsPlugin
                 return;
             }
 
-            InventoryStateAuditLevel normalizedAuditLevel = NormalizeAuditLevel(auditLevel, reason);
             bool syncedStateReady = IsSyncedStateReady();
             int fullHeight = GetFullHeightForWidth(inventory.m_width);
             bool inventoryChanged = false;
@@ -128,15 +146,27 @@ public sealed partial class InventorySlotsPlugin
                 {
                     ValidateAndProjectInventory(player, inventory);
                     RefreshInventoryStateSignature(player, inventory);
+                    RefreshSlotLightProjectionSignature(player, inventory);
                 }
                 else
                 {
                     ProjectSlotDisplayState(player, inventory);
+                    RefreshSlotLightProjectionSignature(player, inventory);
                 }
             }
             else if (normalizedAuditLevel >= InventoryStateAuditLevel.SlotLight && syncedStateReady)
             {
-                ProjectSlotDisplayState(player, inventory);
+                int signature = ComputeSlotLightProjectionSignature(player, inventory);
+                bool skipped = !inventoryChanged && CanSkipSlotLightProjection(signature);
+                if (!skipped)
+                {
+                    bool changed = ProjectSlotDisplayState(player, inventory);
+                    if (changed)
+                    {
+                        signature = ComputeSlotLightProjectionSignature(player, inventory);
+                    }
+                    RememberSlotLightProjectionSignature(signature);
+                }
             }
 
             if (normalizedAuditLevel >= InventoryStateAuditLevel.SlotLight)
@@ -249,14 +279,9 @@ public sealed partial class InventorySlotsPlugin
     {
         InventorySafety.EnsureCounts.TryGetValue(reason, out int current);
         InventorySafety.EnsureCounts[reason] = current + 1;
-
-        if (current == 0 && reason != InventoryStateEnsureReason.Unknown)
-        {
-            Log.LogDebug($"Inventory safety audit reason observed: {reason}");
-        }
     }
 
-    private static void ProjectSlotDisplayState(Player player, Inventory inventory)
+    private static bool ProjectSlotDisplayState(Player player, Inventory inventory)
     {
         bool changed = false;
 
@@ -313,6 +338,8 @@ public sealed partial class InventorySlotsPlugin
         {
             inventory.Changed();
         }
+
+        return changed;
     }
 
     private static bool HasInventoryStateSignatureChanged(Player player, Inventory inventory)
@@ -323,6 +350,109 @@ public sealed partial class InventorySlotsPlugin
     private static void RefreshInventoryStateSignature(Player player, Inventory inventory)
     {
         InventorySafety.LastFullIntegrityAuditSignature = ComputeInventoryStateSignature(player, inventory);
+    }
+
+    private static bool CanSkipSlotLightProjection(int signature)
+    {
+        return InventorySafety.LastSlotLightProjectionSignature != int.MinValue &&
+               InventorySafety.LastSlotLightProjectionSignature == signature;
+    }
+
+    private static void RefreshSlotLightProjectionSignature(Player player, Inventory inventory)
+    {
+        InventorySafety.LastSlotLightProjectionSignature = ComputeSlotLightProjectionSignature(player, inventory);
+    }
+
+    private static void RememberSlotLightProjectionSignature(int signature)
+    {
+        InventorySafety.LastSlotLightProjectionSignature = signature;
+    }
+
+    private static int ComputeSlotLightProjectionSignature(Player player, Inventory inventory)
+    {
+        unchecked
+        {
+            int hash = 17;
+            hash = hash * 31 + StringComparer.Ordinal.GetHashCode(GetPlayerId(player));
+            hash = hash * 31 + inventory.m_width;
+            hash = hash * 31 + inventory.m_height;
+            hash = hash * 31 + GetUsableRegularRows(player);
+            hash = hash * 31 + _slotDefinitionVersion;
+            hash = hash * 31 + GetKnownMaterialHash(player);
+            foreach (SlotDefinition slot in SlotDefinitions)
+            {
+                if (slot.Kind == SlotKind.Quick)
+                {
+                    continue;
+                }
+
+                hash = hash * 31 + StringComparer.OrdinalIgnoreCase.GetHashCode(slot.Id);
+                hash = hash * 31 + (int)slot.Kind;
+            }
+
+            Humanoid humanoid = player;
+            AddEquippedItemSignature(humanoid.m_helmetItem, ref hash);
+            AddEquippedItemSignature(humanoid.m_chestItem, ref hash);
+            AddEquippedItemSignature(humanoid.m_legItem, ref hash);
+            AddEquippedItemSignature(humanoid.m_shoulderItem, ref hash);
+            AddEquippedItemSignature(humanoid.m_utilityItem, ref hash);
+            AddEquippedItemSignature(humanoid.m_trinketItem, ref hash);
+
+            foreach (ItemData item in inventory.m_inventory)
+            {
+                if (item == null || !HasSlotLightProjectionState(item))
+                {
+                    continue;
+                }
+
+                AddItemProjectionSignature(item, ref hash);
+            }
+
+            return hash;
+        }
+    }
+
+    private static bool HasSlotLightProjectionState(ItemData item)
+    {
+        return item.m_customData.ContainsKey(SlotIdKey) ||
+               item.m_customData.ContainsKey(EquippedByKey);
+    }
+
+    private static void AddEquippedItemSignature(ItemData? item, ref int hash)
+    {
+        if (item == null)
+        {
+            hash = hash * 31;
+            return;
+        }
+
+        AddItemProjectionSignature(item, ref hash);
+    }
+
+    private static void AddItemProjectionSignature(ItemData item, ref int hash)
+    {
+        hash = hash * 31 + RuntimeHelpers.GetHashCode(item);
+        hash = hash * 31 + item.m_gridPos.x;
+        hash = hash * 31 + item.m_gridPos.y;
+        hash = hash * 31 + item.m_quality;
+        hash = hash * 31 + item.m_variant;
+        hash = hash * 31 + (item.m_equipped ? 1 : 0);
+
+        string prefab = GetItemPrefabName(item);
+        if (!string.IsNullOrEmpty(prefab))
+        {
+            hash = hash * 31 + StringComparer.OrdinalIgnoreCase.GetHashCode(prefab);
+        }
+
+        if (item.m_customData.TryGetValue(SlotIdKey, out string slotId))
+        {
+            hash = hash * 31 + StringComparer.OrdinalIgnoreCase.GetHashCode(slotId);
+        }
+
+        if (item.m_customData.TryGetValue(EquippedByKey, out string equippedBy))
+        {
+            hash = hash * 31 + StringComparer.Ordinal.GetHashCode(equippedBy);
+        }
     }
 
     private static int ComputeInventoryStateSignature(Player player, Inventory inventory)

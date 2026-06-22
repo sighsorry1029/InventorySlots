@@ -28,7 +28,7 @@ public sealed partial class InventorySlotsPlugin
             return allSlots;
         }
 
-        string signature = GetEquipmentSlotUnlockSignature(player, inventory);
+        string signature = GetVisibleEquipmentSlotUnlockSignature(player, inventory);
         if (_visibleCustomPanelSlotCacheVersion == _slotDefinitionVersion &&
             string.Equals(InventoryDefinitions.VisibleCustomPanelSlotCacheSignature, signature, StringComparison.Ordinal))
         {
@@ -238,7 +238,7 @@ public sealed partial class InventorySlotsPlugin
             return true;
         }
 
-        RefreshEquipmentSlotUnlockCache(player, inventory);
+        RefreshEquipmentSlotUnlockCache(player);
         if (InventoryDefinitions.EquipmentSlotUnlockCache.TryGetValue(slot.Id, out bool cached))
         {
             return cached;
@@ -289,9 +289,9 @@ public sealed partial class InventorySlotsPlugin
         return item != null && slot.Accepts(item);
     }
 
-    private static void RefreshEquipmentSlotUnlockCache(Player player, Inventory? inventory)
+    private static void RefreshEquipmentSlotUnlockCache(Player player)
     {
-        string signature = GetEquipmentSlotUnlockSignature(player, inventory);
+        string signature = GetEquipmentSlotUnlockCacheSignature(player);
         if (string.Equals(InventoryDefinitions.EquipmentSlotUnlockCacheSignature, signature, StringComparison.Ordinal))
         {
             return;
@@ -302,10 +302,16 @@ public sealed partial class InventorySlotsPlugin
         _visibleCustomPanelSlotCacheVersion = -1;
     }
 
-    private static string GetEquipmentSlotUnlockSignature(Player player, Inventory? inventory)
+    private static string GetVisibleEquipmentSlotUnlockSignature(Player player, Inventory? inventory)
     {
         int objectDbCount = ObjectDB.instance?.m_items?.Count ?? -1;
         return $"{GetPlayerId(player)}|{_slotDefinitionVersion}|{objectDbCount}|{GetKnownMaterialHash(player)}|{GetAcceptedEquipmentInventoryHash(inventory)}";
+    }
+
+    private static string GetEquipmentSlotUnlockCacheSignature(Player player)
+    {
+        int objectDbCount = ObjectDB.instance?.m_items?.Count ?? -1;
+        return $"{GetPlayerId(player)}|{_slotDefinitionVersion}|{objectDbCount}|{GetKnownMaterialHash(player)}";
     }
 
     private static int GetKnownMaterialHash(Player player)

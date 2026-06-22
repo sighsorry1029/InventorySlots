@@ -30,7 +30,6 @@ public sealed partial class InventorySlotsPlugin
                     ClearForeignSlotItemState(player, item);
                     changed = true;
                     InventorySafety.ForeignSlotPreservationWarnings.Remove(GetForeignSlotPreservationWarningKey(item, originalPos));
-                    Log.LogDebug($"Recovered legacy/foreign slot item {GetForeignSlotItemName(item)} from {FormatGridPos(originalPos)} to regular inventory cell {FormatGridPos(item.m_gridPos)}.");
                 }
             }
         }

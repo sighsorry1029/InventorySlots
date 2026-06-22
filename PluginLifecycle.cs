@@ -85,6 +85,12 @@ public sealed partial class InventorySlotsPlugin
         bool heavyAuditDue = _nextHeavyAuditTime <= 0f || Time.time >= _nextHeavyAuditTime;
         bool lightAuditDue = _nextLightAuditTime <= 0f || Time.time >= _nextLightAuditTime;
 
+        if (heavyAuditDue && ShouldDelayPeriodicFullIntegrityAudit())
+        {
+            _nextHeavyAuditTime = Mathf.Max(Time.time + refreshInterval, InventorySafety.HeavyAuditDelayUntil);
+            heavyAuditDue = false;
+        }
+
         if (heavyAuditDue)
         {
             _nextHeavyAuditTime = Time.time + heavyAuditInterval;
@@ -96,6 +102,11 @@ public sealed partial class InventorySlotsPlugin
             _nextLightAuditTime = Time.time + lightAuditInterval;
             EnsureInventoryState(player, InventoryStateEnsureReason.PeriodicAudit, InventoryStateAuditLevel.SlotLight);
         }
+    }
+
+    private static bool ShouldDelayPeriodicFullIntegrityAudit()
+    {
+        return InventorySafety.HeavyAuditDelayUntil > Time.time;
     }
 
     private void OnDestroy()

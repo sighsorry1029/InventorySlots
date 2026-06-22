@@ -280,9 +280,8 @@ public sealed partial class InventorySlotsPlugin
 
             return true;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Log.LogDebug($"Jewelcrafting API.GetGems preflight failed for {GetItemPrefabName(item)}: {ex.Message}");
             return false;
         }
     }

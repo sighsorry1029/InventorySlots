@@ -241,11 +241,6 @@ public sealed partial class InventorySlotsPlugin
             }
         }
 
-        if (moved > 0 || unresolved > 0)
-        {
-            Log.LogDebug($"Inventory safety audit overlap recovery: moved {moved} item(s), unresolved {unresolved} item(s).");
-        }
-
         return changed;
     }
 

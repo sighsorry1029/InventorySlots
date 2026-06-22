@@ -22,13 +22,19 @@ public sealed partial class InventorySlotsPlugin
             return quickItem != null && slot.Accepts(quickItem) ? quickItem : null;
         }
 
-        if (!IsEquipmentSlotUnlocked(player, inventory, slot))
+        ItemData? builtIn = GetBuiltInEquipmentSlotItem(player, slot);
+        if (builtIn != null && slot.Accepts(builtIn))
         {
-            return null;
+            return builtIn;
         }
 
+        return FindCustomEquippedItemForSlot(inventory, slot);
+    }
+
+    private static ItemData? GetBuiltInEquipmentSlotItem(Player player, SlotDefinition slot)
+    {
         Humanoid humanoid = player;
-        ItemData? builtIn = slot.Id switch
+        return slot.Id switch
         {
             "helmet" => humanoid.m_helmetItem,
             "chest" => humanoid.m_chestItem,
@@ -38,18 +44,28 @@ public sealed partial class InventorySlotsPlugin
             "utility" => humanoid.m_utilityItem,
             _ => null
         };
+    }
 
-        if (builtIn != null && slot.Accepts(builtIn))
+    private static ItemData? FindCustomEquippedItemForSlot(Inventory inventory, SlotDefinition slot)
+    {
+        if (inventory?.m_inventory == null)
         {
-            return builtIn;
+            return null;
         }
 
-        return inventory.m_inventory.FirstOrDefault(item =>
-            item != null &&
-            IsInventorySlotsCustomEquipped(item) &&
-            item.m_customData.TryGetValue(SlotIdKey, out string id) &&
-            string.Equals(id, slot.Id, StringComparison.OrdinalIgnoreCase) &&
-            slot.Accepts(item));
+        foreach (ItemData item in inventory.m_inventory)
+        {
+            if (item != null &&
+                IsInventorySlotsCustomEquipped(item) &&
+                item.m_customData.TryGetValue(SlotIdKey, out string id) &&
+                string.Equals(id, slot.Id, StringComparison.OrdinalIgnoreCase) &&
+                slot.Accepts(item))
+            {
+                return item;
+            }
+        }
+
+        return null;
     }
 
     internal static bool TryEquipIntoSlot(Player player, Inventory inventory, ItemData item, SlotDefinition slot)
@@ -364,7 +380,23 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        return TryFindDedicatedEquipmentSlot(player, inventory, item, out SlotDefinition? slot) && TryEquipIntoDedicatedSlot(player, inventory, item, slot!);
+        if (TryGetCachedDedicatedSlotRouteFailure(player, inventory, item))
+        {
+            return false;
+        }
+
+        if (!TryFindDedicatedEquipmentSlot(player, inventory, item, out SlotDefinition? slot))
+        {
+            CacheDedicatedSlotRouteFailure(player, inventory, item);
+            return false;
+        }
+
+        if (TryEquipIntoDedicatedSlot(player, inventory, item, slot!))
+        {
+            return true;
+        }
+
+        return false;
     }
 
     private static bool CanRouteEquipToDedicatedSlot(Player player, Inventory? inventory, ItemData? item)
@@ -397,6 +429,50 @@ public sealed partial class InventorySlotsPlugin
 
         slot = SlotDefinitions.FirstOrDefault(s => s.Kind == SlotKind.BuiltIn && CanUseSpecialSlot(player, inventory, item, s));
         return slot != null;
+    }
+
+    private static bool TryGetCachedDedicatedSlotRouteFailure(Player player, Inventory inventory, ItemData item)
+    {
+        int context = ComputeDedicatedSlotRouteFailureContext(player);
+        int itemKey = ComputeDedicatedSlotRouteCacheItemKey(item);
+        return ReferenceEquals(InventorySafety.DedicatedSlotRouteFailureCacheInventory, inventory) &&
+               InventorySafety.DedicatedSlotRouteFailureCacheVersion == _slotDefinitionVersion &&
+               InventorySafety.DedicatedSlotRouteFailureCacheContext == context &&
+               InventorySafety.DedicatedSlotRouteFailureCacheItemKey == itemKey;
+    }
+
+    private static void CacheDedicatedSlotRouteFailure(Player player, Inventory inventory, ItemData item)
+    {
+        InventorySafety.DedicatedSlotRouteFailureCacheInventory = inventory;
+        InventorySafety.DedicatedSlotRouteFailureCacheVersion = _slotDefinitionVersion;
+        InventorySafety.DedicatedSlotRouteFailureCacheContext = ComputeDedicatedSlotRouteFailureContext(player);
+        InventorySafety.DedicatedSlotRouteFailureCacheItemKey = ComputeDedicatedSlotRouteCacheItemKey(item);
+    }
+
+    private static int ComputeDedicatedSlotRouteFailureContext(Player player)
+    {
+        unchecked
+        {
+            int hash = 17;
+            hash = hash * 31 + StringComparer.Ordinal.GetHashCode(GetPlayerId(player));
+            hash = hash * 31 + _slotDefinitionVersion;
+            hash = hash * 31 + GetKnownMaterialHash(player);
+            hash = hash * 31 + (ObjectDB.instance?.m_items?.Count ?? -1);
+            return hash;
+        }
+    }
+
+    private static int ComputeDedicatedSlotRouteCacheItemKey(ItemData item)
+    {
+        unchecked
+        {
+            int hash = ComputeCanAddItemCacheItemKey(item);
+            hash = hash * 31 + (int)(item.m_shared?.m_itemType ?? 0);
+            hash = hash * 31 + (int)(item.m_shared?.m_skillType ?? 0);
+            hash = hash * 31 + item.m_variant;
+            hash = hash * 31 + GetItemCustomDataOrderIndependentHash(item);
+            return hash;
+        }
     }
 
     internal static bool TryCompletePendingSlotEquip(Humanoid humanoid, ItemData item, out bool result)

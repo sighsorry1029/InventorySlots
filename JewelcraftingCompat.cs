@@ -331,9 +331,8 @@ public sealed partial class InventorySlotsPlugin
         {
             CompatRuntime.JewelcraftingVisual.Api?.ClearSlot(visual, isRing);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Log.LogDebug($"Failed to clear Jewelcrafting {(isRing ? "ring" : "necklace")} visual state: {ex.Message}");
         }
     }
 

@@ -263,9 +263,8 @@ public sealed partial class InventorySlotsPlugin
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Log.LogDebug($"Jewelcrafting API.GetGems icon read failed for {GetItemPrefabName(item)}: {ex.Message}");
         }
 
         if (gems.Count == 0)

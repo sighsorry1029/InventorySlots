@@ -136,9 +136,8 @@ public sealed partial class InventorySlotsPlugin
             EnsureClientStateLoaded();
             InventoryPanels.LastExpandableInventoryRows = Mathf.Clamp(InventoryClient.ClientState.Inventory.LastExpandableRows, BaseRows, BaseRows + MaxSupportedExtraRows);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Log.LogDebug($"Failed to load InventorySlots client state: {ex.Message}");
         }
     }
 
@@ -150,9 +149,8 @@ public sealed partial class InventorySlotsPlugin
             InventoryClient.ClientState.Inventory.LastExpandableRows = InventoryPanels.LastExpandableInventoryRows;
             SaveClientState();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Log.LogDebug($"Failed to save InventorySlots client state: {ex.Message}");
         }
     }
 

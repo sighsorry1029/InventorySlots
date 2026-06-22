@@ -9,8 +9,6 @@ public sealed partial class InventorySlotsPlugin
         if (field != state)
         {
             field = state;
-            string suffix = string.IsNullOrWhiteSpace(detail) ? "" : $": {detail}";
-            Log.LogDebug($"Compatibility capability {capability}: {state}{suffix}");
         }
 
         return state == CompatCapabilityState.Available;

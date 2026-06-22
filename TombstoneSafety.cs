@@ -146,12 +146,10 @@ public sealed partial class InventorySlotsPlugin
             if (!IsUnityNull(bodyGameObject))
             {
                 UnityEngine.Object.Destroy(bodyGameObject);
-                Log.LogDebug("Destroyed detached tombstone body after take-all to prevent AutoPickup from reading stale floating terrain.");
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Log.LogDebug($"Tombstone floating body cleanup skipped: {ex.GetType().Name}: {ex.Message}");
         }
     }
 

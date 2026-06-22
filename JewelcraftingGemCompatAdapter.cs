@@ -215,9 +215,8 @@ public sealed partial class InventorySlotsPlugin
                 object? result = _openSocketContainerMethod.Invoke(null, new object[] { gui, item });
                 return result is bool continueVanilla && !continueVanilla;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Log.LogDebug($"Jewelcrafting socket container open failed for {GetItemPrefabName(item)}: {ex.Message}");
                 return false;
             }
         }
@@ -424,9 +423,8 @@ public sealed partial class InventorySlotsPlugin
                     sockets.Add(new JewelcraftingSocketGemData(prefabName, seeds));
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Log.LogDebug($"Jewelcrafting direct socket read failed for {GetItemPrefabName(item)}: {ex.Message}");
             }
 
             return sockets;

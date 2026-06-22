@@ -90,7 +90,6 @@ public sealed partial class InventorySlotsPlugin
 
         if (TryFindSafeInsertCell(player, inventory, item, out Vector2i fallback))
         {
-            Log.LogDebug($"Redirected unsafe inventory insert for {item.m_shared?.m_name ?? "<unknown>"} from {pos} to {fallback}.");
             pos = fallback;
             return true;
         }
@@ -192,9 +191,9 @@ public sealed partial class InventorySlotsPlugin
     {
         return item != null &&
                slot != null &&
+               slot.Accepts(item) &&
                !IsJewelcraftingUtilityGemBlockedForSlot(item, slot) &&
-               IsSpecialSlotUnlocked(player, inventory, slot) &&
-               slot.Accepts(item);
+               IsSpecialSlotUnlocked(player, inventory, slot);
     }
 
     private static bool CanUseEmptySpecialSlot(Player player, Inventory inventory, ItemData item, SlotDefinition slot)

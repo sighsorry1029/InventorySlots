@@ -606,9 +606,8 @@ public sealed partial class InventorySlotsPlugin
                 target.fontSharedMaterial = material;
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Log.LogDebug($"Tooltip font copy skipped: {ex.Message}");
             ApplyDefaultFontAsset(target);
         }
     }

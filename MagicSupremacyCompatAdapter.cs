@@ -164,9 +164,8 @@ public sealed partial class InventorySlotsPlugin
 
                 _setEquippedItemMethod.Invoke(null, new object[] { player, MagicSupremacyNativeBeltSlotId, item });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Log.LogDebug($"Magic Supremacy belt sync failed: {ex.Message}");
             }
         }
 
@@ -192,9 +191,8 @@ public sealed partial class InventorySlotsPlugin
                     _clearSavedEquippedGuidMethod.Invoke(null, new object[] { player, definition });
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Log.LogDebug($"Magic Supremacy belt clear failed: {ex.Message}");
             }
         }
 

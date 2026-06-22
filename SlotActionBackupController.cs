@@ -98,7 +98,6 @@ public sealed partial class InventorySlotsPlugin
             InventorySlotsBackup backup = CreateSlotBackup(inventory);
             ISerializer serializer = new SerializerBuilder().Build();
             player.m_customData[BackupKey] = serializer.Serialize(backup);
-            Log.LogDebug($"Slot backup saved: {backup.nrOfItems} item(s), size {backup.width}x{backup.height}.");
         }
         catch (Exception ex)
         {

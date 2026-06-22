@@ -58,9 +58,8 @@ public sealed partial class InventorySlotsPlugin
 
             return total;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Log.LogDebug($"AzuCraftyBoxes compatibility count failed: {ex.Message}");
             return 0;
         }
     }

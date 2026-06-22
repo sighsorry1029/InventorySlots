@@ -140,9 +140,24 @@ public sealed partial class InventorySlotsPlugin
 
         SyncBackpackCompatState(player);
         SyncMagicSupremacyCompatState(player);
+
+        int updateSignature = ComputeCustomEquipmentVisualUpdateSignature(inventory, visEquipment);
+        if (TrySkipCustomEquipmentVisualUpdate(updateSignature, out _, out _))
+        {
+            return;
+        }
+
+        if (!HasCustomEquipmentVisualCandidate(inventory) && !HasCustomEquipmentVisualsForOwner(visEquipment))
+        {
+            ClearCustomEquipmentVisualZdoValues(visEquipment);
+            RememberCustomEquipmentVisualUpdate(updateSignature, 0);
+            return;
+        }
+
         List<CustomEquipmentVisualState> states = BuildCustomEquipmentVisualStatesFromInventory(player, inventory, visEquipment);
         SuppressJewelcraftingNativeVisualSlots(player, inventory);
         ApplyCustomEquipmentVisualStates(visEquipment, states);
+        RememberCustomEquipmentVisualUpdate(updateSignature, states.Count);
     }
 
     internal static void UpdateCustomEquipmentVisualsFromZdo(VisEquipment visEquipment)
@@ -208,6 +223,122 @@ public sealed partial class InventorySlotsPlugin
         return states;
     }
 
+    private static bool TrySkipCustomEquipmentVisualUpdate(int updateSignature, out int stateCount, out string outcome)
+    {
+        if (EquipmentVisuals.LocalPlayerUpdateFrame >= 0 &&
+            EquipmentVisuals.LocalPlayerUpdateSignature == updateSignature)
+        {
+            stateCount = EquipmentVisuals.LocalPlayerUpdateStateCount;
+            outcome = EquipmentVisuals.LocalPlayerUpdateFrame == Time.frameCount
+                ? "sameFrameCached"
+                : "signatureCached";
+            EquipmentVisuals.LocalPlayerUpdateFrame = Time.frameCount;
+            return true;
+        }
+
+        stateCount = -1;
+        outcome = "";
+        return false;
+    }
+
+    private static void RememberCustomEquipmentVisualUpdate(int updateSignature, int stateCount)
+    {
+        EquipmentVisuals.LocalPlayerUpdateFrame = Time.frameCount;
+        EquipmentVisuals.LocalPlayerUpdateSignature = updateSignature;
+        EquipmentVisuals.LocalPlayerUpdateStateCount = stateCount;
+    }
+
+    private static void InvalidateCustomEquipmentVisualUpdateCache()
+    {
+        EquipmentVisuals.LocalPlayerUpdateFrame = -1;
+        EquipmentVisuals.LocalPlayerUpdateSignature = int.MinValue;
+        EquipmentVisuals.LocalPlayerUpdateStateCount = 0;
+    }
+
+    private static int ComputeCustomEquipmentVisualUpdateSignature(Inventory inventory, VisEquipment visEquipment)
+    {
+        unchecked
+        {
+            int hash = 17;
+            hash = hash * 31 + _slotDefinitionVersion;
+            hash = hash * 31 + (!IsUnityNull(visEquipment) ? visEquipment.GetInstanceID() : 0);
+            hash = hash * 31 + ComputeCustomEquipmentVisualOwnerSignature(visEquipment);
+            foreach (ItemData item in inventory.m_inventory)
+            {
+                if (item?.m_shared == null ||
+                    item.m_customData == null ||
+                    !item.m_customData.ContainsKey(SlotIdKey))
+                {
+                    continue;
+                }
+
+                string slotId = item.m_customData.TryGetValue(SlotIdKey, out string id) ? id : "";
+                hash = hash * 31 + (item.m_equipped ? 1 : 0);
+                hash = hash * 31 + StringComparer.OrdinalIgnoreCase.GetHashCode(slotId);
+                hash = hash * 31 + StringComparer.OrdinalIgnoreCase.GetHashCode(GetItemPrefabName(item));
+                hash = hash * 31 + item.m_variant;
+                hash = hash * 31 + (int)item.m_shared.m_itemType;
+            }
+
+            return hash;
+        }
+    }
+
+    private static int ComputeCustomEquipmentVisualOwnerSignature(VisEquipment visEquipment)
+    {
+        unchecked
+        {
+            int hash = 17;
+            foreach (CustomEquipmentVisual visual in EquipmentVisuals.Visuals.Values)
+            {
+                if (!visual.IsOwnedBy(visEquipment))
+                {
+                    continue;
+                }
+
+                hash = hash * 31 + StringComparer.Ordinal.GetHashCode(visual.Key);
+                hash = hash * 31 + StringComparer.Ordinal.GetHashCode(visual.PrefabName);
+                hash = hash * 31 + visual.Variant;
+            }
+
+            return hash;
+        }
+    }
+
+    private static bool HasCustomEquipmentVisualCandidate(Inventory inventory)
+    {
+        foreach (ItemData item in inventory.m_inventory)
+        {
+            if (IsInventorySlotsCustomEquipped(item) && ShouldAttachCustomEquipmentVisual(item))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasCustomEquipmentVisualsForOwner(VisEquipment visEquipment)
+    {
+        foreach (CustomEquipmentVisual visual in EquipmentVisuals.Visuals.Values)
+        {
+            if (visual.IsOwnedBy(visEquipment))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void ClearCustomEquipmentVisualZdoValues(VisEquipment visEquipment)
+    {
+        foreach (SlotDefinition slot in SlotDefinitions.Where(slot => slot.Kind == SlotKind.CustomEquipment))
+        {
+            SetCustomEquipmentVisualZdoValue(visEquipment, slot.Id, itemHash: 0, variant: 0);
+        }
+    }
+
     private static void ApplyCustomEquipmentVisualStates(VisEquipment visEquipment, IEnumerable<CustomEquipmentVisualState> states)
     {
         HashSet<string> desiredKeys = new(StringComparer.Ordinal);
@@ -256,6 +387,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         EquipmentVisuals.Visuals.Clear();
+        InvalidateCustomEquipmentVisualUpdateCache();
 
         foreach (VisEquipment owner in owners)
         {
@@ -280,6 +412,7 @@ public sealed partial class InventorySlotsPlugin
 
         if (changed)
         {
+            InvalidateCustomEquipmentVisualUpdateCache();
             RefreshVisEquipmentLodGroup(visEquipment);
         }
     }

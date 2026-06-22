@@ -188,9 +188,8 @@ public sealed partial class InventorySlotsPlugin
                 return;
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Log.LogDebug($"Custom slot tooltip refresh fell back to direct item tooltip: {ex.Message}");
         }
 
         SetDirectEquipmentSlotTooltip(element, item);

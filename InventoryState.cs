@@ -124,12 +124,19 @@ public sealed partial class InventorySlotsPlugin
         public InventoryStateAuditLevel PendingAuditLevel = InventoryStateAuditLevel.None;
         public InventoryStateEnsureReason DeferredEnsureReason = InventoryStateEnsureReason.Unknown;
         public InventoryStateAuditLevel DeferredAuditLevel = InventoryStateAuditLevel.None;
+        public int DeferredEnsureFrame = -1;
+        public float HeavyAuditDelayUntil = -1f;
         public int LastFullIntegrityAuditSignature = int.MinValue;
+        public int LastSlotLightProjectionSignature = int.MinValue;
         public int InventoryPlacementCacheVersion;
         public Inventory? UsableRegularEmptyCellCacheInventory;
         public int UsableRegularEmptyCellCacheVersion = -1;
         public int UsableRegularEmptyCellCacheContext;
         public int UsableRegularEmptyCellCacheCount;
+        public Inventory? DedicatedSlotRouteFailureCacheInventory;
+        public int DedicatedSlotRouteFailureCacheVersion = -1;
+        public int DedicatedSlotRouteFailureCacheContext;
+        public int DedicatedSlotRouteFailureCacheItemKey;
         public Inventory? CanAddItemFailureCacheInventory;
         public int CanAddItemFailureCacheVersion = -1;
         public int CanAddItemFailureCacheContext;
@@ -193,6 +200,9 @@ public sealed partial class InventorySlotsPlugin
         public readonly Dictionary<string, CustomEquipmentVisual> Visuals = new(StringComparer.Ordinal);
         public readonly HashSet<StatusEffect> StatusEffects = new();
         public readonly Dictionary<StatusEffect, int> StatusEffectLevels = new();
+        public int LocalPlayerUpdateFrame = -1;
+        public int LocalPlayerUpdateSignature = int.MinValue;
+        public int LocalPlayerUpdateStateCount;
     }
 
     private sealed class InventorySortRuntimeState

@@ -57,9 +57,8 @@ public sealed partial class InventorySlotsPlugin
             SetJewelcraftingNativeTooltipCacheState(root, cache, signature, identityItem, visible, hasSocketRows);
             return visible;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Log.LogDebug($"Jewelcrafting tooltip update failed: {ex.Message}");
             SetJewelcraftingNativeTooltipCacheState(root, cache, signature, identityItem, visible: false, hasSocketRows: false);
             return false;
         }

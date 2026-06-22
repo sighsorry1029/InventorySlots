@@ -112,9 +112,8 @@ public sealed partial class InventorySlotsPlugin
                 _equipItemPostfixMethod?.Invoke(null, new object[] { item, true });
                 _backpackEquippedField?.SetValue(null, true);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Log.LogDebug($"AdventureBackpacks equip sync failed: {ex.Message}");
             }
         }
 
@@ -132,9 +131,8 @@ public sealed partial class InventorySlotsPlugin
                 humanoid.m_shoulderItem = item;
                 _unequipItemPrefixMethod?.Invoke(null, new object[] { item });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Log.LogDebug($"AdventureBackpacks unequip sync failed: {ex.Message}");
             }
             finally
             {
@@ -175,7 +173,6 @@ public sealed partial class InventorySlotsPlugin
                 target,
                 prefixMethod == null ? null : new HarmonyMethod(prefixMethod),
                 postfixMethod == null ? null : new HarmonyMethod(postfixMethod));
-            Log.LogDebug($"{label ?? target.Name} compatibility patch applied.");
         }
     }
 
@@ -274,9 +271,8 @@ public sealed partial class InventorySlotsPlugin
                     _forceSetBackpackEquippedMethod.Invoke(visual, new object[] { hash });
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Log.LogDebug($"Smoothbrain Backpacks visual sync failed: {ex.Message}");
             }
         }
 
@@ -487,9 +483,8 @@ public sealed partial class InventorySlotsPlugin
             {
                 setter.Invoke(equipment, new object?[] { item });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Log.LogDebug($"RustyBags equipment sync failed: {ex.Message}");
             }
         }
 
