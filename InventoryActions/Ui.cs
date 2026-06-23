@@ -963,7 +963,6 @@ public sealed partial class InventoryActionsPlugin
         gui.UpdateCraftingPanel(false);
         inventory.Changed();
         gui.m_moveItemEffects.Create(gui.transform.position, Quaternion.identity);
-        ShowActionResult(player, LocalizeUi("$inventoryactions_trash_action", "Trash"), amount);
     }
 
     private static void ShowInventoryTrashMessage(Player player, string token, string fallback)

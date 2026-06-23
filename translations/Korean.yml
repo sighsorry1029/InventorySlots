@@ -31,7 +31,6 @@ inventoryslots_trash_title: 휴지통
 inventoryslots_trash_tooltip: 들고 있는 인벤토리 아이템을 여기에 놓으면 확인 후 삭제합니다.
 inventoryslots_trash_confirm_format: "{item}을(를) 삭제할까요?"
 inventoryslots_trash_delete: 삭제
-inventoryslots_trash_action: 삭제
 inventoryslots_trash_no_item: 먼저 아이템을 집어 주세요.
 inventoryslots_trash_player_inventory_only: 플레이어 인벤토리 아이템만 삭제할 수 있습니다.
 inventoryslots_trash_item_missing: 해당 아이템을 더 이상 찾을 수 없습니다.
@@ -39,15 +38,7 @@ inventoryslots_trash_hotbar_item: 일반 인벤토리 아이템만 삭제할 수
 inventoryslots_trash_favorite_item: 즐겨찾기 아이템은 삭제할 수 없습니다.
 inventoryslots_craft_button_count_format: "{label} x{count}"
 inventoryslots_crafting_progress_count_format: "{label} 중 x{count}"
-inventoryslots_action_container: 컨테이너
-inventoryslots_action_take_all: 모두 가져오기
-inventoryslots_action_take_stacks: 스택 가져오기
-inventoryslots_action_stack: 스택 넣기
-inventoryslots_action_place_all: 모두 넣기
-inventoryslots_action_sort: 정렬
-inventoryslots_action_sort_inventory: 인벤 정렬
 inventoryslots_action_sort_requested: 정렬 요청됨.
-inventoryslots_action_result_format: "{action}: {count}"
 inventoryslots_container_not_ready: 컨테이너를 사용할 수 없습니다.
 inventoryslots_hold_to_stack: 누르고 있으면 빠른 스택
 inventoryslots_hold_to_restock: 누르고 있으면 보충

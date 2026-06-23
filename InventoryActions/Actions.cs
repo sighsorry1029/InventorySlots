@@ -92,7 +92,6 @@ public sealed partial class InventoryActionsPlugin
             tombstone.OnTakeAllSuccess();
         }
 
-        ShowActionResult(player, LocalizeUi("$inventoryactions_action_take_all", "Take All"), movedStacks);
         return true;
     }
 
@@ -272,15 +271,13 @@ public sealed partial class InventoryActionsPlugin
         candidates.Sort((a, b) => -CompareGridOrder(a.m_gridPos, b.m_gridPos));
 
         InventoryGui.instance?.SetupDragItem(null, null, 0);
-        int moved = RunContainerTransferAcrossContainers(
+        RunContainerTransferAcrossContainers(
             localPlayer,
             container,
             includeArea,
             areaForQuickStack: true,
             targetContainer => QuickStackItemsIntoContainer(playerInventory, targetContainer.m_inventory, candidates),
             () => playerInventory.Changed());
-
-        ShowActionResult(localPlayer, LocalizeUi("$inventoryactions_action_stack", "Stack"), moved);
     }
 
     private static bool ShouldQuickStackItem(Player player, Inventory inventory, ItemData item, bool includeHotbar)
@@ -362,7 +359,6 @@ public sealed partial class InventoryActionsPlugin
             containerInventory.Changed();
         }
 
-        ShowActionResult(localPlayer, LocalizeUi("$inventoryactions_action_place_all", "Place All"), moved);
     }
 
     private static bool ShouldStoreAllItem(Player player, Inventory inventory, ItemData item, bool includeHotbar, bool includeEquipped)
@@ -402,15 +398,13 @@ public sealed partial class InventoryActionsPlugin
         targets.Sort((a, b) => -CompareGridOrder(a.m_gridPos, b.m_gridPos));
 
         InventoryGui.instance?.SetupDragItem(null, null, 0);
-        int movedAmount = RunContainerTransferAcrossContainers(
+        RunContainerTransferAcrossContainers(
             localPlayer,
             container,
             includeArea,
             areaForQuickStack: false,
             sourceContainer => RestockTargetsFromContainer(playerInventory, sourceContainer.m_inventory, targets, mode),
             () => playerInventory.Changed());
-
-        ShowActionResult(localPlayer, LocalizeUi("$inventoryactions_action_take_stacks", "Take stacks"), movedAmount);
     }
 
     private static bool ShouldTakeStacksTarget(Player player, Inventory inventory, ItemData item, bool includeHotbar, RestockMode mode)
@@ -544,7 +538,6 @@ public sealed partial class InventoryActionsPlugin
         Container container = InventoryGui.instance.m_currentContainer;
         if (container == null || container.m_inventory == null)
         {
-            ShowActionResult(player, LocalizeUi("$inventoryactions_action_container", "Container"), 0);
             return;
         }
 
@@ -554,8 +547,7 @@ public sealed partial class InventoryActionsPlugin
             return;
         }
 
-        int moved = SortContainerInventory(container);
-        ShowActionResult(player, LocalizeUi("$inventoryactions_action_sort", "Sort"), moved);
+        SortContainerInventory(container);
     }
 
     private static int SortContainerInventory(Container container)
@@ -585,8 +577,7 @@ public sealed partial class InventoryActionsPlugin
         List<Vector2i> allowedSlots = GetPlayerActionSlots(player, inventory, includeHotbar: false, blockFavorites: true);
         HashSet<Vector2i> allowedSet = new(allowedSlots);
         InventoryGui.instance?.SetupDragItem(null, null, 0);
-        int moved = SortInventoryInternal(inventory, allowedSlots, item => item?.m_shared != null && allowedSet.Contains(item.m_gridPos) && !IsFavoriteProtected(player, inventory, item));
-        ShowActionResult(player, LocalizeUi("$inventoryactions_action_sort_inventory", "Sort Inv"), moved);
+        SortInventoryInternal(inventory, allowedSlots, item => item?.m_shared != null && allowedSet.Contains(item.m_gridPos) && !IsFavoriteProtected(player, inventory, item));
     }
 
     private static int SortInventoryInternal(Inventory inventory, List<Vector2i> allowedSlots, Func<ItemData, bool> shouldSort)
@@ -768,7 +759,6 @@ public sealed partial class InventoryActionsPlugin
         Container currentContainer = InventoryGui.instance.m_currentContainer;
         if (currentContainer == null || currentContainer.m_inventory == null)
         {
-            ShowActionResult(player, LocalizeUi("$inventoryactions_action_container", "Container"), 0);
             return false;
         }
 

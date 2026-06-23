@@ -18,14 +18,12 @@ public sealed partial class InventorySlotsPlugin
         Container container = InventoryGui.instance.m_currentContainer;
         if (container == null || container.m_inventory == null)
         {
-            ShowActionResult(player, LocalizeUi("$inventoryslots_action_container", "Container"), 0);
             return;
         }
 
         if (CanMutateContainerDirectly(container, allowLocalWithoutZNetView: true))
         {
-            int moved = SortContainerInventory(container);
-            ShowActionResult(player, LocalizeUi("$inventoryslots_action_sort", "Sort"), moved);
+            SortContainerInventory(container);
             return;
         }
 
@@ -118,8 +116,7 @@ public sealed partial class InventorySlotsPlugin
         List<Vector2i> allowedSlots = GetPlayerActionSlots(player, inventory, includeHotbar: false, blockFavorites: true);
         HashSet<Vector2i> allowedSet = new(allowedSlots);
         InventoryGui.instance.SetupDragItem(null, null, 0);
-        int moved = SortInventoryInternal(inventory, allowedSlots, item => item?.m_shared != null && allowedSet.Contains(item.m_gridPos) && !IsFavoriteProtected(player, inventory, item));
-        ShowActionResult(player, LocalizeUi("$inventoryslots_action_sort_inventory", "Sort Inv"), moved);
+        SortInventoryInternal(inventory, allowedSlots, item => item?.m_shared != null && allowedSet.Contains(item.m_gridPos) && !IsFavoriteProtected(player, inventory, item));
     }
 
     private static int SortInventoryInternal(Inventory inventory, List<Vector2i> allowedSlots, Func<ItemData, bool> shouldSort)

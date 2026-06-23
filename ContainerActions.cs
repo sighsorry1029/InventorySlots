@@ -167,7 +167,6 @@ public sealed partial class InventorySlotsPlugin
         Container currentContainer = InventoryGui.instance.m_currentContainer;
         if (currentContainer == null || currentContainer.m_inventory == null)
         {
-            ShowActionResult(player, LocalizeUi("$inventoryslots_action_container", "Container"), 0);
             return false;
         }
 
@@ -273,20 +272,6 @@ public sealed partial class InventorySlotsPlugin
     private static int CompareGridOrder(Vector2i a, Vector2i b)
     {
         return ContainerActionCore.CompareGridOrder(a.x, a.y, b.x, b.y);
-    }
-
-    private static void ShowActionResult(Player player, string action, int moved)
-    {
-        if (player == null)
-        {
-            return;
-        }
-
-        string format = LocalizeUi("$inventoryslots_action_result_format", "{action}: {count}");
-        string message = format
-            .Replace("{action}", action)
-            .Replace("{count}", moved.ToString());
-        player.Message(MessageHud.MessageType.Center, message, 0, null);
     }
 
     private static int GetContainerActionSuccessFxMode() =>

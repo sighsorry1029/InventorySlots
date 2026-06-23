@@ -148,7 +148,6 @@ public sealed partial class InventorySlotsPlugin
                 ClearCraftingRequirementAvailabilityCache();
             });
 
-        ShowActionResult(localPlayer, LocalizeUi("$inventoryslots_action_take_stacks", "Take stacks"), movedAmount);
     }
 
     private static Container? GetHoveredContainer(Player player)

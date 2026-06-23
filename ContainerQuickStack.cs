@@ -135,7 +135,6 @@ public sealed partial class InventorySlotsPlugin
                 ClearCraftingRequirementAvailabilityCache();
             });
 
-        ShowActionResult(localPlayer, LocalizeUi("$inventoryslots_action_stack", "Stack"), moved);
     }
 
     private static bool ShouldQuickStackItem(Player player, Inventory inventory, ItemData item, bool includeHotbar)
@@ -225,7 +224,6 @@ public sealed partial class InventorySlotsPlugin
             ClearCraftingRequirementAvailabilityCache();
         }
 
-        ShowActionResult(localPlayer, LocalizeUi("$inventoryslots_action_place_all", "Place All"), moved);
     }
 
     private static bool ShouldStoreAllItem(Player player, Inventory inventory, ItemData item, bool includeHotbar, bool includeEquipped)

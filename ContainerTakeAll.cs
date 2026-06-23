@@ -47,7 +47,6 @@ public sealed partial class InventorySlotsPlugin
             tombstone!.OnTakeAllSuccess();
         }
 
-        ShowActionResult(player, LocalizeUi("$inventoryslots_action_take_all", "Take All"), movedStacks);
         return true;
     }
 

@@ -31,7 +31,6 @@ inventoryactions_trash_title: Trash
 inventoryactions_trash_tooltip: Drop a held inventory item here to delete it after confirmation.
 inventoryactions_trash_confirm_format: "Delete {item}?"
 inventoryactions_trash_delete: Delete
-inventoryactions_trash_action: Trash
 inventoryactions_trash_no_item: Pick up an item first.
 inventoryactions_trash_player_inventory_only: Only player inventory items can be trashed.
 inventoryactions_trash_item_missing: That item is no longer available.
@@ -39,15 +38,8 @@ inventoryactions_trash_hotbar_item: Only regular inventory items can be trashed.
 inventoryactions_trash_favorite_item: Favorite items cannot be trashed.
 inventoryactions_craft_button_count_format: "{label} x{count}"
 inventoryactions_crafting_progress_count_format: "{label} x{count}"
-inventoryactions_action_container: Container
-inventoryactions_action_take_all: Take All
-inventoryactions_action_take_stacks: Take stacks
-inventoryactions_action_stack: Stack
-inventoryactions_action_place_all: Place All
 inventoryactions_action_sort: Sort
-inventoryactions_action_sort_inventory: Sort Inv
 inventoryactions_action_sort_requested: Sort requested.
-inventoryactions_action_result_format: "{action}: {count}"
 inventoryactions_container_not_ready: Container is not ready.
 inventoryactions_hold_to_stack: Hold to quick stack
 inventoryactions_hold_to_restock: Hold to restock

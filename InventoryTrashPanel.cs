@@ -545,7 +545,6 @@ public sealed partial class InventorySlotsPlugin
         inventory.Changed();
         ClearCraftingRequirementAvailabilityCache();
         gui.m_moveItemEffects.Create(gui.transform.position, Quaternion.identity);
-        ShowActionResult(player, LocalizeUi("$inventoryslots_trash_action", "Trash"), amount);
     }
 
     private static void ShowInventoryTrashMessage(Player player, string token, string fallback)
