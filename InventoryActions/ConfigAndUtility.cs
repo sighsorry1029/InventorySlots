@@ -382,6 +382,21 @@ public sealed partial class InventoryActionsPlugin
         return Localization.instance != null ? Localization.instance.Localize(name) : name;
     }
 
+    private static void ShowContainerActionResult(Player player, string actionToken, string actionFallback, int moved)
+    {
+        if (player == null)
+        {
+            return;
+        }
+
+        string action = LocalizeUi(actionToken, actionFallback);
+        string format = LocalizeUi("$inventoryactions_action_result_format", "{action}: {count}");
+        string message = format
+            .Replace("{action}", action)
+            .Replace("{count}", moved.ToString());
+        player.Message(MessageHud.MessageType.Center, message, 0, null);
+    }
+
     private static bool ShouldBlockGlobalHotkeys(Player? player = null)
     {
         if (player != null && (player.m_isLoading || ((Character)player).InCutscene()))

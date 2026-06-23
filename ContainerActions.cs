@@ -101,6 +101,21 @@ public sealed partial class InventorySlotsPlugin
             });
     }
 
+    private static void ShowContainerActionResult(Player player, string actionToken, string actionFallback, int moved)
+    {
+        if (player == null)
+        {
+            return;
+        }
+
+        string action = LocalizeUi(actionToken, actionFallback);
+        string format = LocalizeUi("$inventoryslots_action_result_format", "{action}: {count}");
+        string message = format
+            .Replace("{action}", action)
+            .Replace("{count}", moved.ToString());
+        player.Message(MessageHud.MessageType.Center, message, 0, null);
+    }
+
     private static List<Vector2i> GetPlayerActionSlots(Player player, Inventory inventory, bool includeHotbar, bool blockFavorites = false)
     {
         List<Vector2i> slots = new();

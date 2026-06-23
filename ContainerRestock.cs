@@ -148,6 +148,7 @@ public sealed partial class InventorySlotsPlugin
                 ClearCraftingRequirementAvailabilityCache();
             });
 
+        ShowContainerActionResult(localPlayer, "$inventoryslots_action_take_stacks", "Take stacks", movedAmount);
     }
 
     private static Container? GetHoveredContainer(Player player)

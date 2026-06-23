@@ -38,8 +38,11 @@ inventoryactions_trash_hotbar_item: 일반 인벤토리 아이템만 삭제할 �
 inventoryactions_trash_favorite_item: 즐겨찾기 아이템은 삭제할 수 없습니다.
 inventoryactions_craft_button_count_format: "{label} x{count}"
 inventoryactions_crafting_progress_count_format: "{label} 중 x{count}"
+inventoryactions_action_stack: 스택 넣기
+inventoryactions_action_take_stacks: 스택 가져오기
 inventoryactions_action_sort: 정렬
 inventoryactions_action_sort_requested: 정렬 요청됨.
+inventoryactions_action_result_format: "{action}: {count}"
 inventoryactions_container_not_ready: 컨테이너를 사용할 수 없습니다.
 inventoryactions_hold_to_stack: 누르고 있으면 빠른 스택
 inventoryactions_hold_to_restock: 누르고 있으면 보충

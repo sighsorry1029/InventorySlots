@@ -38,7 +38,10 @@ inventoryslots_trash_hotbar_item: Only regular inventory items can be trashed.
 inventoryslots_trash_favorite_item: Favorite items cannot be trashed.
 inventoryslots_craft_button_count_format: "{label} x{count}"
 inventoryslots_crafting_progress_count_format: "{label} x{count}"
+inventoryslots_action_stack: Stack
+inventoryslots_action_take_stacks: Take stacks
 inventoryslots_action_sort_requested: Sort requested.
+inventoryslots_action_result_format: "{action}: {count}"
 inventoryslots_container_not_ready: Container is not ready.
 inventoryslots_hold_to_stack: Hold to quick stack
 inventoryslots_hold_to_restock: Hold to restock

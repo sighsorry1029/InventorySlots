@@ -135,6 +135,7 @@ public sealed partial class InventorySlotsPlugin
                 ClearCraftingRequirementAvailabilityCache();
             });
 
+        ShowContainerActionResult(localPlayer, "$inventoryslots_action_stack", "Stack", moved);
     }
 
     private static bool ShouldQuickStackItem(Player player, Inventory inventory, ItemData item, bool includeHotbar)

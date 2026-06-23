@@ -271,13 +271,15 @@ public sealed partial class InventoryActionsPlugin
         candidates.Sort((a, b) => -CompareGridOrder(a.m_gridPos, b.m_gridPos));
 
         InventoryGui.instance?.SetupDragItem(null, null, 0);
-        RunContainerTransferAcrossContainers(
+        int moved = RunContainerTransferAcrossContainers(
             localPlayer,
             container,
             includeArea,
             areaForQuickStack: true,
             targetContainer => QuickStackItemsIntoContainer(playerInventory, targetContainer.m_inventory, candidates),
             () => playerInventory.Changed());
+
+        ShowContainerActionResult(localPlayer, "$inventoryactions_action_stack", "Stack", moved);
     }
 
     private static bool ShouldQuickStackItem(Player player, Inventory inventory, ItemData item, bool includeHotbar)
@@ -398,13 +400,15 @@ public sealed partial class InventoryActionsPlugin
         targets.Sort((a, b) => -CompareGridOrder(a.m_gridPos, b.m_gridPos));
 
         InventoryGui.instance?.SetupDragItem(null, null, 0);
-        RunContainerTransferAcrossContainers(
+        int movedAmount = RunContainerTransferAcrossContainers(
             localPlayer,
             container,
             includeArea,
             areaForQuickStack: false,
             sourceContainer => RestockTargetsFromContainer(playerInventory, sourceContainer.m_inventory, targets, mode),
             () => playerInventory.Changed());
+
+        ShowContainerActionResult(localPlayer, "$inventoryactions_action_take_stacks", "Take stacks", movedAmount);
     }
 
     private static bool ShouldTakeStacksTarget(Player player, Inventory inventory, ItemData item, bool includeHotbar, RestockMode mode)
