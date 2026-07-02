@@ -24,6 +24,44 @@ public sealed partial class InventorySlotsPlugin
         public bool WasSpecialSlot => OriginalSlotKind != null;
     }
 
+    internal sealed class TombStonePreparationState
+    {
+        public TombStonePreparationState(List<KeepOnDeathItemState> keptItems, bool deathDropUnequipPrepared)
+        {
+            KeptItems = keptItems;
+            DeathDropUnequipPrepared = deathDropUnequipPrepared;
+        }
+
+        public List<KeepOnDeathItemState> KeptItems { get; }
+        public bool DeathDropUnequipPrepared { get; }
+        public bool Completed { get; set; }
+    }
+
+    internal static TombStonePreparationState PrepareCreateTombStone(Player player)
+    {
+        List<KeepOnDeathItemState> keptItems = PrepareKeepOnDeathItems(player);
+        bool deathDropUnequipPrepared = PreparePlayerDeathDropUnequip(player);
+        return new TombStonePreparationState(keptItems, deathDropUnequipPrepared);
+    }
+
+    internal static void CompleteCreateTombStone(Player player, TombStonePreparationState? state)
+    {
+        if (state == null || state.Completed)
+        {
+            return;
+        }
+
+        try
+        {
+            RestoreKeepOnDeathItems(player, state.KeptItems);
+        }
+        finally
+        {
+            CompletePlayerDeathDropUnequip(state.DeathDropUnequipPrepared);
+            state.Completed = true;
+        }
+    }
+
     internal static List<KeepOnDeathItemState> PrepareKeepOnDeathItems(Player player)
     {
         List<KeepOnDeathItemState> keptItems = new();

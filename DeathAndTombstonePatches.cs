@@ -1,5 +1,4 @@
 using HarmonyLib;
-using System.Collections.Generic;
 
 namespace InventorySlots;
 
@@ -20,19 +19,19 @@ internal static class PlayerUnequipDeathDropItemsInventorySlotsPatch
 [HarmonyPatch(typeof(Player), "CreateTombStone")]
 internal static class PlayerCreateTombStoneKeepOnDeathPatch
 {
-    private static void Prefix(Player __instance, out List<InventorySlotsPlugin.KeepOnDeathItemState> __state)
+    private static void Prefix(Player __instance, out InventorySlotsPlugin.TombStonePreparationState __state)
     {
-        __state = InventorySlotsPlugin.PrepareKeepOnDeathItems(__instance);
+        __state = InventorySlotsPlugin.PrepareCreateTombStone(__instance);
     }
 
-    private static void Postfix(Player __instance, List<InventorySlotsPlugin.KeepOnDeathItemState> __state)
+    private static void Postfix(Player __instance, InventorySlotsPlugin.TombStonePreparationState __state)
     {
-        InventorySlotsPlugin.RestoreKeepOnDeathItems(__instance, __state);
+        InventorySlotsPlugin.CompleteCreateTombStone(__instance, __state);
     }
 
-    private static void Finalizer(Player __instance, List<InventorySlotsPlugin.KeepOnDeathItemState> __state)
+    private static void Finalizer(Player __instance, InventorySlotsPlugin.TombStonePreparationState __state)
     {
-        InventorySlotsPlugin.RestoreKeepOnDeathItems(__instance, __state);
+        InventorySlotsPlugin.CompleteCreateTombStone(__instance, __state);
     }
 }
 

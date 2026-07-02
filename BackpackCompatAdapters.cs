@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Reflection;
 using HarmonyLib;
 using UnityEngine;
@@ -17,6 +18,7 @@ public sealed partial class InventorySlotsPlugin
         private readonly MethodInfo? _isBackpackEquippedMethod;
         private readonly MethodInfo? _isThisBackpackEquippedMethod;
         private readonly MethodInfo? _getEquippedBackpackMethod;
+        private readonly MethodInfo? _reorderBonesMethod;
         private readonly FieldInfo? _backpackEquippedField;
 
         private AdventureBackpacksApi(
@@ -26,6 +28,7 @@ public sealed partial class InventorySlotsPlugin
             MethodInfo? isBackpackEquippedMethod,
             MethodInfo? isThisBackpackEquippedMethod,
             MethodInfo? getEquippedBackpackMethod,
+            MethodInfo? reorderBonesMethod,
             FieldInfo? backpackEquippedField)
         {
             _isBackpackMethod = isBackpackMethod;
@@ -34,6 +37,7 @@ public sealed partial class InventorySlotsPlugin
             _isBackpackEquippedMethod = isBackpackEquippedMethod;
             _isThisBackpackEquippedMethod = isThisBackpackEquippedMethod;
             _getEquippedBackpackMethod = getEquippedBackpackMethod;
+            _reorderBonesMethod = reorderBonesMethod;
             _backpackEquippedField = backpackEquippedField;
         }
 
@@ -58,6 +62,7 @@ public sealed partial class InventorySlotsPlugin
             Type? unequipPatchType = humanoidPatchesType?.GetNestedType("HumanoidUnequipItemPatch", BindingFlags.NonPublic);
             Type? playerExtensionsType = assembly.GetType("AdventureBackpacks.Extensions.PlayerExtensions");
             Type? inventoryGuiPatchesType = assembly.GetType("AdventureBackpacks.Patches.InventoryGuiPatches");
+            Type? boneReorderType = assembly.GetType("Vapok.Common.Tools.BoneReorder");
 
             api = new AdventureBackpacksApi(
                 isBackpackMethod,
@@ -66,6 +71,7 @@ public sealed partial class InventorySlotsPlugin
                 playerExtensionsType?.GetMethod("IsBackpackEquipped", BindingFlags.Public | BindingFlags.Static),
                 playerExtensionsType?.GetMethod("IsThisBackpackEquipped", BindingFlags.Public | BindingFlags.Static),
                 playerExtensionsType?.GetMethod("GetEquippedBackpack", BindingFlags.Public | BindingFlags.Static),
+                AccessTools.Method(boneReorderType, "ReorderBones"),
                 inventoryGuiPatchesType?.GetField("BackpackEquipped", BindingFlags.Public | BindingFlags.Static));
             detail = "";
             return true;
@@ -137,6 +143,22 @@ public sealed partial class InventorySlotsPlugin
             finally
             {
                 humanoid.m_shoulderItem = originalShoulderItem;
+            }
+        }
+
+        public void ReorderBones(VisEquipment visEquipment, int itemHash, List<GameObject>? instances)
+        {
+            if (_reorderBonesMethod == null || IsUnityNull(visEquipment) || instances == null || instances.Count == 0)
+            {
+                return;
+            }
+
+            try
+            {
+                _reorderBonesMethod.Invoke(null, new object[] { visEquipment, itemHash, instances });
+            }
+            catch
+            {
             }
         }
 

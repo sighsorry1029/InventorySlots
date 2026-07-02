@@ -190,13 +190,19 @@ public sealed partial class InventorySlotsPlugin
             }
 
             ItemDrop itemDrop = itemPrefab.GetComponent<ItemDrop>();
-            if (IsUnityNull(itemDrop) || itemDrop.m_itemData?.m_shared == null || !ShouldAttachCustomEquipmentVisual(itemDrop.m_itemData.m_shared.m_itemType))
+            if (IsUnityNull(itemDrop) || itemDrop.m_itemData?.m_shared == null || !ShouldAttachCustomEquipmentVisual(itemDrop.m_itemData))
             {
                 continue;
             }
 
             int variant = zdo.GetInt(GetCustomEquipmentVisualVariantZdoKey(slot.Id));
-            states.Add(new CustomEquipmentVisualState(slot.Id, itemHash, variant, itemPrefab.name, itemDrop.m_itemData.m_shared.m_itemType));
+            states.Add(new CustomEquipmentVisualState(
+                slot.Id,
+                itemHash,
+                variant,
+                itemPrefab.name,
+                itemDrop.m_itemData.m_shared.m_itemType,
+                IsAdventureBackpackItem(itemDrop.m_itemData)));
         }
 
         ApplyCustomEquipmentVisualStates(visEquipment, states);
@@ -214,7 +220,13 @@ public sealed partial class InventorySlotsPlugin
             {
                 itemHash = StringExtensionMethods.GetStableHashCode(item.m_dropPrefab.name);
                 variant = item.m_variant;
-                states.Add(new CustomEquipmentVisualState(slot.Id, itemHash, variant, item.m_dropPrefab.name, item.m_shared.m_itemType));
+                states.Add(new CustomEquipmentVisualState(
+                    slot.Id,
+                    itemHash,
+                    variant,
+                    item.m_dropPrefab.name,
+                    item.m_shared.m_itemType,
+                    IsAdventureBackpackItem(item)));
             }
 
             SetCustomEquipmentVisualZdoValue(visEquipment, slot.Id, itemHash, variant);
@@ -437,6 +449,11 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
+        if (IsAdventureBackpackItem(item))
+        {
+            return true;
+        }
+
         if (IsRustyBagItem(item) || IsRustyQuiverItem(item))
         {
             return false;
@@ -448,11 +465,6 @@ public sealed partial class InventorySlotsPlugin
         }
 
         return item.m_shared.m_itemType is ItemType.Helmet or ItemType.Shoulder or ItemType.Utility or ItemType.Trinket;
-    }
-
-    private static bool ShouldAttachCustomEquipmentVisual(ItemType itemType)
-    {
-        return itemType is ItemType.Helmet or ItemType.Shoulder or ItemType.Utility or ItemType.Trinket;
     }
 
     private static string GetCustomEquipmentVisualKey(VisEquipment visEquipment, CustomEquipmentVisualState state)
@@ -478,6 +490,7 @@ public sealed partial class InventorySlotsPlugin
                 case ItemType.Utility:
                 case ItemType.Trinket:
                     List<GameObject> instances = visEquipment.AttachArmor(state.ItemHash, state.Variant);
+                    ReorderAdventureBackpackBones(visEquipment, state, instances);
                     visual.AddRange(instances);
                     break;
             }
@@ -548,15 +561,34 @@ public sealed partial class InventorySlotsPlugin
         return StringExtensionMethods.GetStableHashCode(CustomEquipmentVisualVariantZdoPrefix + slotId);
     }
 
+    private static void ReorderAdventureBackpackBones(VisEquipment visEquipment, CustomEquipmentVisualState state, List<GameObject>? instances)
+    {
+        if (!state.ReorderAdventureBackpackBones ||
+            !TryGetAdventureBackpacksApi(out AdventureBackpacksApi? api) ||
+            api == null)
+        {
+            return;
+        }
+
+        api.ReorderBones(visEquipment, state.ItemHash, instances);
+    }
+
     private sealed class CustomEquipmentVisualState
     {
-        public CustomEquipmentVisualState(string slotId, int itemHash, int variant, string prefabName, ItemType itemType)
+        public CustomEquipmentVisualState(
+            string slotId,
+            int itemHash,
+            int variant,
+            string prefabName,
+            ItemType itemType,
+            bool reorderAdventureBackpackBones)
         {
             SlotId = slotId;
             ItemHash = itemHash;
             Variant = variant;
             PrefabName = prefabName;
             ItemType = itemType;
+            ReorderAdventureBackpackBones = reorderAdventureBackpackBones;
         }
 
         public string SlotId { get; }
@@ -564,6 +596,7 @@ public sealed partial class InventorySlotsPlugin
         public int Variant { get; }
         public string PrefabName { get; }
         public ItemType ItemType { get; }
+        public bool ReorderAdventureBackpackBones { get; }
     }
 
     private sealed class CustomEquipmentVisual
