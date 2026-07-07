@@ -181,6 +181,7 @@
         <Compile Include="JewelcraftingCraftingTabState.cs"/>
         <Compile Include="JewelcraftingCompat.cs"/>
         <Compile Include="JewelcraftingCraftingTabCompat.cs"/>
+        <Compile Include="JewelcraftingEffectCompatAdapter.cs"/>
         <Compile Include="JewelcraftingGemCuttingCompatAdapter.cs"/>
         <Compile Include="JewelcraftingGemCompatAdapter.cs"/>
         <Compile Include="JewelcraftingGemTooltipCompat.cs"/>

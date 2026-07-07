@@ -70,7 +70,7 @@ public sealed partial class InventorySlotsPlugin
 
         foreach (SlotDefinition slot in SlotDefinitions)
         {
-            ItemData? item = FindItemForSlot(player, inventory, slot);
+            ItemData? item = FindItemForSlotIncludingGridCandidate(player, inventory, slot);
             if (item == null)
             {
                 continue;
@@ -103,22 +103,7 @@ public sealed partial class InventorySlotsPlugin
                 changed = true;
             }
 
-            if (slot.Kind == SlotKind.CustomEquipment)
-            {
-                if (!item.m_equipped)
-                {
-                    item.m_equipped = true;
-                    changed = true;
-                }
-
-                MarkItemSlot(player, item, slot);
-                OnCustomEquipmentCompatEquipped(player, item);
-            }
-            else
-            {
-                changed |= SyncBuiltInSlotEquippedFlag(player, item, slot);
-                ClearItemSlot(item);
-            }
+            changed |= RestoreSlotEquipmentState(player, inventory, item, slot);
         }
 
         changed |= ClearMissingCustomEquipment(player, inventory);
@@ -126,6 +111,7 @@ public sealed partial class InventorySlotsPlugin
         if (changed)
         {
             inventory.Changed();
+            RefreshExternalEquipmentEffects(player);
         }
     }
 
@@ -144,7 +130,7 @@ public sealed partial class InventorySlotsPlugin
                 continue;
             }
 
-            if (FindItemForSlot(player, inventory, candidate) == item)
+            if (FindItemForSlotIncludingGridCandidate(player, inventory, candidate) == item)
             {
                 slot = candidate;
                 return true;
@@ -248,7 +234,7 @@ public sealed partial class InventorySlotsPlugin
     {
         if (TryGetSlotAtGridPos(inventory, position, out SlotDefinition? slot))
         {
-            ItemData? slotItem = FindItemForSlot(player, inventory, slot!);
+            ItemData? slotItem = FindItemForSlotIncludingGridCandidate(player, inventory, slot!);
             if (slotItem != null && items.Contains(slotItem) && slot!.Accepts(slotItem))
             {
                 return slotItem;
@@ -417,20 +403,4 @@ public sealed partial class InventorySlotsPlugin
         return $"{slotId}|{itemKey}|{reason}";
     }
 
-    private static bool SyncBuiltInSlotEquippedFlag(Player player, ItemData item, SlotDefinition slot)
-    {
-        if (slot.Kind != SlotKind.BuiltIn || item == null)
-        {
-            return false;
-        }
-
-        bool equipped = IsSlotItemEquippedForDisplay(player, item, slot);
-        if (!equipped || item.m_equipped)
-        {
-            return false;
-        }
-
-        item.m_equipped = true;
-        return true;
-    }
 }

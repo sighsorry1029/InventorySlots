@@ -121,10 +121,15 @@ public sealed partial class InventorySlotsPlugin
     private static void ClearForeignSlotItemState(Player player, ItemData item)
     {
         bool removedLegacyState = ClearLegacyExtraSlotsItemState(item);
-        ForceClearEquipmentReference(player, item);
+        bool equipmentStateChanged = ForceClearEquipmentReference(player, item);
         if (removedLegacyState)
         {
             ClearSlotActionState(item);
+        }
+
+        if (equipmentStateChanged)
+        {
+            RefreshExternalEquipmentEffects(player);
         }
     }
 

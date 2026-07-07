@@ -22,31 +22,16 @@ public sealed partial class InventorySlotsPlugin
 
     private static List<SlotDefinition> GetCustomPanelSlots(Player? player = null, Inventory? inventory = null)
     {
-        List<SlotDefinition> allSlots = InventoryDefinitionController.GetCustomPanelSlots(InventoryDefinitions);
         if (!IsEquipmentSlotProgressionEnabled() || player == null)
         {
-            return allSlots;
+            return InventoryDefinitionController.GetCustomPanelSlots(InventoryDefinitions);
         }
 
         string signature = GetVisibleEquipmentSlotUnlockSignature(player, inventory);
-        if (_visibleCustomPanelSlotCacheVersion == _slotDefinitionVersion &&
-            string.Equals(InventoryDefinitions.VisibleCustomPanelSlotCacheSignature, signature, StringComparison.Ordinal))
-        {
-            return VisibleCustomPanelSlotCache;
-        }
-
-        VisibleCustomPanelSlotCache.Clear();
-        foreach (SlotDefinition slot in allSlots)
-        {
-            if (IsEquipmentSlotUnlocked(player, inventory, slot))
-            {
-                VisibleCustomPanelSlotCache.Add(slot);
-            }
-        }
-
-        _visibleCustomPanelSlotCacheVersion = _slotDefinitionVersion;
-        InventoryDefinitions.VisibleCustomPanelSlotCacheSignature = signature;
-        return VisibleCustomPanelSlotCache;
+        return InventoryDefinitionController.GetVisibleCustomPanelSlots(
+            InventoryDefinitions,
+            signature,
+            slot => IsEquipmentSlotUnlocked(player, inventory, slot));
     }
 
     private static List<SlotDefinition> GetQuickPanelSlots(Player? player = null)
@@ -299,7 +284,7 @@ public sealed partial class InventorySlotsPlugin
 
         InventoryDefinitions.EquipmentSlotUnlockCache.Clear();
         InventoryDefinitions.EquipmentSlotUnlockCacheSignature = signature;
-        _visibleCustomPanelSlotCacheVersion = -1;
+        InventoryDefinitionController.InvalidateVisibleCustomPanelSlots(InventoryDefinitions);
     }
 
     private static string GetVisibleEquipmentSlotUnlockSignature(Player player, Inventory? inventory)

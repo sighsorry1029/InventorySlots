@@ -292,51 +292,19 @@ public sealed partial class InventorySlotsPlugin
                 continue;
             }
 
-            ItemData? item = FindItemForSlot(player, inventory, slot);
+            ItemData? item = FindItemForSlotIncludingGridCandidate(player, inventory, slot);
             if (item == null)
             {
                 continue;
             }
 
-            if (slot.Kind == SlotKind.CustomEquipment)
-            {
-                if (!item.m_equipped)
-                {
-                    item.m_equipped = true;
-                    changed = true;
-                }
-
-                string playerId = GetPlayerId(player);
-                bool slotMarkerChanged =
-                    item.m_customData == null ||
-                    !item.m_customData.TryGetValue(SlotIdKey, out string slotId) ||
-                    !string.Equals(slotId, slot.Id, StringComparison.OrdinalIgnoreCase) ||
-                    !item.m_customData.TryGetValue(EquippedByKey, out string equippedBy) ||
-                    equippedBy != playerId;
-
-                if (slotMarkerChanged)
-                {
-                    MarkItemSlot(player, item, slot);
-                    changed = true;
-                }
-
-                OnCustomEquipmentCompatEquipped(player, item);
-            }
-            else
-            {
-                changed |= SyncBuiltInSlotEquippedFlag(player, item, slot);
-                if (item.m_customData != null &&
-                    (item.m_customData.ContainsKey(SlotIdKey) || item.m_customData.ContainsKey(EquippedByKey)))
-                {
-                    ClearItemSlot(item);
-                    changed = true;
-                }
-            }
+            changed |= RestoreSlotEquipmentState(player, inventory, item, slot);
         }
 
         if (changed)
         {
             inventory.Changed();
+            RefreshExternalEquipmentEffects(player);
         }
 
         return changed;

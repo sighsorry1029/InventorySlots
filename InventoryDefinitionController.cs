@@ -69,6 +69,31 @@ public sealed partial class InventorySlotsPlugin
             return state.CustomPanelSlotCache;
         }
 
+        public static List<SlotDefinition> GetVisibleCustomPanelSlots(
+            InventoryDefinitionRuntimeState state,
+            string signature,
+            Func<SlotDefinition, bool> isVisible)
+        {
+            if (state.VisibleCustomPanelSlotCacheVersion == state.SlotDefinitionVersion &&
+                string.Equals(state.VisibleCustomPanelSlotCacheSignature, signature, StringComparison.Ordinal))
+            {
+                return state.VisibleCustomPanelSlotCache;
+            }
+
+            state.VisibleCustomPanelSlotCache.Clear();
+            foreach (SlotDefinition slot in GetCustomPanelSlots(state))
+            {
+                if (isVisible(slot))
+                {
+                    state.VisibleCustomPanelSlotCache.Add(slot);
+                }
+            }
+
+            state.VisibleCustomPanelSlotCacheVersion = state.SlotDefinitionVersion;
+            state.VisibleCustomPanelSlotCacheSignature = signature;
+            return state.VisibleCustomPanelSlotCache;
+        }
+
         public static List<SlotDefinition> GetQuickPanelSlots(InventoryDefinitionRuntimeState state, int unlockedCount)
         {
             if (state.QuickPanelSlotCacheVersion == state.SlotDefinitionVersion &&
@@ -131,6 +156,12 @@ public sealed partial class InventorySlotsPlugin
             return Mathf.CeilToInt(state.SlotDefinitions.Count / (float)Mathf.Max(1, width));
         }
 
+        public static void InvalidateVisibleCustomPanelSlots(InventoryDefinitionRuntimeState state)
+        {
+            state.VisibleCustomPanelSlotCacheVersion = -1;
+            state.VisibleCustomPanelSlotCacheSignature = "";
+        }
+
         public static void InvalidateCaches(InventoryDefinitionRuntimeState state)
         {
             unchecked
@@ -145,6 +176,7 @@ public sealed partial class InventorySlotsPlugin
             state.CustomPanelSlotCache.Clear();
             state.QuickPanelSlotCache.Clear();
             state.QuickSlotDefinitionCache.Clear();
+            InvalidateVisibleCustomPanelSlots(state);
         }
     }
 }

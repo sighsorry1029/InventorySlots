@@ -1,9 +1,11 @@
 using System;
+using System.Collections;
 using System.Reflection;
 using BepInEx.Bootstrap;
 using HarmonyLib;
 using UnityEngine;
 using UnityEngine.UI;
+using ItemData = ItemDrop.ItemData;
 
 namespace InventorySlots;
 
@@ -15,6 +17,18 @@ public sealed partial class InventorySlotsPlugin
     private static bool _epicLootComparisonTooltipReflectionResolved;
     private static FieldInfo? _epicLootComparisonTooltipField;
     private static FieldInfo? _epicLootComparisonAddedField;
+    private static bool _epicLootEquipmentEffectCacheResetReflectionResolved;
+    private static MethodInfo? _epicLootEquipmentEffectCacheResetMethod;
+    private static bool _epicLootEquipmentEffectCacheResetWarningLogged;
+    private static bool _epicLootRuntimeItemDataReflectionResolved;
+    private static bool _epicLootRuntimeItemDataWarningLogged;
+    private static MethodInfo? _epicLootItemDataMethod;
+    private static MethodInfo? _epicLootItemInfoLoadAllMethod;
+    private static MethodInfo? _epicLootItemInfoGetMethod;
+    private static Type? _epicLootMagicItemComponentType;
+    private static MethodInfo? _epicLootMagicItemComponentLoadMethod;
+    private static int _lastEpicLootRespawnRuntimeReloadFrame = -1;
+    private static float _lastEpicLootRespawnRuntimeReloadTime = -1000f;
 
     private static bool IsEpicLootLoaded()
     {
@@ -24,6 +38,200 @@ public sealed partial class InventorySlotsPlugin
 
     internal static bool IsEpicLootLoadedForPatches() =>
         IsEpicLootLoaded();
+
+    private static void ResetEpicLootEquipmentEffectCache(Player? player)
+    {
+        if (player == null || IsUnityNull(player) || !IsEpicLootLoaded())
+        {
+            return;
+        }
+
+        ResolveEpicLootEquipmentEffectCacheResetMethod();
+        if (_epicLootEquipmentEffectCacheResetMethod == null)
+        {
+            return;
+        }
+
+        try
+        {
+            _epicLootEquipmentEffectCacheResetMethod.Invoke(null, new object[] { player });
+        }
+        catch (Exception ex)
+        {
+            if (_epicLootEquipmentEffectCacheResetWarningLogged)
+            {
+                return;
+            }
+
+            _epicLootEquipmentEffectCacheResetWarningLogged = true;
+            Log.LogWarning($"Failed to reset EpicLoot equipment effect cache: {ex.GetBaseException().Message}");
+        }
+    }
+
+    private static void ScheduleEpicLootRespawnRuntimeReload(Player? player)
+    {
+        if (player == null ||
+            IsUnityNull(player) ||
+            player != Player.m_localPlayer ||
+            !IsEpicLootLoaded() ||
+            _instance == null ||
+            IsUnityNull(_instance) ||
+            Time.frameCount == _lastEpicLootRespawnRuntimeReloadFrame ||
+            Time.unscaledTime - _lastEpicLootRespawnRuntimeReloadTime < 0.25f)
+        {
+            return;
+        }
+
+        _lastEpicLootRespawnRuntimeReloadFrame = Time.frameCount;
+        _lastEpicLootRespawnRuntimeReloadTime = Time.unscaledTime;
+        try
+        {
+            _instance.StartCoroutine(DelayedEpicLootRespawnRuntimeReload(player));
+        }
+        catch (Exception ex)
+        {
+            if (!_epicLootRuntimeItemDataWarningLogged)
+            {
+                _epicLootRuntimeItemDataWarningLogged = true;
+                Log.LogWarning($"Failed to schedule EpicLoot runtime item reload: {ex.GetBaseException().Message}");
+            }
+        }
+    }
+
+    private static IEnumerator DelayedEpicLootRespawnRuntimeReload(Player player)
+    {
+        yield return new WaitForSecondsRealtime(0.35f);
+
+        if (player != null && !IsUnityNull(player) && player == Player.m_localPlayer)
+        {
+            ReloadEpicLootRuntimeItemData(player);
+        }
+    }
+
+    private static void ReloadEpicLootRuntimeItemData(Player? player)
+    {
+        if (player == null || IsUnityNull(player) || !IsEpicLootLoaded())
+        {
+            return;
+        }
+
+        Inventory inventory = ((Humanoid)player).GetInventory();
+        if (inventory?.m_inventory == null)
+        {
+            return;
+        }
+
+        ResolveEpicLootRuntimeItemDataMethods();
+        if (_epicLootItemDataMethod == null)
+        {
+            return;
+        }
+
+        foreach (ItemData item in inventory.m_inventory)
+        {
+            if (HasNonNullEpicLootMagicData(item))
+            {
+                LoadEpicLootRuntimeItemData(item);
+            }
+        }
+
+        ResetEpicLootEquipmentEffectCache(player);
+    }
+
+    private static bool HasNonNullEpicLootMagicData(ItemData? item)
+    {
+        if (item?.m_customData == null ||
+            !item.m_customData.TryGetValue("randyknapp.mods.epicloot#EpicLoot.MagicItemComponent", out string value))
+        {
+            return false;
+        }
+
+        return !string.IsNullOrWhiteSpace(value) &&
+               !string.Equals(value.Trim(), "null", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void LoadEpicLootRuntimeItemData(ItemData item)
+    {
+        try
+        {
+            object? itemInfo = _epicLootItemDataMethod?.Invoke(null, new object[] { item });
+            if (itemInfo == null)
+            {
+                return;
+            }
+
+            _epicLootItemInfoLoadAllMethod?.Invoke(itemInfo, Array.Empty<object>());
+            if (_epicLootItemInfoGetMethod == null || _epicLootMagicItemComponentType == null)
+            {
+                return;
+            }
+
+            object? component = _epicLootItemInfoGetMethod
+                .MakeGenericMethod(_epicLootMagicItemComponentType)
+                .Invoke(itemInfo, new object[] { "" });
+            if (component != null)
+            {
+                _epicLootMagicItemComponentLoadMethod?.Invoke(component, Array.Empty<object>());
+            }
+        }
+        catch (Exception ex)
+        {
+            if (_epicLootRuntimeItemDataWarningLogged)
+            {
+                return;
+            }
+
+            _epicLootRuntimeItemDataWarningLogged = true;
+            Log.LogWarning($"Failed to reload EpicLoot runtime item data: {ex.GetBaseException().Message}");
+        }
+    }
+
+    private static void ResolveEpicLootRuntimeItemDataMethods()
+    {
+        if (_epicLootRuntimeItemDataReflectionResolved)
+        {
+            return;
+        }
+
+        _epicLootRuntimeItemDataReflectionResolved = true;
+        _epicLootItemDataMethod = AccessTools.Method(
+            "EpicLoot.Data.ItemExtensions:Data",
+            new[] { typeof(ItemData) });
+        _epicLootMagicItemComponentType = AccessTools.TypeByName("EpicLoot.MagicItemComponent");
+        if (_epicLootMagicItemComponentType != null)
+        {
+            _epicLootMagicItemComponentLoadMethod = AccessTools.Method(_epicLootMagicItemComponentType, "Load");
+        }
+
+        Type? itemInfoType = _epicLootItemDataMethod?.ReturnType;
+        if (itemInfoType == null)
+        {
+            return;
+        }
+
+        _epicLootItemInfoLoadAllMethod = AccessTools.Method(itemInfoType, "LoadAll");
+        foreach (MethodInfo method in itemInfoType.GetMethods(BindingFlags.Public | BindingFlags.Instance))
+        {
+            if (method.Name == "Get" && method.IsGenericMethodDefinition && method.GetParameters().Length == 1)
+            {
+                _epicLootItemInfoGetMethod = method;
+                break;
+            }
+        }
+    }
+
+    private static void ResolveEpicLootEquipmentEffectCacheResetMethod()
+    {
+        if (_epicLootEquipmentEffectCacheResetReflectionResolved)
+        {
+            return;
+        }
+
+        _epicLootEquipmentEffectCacheResetReflectionResolved = true;
+        _epicLootEquipmentEffectCacheResetMethod = AccessTools.Method(
+            "EpicLoot.EquipmentEffectCache:Reset",
+            new[] { typeof(Player) });
+    }
 
     internal static bool ShouldUpdateInventorySlotsOwnedHoverTooltip(UITooltip tooltip)
     {

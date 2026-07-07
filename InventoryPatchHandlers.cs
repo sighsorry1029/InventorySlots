@@ -130,6 +130,7 @@ public sealed partial class InventorySlotsPlugin
             InvalidateCustomEquipmentProjectionCache();
             EnsureInventoryState(player, InventoryStateEnsureReason.PlayerSpawned);
             ApplyAutoFavoriteHotbarSwitchRowForPlayer(player);
+            ScheduleEpicLootRespawnRuntimeReload(player);
         }
     }
 
@@ -162,6 +163,7 @@ public sealed partial class InventorySlotsPlugin
         {
             EnsureInventoryState(player, InventoryStateEnsureReason.PlayerSpawned);
             ApplyAutoFavoriteHotbarSwitchRowForPlayer(player);
+            ScheduleEpicLootRespawnRuntimeReload(player);
         }
     }
 

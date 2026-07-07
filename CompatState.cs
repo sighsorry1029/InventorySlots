@@ -38,6 +38,7 @@ public sealed partial class InventorySlotsPlugin
         public readonly CompatApiRuntimeState<AzuCraftyBoxesApi> AzuCraftyBoxes = new();
         public readonly CompatApiRuntimeState<JewelcraftingTooltipApi> JewelcraftingTooltip = new();
         public readonly CompatApiRuntimeState<JewelcraftingGemApi> JewelcraftingGem = new();
+        public readonly CompatApiRuntimeState<JewelcraftingEffectApi> JewelcraftingEffect = new();
         public readonly CompatApiRuntimeState<JewelcraftingSlotApi> JewelcraftingSlot = new();
         public readonly CompatApiRuntimeState<JewelcraftingCraftingSocketUiApi> JewelcraftingCraftingSocketUi = new();
         public readonly CompatApiRuntimeState<JewelcraftingGemCuttingApi> JewelcraftingGemCutting = new();

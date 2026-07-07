@@ -288,10 +288,8 @@ public sealed partial class InventorySlotsPlugin
     private static void InvalidateCraftingRecipeView()
     {
         CraftingController.MarkRecipeViewDirty();
-        CraftingController.MarkRecipeGridDirty();
-        CraftingController.MarkRecipeScrollbarDirty();
         CraftingController.MarkGroupRailDirty();
-        CraftingController.MarkBottomControlsDirty();
+        CraftingController.MarkRecipeGridLayoutDirty();
     }
 
     private static void ClearCraftingRecipeCaches()

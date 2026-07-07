@@ -99,6 +99,10 @@ internal static class Tests
         Assert.True(root.Groups["Consumable"].Contains("mead", StringComparer.OrdinalIgnoreCase), "Consumable should expose fermenter outputs as mead");
         Assert.True(root.Groups["Consumable"].Contains("potion", StringComparer.OrdinalIgnoreCase), "Consumable should expose direct status-effect consumables as potion");
         Assert.False(root.Groups["Melee"].Contains("torch", StringComparer.OrdinalIgnoreCase), "torch should be folded into tool rather than listed as its own subgroup");
+        Assert.True(root.Groups["Melee"].IndexOf("tankards") > root.Groups["Melee"].IndexOf("tool"), "tankards should be a configurable subgroup after tool");
+        Assert.Contains(root.Groups["tankards"], "Tankard");
+        Assert.Contains(root.Groups["tankards"], "Tankard_dvergr");
+        Assert.Contains(root.Groups["tankards"], "TankardAnniversary");
         Assert.True(root.ResourceMap.Count >= 8, "default resourceMap should contain biome tiers");
     }
 
@@ -860,6 +864,7 @@ internal static class Tests
             InventoryCellKind slotsKind = Enum.Parse<InventoryCellKind>(name);
             InventoryActions.InventoryCellKind actionsKind = Enum.Parse<InventoryActions.InventoryCellKind>(name);
 
+            Assert.Equal((int)slotsKind, (int)actionsKind);
             Assert.Equal(
                 InventoryActionCellPolicyCore.CanFavoriteSlot(slotsKind),
                 InventoryActions.InventoryActionCellPolicyCore.CanFavoriteSlot(actionsKind));
@@ -1155,10 +1160,13 @@ internal static class Tests
         (int Before, int After, int Requested, bool MoveSucceeded, bool UseFallback)[] movedCases =
         {
             (10, 3, 7, true, false),
+            (10, 3, 0, true, true),
             (10, 10, 4, true, true),
             (10, 10, 4, true, false),
             (10, 12, 4, true, true),
             (10, 10, 4, false, true),
+            (10, 3, 4, false, true),
+            (0, 0, 5, true, true),
             (10, 10, -4, true, true)
         };
 
@@ -1237,6 +1245,18 @@ internal static class Tests
         Assert.Equal(
             RestockTargetLimitCore.ResolveTargetStackLimit(slotsLimits, new[] { "$item_stone", "Stone" }, itemMaxStack: 99),
             InventoryActions.RestockTargetLimitCore.ResolveTargetStackLimit(actionsLimits, new[] { "$item_stone", "Stone" }, itemMaxStack: 99));
+        Assert.Equal(
+            RestockTargetLimitCore.ResolveTargetStackLimit(slotsLimits, new[] { "$item_coins", "Coins" }, itemMaxStack: 999),
+            InventoryActions.RestockTargetLimitCore.ResolveTargetStackLimit(actionsLimits, new[] { "$item_coins", "Coins" }, itemMaxStack: 999));
+        Assert.Equal(
+            RestockTargetLimitCore.ResolveTargetStackLimit(slotsLimits, new[] { "$item_resin", "Resin(Clone)", "Resin" }, itemMaxStack: 50),
+            InventoryActions.RestockTargetLimitCore.ResolveTargetStackLimit(actionsLimits, new[] { "$item_resin", "Resin(Clone)", "Resin" }, itemMaxStack: 50));
+        Assert.Equal(
+            RestockTargetLimitCore.ResolveTargetStackLimit(slotsLimits, new[] { "Wood" }, itemMaxStack: 50),
+            InventoryActions.RestockTargetLimitCore.ResolveTargetStackLimit(actionsLimits, new[] { "Wood" }, itemMaxStack: 50));
+        Assert.Equal(
+            RestockTargetLimitCore.ResolveTargetStackLimit(slotsLimits, new[] { "Unknown" }, itemMaxStack: 50),
+            InventoryActions.RestockTargetLimitCore.ResolveTargetStackLimit(actionsLimits, new[] { "Unknown" }, itemMaxStack: 50));
         Assert.Equal(
             InventorySlotsConfigCore.StripLocalizationToken("$item_resin"),
             InventoryActions.RestockTargetLimitCore.StripLocalizationToken("$item_resin"));

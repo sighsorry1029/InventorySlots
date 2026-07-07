@@ -94,7 +94,8 @@ public sealed partial class InventorySlotsPlugin
 
             if (inventory.m_inventory.Remove(item))
             {
-                keptItems.Add(new KeepOnDeathItemState(item, originalGridPos, originalSlotId, originalSlotKind));
+                KeepOnDeathItemState state = new(item, originalGridPos, originalSlotId, originalSlotKind);
+                keptItems.Add(state);
             }
         }
 
@@ -120,12 +121,15 @@ public sealed partial class InventorySlotsPlugin
         foreach (KeepOnDeathItemState state in keptItems)
         {
             ItemData item = state.Item;
-            if (item?.m_shared == null || inventory.ContainsItem(item))
+            bool invalidItem = item?.m_shared == null;
+            bool alreadyInInventory = !invalidItem && inventory.ContainsItem(item);
+            if (invalidItem || alreadyInInventory)
             {
                 continue;
             }
 
-            changed |= RestoreKeepOnDeathItem(player, inventory, state);
+            bool restored = RestoreKeepOnDeathItem(player, inventory, state);
+            changed |= restored;
         }
 
         keptItems.Clear();
@@ -136,6 +140,9 @@ public sealed partial class InventorySlotsPlugin
             {
                 EnsureInventoryState(player, InventoryStateEnsureReason.Tombstone);
             }
+
+            ReloadEpicLootRuntimeItemData(player);
+            RefreshExternalEquipmentEffects(player);
         }
     }
 
@@ -227,7 +234,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool CanRestoreKeepOnDeathItemToSlot(Player player, Inventory inventory, ItemData item, SlotDefinition slot)
     {
-        if (slot == null || !CanUseSpecialSlot(player, inventory, item, slot))
+        if (slot == null || !CanUseKeepOnDeathSpecialSlot(player, inventory, item, slot))
         {
             return false;
         }
@@ -248,7 +255,18 @@ public sealed partial class InventorySlotsPlugin
         Vector2i target = GetSlotGridPos(inventory, slot);
         item.m_gridPos = target;
         inventory.m_inventory.Add(item);
+        RestoreKeepOnDeathSlotState(player, inventory, item, slot);
         return true;
+    }
+
+    private static void RestoreKeepOnDeathSlotState(Player player, Inventory inventory, ItemData item, SlotDefinition slot)
+    {
+        if (item == null || slot == null || slot.Kind == SlotKind.Quick)
+        {
+            return;
+        }
+
+        RestoreSlotEquipmentState(player, inventory, item, slot);
     }
 
     private static bool TryFindKeepOnDeathEmptySpecialSlot(Player player, Inventory inventory, ItemData item, System.Func<SlotDefinition, bool>? slotFilter, out SlotDefinition? foundSlot)
@@ -261,7 +279,7 @@ public sealed partial class InventorySlotsPlugin
                 continue;
             }
 
-            if (!CanUseSpecialSlot(player, inventory, item, slot))
+            if (!CanUseKeepOnDeathSpecialSlot(player, inventory, item, slot))
             {
                 continue;
             }
@@ -320,10 +338,25 @@ public sealed partial class InventorySlotsPlugin
                 return false;
             }
 
-            return CanUseSpecialSlot(player, inventory, item, slot!);
+            return CanUseKeepOnDeathSpecialSlot(player, inventory, item, slot!);
         }
 
         return IsUsableRegularCell(inventory, player, target);
+    }
+
+    private static bool CanUseKeepOnDeathSpecialSlot(Player player, Inventory inventory, ItemData item, SlotDefinition slot)
+    {
+        if (CanUseSpecialSlot(player, inventory, item, slot))
+        {
+            return true;
+        }
+
+        return item != null &&
+               slot != null &&
+               slot.Kind != SlotKind.Quick &&
+               slot.Accepts(item) &&
+               !IsJewelcraftingUtilityGemBlockedForSlot(item, slot) &&
+               IsEquipmentSlotProgressionEnabled();
     }
 
     private static bool ShouldKeepOnDeath(ItemData item)

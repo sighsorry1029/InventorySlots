@@ -222,10 +222,6 @@ public sealed partial class InventorySlotsPlugin
     private static readonly EquipmentVisualRuntimeState EquipmentVisuals = new();
     private static readonly InventorySortRuntimeState InventorySort = new();
     private static List<SlotDefinition> SlotDefinitions => InventoryDefinitions.SlotDefinitions;
-    private static List<SlotDefinition> CustomPanelSlotCache => InventoryDefinitions.CustomPanelSlotCache;
-    private static List<SlotDefinition> VisibleCustomPanelSlotCache => InventoryDefinitions.VisibleCustomPanelSlotCache;
-    private static List<SlotDefinition> QuickPanelSlotCache => InventoryDefinitions.QuickPanelSlotCache;
-    private static Dictionary<int, SlotDefinition> QuickSlotDefinitionCache => InventoryDefinitions.QuickSlotDefinitionCache;
     private static Dictionary<string, YamlPredefinedGroup> PredefinedGroupDefinitions => InventoryDefinitions.PredefinedGroupDefinitions;
     private static List<string> PredefinedGroupOrder => InventoryDefinitions.PredefinedGroupOrder;
     private static Dictionary<string, List<string>> PredefinedGroupOrders => InventoryDefinitions.PredefinedGroupOrders;
@@ -241,31 +237,6 @@ public sealed partial class InventorySlotsPlugin
     {
         get => InventoryDefinitions.SlotDefinitionVersion;
         set => InventoryDefinitions.SlotDefinitionVersion = value;
-    }
-    private static int _customPanelSlotCacheVersion
-    {
-        get => InventoryDefinitions.CustomPanelSlotCacheVersion;
-        set => InventoryDefinitions.CustomPanelSlotCacheVersion = value;
-    }
-    private static int _visibleCustomPanelSlotCacheVersion
-    {
-        get => InventoryDefinitions.VisibleCustomPanelSlotCacheVersion;
-        set => InventoryDefinitions.VisibleCustomPanelSlotCacheVersion = value;
-    }
-    private static int _quickPanelSlotCacheVersion
-    {
-        get => InventoryDefinitions.QuickPanelSlotCacheVersion;
-        set => InventoryDefinitions.QuickPanelSlotCacheVersion = value;
-    }
-    private static int _quickPanelSlotCacheUnlockedCount
-    {
-        get => InventoryDefinitions.QuickPanelSlotCacheUnlockedCount;
-        set => InventoryDefinitions.QuickPanelSlotCacheUnlockedCount = value;
-    }
-    private static int _quickSlotDefinitionCacheVersion
-    {
-        get => InventoryDefinitions.QuickSlotDefinitionCacheVersion;
-        set => InventoryDefinitions.QuickSlotDefinitionCacheVersion = value;
     }
     private static readonly string[] PlayerStatPanelExtraNames = { "Jewelcrafting Synergy", "Trash" };
     private static readonly string[] QuickStackStoreMiniButtonNames = { "sortInventoryButton", "restockAreaButton", "quickStackAreaButton", "favoritingTogglingButton" };

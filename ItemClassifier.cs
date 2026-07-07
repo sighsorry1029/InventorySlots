@@ -12,16 +12,6 @@ namespace InventorySlots;
 public sealed partial class InventorySlotsPlugin
 {
     private const int MaxItemClassifierCacheItems = 2048;
-    private static readonly HashSet<string> ToolPrefabOverrides = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Tankard",
-        "Tankard_dvergr",
-        "TankardAnniversary"
-    };
-    private static readonly HashSet<string> ToolPrefabOverrideTokens = new(
-        ToolPrefabOverrides.Select(NormalizeResourceToken),
-        StringComparer.OrdinalIgnoreCase);
-
     private sealed class ItemClassification
     {
         public readonly Dictionary<string, bool> BuiltInGroupMatches = new(StringComparer.OrdinalIgnoreCase);
@@ -39,6 +29,51 @@ public sealed partial class InventorySlotsPlugin
     }
 
     private static readonly ItemClassifierRuntimeState ItemClassifierRuntime = new();
+    private static readonly Dictionary<string, Func<ItemData, bool>> BuiltInGroupMatchers = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["all"] = _ => true,
+        ["healthfood"] = MatchHealthFoodCategory,
+        ["staminafood"] = MatchStaminaFoodCategory,
+        ["eitrfood"] = MatchEitrFoodCategory,
+        ["consumable"] = MatchConsumableCategory,
+        ["mead"] = MatchMeadCategory,
+        ["potion"] = MatchPotionCategory,
+        ["meadbase"] = MatchMeadBaseCategory,
+        ["feast"] = MatchFeastCategory,
+        ["trophy"] = item => item.m_shared.m_itemType == ItemType.Trophy,
+        ["valuable"] = item => item.m_shared.m_value > 0,
+        ["melee"] = MatchMeleeCategory,
+        ["ranged"] = MatchRangedCategory,
+        ["magic"] = MatchMagicCategory,
+        ["armor"] = MatchArmorCategory,
+        ["equipment"] = MatchArmorCategory,
+        ["food"] = MatchFoodCategory,
+        ["misc"] = MatchMiscCategory,
+        ["legs"] = MatchLegsCategory,
+        ["chest"] = MatchChestCategory,
+        ["helmet"] = MatchHelmetCategory,
+        ["cape"] = MatchCapeCategory,
+        ["utility"] = MatchUtilityCategory,
+        ["trinket"] = MatchTrinketCategory,
+        ["shield"] = MatchShieldCategory,
+        ["axe"] = MatchAxeCategory,
+        ["club"] = MatchClubCategory,
+        ["knife"] = MatchKnifeCategory,
+        ["pickaxe"] = MatchPickaxeCategory,
+        ["polearm"] = MatchPolearmCategory,
+        ["spear"] = MatchSpearCategory,
+        ["sword"] = MatchSwordCategory,
+        ["fists"] = MatchFistsCategory,
+        ["bow"] = MatchBowWeaponCategory,
+        ["crossbow"] = MatchCrossbowWeaponCategory,
+        ["elementalmagic"] = MatchElementalMagicCategory,
+        ["bloodmagic"] = MatchBloodMagicCategory,
+        ["tool"] = MatchToolCategory,
+        ["bomb"] = MatchBombCategory,
+        ["arrow"] = MatchArrowAmmo,
+        ["bolt"] = MatchBoltAmmo,
+        ["ammo"] = MatchAmmoCategory
+    };
 
     private static string GetInventoryItemBigGroupId(ItemData item)
     {
@@ -52,52 +87,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool ItemMatchesBuiltInPredefinedGroupUncached(ItemData item, string id)
     {
-        return id switch
-        {
-            "all" => true,
-            "healthfood" => MatchHealthFoodCategory(item),
-            "staminafood" => MatchStaminaFoodCategory(item),
-            "eitrfood" => MatchEitrFoodCategory(item),
-            "consumable" => MatchConsumableCategory(item),
-            "mead" => MatchMeadCategory(item),
-            "potion" => MatchPotionCategory(item),
-            "meadbase" => MatchMeadBaseCategory(item),
-            "feast" => MatchFeastCategory(item),
-            "trophy" => item.m_shared.m_itemType == ItemType.Trophy,
-            "valuable" => item.m_shared.m_value > 0,
-            "melee" => MatchMeleeCategory(item),
-            "ranged" => MatchRangedCategory(item),
-            "magic" => MatchMagicCategory(item),
-            "armor" => MatchArmorCategory(item),
-            "equipment" => MatchArmorCategory(item),
-            "food" => MatchFoodCategory(item),
-            "misc" => MatchMiscCategory(item),
-            "legs" => MatchLegsCategory(item),
-            "chest" => MatchChestCategory(item),
-            "helmet" => MatchHelmetCategory(item),
-            "cape" => MatchCapeCategory(item),
-            "utility" => MatchUtilityCategory(item),
-            "trinket" => MatchTrinketCategory(item),
-            "shield" => MatchShieldCategory(item),
-            "axe" => MatchAxeCategory(item),
-            "club" => MatchClubCategory(item),
-            "knife" => MatchKnifeCategory(item),
-            "pickaxe" => MatchPickaxeCategory(item),
-            "polearm" => MatchPolearmCategory(item),
-            "spear" => MatchSpearCategory(item),
-            "sword" => MatchSwordCategory(item),
-            "fists" => MatchFistsCategory(item),
-            "bow" => MatchBowWeaponCategory(item),
-            "crossbow" => MatchCrossbowWeaponCategory(item),
-            "elementalmagic" => item.m_shared.m_skillType == Skills.SkillType.ElementalMagic,
-            "bloodmagic" => item.m_shared.m_skillType == Skills.SkillType.BloodMagic,
-            "tool" => MatchToolCategory(item),
-            "bomb" => MatchBombCategory(item),
-            "arrow" => MatchArrowAmmo(item),
-            "bolt" => MatchBoltAmmo(item),
-            "ammo" => MatchAmmoCategory(item),
-            _ => false
-        };
+        return BuiltInGroupMatchers.TryGetValue(id, out Func<ItemData, bool> matcher) && matcher(item);
     }
 
     private static int GetItemClassifierCacheVersion()
@@ -324,7 +314,6 @@ public sealed partial class InventorySlotsPlugin
         !MatchMeadBaseCategory(item) &&
         (item.m_shared.m_itemType == ItemType.Tool ||
          MatchTorchCategory(item) ||
-         MatchToolPrefabOverrideCategory(item) ||
          item.m_shared.m_skillType == Skills.SkillType.Pickaxes ||
          item.m_shared.m_skillType == Skills.SkillType.Fishing ||
          item.m_shared.m_skillType == Skills.SkillType.Farming ||
@@ -416,35 +405,6 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool MatchTorchCategory(ItemData item) =>
         IsItemTypeOrAttach(item, ItemType.Torch);
-
-    private static bool MatchToolPrefabOverrideCategory(ItemData item)
-    {
-        foreach (string identity in GetToolPrefabOverrideIdentityTokens(item))
-        {
-            if (ToolPrefabOverrides.Contains(identity) ||
-                ToolPrefabOverrideTokens.Contains(NormalizeResourceToken(identity)))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static IEnumerable<string> GetToolPrefabOverrideIdentityTokens(ItemData item)
-    {
-        string prefabName = GetItemPrefabName(item);
-        if (!string.IsNullOrWhiteSpace(prefabName))
-        {
-            yield return prefabName;
-        }
-
-        string sharedName = GetSharedName(item);
-        if (!string.IsNullOrWhiteSpace(sharedName))
-        {
-            yield return StripLocalizationToken(sharedName);
-        }
-    }
 
     private static bool IsNonCombatAmmo(ItemData item)
     {

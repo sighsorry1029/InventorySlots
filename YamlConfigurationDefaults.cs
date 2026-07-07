@@ -72,6 +72,7 @@ Groups:
     - shield
     - pickaxe
     - tool
+    - tankards
   Ranged:
     - bow
     - arrow
@@ -109,6 +110,10 @@ Groups:
 #  randomrandom:
 #    - randomprefab
 #    - prefabprefab
+  tankards:
+    - Tankard
+    - Tankard_dvergr
+    - TankardAnniversary
 
 # Items matching these built-in groups, custom groups, or exact prefab/internal
 # names stay in the player inventory instead of moving to the tombstone.

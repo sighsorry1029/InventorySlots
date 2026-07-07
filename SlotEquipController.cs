@@ -46,6 +46,103 @@ public sealed partial class InventorySlotsPlugin
         };
     }
 
+    private static ItemData? FindItemForSlotIncludingGridCandidate(Player player, Inventory inventory, SlotDefinition slot)
+    {
+        ItemData? item = FindItemForSlot(player, inventory, slot);
+        if (item != null || slot.Kind != SlotKind.BuiltIn || inventory == null)
+        {
+            return item;
+        }
+
+        Vector2i slotPos = GetSlotGridPos(inventory, slot);
+        ItemData? gridItem = inventory.GetItemAt(slotPos.x, slotPos.y);
+        return gridItem != null && slot.Accepts(gridItem) && CanUseSpecialSlot(player, inventory, gridItem, slot)
+            ? gridItem
+            : null;
+    }
+
+    private static bool RestoreBuiltInSlotEquipmentState(Player player, Inventory inventory, ItemData item, SlotDefinition slot)
+    {
+        if (player == null || inventory == null || item == null || slot == null || slot.Kind != SlotKind.BuiltIn)
+        {
+            return false;
+        }
+
+        bool changed = false;
+        if (item.m_customData != null &&
+            (item.m_customData.ContainsKey(SlotIdKey) || item.m_customData.ContainsKey(EquippedByKey)))
+        {
+            ClearItemSlot(item);
+            changed = true;
+        }
+
+        Humanoid humanoid = player;
+        bool equipped = false;
+        try
+        {
+            equipped = humanoid.IsItemEquiped(item);
+            if (!equipped)
+            {
+                equipped = humanoid.EquipItem(item, true);
+                changed |= equipped;
+            }
+        }
+        catch
+        {
+            equipped = item.m_equipped;
+        }
+
+        if (equipped && !item.m_equipped)
+        {
+            item.m_equipped = true;
+            changed = true;
+        }
+
+        if (changed)
+        {
+            humanoid.SetupEquipment();
+        }
+
+        return changed;
+    }
+
+    private static bool RestoreSlotEquipmentState(Player player, Inventory inventory, ItemData item, SlotDefinition slot)
+    {
+        if (player == null || inventory == null || item == null || slot == null || slot.Kind == SlotKind.Quick)
+        {
+            return false;
+        }
+
+        if (slot.Kind == SlotKind.BuiltIn)
+        {
+            return RestoreBuiltInSlotEquipmentState(player, inventory, item, slot);
+        }
+
+        bool changed = false;
+        if (!item.m_equipped)
+        {
+            item.m_equipped = true;
+            changed = true;
+        }
+
+        string playerId = GetPlayerId(player);
+        bool slotMarkerChanged =
+            item.m_customData == null ||
+            !item.m_customData.TryGetValue(SlotIdKey, out string slotId) ||
+            !string.Equals(slotId, slot.Id, StringComparison.OrdinalIgnoreCase) ||
+            !item.m_customData.TryGetValue(EquippedByKey, out string equippedBy) ||
+            equippedBy != playerId;
+
+        if (slotMarkerChanged)
+        {
+            MarkItemSlot(player, item, slot);
+            changed = true;
+        }
+
+        OnCustomEquipmentCompatEquipped(player, item);
+        return changed;
+    }
+
     private static ItemData? FindCustomEquippedItemForSlot(Inventory inventory, SlotDefinition slot)
     {
         if (inventory?.m_inventory == null)
@@ -150,6 +247,7 @@ public sealed partial class InventorySlotsPlugin
         if (slot.Kind == SlotKind.CustomEquipment)
         {
             UpdateCustomEquipmentVisuals(player);
+            RefreshExternalEquipmentEffects(player);
         }
 
         inventory.Changed();
@@ -535,12 +633,14 @@ public sealed partial class InventorySlotsPlugin
             ((Humanoid)player).UnequipItem(item, true);
         }
 
+        bool customEquipmentChanged = false;
         if (IsInventorySlotsCustomEquipped(item))
         {
             OnCustomEquipmentCompatUnequipping(player, item);
             item.m_equipped = false;
             ClearItemSlot(item);
             ((Humanoid)player).SetupEquipment();
+            customEquipmentChanged = true;
         }
 
         ClearItemSlot(item);
@@ -551,6 +651,11 @@ public sealed partial class InventorySlotsPlugin
         }
 
         inventory.Changed();
+        if (customEquipmentChanged)
+        {
+            RefreshExternalEquipmentEffects(player);
+        }
+
         return true;
     }
 
@@ -566,6 +671,7 @@ public sealed partial class InventorySlotsPlugin
             ((Humanoid)player).UnequipItem(item, true);
         }
 
+        bool equipmentStateChanged = false;
         if (IsInventorySlotsCustomEquipped(item))
         {
             OnCustomEquipmentCompatUnequipping(player, item);
@@ -573,9 +679,14 @@ public sealed partial class InventorySlotsPlugin
             ClearItemSlot(item);
             ((Humanoid)player).SetupEquipment();
             UpdateCustomEquipmentVisuals(player);
+            equipmentStateChanged = true;
         }
 
-        ForceClearEquipmentReference(player, item);
+        equipmentStateChanged |= ForceClearEquipmentReference(player, item);
+        if (equipmentStateChanged)
+        {
+            RefreshExternalEquipmentEffects(player);
+        }
     }
 
     private static void UnequipConflictingCustomEquipmentItems(Player player, Inventory inventory, ItemData incoming, SlotDefinition slot)
@@ -633,6 +744,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         UpdateCustomEquipmentVisuals(player);
+        RefreshExternalEquipmentEffects(player);
     }
 
     internal static bool TryHandleRegularItemDragIntoEquipmentSlot(InventoryGui gui, InventoryGrid targetGrid, Vector2i pos, InventoryGrid.Modifier mod)
@@ -940,6 +1052,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         playerInventory.Changed();
+        RefreshExternalEquipmentEffects(player);
         RequestInventoryStateEnsure(player, InventoryStateEnsureReason.SlotAction, InventoryStateAuditLevel.SlotLight);
         return true;
     }
@@ -992,11 +1105,11 @@ public sealed partial class InventorySlotsPlugin
         TryEquipIntoSlot(player, inventory, item, slot);
     }
 
-    private static void ForceClearEquipmentReference(Player player, ItemData item)
+    private static bool ForceClearEquipmentReference(Player player, ItemData item)
     {
         if (player == null || item == null)
         {
-            return;
+            return false;
         }
 
         Humanoid humanoid = player;
@@ -1072,6 +1185,8 @@ public sealed partial class InventorySlotsPlugin
         {
             humanoid.SetupEquipment();
         }
+
+        return changed;
     }
 
     private static SlotDefinition? GetSlotFromItemMarker(ItemData item)
@@ -1114,6 +1229,7 @@ public sealed partial class InventorySlotsPlugin
 
         ((Humanoid)player).SetupEquipment();
         inventory.Changed();
+        RefreshExternalEquipmentEffects(player);
         return true;
     }
 
@@ -1159,6 +1275,7 @@ public sealed partial class InventorySlotsPlugin
         item.m_equipped = false;
         ClearItemSlot(item);
         ClearSlotActionState(item);
+        RefreshExternalEquipmentEffects(Player.m_localPlayer);
     }
 
     internal static bool HasInventorySlotsSlot(ItemData? item)
