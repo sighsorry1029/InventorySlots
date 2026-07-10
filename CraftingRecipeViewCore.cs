@@ -2,18 +2,6 @@ namespace InventorySlots;
 
 internal static class CraftingRecipeViewCore
 {
-    public static int CompareFavoritesOnly(
-        bool aIsFavorite,
-        bool bIsFavorite,
-        bool aCanCraft,
-        bool bCanCraft,
-        int aOriginalIndex,
-        int bOriginalIndex)
-    {
-        int prefix = CompareFavoriteAndCraftable(aIsFavorite, bIsFavorite, aCanCraft, bCanCraft);
-        return prefix != 0 ? prefix : aOriginalIndex.CompareTo(bOriginalIndex);
-    }
-
     public static int CompareWithSortKey(
         bool aIsFavorite,
         bool bIsFavorite,

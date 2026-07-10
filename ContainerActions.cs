@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using UnityEngine;
 using ItemData = ItemDrop.ItemData;
 
@@ -11,7 +10,6 @@ public sealed partial class InventorySlotsPlugin
 {
     private const string ContainerActionSuccessFxPrefabName = "fx_HildirChest_Unlock";
     private const int ContainerActionSuccessFxMaxMode = 12;
-    private static readonly Dictionary<Type, SfxVolumeMemberCache> SfxVolumeMembersByType = new();
     private delegate bool TryGetContainerHoldContext(Player player, out Container container);
 
     private static List<Container> GetActionContainers(Player player, Container currentContainer, bool areaForQuickStack)
@@ -381,132 +379,12 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        foreach (Component component in instance.GetComponentsInChildren<Component>(includeInactive: true))
+        foreach (ZSFX sfx in instance.GetComponentsInChildren<ZSFX>(includeInactive: true))
         {
-            if (component != null && !IsUnityNull(component))
+            if (sfx != null && !IsUnityNull(sfx))
             {
-                ScaleSfxComponentVolume(component, volumeScale);
+                sfx.SetVolumeModifier(sfx.GetVolumeModifier() * volumeScale);
             }
         }
-    }
-
-    private static void ScaleSfxComponentVolume(Component component, float volumeScale)
-    {
-        Type type = component.GetType();
-        if (IsUnityAudioSource(type))
-        {
-            ScaleUnityAudioSourceVolume(component, type, volumeScale);
-            return;
-        }
-
-        if (!IsLikelySfxComponent(type))
-        {
-            return;
-        }
-
-        SfxVolumeMemberCache members = GetSfxVolumeMemberCache(type);
-        foreach (FieldInfo field in members.Fields)
-        {
-            try
-            {
-                field.SetValue(component, Mathf.Max(0f, (float)field.GetValue(component) * volumeScale));
-            }
-            catch
-            {
-                // Some Unity-backed members can reject reflection writes; AudioSource volume is already handled above.
-            }
-        }
-
-        foreach (PropertyInfo property in members.Properties)
-        {
-            try
-            {
-                property.SetValue(component, Mathf.Max(0f, (float)property.GetValue(component) * volumeScale));
-            }
-            catch
-            {
-                // Best-effort support for SFX wrappers with writable volume properties.
-            }
-        }
-    }
-
-    private static SfxVolumeMemberCache GetSfxVolumeMemberCache(Type type)
-    {
-        if (SfxVolumeMembersByType.TryGetValue(type, out SfxVolumeMemberCache cache))
-        {
-            return cache;
-        }
-
-        const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-        cache = new SfxVolumeMemberCache(
-            type.GetFields(flags)
-                .Where(field =>
-                    field.FieldType == typeof(float) &&
-                    IsSfxVolumeMemberName(field.Name) &&
-                    !IsUnsupportedSfxVolumeMemberName(field.Name))
-                .ToArray(),
-            type.GetProperties(flags)
-                .Where(property =>
-                    property.PropertyType == typeof(float) &&
-                    property.CanRead &&
-                    property.CanWrite &&
-                    property.GetIndexParameters().Length == 0 &&
-                    IsSfxVolumeMemberName(property.Name) &&
-                    !IsUnsupportedSfxVolumeMemberName(property.Name))
-                .ToArray());
-        SfxVolumeMembersByType[type] = cache;
-        return cache;
-    }
-
-    private static bool IsLikelySfxComponent(Type type)
-    {
-        string name = type.Name;
-        return name.IndexOf("SFX", StringComparison.OrdinalIgnoreCase) >= 0 ||
-               name.IndexOf("Audio", StringComparison.OrdinalIgnoreCase) >= 0;
-    }
-
-    private static bool IsSfxVolumeMemberName(string name)
-    {
-        return name.IndexOf("volume", StringComparison.OrdinalIgnoreCase) >= 0 ||
-               name.IndexOf("vol", StringComparison.OrdinalIgnoreCase) >= 0;
-    }
-
-    private static bool IsUnsupportedSfxVolumeMemberName(string name)
-    {
-        return string.Equals(name, "minVolume", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(name, "maxVolume", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsUnityAudioSource(Type type) =>
-        string.Equals(type.FullName, "UnityEngine.AudioSource", StringComparison.Ordinal);
-
-    private static void ScaleUnityAudioSourceVolume(Component component, Type type, float volumeScale)
-    {
-        PropertyInfo? volumeProperty = type.GetProperty("volume", BindingFlags.Instance | BindingFlags.Public);
-        if (volumeProperty == null || !volumeProperty.CanRead || !volumeProperty.CanWrite)
-        {
-            return;
-        }
-
-        try
-        {
-            volumeProperty.SetValue(component, Mathf.Max(0f, (float)volumeProperty.GetValue(component) * volumeScale));
-        }
-        catch
-        {
-            // Best-effort volume scaling for Unity audio sources without touching deprecated minVolume/maxVolume.
-        }
-    }
-
-    private readonly struct SfxVolumeMemberCache
-    {
-        public SfxVolumeMemberCache(FieldInfo[] fields, PropertyInfo[] properties)
-        {
-            Fields = fields;
-            Properties = properties;
-        }
-
-        public FieldInfo[] Fields { get; }
-        public PropertyInfo[] Properties { get; }
     }
 }

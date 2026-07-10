@@ -10,7 +10,7 @@ public sealed partial class InventorySlotsPlugin
     private static void UpdateCraftingRecipeScrollbar(InventoryGui gui, RectTransform grid)
     {
         RectTransform? rect = EnsureCraftingRecipeScrollbar(gui);
-        if (rect == null || _craftingRecipeScrollbarComponent == null)
+        if (rect == null || CraftingScrollbar.RecipeScrollbarComponent == null)
         {
             return;
         }
@@ -32,7 +32,7 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        Scrollbar scrollbar = _craftingRecipeScrollbarComponent;
+        Scrollbar scrollbar = CraftingScrollbar.RecipeScrollbarComponent;
         CraftingRecipeScrollbarMarker marker = rect.GetComponent<CraftingRecipeScrollbarMarker>() ?? rect.gameObject.AddComponent<CraftingRecipeScrollbarMarker>();
         if (!marker.Initialized)
         {
@@ -45,9 +45,9 @@ public sealed partial class InventorySlotsPlugin
         scrollbar.direction = Scrollbar.Direction.BottomToTop;
         scrollbar.size = Mathf.Clamp01(1f / pageCount);
 
-        _updatingCraftingRecipeScrollbar = true;
+        CraftingScrollbar.UpdatingRecipeScrollbar = true;
         scrollbar.value = pageCount <= 1 ? 1f : 1f - _craftingRecipePage / (float)(pageCount - 1);
-        _updatingCraftingRecipeScrollbar = false;
+        CraftingScrollbar.UpdatingRecipeScrollbar = false;
         CraftingController.StoreRecipeScrollbarStamp(stamp);
     }
 
@@ -83,7 +83,7 @@ public sealed partial class InventorySlotsPlugin
 
         if (_craftingRecipeScrollbar != null && !IsUnityNull(_craftingRecipeScrollbar) && _craftingRecipeScrollbar!.parent == gui.m_crafting)
         {
-            _craftingRecipeScrollbarComponent = _craftingRecipeScrollbar.GetComponent<Scrollbar>();
+            CraftingScrollbar.RecipeScrollbarComponent = _craftingRecipeScrollbar.GetComponent<Scrollbar>();
             return _craftingRecipeScrollbar;
         }
 
@@ -95,7 +95,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         _craftingRecipeScrollbar.SetParent(gui.m_crafting, false);
-        _craftingRecipeScrollbarComponent = _craftingRecipeScrollbar.GetComponent<Scrollbar>();
+        CraftingScrollbar.RecipeScrollbarComponent = _craftingRecipeScrollbar.GetComponent<Scrollbar>();
         return _craftingRecipeScrollbar;
     }
 
@@ -198,7 +198,7 @@ public sealed partial class InventorySlotsPlugin
 
         foreach (Scrollbar scrollbar in gui.m_crafting.GetComponentsInChildren<Scrollbar>(includeInactive: true))
         {
-            if (scrollbar == null || IsUnityNull(scrollbar) || scrollbar == _craftingRecipeScrollbarComponent)
+            if (scrollbar == null || IsUnityNull(scrollbar) || scrollbar == CraftingScrollbar.RecipeScrollbarComponent)
             {
                 continue;
             }
@@ -263,7 +263,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void OnCraftingRecipeScrollbarChanged(float value)
     {
-        if (_updatingCraftingRecipeScrollbar || InventoryGui.instance == null || !ShouldShowCraftingPanelRedesign(InventoryGui.instance))
+        if (CraftingScrollbar.UpdatingRecipeScrollbar || InventoryGui.instance == null || !ShouldShowCraftingPanelRedesign(InventoryGui.instance))
         {
             return;
         }

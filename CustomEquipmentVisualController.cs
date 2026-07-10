@@ -272,7 +272,7 @@ public sealed partial class InventorySlotsPlugin
         unchecked
         {
             int hash = 17;
-            hash = hash * 31 + _slotDefinitionVersion;
+            hash = hash * 31 + InventoryDefinitions.SlotDefinitionVersion;
             hash = hash * 31 + (!IsUnityNull(visEquipment) ? visEquipment.GetInstanceID() : 0);
             hash = hash * 31 + ComputeCustomEquipmentVisualOwnerSignature(visEquipment);
             foreach (ItemData item in inventory.m_inventory)

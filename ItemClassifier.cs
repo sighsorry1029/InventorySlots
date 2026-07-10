@@ -77,12 +77,50 @@ public sealed partial class InventorySlotsPlugin
 
     private static string GetInventoryItemBigGroupId(ItemData item)
     {
-        return ItemClassifierController.GetInventoryItemBigGroupId(ItemClassifierRuntime, item, CraftingRecipeGroupFilters);
+        if (item?.m_shared == null)
+        {
+            return "";
+        }
+
+        ItemClassification classification = GetItemClassification(item);
+        if (classification.BigGroupResolved)
+        {
+            return classification.BigGroupId;
+        }
+
+        for (int i = 0; i < CraftingRecipeGroupFilters.Count; i++)
+        {
+            CraftingRecipeGroupFilter filter = CraftingRecipeGroupFilters[i];
+            if (filter.Id != "favorite" && filter.Matches(item))
+            {
+                classification.BigGroupId = filter.Id;
+                classification.BigGroupResolved = true;
+                return classification.BigGroupId;
+            }
+        }
+
+        classification.BigGroupId = "";
+        classification.BigGroupResolved = true;
+        return classification.BigGroupId;
     }
 
     private static bool ItemMatchesBuiltInPredefinedGroup(ItemData item, string groupId)
     {
-        return ItemClassifierController.ItemMatchesBuiltInPredefinedGroup(ItemClassifierRuntime, item, groupId);
+        string id = NormalizeGroupId(groupId);
+        if (item?.m_shared == null || string.IsNullOrWhiteSpace(id))
+        {
+            return false;
+        }
+
+        ItemClassification classification = GetItemClassification(item);
+        if (classification.BuiltInGroupMatches.TryGetValue(id, out bool cached))
+        {
+            return cached;
+        }
+
+        bool result = ItemMatchesBuiltInPredefinedGroupUncached(item, id);
+        classification.BuiltInGroupMatches[id] = result;
+        return result;
     }
 
     private static bool ItemMatchesBuiltInPredefinedGroupUncached(ItemData item, string id)
@@ -125,7 +163,39 @@ public sealed partial class InventorySlotsPlugin
 
     private static void ClearItemClassifierCaches()
     {
-        ItemClassifierController.ClearCaches(ItemClassifierRuntime);
+        ItemClassifierRuntime.Cache.Clear();
+        ItemClassifierRuntime.AppliedVersion = ItemClassifierRuntime.Version;
+    }
+
+    private static ItemClassification GetItemClassification(ItemData item)
+    {
+        EnsureItemClassifierCacheFresh();
+        string itemKey = GetItemClassifierCacheKey(item);
+        if (ItemClassifierRuntime.Cache.TryGetValue(itemKey, out ItemClassification cached))
+        {
+            return cached;
+        }
+
+        if (ItemClassifierRuntime.Cache.Count >= MaxItemClassifierCacheItems)
+        {
+            ItemClassifierRuntime.Cache.Clear();
+        }
+
+        ItemClassification classification = new();
+        ItemClassifierRuntime.Cache[itemKey] = classification;
+        return classification;
+    }
+
+    private static void EnsureItemClassifierCacheFresh()
+    {
+        int version = GetItemClassifierCacheVersion();
+        if (ItemClassifierRuntime.AppliedVersion == version)
+        {
+            return;
+        }
+
+        ItemClassifierRuntime.Cache.Clear();
+        ItemClassifierRuntime.AppliedVersion = version;
     }
 
     private static bool IsWeaponItemType(ItemType itemType) =>

@@ -45,16 +45,6 @@ public sealed partial class InventorySlotsPlugin
         EndInventoryLoadPreservation(inventory);
     }
 
-    internal static void PreparePlayerInventoryForLoad(Player player)
-    {
-        if (IsUnityNull(player))
-        {
-            return;
-        }
-
-        EnsureInventoryHeightForLoad(((Humanoid)player).GetInventory());
-    }
-
     internal static void PrepareInventoryForLoad(Inventory? inventory)
     {
         if (inventory != null && ShouldPrepareDetachedPlayerInventoryForLoad(inventory))

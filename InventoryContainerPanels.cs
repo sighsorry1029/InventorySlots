@@ -176,7 +176,6 @@ public sealed partial class InventorySlotsPlugin
                 gui.m_playerGrid.CreateItemTooltip(item, element.m_tooltip);
                 if (string.IsNullOrWhiteSpace(element.m_tooltip.m_text))
                 {
-                    Log.LogInfo($"[TooltipDiag] custom slot CreateItemTooltip produced empty text for prefab={GetItemPrefabName(item)}, topicLen={(element.m_tooltip.m_topic ?? "").Length}. Falling back to ItemData.GetTooltip.");
                     SetDirectEquipmentSlotTooltip(element, item);
                 }
 
@@ -236,7 +235,6 @@ public sealed partial class InventorySlotsPlugin
         string fallbackText = item.GetTooltip(-1);
         if (string.IsNullOrWhiteSpace(fallbackText))
         {
-            Log.LogInfo($"[TooltipDiag] InventoryGrid.CreateItemTooltip has empty text and fallback was empty for prefab={GetItemPrefabName(item)}, topicLen={(tooltip.m_topic ?? "").Length}.");
             return;
         }
 
@@ -247,7 +245,6 @@ public sealed partial class InventorySlotsPlugin
         }
 
         tooltip.m_text = fallbackText;
-        Log.LogInfo($"[TooltipDiag] Filled empty InventoryGrid.CreateItemTooltip text for prefab={GetItemPrefabName(item)}, fallbackLen={fallbackText.Length}.");
     }
 
     private static void ResetEquipmentSlotTooltipCache(InventoryGrid.Element element)

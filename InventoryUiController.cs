@@ -141,7 +141,7 @@ public sealed partial class InventorySlotsPlugin
                     elementRect.SetParent(playerGrid.m_gridRoot, false);
                 }
 
-                if (y < InventoryPanels.PlayerInventoryScrollOffset || y >= InventoryPanels.PlayerInventoryScrollOffset + viewportRows || y >= totalRegularRows)
+                if (y >= viewportRows || y >= totalRegularRows)
                 {
                     element.m_go.SetActive(false);
                     element.m_used = true;
@@ -150,8 +150,7 @@ public sealed partial class InventorySlotsPlugin
                     continue;
                 }
 
-                int visibleY = y - InventoryPanels.PlayerInventoryScrollOffset;
-                elementRect.localPosition = origin + new Vector3(x * playerGrid.m_elementSpace, -visibleY * playerGrid.m_elementSpace, 0f);
+                elementRect.localPosition = origin + new Vector3(x * playerGrid.m_elementSpace, -y * playerGrid.m_elementSpace, 0f);
                 element.m_go.SetActive(true);
                 UpdateFavoriteBorder(element, player, inventory, new Vector2i(x, y));
                 UpdateInventoryPinnedTooltipBorder(playerGrid, element, new Vector2i(x, y));

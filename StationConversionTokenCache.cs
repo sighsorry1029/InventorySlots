@@ -33,10 +33,10 @@ public sealed partial class InventorySlotsPlugin
             FermenterInputTokens.Clear();
             FermenterOutputTokens.Clear();
             FermenterFoodInputTokens.Clear();
-            _stationInputTokensInitialized = false;
-            _cachedStationInputObjectDbItemCount = objectDbItemCount;
-            _cachedStationInputPrefabCount = prefabCount;
-            _cachedStationInputRecipeCount = recipeCount;
+            InventoryDefinitions.StationInputTokensInitialized = false;
+            InventoryDefinitions.CachedStationInputObjectDbItemCount = objectDbItemCount;
+            InventoryDefinitions.CachedStationInputPrefabCount = prefabCount;
+            InventoryDefinitions.CachedStationInputRecipeCount = recipeCount;
             if (tokensCleared)
             {
                 ClearCraftingRecipeCaches();
@@ -46,19 +46,19 @@ public sealed partial class InventorySlotsPlugin
         }
 
         bool stationSourceChanged = force ||
-                                    !_stationInputTokensInitialized ||
-                                    _cachedStationInputObjectDbItemCount != objectDbItemCount ||
-                                    _cachedStationInputPrefabCount != prefabCount ||
-                                    _cachedStationInputRecipeCount != recipeCount;
+                                    !InventoryDefinitions.StationInputTokensInitialized ||
+                                    InventoryDefinitions.CachedStationInputObjectDbItemCount != objectDbItemCount ||
+                                    InventoryDefinitions.CachedStationInputPrefabCount != prefabCount ||
+                                    InventoryDefinitions.CachedStationInputRecipeCount != recipeCount;
         if (!stationSourceChanged)
         {
             return;
         }
 
         RebuildStationComponentCache();
-        _cachedStationInputObjectDbItemCount = objectDbItemCount;
-        _cachedStationInputPrefabCount = prefabCount;
-        _cachedStationInputRecipeCount = recipeCount;
+        InventoryDefinitions.CachedStationInputObjectDbItemCount = objectDbItemCount;
+        InventoryDefinitions.CachedStationInputPrefabCount = prefabCount;
+        InventoryDefinitions.CachedStationInputRecipeCount = recipeCount;
 
         HashSet<string> cookingStationInputTokens = new(StringComparer.OrdinalIgnoreCase);
         HashSet<string> craftingRecipeFoodInputTokens = new(StringComparer.OrdinalIgnoreCase);
@@ -81,7 +81,7 @@ public sealed partial class InventorySlotsPlugin
                              !FermenterOutputTokens.SetEquals(fermenterOutputTokens) ||
                              !FermenterFoodInputTokens.SetEquals(fermenterFoodInputTokens);
 
-        _stationInputTokensInitialized = true;
+        InventoryDefinitions.StationInputTokensInitialized = true;
         if (!tokensChanged)
         {
             return;

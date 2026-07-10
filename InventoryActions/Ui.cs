@@ -44,7 +44,7 @@ public sealed partial class InventoryActionsPlugin
     {
         SetActionPanelActive(Runtime.PlayerActionPanel, false);
         SetActionPanelActive(Runtime.TrashPanel, false);
-        RestoreContainerActionButtonLayout();
+        ReleaseContainerActionButtonLayout();
         SetButtonActive(Runtime.ContainerStoreAllButton, false);
         SetButtonActive(Runtime.ContainerRestockButton, false);
         SetButtonActive(Runtime.ContainerSortButton, false);
@@ -518,6 +518,13 @@ public sealed partial class InventoryActionsPlugin
     {
         Runtime.TakeAllButtonOriginal?.Restore();
         Runtime.StackAllButtonOriginal?.Restore();
+    }
+
+    private static void ReleaseContainerActionButtonLayout()
+    {
+        RestoreContainerActionButtonLayout();
+        Runtime.TakeAllButtonOriginal = null;
+        Runtime.StackAllButtonOriginal = null;
     }
 
     private static void SetButtonActive(Button? button, bool active)

@@ -126,11 +126,6 @@ internal sealed class InventoryPanelDragMarker : MonoBehaviour
     public bool Initialized { get; set; }
 }
 
-internal sealed class PlayerInventoryRowsHandleMarker : MonoBehaviour
-{
-    public bool Initialized { get; set; }
-}
-
 internal sealed class InventoryActionButtonMarker : MonoBehaviour
 {
     public bool Initialized { get; set; }
@@ -507,7 +502,6 @@ internal sealed class CraftingRecipeGroupFilter
 {
     private readonly Func<ItemData, bool> _matches;
     private readonly Func<InventoryGui, Sprite?>? _iconGetter;
-    private readonly Func<InventoryGui, Color>? _colorGetter;
     private readonly string _iconPrefab;
     private readonly int _skillIcon;
 
@@ -518,8 +512,7 @@ internal sealed class CraftingRecipeGroupFilter
         Func<ItemData, bool> matches,
         string iconPrefab = "",
         int skillIcon = -1,
-        Func<InventoryGui, Sprite?>? iconGetter = null,
-        Func<InventoryGui, Color>? colorGetter = null)
+        Func<InventoryGui, Sprite?>? iconGetter = null)
     {
         Id = id;
         Category = category;
@@ -528,7 +521,6 @@ internal sealed class CraftingRecipeGroupFilter
         _iconPrefab = iconPrefab;
         _skillIcon = skillIcon;
         _iconGetter = iconGetter;
-        _colorGetter = colorGetter;
     }
 
     public string Id { get; }
@@ -569,8 +561,6 @@ internal sealed class CraftingRecipeGroupFilter
 
         return InventorySlotsPlugin.GetItemPrefabIcon(_iconPrefab);
     }
-
-    public Color GetColor(InventoryGui gui) => _colorGetter?.Invoke(gui) ?? Color.white;
 }
 
 internal sealed class CraftingRecipeGroupPanel
@@ -649,11 +639,6 @@ internal static class KeyboardShortcutExtensions
     public static bool IsKeyDown(this KeyboardShortcut shortcut)
     {
         return shortcut.MainKey != KeyCode.None && Input.GetKeyDown(shortcut.MainKey) && shortcut.Modifiers.All(IsShortcutKeyHeld);
-    }
-
-    public static bool IsKeyHeld(this KeyboardShortcut shortcut)
-    {
-        return shortcut.MainKey != KeyCode.None && Input.GetKey(shortcut.MainKey) && shortcut.Modifiers.All(IsShortcutKeyHeld);
     }
 
     public static string GetDisplayText(this KeyboardShortcut shortcut)

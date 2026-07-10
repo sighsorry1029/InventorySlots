@@ -36,8 +36,6 @@ public sealed partial class InventorySlotsPlugin
         public readonly InventoryPinnedTooltipRuntimeState Inventory = new();
         public readonly CraftingPinnedTooltipRuntimeState Crafting = new();
         public PinnedTooltipContext ActiveContext = PinnedTooltipContext.None;
-        public float NextDebugTime;
-        public string LastDebugSignature = "";
     }
 
     private sealed class TooltipUiRuntimeState

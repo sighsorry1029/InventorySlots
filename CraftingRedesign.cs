@@ -332,7 +332,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         CraftingController.ClearHoveredRecipe();
-        CraftingController.ResetRecipeChangeSignatures();
+        CraftingController.ResetRecipeListChangeSignature();
         CraftingRecipes.View.Clear();
         CraftingRecipes.ViewIndexByOriginal.Clear();
         InvalidateCraftingRecipeView();
@@ -460,7 +460,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void PrepareCraftingQueue(InventoryGui gui)
     {
-        if (_continuingCraftingQueue)
+        if (CraftingQueue.ContinuingQueue)
         {
             return;
         }
@@ -484,15 +484,15 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        _craftingQueueRemaining = count - 1;
-        _craftingQueueTotal = count;
-        _craftingQueueRecipe = gui.m_selectedRecipe.Recipe;
-        _craftingQueueVariant = gui.m_selectedVariant;
+        CraftingQueue.QueueRemaining = count - 1;
+        CraftingQueue.QueueTotal = count;
+        CraftingQueue.QueueRecipe = gui.m_selectedRecipe.Recipe;
+        CraftingQueue.QueueVariant = gui.m_selectedVariant;
     }
 
     internal static void ValidateCraftingQueueStarted(InventoryGui gui)
     {
-        if (!_continuingCraftingQueue && _craftingQueueRemaining > 0 && gui.m_craftTimer < 0f)
+        if (!CraftingQueue.ContinuingQueue && CraftingQueue.QueueRemaining > 0 && gui.m_craftTimer < 0f)
         {
             ClearCraftingQueue(clearProgressLabel: false);
         }
@@ -500,7 +500,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void TryContinueCraftingQueue(InventoryGui gui)
     {
-        if (_continuingCraftingQueue || _craftingQueueRemaining <= 0 || gui.m_craftTimer >= 0f)
+        if (CraftingQueue.ContinuingQueue || CraftingQueue.QueueRemaining <= 0 || gui.m_craftTimer >= 0f)
         {
             return;
         }
@@ -511,8 +511,8 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        _craftingQueueRemaining--;
-        _continuingCraftingQueue = true;
+        CraftingQueue.QueueRemaining--;
+        CraftingQueue.ContinuingQueue = true;
         int originalMultiCraftAmount = gui.m_multiCraftAmount;
         try
         {
@@ -527,16 +527,16 @@ public sealed partial class InventorySlotsPlugin
         finally
         {
             gui.m_multiCraftAmount = originalMultiCraftAmount;
-            _continuingCraftingQueue = false;
+            CraftingQueue.ContinuingQueue = false;
         }
     }
 
     internal static void ClearCraftingQueue(bool clearProgressLabel = true)
     {
-        _craftingQueueTotal = 0;
-        _craftingQueueRemaining = 0;
-        _craftingQueueRecipe = null;
-        _craftingQueueVariant = 0;
+        CraftingQueue.QueueTotal = 0;
+        CraftingQueue.QueueRemaining = 0;
+        CraftingQueue.QueueRecipe = null;
+        CraftingQueue.QueueVariant = 0;
         if (clearProgressLabel)
         {
             ClearCraftingProgressLabelCount();
@@ -546,19 +546,19 @@ public sealed partial class InventorySlotsPlugin
     private static void UpdateCraftingQueueLifecycle(InventoryGui gui)
     {
         UpdateCraftingProgressLabelLifecycle(gui);
-        if (_craftingQueueRecipe == null)
+        if (CraftingQueue.QueueRecipe == null)
         {
             return;
         }
 
         Recipe? selectedRecipe = gui.m_selectedRecipe.Recipe;
-        if (selectedRecipe != _craftingQueueRecipe || gui.m_selectedRecipe.ItemData != null || gui.m_selectedVariant != _craftingQueueVariant)
+        if (selectedRecipe != CraftingQueue.QueueRecipe || gui.m_selectedRecipe.ItemData != null || gui.m_selectedVariant != CraftingQueue.QueueVariant)
         {
             ClearCraftingQueue();
             return;
         }
 
-        if (_craftingQueueRemaining <= 0 && gui.m_craftTimer < 0f)
+        if (CraftingQueue.QueueRemaining <= 0 && gui.m_craftTimer < 0f)
         {
             ClearCraftingQueue();
         }
@@ -572,29 +572,29 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        _craftingProgressLabelCount = Mathf.Clamp(count, 1, CraftingQueueMaxCount);
-        _craftingProgressLabelRecipe = gui.m_selectedRecipe.Recipe;
-        _craftingProgressLabelVariant = gui.m_selectedVariant;
+        CraftingQueue.ProgressLabelCount = Mathf.Clamp(count, 1, CraftingQueueMaxCount);
+        CraftingQueue.ProgressLabelRecipe = gui.m_selectedRecipe.Recipe;
+        CraftingQueue.ProgressLabelVariant = gui.m_selectedVariant;
     }
 
     private static void ClearCraftingProgressLabelCount()
     {
-        _craftingProgressLabelCount = 0;
-        _craftingProgressLabelRecipe = null;
-        _craftingProgressLabelVariant = 0;
+        CraftingQueue.ProgressLabelCount = 0;
+        CraftingQueue.ProgressLabelRecipe = null;
+        CraftingQueue.ProgressLabelVariant = 0;
     }
 
     private static void UpdateCraftingProgressLabelLifecycle(InventoryGui gui)
     {
-        if (_craftingProgressLabelRecipe == null)
+        if (CraftingQueue.ProgressLabelRecipe == null)
         {
             return;
         }
 
-        bool selectedMatches = gui.m_selectedRecipe.Recipe == _craftingProgressLabelRecipe &&
+        bool selectedMatches = gui.m_selectedRecipe.Recipe == CraftingQueue.ProgressLabelRecipe &&
                                gui.m_selectedRecipe.ItemData == null &&
-                               gui.m_selectedVariant == _craftingProgressLabelVariant;
-        bool queueCanContinue = _craftingQueueRecipe == _craftingProgressLabelRecipe && _craftingQueueRemaining > 0;
+                               gui.m_selectedVariant == CraftingQueue.ProgressLabelVariant;
+        bool queueCanContinue = CraftingQueue.QueueRecipe == CraftingQueue.ProgressLabelRecipe && CraftingQueue.QueueRemaining > 0;
         if (!selectedMatches || (gui.m_craftTimer < 0f && !queueCanContinue))
         {
             ClearCraftingProgressLabelCount();
@@ -634,12 +634,6 @@ public sealed partial class InventorySlotsPlugin
                gui.m_crafting.gameObject.activeInHierarchy &&
                adapter.IsRedesign;
     }
-
-    private static bool IsCraftingRedesignTab(InventoryGui gui)
-        => GetCraftingTabAdapterState(gui).IsRedesign;
-
-    private static bool IsForeignCraftingTab(InventoryGui? gui)
-        => GetCraftingTabAdapterState(gui).IsForeign;
 
     private static bool ShouldPreserveForeignCraftingControls(InventoryGui gui) =>
         ShouldPreserveJewelcraftingForeignCraftingControls(gui);

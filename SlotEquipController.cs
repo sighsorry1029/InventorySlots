@@ -534,7 +534,7 @@ public sealed partial class InventorySlotsPlugin
         int context = ComputeDedicatedSlotRouteFailureContext(player);
         int itemKey = ComputeDedicatedSlotRouteCacheItemKey(item);
         return ReferenceEquals(InventorySafety.DedicatedSlotRouteFailureCacheInventory, inventory) &&
-               InventorySafety.DedicatedSlotRouteFailureCacheVersion == _slotDefinitionVersion &&
+               InventorySafety.DedicatedSlotRouteFailureCacheVersion == InventoryDefinitions.SlotDefinitionVersion &&
                InventorySafety.DedicatedSlotRouteFailureCacheContext == context &&
                InventorySafety.DedicatedSlotRouteFailureCacheItemKey == itemKey;
     }
@@ -542,7 +542,7 @@ public sealed partial class InventorySlotsPlugin
     private static void CacheDedicatedSlotRouteFailure(Player player, Inventory inventory, ItemData item)
     {
         InventorySafety.DedicatedSlotRouteFailureCacheInventory = inventory;
-        InventorySafety.DedicatedSlotRouteFailureCacheVersion = _slotDefinitionVersion;
+        InventorySafety.DedicatedSlotRouteFailureCacheVersion = InventoryDefinitions.SlotDefinitionVersion;
         InventorySafety.DedicatedSlotRouteFailureCacheContext = ComputeDedicatedSlotRouteFailureContext(player);
         InventorySafety.DedicatedSlotRouteFailureCacheItemKey = ComputeDedicatedSlotRouteCacheItemKey(item);
     }
@@ -553,7 +553,7 @@ public sealed partial class InventorySlotsPlugin
         {
             int hash = 17;
             hash = hash * 31 + StringComparer.Ordinal.GetHashCode(GetPlayerId(player));
-            hash = hash * 31 + _slotDefinitionVersion;
+            hash = hash * 31 + InventoryDefinitions.SlotDefinitionVersion;
             hash = hash * 31 + GetKnownMaterialHash(player);
             hash = hash * 31 + (ObjectDB.instance?.m_items?.Count ?? -1);
             return hash;

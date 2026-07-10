@@ -21,6 +21,7 @@
     <Compile Include="..\InventoryActions\InventoryActionCellPolicyCore.cs" Link="InventoryActions\InventoryActionCellPolicyCore.cs" />
     <Compile Include="..\InventoryActions\InventoryCellKind.cs" Link="InventoryActions\InventoryCellKind.cs" />
     <Compile Include="..\InventoryActions\ContainerActionCore.cs" Link="InventoryActions\ContainerActionCore.cs" />
+    <Compile Include="..\InventoryActions\ContainerTransferCore.cs" Link="InventoryActions\ContainerTransferCore.cs" />
     <Compile Include="..\InventoryPlacementPolicyCore.cs" Link="InventoryPlacementPolicyCore.cs" />
     <Compile Include="..\InventorySlotSafetyCore.cs" Link="InventorySlotSafetyCore.cs" />
     <Compile Include="..\InventorySlotsYamlModels.cs" Link="InventorySlotsYamlModels.cs" />
@@ -35,6 +36,9 @@
     <Compile Include="..\TooltipSourceCacheCore.cs" Link="TooltipSourceCacheCore.cs" />
     <Compile Include="..\UpgradeFavoriteCore.cs" Link="UpgradeFavoriteCore.cs" />
     <Compile Include="..\YamlConfigurationDefaults.cs" Link="YamlConfigurationDefaults.cs" />
+    <EmbeddedResource Include="..\config\InventorySlots.yml" Link="config\InventorySlots.yml">
+      <LogicalName>InventorySlots.Default.yml</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
   <ItemGroup>

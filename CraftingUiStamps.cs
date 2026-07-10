@@ -15,20 +15,13 @@ internal readonly struct CraftingFrameFastPathStamp : IEquatable<CraftingFrameFa
         int guiId,
         int craftingPanelId,
         int gridId,
-        CraftingTabAdapterKind adapterKind,
-        string craftTabState,
-        string upgradeTabState,
         string recipeViewSignature,
-        int selectedIndex,
         int recipePage,
         int gridDimension,
         int availabilityVersion,
         bool hasNoCraftCost,
         string pinnedTooltipGridSignature,
         int recipeVariantVersion,
-        int favoritesVersion,
-        string selectedGroupId,
-        string searchQuery,
         int hoveredRecipeIndex,
         int screenWidth,
         int screenHeight)
@@ -37,20 +30,13 @@ internal readonly struct CraftingFrameFastPathStamp : IEquatable<CraftingFrameFa
         GuiId = guiId;
         CraftingPanelId = craftingPanelId;
         GridId = gridId;
-        AdapterKind = adapterKind;
-        CraftTabState = craftTabState ?? "";
-        UpgradeTabState = upgradeTabState ?? "";
         RecipeViewSignature = recipeViewSignature ?? "";
-        SelectedIndex = selectedIndex;
         RecipePage = recipePage;
         GridDimension = gridDimension;
         AvailabilityVersion = availabilityVersion;
         HasNoCraftCost = hasNoCraftCost;
         PinnedTooltipGridSignature = pinnedTooltipGridSignature ?? "";
         RecipeVariantVersion = recipeVariantVersion;
-        FavoritesVersion = favoritesVersion;
-        SelectedGroupId = selectedGroupId ?? "";
-        SearchQuery = searchQuery ?? "";
         HoveredRecipeIndex = hoveredRecipeIndex;
         ScreenWidth = screenWidth;
         ScreenHeight = screenHeight;
@@ -60,20 +46,13 @@ internal readonly struct CraftingFrameFastPathStamp : IEquatable<CraftingFrameFa
     private int GuiId { get; }
     private int CraftingPanelId { get; }
     private int GridId { get; }
-    private CraftingTabAdapterKind AdapterKind { get; }
-    private string CraftTabState { get; }
-    private string UpgradeTabState { get; }
     private string RecipeViewSignature { get; }
-    private int SelectedIndex { get; }
     private int RecipePage { get; }
     private int GridDimension { get; }
     private int AvailabilityVersion { get; }
     private bool HasNoCraftCost { get; }
     private string PinnedTooltipGridSignature { get; }
     private int RecipeVariantVersion { get; }
-    private int FavoritesVersion { get; }
-    private string SelectedGroupId { get; }
-    private string SearchQuery { get; }
     private int HoveredRecipeIndex { get; }
     private int ScreenWidth { get; }
     private int ScreenHeight { get; }
@@ -83,20 +62,13 @@ internal readonly struct CraftingFrameFastPathStamp : IEquatable<CraftingFrameFa
         GuiId == other.GuiId &&
         CraftingPanelId == other.CraftingPanelId &&
         GridId == other.GridId &&
-        AdapterKind == other.AdapterKind &&
-        string.Equals(CraftTabState, other.CraftTabState, StringComparison.Ordinal) &&
-        string.Equals(UpgradeTabState, other.UpgradeTabState, StringComparison.Ordinal) &&
         string.Equals(RecipeViewSignature, other.RecipeViewSignature, StringComparison.Ordinal) &&
-        SelectedIndex == other.SelectedIndex &&
         RecipePage == other.RecipePage &&
         GridDimension == other.GridDimension &&
         AvailabilityVersion == other.AvailabilityVersion &&
         HasNoCraftCost == other.HasNoCraftCost &&
         string.Equals(PinnedTooltipGridSignature, other.PinnedTooltipGridSignature, StringComparison.Ordinal) &&
         RecipeVariantVersion == other.RecipeVariantVersion &&
-        FavoritesVersion == other.FavoritesVersion &&
-        string.Equals(SelectedGroupId, other.SelectedGroupId, StringComparison.Ordinal) &&
-        string.Equals(SearchQuery, other.SearchQuery, StringComparison.Ordinal) &&
         HoveredRecipeIndex == other.HoveredRecipeIndex &&
         ScreenWidth == other.ScreenWidth &&
         ScreenHeight == other.ScreenHeight;
@@ -112,20 +84,13 @@ internal readonly struct CraftingFrameFastPathStamp : IEquatable<CraftingFrameFa
             hash = hash * 397 ^ GuiId;
             hash = hash * 397 ^ CraftingPanelId;
             hash = hash * 397 ^ GridId;
-            hash = hash * 397 ^ (int)AdapterKind;
-            hash = hash * 397 ^ StringComparer.Ordinal.GetHashCode(CraftTabState ?? "");
-            hash = hash * 397 ^ StringComparer.Ordinal.GetHashCode(UpgradeTabState ?? "");
             hash = hash * 397 ^ StringComparer.Ordinal.GetHashCode(RecipeViewSignature ?? "");
-            hash = hash * 397 ^ SelectedIndex;
             hash = hash * 397 ^ RecipePage;
             hash = hash * 397 ^ GridDimension;
             hash = hash * 397 ^ AvailabilityVersion;
             hash = hash * 397 ^ HasNoCraftCost.GetHashCode();
             hash = hash * 397 ^ StringComparer.Ordinal.GetHashCode(PinnedTooltipGridSignature ?? "");
             hash = hash * 397 ^ RecipeVariantVersion;
-            hash = hash * 397 ^ FavoritesVersion;
-            hash = hash * 397 ^ StringComparer.Ordinal.GetHashCode(SelectedGroupId ?? "");
-            hash = hash * 397 ^ StringComparer.Ordinal.GetHashCode(SearchQuery ?? "");
             hash = hash * 397 ^ HoveredRecipeIndex;
             hash = hash * 397 ^ ScreenWidth;
             hash = hash * 397 ^ ScreenHeight;

@@ -11,7 +11,7 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        CraftingFrameFastPathStamp stamp = CreateCraftingFrameFastPathStamp(gui, adapter);
+        CraftingFrameFastPathStamp stamp = CreateCraftingFrameFastPathStamp(gui);
         if (!CraftingController.CanReuseFrameFastPath(stamp))
         {
             CraftingController.StoreFrameFastPathStamp(stamp);
@@ -39,8 +39,8 @@ public sealed partial class InventorySlotsPlugin
         !IsUnityNull(_craftingRecipeGrid) &&
         !CraftingController.HasFrameRebuildWork() &&
         !CraftingController.IsSearchInputDirty &&
-        _craftingQueueRecipe == null &&
-        !_continuingCraftingQueue;
+        CraftingQueue.QueueRecipe == null &&
+        !CraftingQueue.ContinuingQueue;
 
     private static bool HandleCraftingPanelFastPathInput(InventoryGui gui, RectTransform grid)
     {
@@ -83,14 +83,14 @@ public sealed partial class InventorySlotsPlugin
             IsUnityNull(_craftingRecipeGrid) ||
             CraftingController.HasFrameRebuildWork() ||
             CraftingController.IsSearchInputDirty ||
-            _craftingQueueRecipe != null ||
-            _continuingCraftingQueue)
+            CraftingQueue.QueueRecipe != null ||
+            CraftingQueue.ContinuingQueue)
         {
             ResetCraftingFrameFastPathStamp();
             return;
         }
 
-        CraftingController.StoreFrameFastPathStamp(CreateCraftingFrameFastPathStamp(gui, adapter));
+        CraftingController.StoreFrameFastPathStamp(CreateCraftingFrameFastPathStamp(gui));
     }
 
     private static void ResetCraftingFrameFastPathStamp()
@@ -98,28 +98,20 @@ public sealed partial class InventorySlotsPlugin
         CraftingController.ResetFrameFastPathStamp();
     }
 
-    private static CraftingFrameFastPathStamp CreateCraftingFrameFastPathStamp(InventoryGui gui, CraftingTabAdapterState adapter)
+    private static CraftingFrameFastPathStamp CreateCraftingFrameFastPathStamp(InventoryGui gui)
     {
         RectTransform? grid = _craftingRecipeGrid;
-        int selectedIndex = GetSelectedCraftingRecipeIndexSafe(gui);
         return new CraftingFrameFastPathStamp(
             gui.GetInstanceID(),
             gui.m_crafting != null && !IsUnityNull(gui.m_crafting) ? gui.m_crafting.GetInstanceID() : 0,
             grid != null && !IsUnityNull(grid) ? grid.GetInstanceID() : 0,
-            adapter.Kind,
-            SafeReadBool(() => gui.InCraftTab()),
-            SafeReadBool(() => gui.InUpradeTab()),
             GetCraftingRecipeViewSignature(gui),
-            selectedIndex,
             _craftingRecipePage,
             GetCraftingRecipeGridDimension(),
             CraftingRequirements.AvailabilityVersion,
             HasNoCraftCost(),
             GetCraftingPinnedTooltipGridSignature(),
             _craftingRecipeVariantVersion,
-            _craftingFavoritesVersion,
-            _selectedCraftingGroupId,
-            _craftingSearchQuery,
             CraftingController.HoveredRecipeIndex,
             Screen.width,
             Screen.height);

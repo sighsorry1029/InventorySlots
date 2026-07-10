@@ -67,7 +67,7 @@ public sealed partial class InventorySlotsPlugin
             return null;
         }
 
-        ItemSortController.EnsureRecipeOutputLookupCache(InventorySort);
+        EnsureRecipeOutputLookupCache();
         foreach (string token in GetItemRecipeLookupTokens(item))
         {
             if (InventorySort.RecipeOutputLookupCache.TryGetValue(token, out Recipe recipe))
@@ -110,6 +110,27 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
+    private static void EnsureRecipeOutputLookupCache()
+    {
+        string signature = GetRecipeOutputLookupSignature();
+        if (string.Equals(InventorySort.RecipeOutputLookupSignature, signature, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        InventorySort.RecipeOutputLookupCache.Clear();
+        InventorySort.RecipeOutputLookupSignature = signature;
+        if (ObjectDB.instance?.m_recipes == null)
+        {
+            return;
+        }
+
+        foreach (Recipe recipe in ObjectDB.instance.m_recipes)
+        {
+            AddRecipeOutputLookup(recipe);
+        }
+    }
+
     private static void AddRecipeOutputLookup(Recipe? recipe)
     {
         if (recipe?.m_item == null || recipe.m_item.m_itemData?.m_shared == null)
@@ -118,12 +139,12 @@ public sealed partial class InventorySlotsPlugin
         }
 
         ItemData output = recipe.m_item.m_itemData;
-        AddRecipeOutputLookupToken(InventorySort, "prefab", GetItemPrefabName(output), recipe);
-        AddRecipeOutputLookupToken(InventorySort, "prefab", CleanPrefabName(recipe.m_item.name), recipe);
-        AddRecipeOutputLookupToken(InventorySort, "name", output.m_shared.m_name, recipe);
+        AddRecipeOutputLookupToken("prefab", GetItemPrefabName(output), recipe);
+        AddRecipeOutputLookupToken("prefab", CleanPrefabName(recipe.m_item.name), recipe);
+        AddRecipeOutputLookupToken("name", output.m_shared.m_name, recipe);
     }
 
-    private static void AddRecipeOutputLookupToken(InventorySortRuntimeState state, string kind, string? token, Recipe recipe)
+    private static void AddRecipeOutputLookupToken(string kind, string? token, Recipe recipe)
     {
         if (string.IsNullOrWhiteSpace(token))
         {
@@ -132,9 +153,9 @@ public sealed partial class InventorySlotsPlugin
 
         string clean = CleanPrefabName(token!);
         string key = GetRecipeOutputLookupKey(kind, clean);
-        if (!string.IsNullOrWhiteSpace(clean) && !state.RecipeOutputLookupCache.ContainsKey(key))
+        if (!string.IsNullOrWhiteSpace(clean) && !InventorySort.RecipeOutputLookupCache.ContainsKey(key))
         {
-            state.RecipeOutputLookupCache[key] = recipe;
+            InventorySort.RecipeOutputLookupCache[key] = recipe;
         }
     }
 
@@ -157,7 +178,8 @@ public sealed partial class InventorySlotsPlugin
 
     private static void ClearInventorySortCaches()
     {
-        ItemSortController.ClearCaches(InventorySort);
+        InventorySort.RecipeOutputLookupCache.Clear();
+        InventorySort.RecipeOutputLookupSignature = "";
     }
 
     private static string GetLocalizedItemName(ItemData item)

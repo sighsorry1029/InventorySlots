@@ -421,33 +421,6 @@ public sealed partial class InventorySlotsPlugin
         return names;
     }
 
-    private static int GetJewelcraftingSocketEntryCountFromCustomData(ItemData item)
-    {
-        int count = 0;
-        if (item.m_customData == null || item.m_customData.Count == 0)
-        {
-            return count;
-        }
-
-        foreach (KeyValuePair<string, string> pair in item.m_customData)
-        {
-            if (!IsJewelcraftingSocketDataKey(pair.Key) || string.IsNullOrWhiteSpace(pair.Value))
-            {
-                continue;
-            }
-
-            string socketData = pair.Value.Split('|')[0];
-            if (string.IsNullOrEmpty(socketData))
-            {
-                continue;
-            }
-
-            count = Math.Max(count, socketData.Split(',').Length);
-        }
-
-        return count;
-    }
-
     private static bool HasJewelcraftingPotentialCustomData(ItemData item)
     {
         if (item.m_customData == null || item.m_customData.Count == 0)
@@ -488,40 +461,6 @@ public sealed partial class InventorySlotsPlugin
         ItemDrop? itemDrop = prefab != null && !IsUnityNull(prefab) ? prefab.GetComponent<ItemDrop>() : null;
         string name = itemDrop?.m_itemData?.m_shared?.m_name ?? prefabName;
         return Localization.instance != null ? Localization.instance.Localize(name) : name;
-    }
-
-    private static void ConfigureInventoryJewelcraftingGemIconTooltips(RectTransform root, ItemData item)
-    {
-        List<JewelcraftingGemIconData> gems = GetJewelcraftingGemIconData(item);
-        if (gems.Count == 0)
-        {
-            return;
-        }
-
-        bool[] used = new bool[gems.Count];
-        foreach (Image image in root.GetComponentsInChildren<Image>(includeInactive: false))
-        {
-            if (image == null || IsUnityNull(image) || image.sprite == null || IsUnityNull(image.sprite))
-            {
-                continue;
-            }
-
-            int gemIndex = FindMatchingJewelcraftingGemIcon(gems, used, image.sprite);
-            if (gemIndex < 0 || string.IsNullOrWhiteSpace(gems[gemIndex].DisplayName))
-            {
-                continue;
-            }
-
-            used[gemIndex] = true;
-            if (IsPinnedTooltipTransform(image.transform))
-            {
-                ConfigurePinnedGemIconTooltip(image.rectTransform, gems[gemIndex].DisplayName);
-            }
-            else
-            {
-                ConfigureCraftingGemIconTooltip(image.rectTransform, gems[gemIndex].DisplayName);
-            }
-        }
     }
 
     private static int FindMatchingJewelcraftingGemIcon(IReadOnlyList<JewelcraftingGemIconData> gems, bool[] used, Sprite sprite)

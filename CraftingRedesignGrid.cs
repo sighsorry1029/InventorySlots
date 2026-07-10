@@ -13,7 +13,7 @@ public sealed partial class InventorySlotsPlugin
         {
             ConfigureCraftingRecipeGrid(_craftingRecipeGrid);
             _craftingRecipeGrid.SetAsLastSibling();
-            if (syncCells || _craftingRecipeGridCellCapacity != GetCraftingRecipeGridCapacity())
+            if (syncCells || CraftingGrid.RecipeGridCellCapacity != GetCraftingRecipeGridCapacity())
             {
                 EnsureCraftingRecipeCells(gui, _craftingRecipeGrid);
             }
@@ -30,7 +30,7 @@ public sealed partial class InventorySlotsPlugin
             _craftingRecipeGrid.SetParent(gui.m_crafting, false);
         }
 
-        _craftingRecipeGridLayoutSignature = "";
+        CraftingGrid.RecipeGridLayoutSignature = "";
         ConfigureCraftingRecipeGrid(_craftingRecipeGrid);
         EnsureCraftingRecipeCells(gui, _craftingRecipeGrid);
         _craftingRecipeGrid.gameObject.SetActive(true);
@@ -42,7 +42,7 @@ public sealed partial class InventorySlotsPlugin
         Vector2 position = CraftingRecipeGridFixedOffset;
         Vector2 size = new(CraftingRecipeGridColumns * CraftingRecipeGridCellSpace, CraftingRecipeGridRows * CraftingRecipeGridCellSpace);
         string signature = $"{position}|{size}";
-        if (string.Equals(_craftingRecipeGridLayoutSignature, signature, StringComparison.Ordinal))
+        if (string.Equals(CraftingGrid.RecipeGridLayoutSignature, signature, StringComparison.Ordinal))
         {
             return;
         }
@@ -55,7 +55,7 @@ public sealed partial class InventorySlotsPlugin
         grid.anchoredPosition = position;
         grid.sizeDelta = size;
         grid.SetAsLastSibling();
-        _craftingRecipeGridLayoutSignature = signature;
+        CraftingGrid.RecipeGridLayoutSignature = signature;
     }
 
     private static int GetCraftingRecipeGridDimension() =>
@@ -83,7 +83,7 @@ public sealed partial class InventorySlotsPlugin
     {
         HideForeignCraftingGridChildren(grid);
         int capacity = GetCraftingRecipeGridCapacity();
-        _craftingRecipeGridCellCapacity = capacity;
+        CraftingGrid.RecipeGridCellCapacity = capacity;
 
         for (int i = CraftingRecipes.GridCells.Count - 1; i >= 0; i--)
         {

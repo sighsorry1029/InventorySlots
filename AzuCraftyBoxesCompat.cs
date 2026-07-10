@@ -76,17 +76,6 @@ public sealed partial class InventorySlotsPlugin
             out api);
     }
 
-    private static bool TryFormatAzuCraftyBoxesRequirementAmount(int available, int required, out string text)
-    {
-        text = "";
-        if (!TryGetAzuCraftyBoxesApi(out AzuCraftyBoxesApi? api) || api == null || api.ShouldPrevent())
-        {
-            return false;
-        }
-
-        return api.TryFormatRequirementAmount(available, required, out text);
-    }
-
     private static bool TryGetAzuCraftyBoxesRequirementFlashColor(out Color color)
     {
         color = default;

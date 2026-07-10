@@ -1,16 +1,5 @@
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using BepInEx;
-using BepInEx.Configuration;
-using TMPro;
 using UnityEngine;
-using UnityEngine.Events;
-using UnityEngine.UI;
-using YamlDotNet.Serialization;
-using YamlDotNet.Serialization.NamingConventions;
-using ItemData = ItemDrop.ItemData;
 
 namespace InventorySlots;
 
@@ -29,11 +18,6 @@ public sealed partial class InventorySlotsPlugin
     private static int GetCustomPanelColumns(int slotCount)
     {
         return slotCount <= 0 ? 0 : Mathf.CeilToInt(slotCount / (float)CustomSlotPanelRows);
-    }
-
-    private static int GetQuickPanelColumns(int slotCount)
-    {
-        return slotCount > 0 ? QuickSlotPanelColumns : 0;
     }
 
     private static int GetQuickPanelRows(int slotCount)
@@ -55,12 +39,6 @@ public sealed partial class InventorySlotsPlugin
 
     private static int UpdatePlayerInventoryScroll(InventoryGrid playerGrid, int viewportRows, int totalRegularRows)
     {
-        InventoryPanels.PlayerInventoryMaxScroll = 0;
-        InventoryPanels.PlayerInventoryScrollOffset = 0;
-        StopPlayerInventoryRowsDrag();
-        HidePlayerInventoryScrollbar();
-        HidePlayerInventoryResizeHandle(stopDragging: false);
-
         if (UseExpandableInventoryRows())
         {
             HandlePlayerInventoryExpandableWheel(playerGrid, totalRegularRows);
@@ -154,68 +132,6 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
-    private static void UpdatePlayerInventoryRowsDragging(int totalRegularRows, float elementSpace)
-    {
-        if (!InventoryPanels.PlayerInventoryRowsDragging)
-        {
-            return;
-        }
-
-        if (!InventoryGui.IsVisible() || !Input.GetMouseButton(0))
-        {
-            StopPlayerInventoryRowsDrag();
-            return;
-        }
-
-        float rowHeight = Mathf.Max(1f, elementSpace);
-        int rowDelta = Mathf.RoundToInt((InventoryPanels.PlayerInventoryRowsDragStartMouse.y - GetUiMousePosition().y) / rowHeight);
-        SetExpandableInventoryRows(InventoryPanels.PlayerInventoryRowsDragStartRows + rowDelta, totalRegularRows);
-    }
-
-    private static void StartPlayerInventoryRowsDrag()
-    {
-        if (!InventoryGui.IsVisible())
-        {
-            return;
-        }
-
-        InventoryPanels.PlayerInventoryRowsDragging = true;
-        InventoryPanels.PlayerInventoryRowsDragStartMouse = GetUiMousePosition();
-        InventoryPanels.PlayerInventoryRowsDragStartRows = GetLastExpandableInventoryRows(BaseRows + MaxSupportedExtraRows);
-    }
-
-    private static void StopPlayerInventoryRowsDrag()
-    {
-        InventoryPanels.PlayerInventoryRowsDragging = false;
-    }
-
-    private static void HandlePlayerInventoryMouseWheel(InventoryGrid playerGrid)
-    {
-        if (InventoryPanels.PlayerInventoryMaxScroll <= 0 || !InventoryGui.IsVisible())
-        {
-            return;
-        }
-
-        if (ShouldSuppressInventoryContainerRowsWheel())
-        {
-            return;
-        }
-
-        if (!IsMouseOverPlayerInventory(playerGrid) && !IsGamepadUiScrollActive())
-        {
-            return;
-        }
-
-        float wheel = GetUiScrollDelta(UiScrollInputMode.Discrete);
-        if (Mathf.Abs(wheel) < 0.01f)
-        {
-            return;
-        }
-
-        int direction = wheel > 0f ? -1 : 1;
-        InventoryPanels.PlayerInventoryScrollOffset = Mathf.Clamp(InventoryPanels.PlayerInventoryScrollOffset + direction, 0, InventoryPanels.PlayerInventoryMaxScroll);
-    }
-
     private static bool IsMouseOverPlayerInventory(InventoryGrid playerGrid)
     {
         if (playerGrid == null)
@@ -225,16 +141,6 @@ public sealed partial class InventorySlotsPlugin
 
         Vector2 mouse = GetUiMousePosition();
         if (playerGrid.m_gridRoot != null && RectContainsScreenPoint(playerGrid.m_gridRoot, mouse))
-        {
-            return true;
-        }
-
-        if (InventoryPanels.PlayerInventoryScrollbar != null && InventoryPanels.PlayerInventoryScrollbar.gameObject.activeInHierarchy && RectContainsScreenPoint(InventoryPanels.PlayerInventoryScrollbar, mouse))
-        {
-            return true;
-        }
-
-        if (InventoryPanels.PlayerInventoryResizeHandle != null && InventoryPanels.PlayerInventoryResizeHandle.gameObject.activeInHierarchy && RectContainsScreenPoint(InventoryPanels.PlayerInventoryResizeHandle, mouse))
         {
             return true;
         }
@@ -252,106 +158,6 @@ public sealed partial class InventorySlotsPlugin
     {
         localPoint = rectTransform.InverseTransformPoint(screenPoint);
         return true;
-    }
-
-    private static void HidePlayerInventoryScrollbar()
-    {
-        if (InventoryPanels.PlayerInventoryScrollbar != null)
-        {
-            InventoryPanels.PlayerInventoryScrollbar.gameObject.SetActive(false);
-        }
-    }
-
-    private static void UpdatePlayerInventoryResizeHandle(InventoryGrid playerGrid, int viewportRows, int totalRegularRows)
-    {
-        if (totalRegularRows <= BaseRows)
-        {
-            HidePlayerInventoryResizeHandle();
-            return;
-        }
-
-        RectTransform handle = EnsurePlayerInventoryResizeHandle(playerGrid);
-        Vector3 origin = GetGridOrigin(playerGrid);
-        float elementSpace = playerGrid.m_elementSpace;
-        float width = playerGrid.m_width * elementSpace;
-        float handleHeight = Mathf.Clamp(elementSpace * 0.18f, 12f, 18f);
-
-        handle.localPosition = origin + new Vector3((playerGrid.m_width - 1) * elementSpace / 2f, -(viewportRows - 0.55f) * elementSpace, 0f);
-        handle.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
-        handle.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, handleHeight);
-        handle.SetAsLastSibling();
-        handle.gameObject.SetActive(true);
-
-        if (InventoryPanels.PlayerInventoryResizeHandleLabel != null)
-        {
-            int hiddenRows = Mathf.Max(0, totalRegularRows - viewportRows);
-            InventoryPanels.PlayerInventoryResizeHandleLabel.text = hiddenRows > 0 ? "..." : "---";
-        }
-    }
-
-    private static RectTransform EnsurePlayerInventoryResizeHandle(InventoryGrid playerGrid)
-    {
-        if (InventoryPanels.PlayerInventoryResizeHandle != null && InventoryPanels.PlayerInventoryResizeHandle.parent == playerGrid.m_gridRoot)
-        {
-            return InventoryPanels.PlayerInventoryResizeHandle;
-        }
-
-        Transform? existing = playerGrid.m_gridRoot.Find("InventorySlots_PlayerInventoryResizeHandle");
-        InventoryPanels.PlayerInventoryResizeHandle = existing != null ? existing.GetComponent<RectTransform>() : null;
-        if (InventoryPanels.PlayerInventoryResizeHandle == null)
-        {
-            InventoryPanels.PlayerInventoryResizeHandle = new GameObject("InventorySlots_PlayerInventoryResizeHandle", typeof(RectTransform), typeof(Image), typeof(UIInputHandler), typeof(PlayerInventoryRowsHandleMarker)).GetComponent<RectTransform>();
-            InventoryPanels.PlayerInventoryResizeHandle.SetParent(playerGrid.m_gridRoot, false);
-
-            Image background = InventoryPanels.PlayerInventoryResizeHandle.GetComponent<Image>();
-            background.color = new Color(0f, 0f, 0f, 0.35f);
-            background.raycastTarget = true;
-
-            RectTransform labelRect = CreateTextRect("label", InventoryPanels.PlayerInventoryResizeHandle, out TMP_Text labelText);
-            labelRect.anchorMin = Vector2.zero;
-            labelRect.anchorMax = Vector2.one;
-            labelRect.offsetMin = Vector2.zero;
-            labelRect.offsetMax = Vector2.zero;
-
-            InventoryPanels.PlayerInventoryResizeHandleLabel = labelText;
-            InventoryPanels.PlayerInventoryResizeHandleLabel.alignment = TextAlignmentOptions.Center;
-            InventoryPanels.PlayerInventoryResizeHandleLabel.fontSize = 14f;
-            InventoryPanels.PlayerInventoryResizeHandleLabel.color = new Color(0.75f, 0.86f, 1f, 0.9f);
-            InventoryPanels.PlayerInventoryResizeHandleLabel.raycastTarget = false;
-        }
-
-        InventoryPanels.PlayerInventoryResizeHandle.SetParent(playerGrid.m_gridRoot, false);
-        InventoryPanels.PlayerInventoryResizeHandle.anchorMin = new Vector2(0.5f, 0.5f);
-        InventoryPanels.PlayerInventoryResizeHandle.anchorMax = new Vector2(0.5f, 0.5f);
-        InventoryPanels.PlayerInventoryResizeHandle.pivot = new Vector2(0.5f, 0.5f);
-        InventoryPanels.PlayerInventoryResizeHandle.localScale = Vector3.one;
-        InventoryPanels.PlayerInventoryResizeHandle.localRotation = Quaternion.identity;
-
-        PlayerInventoryRowsHandleMarker marker = InventoryPanels.PlayerInventoryResizeHandle.GetComponent<PlayerInventoryRowsHandleMarker>();
-        if (!marker.Initialized)
-        {
-            UIInputHandler input = InventoryPanels.PlayerInventoryResizeHandle.GetComponent<UIInputHandler>();
-            input.m_onLeftDown += _ => StartPlayerInventoryRowsDrag();
-            input.m_onLeftUp += _ => StopPlayerInventoryRowsDrag();
-            marker.Initialized = true;
-        }
-
-        InventoryPanels.PlayerInventoryResizeHandleLabel = InventoryPanels.PlayerInventoryResizeHandle.Find("label")?.GetComponent<TextMeshProUGUI>();
-        ApplyDefaultFontAsset(InventoryPanels.PlayerInventoryResizeHandleLabel);
-        return InventoryPanels.PlayerInventoryResizeHandle;
-    }
-
-    private static void HidePlayerInventoryResizeHandle(bool stopDragging = true)
-    {
-        if (stopDragging)
-        {
-            StopPlayerInventoryRowsDrag();
-        }
-
-        if (InventoryPanels.PlayerInventoryResizeHandle != null)
-        {
-            InventoryPanels.PlayerInventoryResizeHandle.gameObject.SetActive(false);
-        }
     }
 
 }

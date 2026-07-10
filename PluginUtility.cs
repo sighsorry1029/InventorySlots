@@ -37,6 +37,18 @@ public sealed partial class InventorySlotsPlugin
         return obj == null;
     }
 
+    private static string SafeReadBool(System.Func<bool> read)
+    {
+        try
+        {
+            return read() ? "true" : "false";
+        }
+        catch
+        {
+            return "<error>";
+        }
+    }
+
     private static ConfigEntry<T> ConfigEntry<T>(string group, string name, T value, ConfigDescription description, bool synchronizedSetting = true)
     {
         ConfigDescription extendedDescription = new(

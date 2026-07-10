@@ -1,32 +1,7 @@
-﻿inventoryactions_search: Search
-inventoryactions_style: Style
-inventoryactions_sort_group_first: Group first
-inventoryactions_sort_group_first_tooltip: Sort by category, then resource tier.
-inventoryactions_sort_tier_first: Tier first
-inventoryactions_sort_tier_first_tooltip: Sort by resource tier, then category.
-inventoryactions_keyhint_favorite: Favorite
-inventoryactions_keyhint_tooltip: Tooltip
-inventoryactions_max: Max
-inventoryactions_group_favorite: Favorite
-inventoryactions_group_favorite_short: Favor
-inventoryactions_group_melee: Melee
-inventoryactions_group_ranged: Ranged
-inventoryactions_group_ranged_short: Range
-inventoryactions_group_magic: Magic
-inventoryactions_group_equipment: Equipment
-inventoryactions_group_equipment_short: Equip
-inventoryactions_group_food: Food
-inventoryactions_group_consumable: Consumable
-inventoryactions_group_consumable_short: Use
-inventoryactions_group_meadbase: Meadbase
-inventoryactions_group_meadbase_short: Base
-inventoryactions_group_tool: Tool
-inventoryactions_group_misc: Misc
 inventoryactions_button_take_all: Take all
 inventoryactions_button_place_stacks: Place stacks
 inventoryactions_button_place_all: Place all
 inventoryactions_button_take_stacks: Take stacks
-inventoryactions_button_sort: Sort
 inventoryactions_trash_title: Trash
 inventoryactions_trash_tooltip: Drop a held inventory item here to delete it after confirmation.
 inventoryactions_trash_confirm_format: "Delete {item}?"
@@ -36,17 +11,9 @@ inventoryactions_trash_player_inventory_only: Only player inventory items can be
 inventoryactions_trash_item_missing: That item is no longer available.
 inventoryactions_trash_hotbar_item: Only regular inventory items can be trashed.
 inventoryactions_trash_favorite_item: Favorite items cannot be trashed.
-inventoryactions_craft_button_count_format: "{label} x{count}"
-inventoryactions_crafting_progress_count_format: "{label} x{count}"
 inventoryactions_action_stack: Stack
 inventoryactions_action_take_stacks: Take stacks
 inventoryactions_action_sort: Sort
-inventoryactions_action_sort_requested: Sort requested.
 inventoryactions_action_result_format: "{action}: {count}"
 inventoryactions_container_not_ready: Container is not ready.
-inventoryactions_hold_to_stack: Hold to quick stack
 inventoryactions_hold_to_restock: Hold to restock
-inventoryactions_hotbar_switch_hint: "Switch\n[{key}]"
-inventoryactions_quick_slot_format: "Quick {index}"
-inventoryactions_clear_favorites_hint_format: "{key}: clear favorites"
-

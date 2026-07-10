@@ -181,7 +181,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         RectTransform? warningRect = EnsureCraftingSocketWarning(gui);
-        if (warningRect == null || _craftingSocketWarningText == null)
+        if (warningRect == null || CraftingUi.SocketWarningText == null)
         {
             return;
         }
@@ -202,7 +202,7 @@ public sealed partial class InventorySlotsPlugin
         if (updateLayout || !CraftingController.CanReuseSocketWarning(stamp))
         {
             SetCraftingTopLeftRect(gui.m_crafting, warningRect, position, size);
-            ConfigureCraftingSocketWarningText(_craftingSocketWarningText, warning);
+            ConfigureCraftingSocketWarningText(CraftingUi.SocketWarningText, warning);
             CraftingController.StoreSocketWarningStamp(stamp);
         }
 
@@ -256,44 +256,44 @@ public sealed partial class InventorySlotsPlugin
             return null;
         }
 
-        if (_craftingSocketWarningRect != null &&
-            !IsUnityNull(_craftingSocketWarningRect) &&
-            _craftingSocketWarningRect!.parent == gui.m_crafting)
+        if (CraftingUi.SocketWarningRect != null &&
+            !IsUnityNull(CraftingUi.SocketWarningRect) &&
+            CraftingUi.SocketWarningRect!.parent == gui.m_crafting)
         {
-            return _craftingSocketWarningRect;
+            return CraftingUi.SocketWarningRect;
         }
 
         Transform? existing = gui.m_crafting.Find(CraftingSocketWarningName);
-        _craftingSocketWarningRect = existing != null ? existing.GetComponent<RectTransform>() : null;
-        if (_craftingSocketWarningRect == null)
+        CraftingUi.SocketWarningRect = existing != null ? existing.GetComponent<RectTransform>() : null;
+        if (CraftingUi.SocketWarningRect == null)
         {
-            _craftingSocketWarningRect = new GameObject(CraftingSocketWarningName, typeof(RectTransform)).GetComponent<RectTransform>();
+            CraftingUi.SocketWarningRect = new GameObject(CraftingSocketWarningName, typeof(RectTransform)).GetComponent<RectTransform>();
         }
 
-        _craftingSocketWarningRect.SetParent(gui.m_crafting, false);
-        if (_craftingSocketWarningRect.TryGetComponent(out Image background))
+        CraftingUi.SocketWarningRect.SetParent(gui.m_crafting, false);
+        if (CraftingUi.SocketWarningRect.TryGetComponent(out Image background))
         {
             background.enabled = false;
             background.raycastTarget = false;
         }
 
-        Transform? textTransform = _craftingSocketWarningRect.Find("Text");
+        Transform? textTransform = CraftingUi.SocketWarningRect.Find("Text");
         RectTransform textRect;
         if (textTransform != null && textTransform.GetComponent<TMP_Text>() is { } existingText)
         {
             textRect = (RectTransform)textTransform;
-            _craftingSocketWarningText = existingText;
+            CraftingUi.SocketWarningText = existingText;
         }
         else
         {
-            textRect = CreateTextRect("Text", _craftingSocketWarningRect, out TMP_Text socketWarningText);
-            _craftingSocketWarningText = socketWarningText;
+            textRect = CreateTextRect("Text", CraftingUi.SocketWarningRect, out TMP_Text socketWarningText);
+            CraftingUi.SocketWarningText = socketWarningText;
         }
 
         SetStretchRectLayoutCached(textRect, new Vector2(12f, 5f), new Vector2(-12f, -5f), "crafting-socket-warning-text");
-        TMP_Text warningText = _craftingSocketWarningText!;
+        TMP_Text warningText = CraftingUi.SocketWarningText!;
         ConfigureCraftingSocketWarningText(warningText, warningText.text);
-        return _craftingSocketWarningRect;
+        return CraftingUi.SocketWarningRect;
     }
 
     private static void ConfigureCraftingSocketWarningText(TMP_Text text, string warning)
@@ -317,9 +317,9 @@ public sealed partial class InventorySlotsPlugin
 
     private static void HideCraftingSocketWarning()
     {
-        if (_craftingSocketWarningRect != null && !IsUnityNull(_craftingSocketWarningRect))
+        if (CraftingUi.SocketWarningRect != null && !IsUnityNull(CraftingUi.SocketWarningRect))
         {
-            _craftingSocketWarningRect.gameObject.SetActive(false);
+            CraftingUi.SocketWarningRect.gameObject.SetActive(false);
         }
 
         CraftingController.ResetSocketWarningStamp();
@@ -369,7 +369,7 @@ public sealed partial class InventorySlotsPlugin
             RectTransform viewport = new GameObject("Text Area", typeof(RectTransform), typeof(RectMask2D)).GetComponent<RectTransform>();
             viewport.SetParent(_craftingCountInputRect, false);
             SetStretchRectLayoutCached(viewport, new Vector2(22f, 3f), new Vector2(-4f, -3f), "crafting-count-input-viewport");
-            _craftingCountInputViewport = viewport;
+            CraftingUi.CountInputViewport = viewport;
 
             RectTransform textRect = CreateTextRect("Text", viewport, out TMP_Text text);
             SetStretchRectLayoutCached(textRect, Vector2.zero, Vector2.zero, "crafting-count-input-text");
@@ -393,10 +393,10 @@ public sealed partial class InventorySlotsPlugin
         else
         {
             _craftingCountInput = _craftingCountInputRect.GetComponent<TMP_InputField>();
-            _craftingCountInputViewport = _craftingCountInput?.textViewport;
-            if (_craftingCountInputViewport == null || IsUnityNull(_craftingCountInputViewport))
+            CraftingUi.CountInputViewport = _craftingCountInput?.textViewport;
+            if (CraftingUi.CountInputViewport == null || IsUnityNull(CraftingUi.CountInputViewport))
             {
-                _craftingCountInputViewport = _craftingCountInputRect.Find("Text Area") as RectTransform;
+                CraftingUi.CountInputViewport = _craftingCountInputRect.Find("Text Area") as RectTransform;
             }
         }
 
@@ -424,7 +424,7 @@ public sealed partial class InventorySlotsPlugin
             background.raycastTarget = true;
 
             RectTransform textRect = CreateTextRect("Text", _craftingUpgradeProgressionRect, out TMP_Text upgradeProgressionText);
-            _craftingUpgradeProgressionText = upgradeProgressionText;
+            CraftingUi.UpgradeProgressionText = upgradeProgressionText;
             SetStretchRectLayoutCached(textRect, new Vector2(4f, 3f), new Vector2(-4f, -3f), "crafting-upgrade-progression-text");
             upgradeProgressionText.fontSize = 20f;
             upgradeProgressionText.alignment = TextAlignmentOptions.Center;
@@ -435,7 +435,7 @@ public sealed partial class InventorySlotsPlugin
         }
         else
         {
-            _craftingUpgradeProgressionText = _craftingUpgradeProgressionRect.Find("Text")?.GetComponent<TMP_Text>();
+            CraftingUi.UpgradeProgressionText = _craftingUpgradeProgressionRect.Find("Text")?.GetComponent<TMP_Text>();
         }
 
         return _craftingUpgradeProgressionRect;
@@ -461,17 +461,17 @@ public sealed partial class InventorySlotsPlugin
         int maxQuality = Mathf.Max(currentQuality, item.m_shared.m_maxQuality);
         int nextQuality = Mathf.Min(currentQuality + 1, maxQuality);
         string label = currentQuality < maxQuality ? $"{currentQuality} > {nextQuality}" : LocalizeUi("$inventoryslots_max", "Max");
-        if (_craftingUpgradeProgressionText != null)
+        if (CraftingUi.UpgradeProgressionText != null)
         {
             CraftingTextCacheState cache = GetCraftingTextCache(_craftingUpgradeProgressionRect.gameObject);
             CraftingTextStamp stamp = new("upgrade", label, fontSizeMax: 20f);
             if (!cache.LastTextStamp.Equals(stamp))
             {
-                ApplyDefaultFontAsset(_craftingUpgradeProgressionText);
-                _craftingUpgradeProgressionText.text = label;
-                _craftingUpgradeProgressionText.enableAutoSizing = true;
-                _craftingUpgradeProgressionText.fontSizeMin = 10f;
-                _craftingUpgradeProgressionText.fontSizeMax = 20f;
+                ApplyDefaultFontAsset(CraftingUi.UpgradeProgressionText);
+                CraftingUi.UpgradeProgressionText.text = label;
+                CraftingUi.UpgradeProgressionText.enableAutoSizing = true;
+                CraftingUi.UpgradeProgressionText.fontSizeMin = 10f;
+                CraftingUi.UpgradeProgressionText.fontSizeMax = 20f;
                 cache.LastTextStamp = stamp;
             }
         }
@@ -498,11 +498,11 @@ public sealed partial class InventorySlotsPlugin
         image.raycastTarget = false;
         image.color = locked ? new Color(0.68f, 0.88f, 1f, 0.32f) : new Color(0.68f, 0.88f, 1f, 0.82f);
 
-        RectTransform? viewport = _craftingCountInputViewport;
+        RectTransform? viewport = CraftingUi.CountInputViewport;
         if (viewport == null || IsUnityNull(viewport) || viewport.parent != countRect)
         {
             viewport = countRect.Find("Text Area") as RectTransform;
-            _craftingCountInputViewport = viewport;
+            CraftingUi.CountInputViewport = viewport;
         }
 
         if (viewport != null && !IsUnityNull(viewport))
@@ -589,7 +589,7 @@ public sealed partial class InventorySlotsPlugin
             return null;
         }
 
-        RectTransform? hitbox = _craftingRequiredStationLevelHitbox;
+        RectTransform? hitbox = CraftingUi.RequiredStationLevelHitbox;
         if (hitbox == null || IsUnityNull(hitbox) || hitbox.parent != gui.m_crafting)
         {
             hitbox = gui.m_crafting.Find(CraftingRequiredStationHitboxName) as RectTransform;
@@ -598,7 +598,7 @@ public sealed partial class InventorySlotsPlugin
                 hitbox = new GameObject(CraftingRequiredStationHitboxName, typeof(RectTransform), typeof(Image)).GetComponent<RectTransform>();
             }
 
-            _craftingRequiredStationLevelHitbox = hitbox;
+            CraftingUi.RequiredStationLevelHitbox = hitbox;
         }
 
         SetCraftingTopLeftRect(gui.m_crafting, hitbox, iconPosition, new Vector2(iconSize, iconSize));
@@ -619,10 +619,10 @@ public sealed partial class InventorySlotsPlugin
 
     private static void HideCraftingRequiredStationLevelTooltip()
     {
-        RectTransform? hitbox = _craftingRequiredStationLevelHitbox;
+        RectTransform? hitbox = CraftingUi.RequiredStationLevelHitbox;
         if (hitbox == null || IsUnityNull(hitbox))
         {
-            _craftingRequiredStationLevelHitbox = null;
+            CraftingUi.RequiredStationLevelHitbox = null;
             return;
         }
 
@@ -655,19 +655,19 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        if (_craftingRequiredStationLevelOriginalRoot == null || IsUnityNull(_craftingRequiredStationLevelOriginalRoot))
+        if (CraftingUi.RequiredStationLevelOriginalRoot == null || IsUnityNull(CraftingUi.RequiredStationLevelOriginalRoot))
         {
-            _craftingRequiredStationLevelOriginalRoot = FindCraftingRequiredStationLevelOriginalRoot(gui, iconRect, textRect);
+            CraftingUi.RequiredStationLevelOriginalRoot = FindCraftingRequiredStationLevelOriginalRoot(gui, iconRect, textRect);
         }
 
-        Transform? root = _craftingRequiredStationLevelOriginalRoot;
+        Transform? root = CraftingUi.RequiredStationLevelOriginalRoot;
         if (root == null || IsUnityNull(root) || root == gui.m_crafting || !root.IsChildOf(gui.m_crafting))
         {
-            _craftingRequiredStationLevelOriginalRoot = FindCraftingRequiredStationLevelOriginalRoot(gui, iconRect, textRect);
-            root = _craftingRequiredStationLevelOriginalRoot;
+            CraftingUi.RequiredStationLevelOriginalRoot = FindCraftingRequiredStationLevelOriginalRoot(gui, iconRect, textRect);
+            root = CraftingUi.RequiredStationLevelOriginalRoot;
             if (root == null || IsUnityNull(root) || root == gui.m_crafting || !root.IsChildOf(gui.m_crafting))
             {
-                _craftingRequiredStationLevelOriginalRoot = null;
+                CraftingUi.RequiredStationLevelOriginalRoot = null;
                 return;
             }
         }
@@ -989,10 +989,10 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        if (_craftingQueueTotal > 1 && gui.m_selectedRecipe.Recipe == _craftingQueueRecipe && gui.m_selectedVariant == _craftingQueueVariant)
+        if (CraftingQueue.QueueTotal > 1 && gui.m_selectedRecipe.Recipe == CraftingQueue.QueueRecipe && gui.m_selectedVariant == CraftingQueue.QueueVariant)
         {
             int activeCraft = gui.m_craftTimer >= 0f ? 1 : 0;
-            count = Mathf.Clamp(_craftingQueueRemaining + activeCraft, 1, _craftingQueueTotal);
+            count = Mathf.Clamp(CraftingQueue.QueueRemaining + activeCraft, 1, CraftingQueue.QueueTotal);
             return true;
         }
 
@@ -1002,11 +1002,11 @@ public sealed partial class InventorySlotsPlugin
             return true;
         }
 
-        if (_craftingProgressLabelCount > 1 &&
-            gui.m_selectedRecipe.Recipe == _craftingProgressLabelRecipe &&
-            gui.m_selectedVariant == _craftingProgressLabelVariant)
+        if (CraftingQueue.ProgressLabelCount > 1 &&
+            gui.m_selectedRecipe.Recipe == CraftingQueue.ProgressLabelRecipe &&
+            gui.m_selectedVariant == CraftingQueue.ProgressLabelVariant)
         {
-            count = Mathf.Clamp(_craftingProgressLabelCount, 1, CraftingQueueMaxCount);
+            count = Mathf.Clamp(CraftingQueue.ProgressLabelCount, 1, CraftingQueueMaxCount);
             return true;
         }
 
@@ -1269,7 +1269,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool IsCraftingCountInputLocked(InventoryGui? gui)
     {
-        return _craftingQueueRemaining > 0 || (gui != null && gui.m_craftTimer >= 0f);
+        return CraftingQueue.QueueRemaining > 0 || (gui != null && gui.m_craftTimer >= 0f);
     }
 
     private static int GetUnityObjectId(UnityEngine.Object? obj) =>

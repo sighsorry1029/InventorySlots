@@ -69,6 +69,16 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
+    private static bool IsSyncedStateReady()
+    {
+        if (ZNet.instance == null || ZNet.IsSinglePlayer || ConfigSync.IsSourceOfTruth)
+        {
+            return true;
+        }
+
+        return ConfigSync.InitialSyncDone;
+    }
+
     private static void ProcessDeferredInventoryStateEnsure(Player player)
     {
         if (InventorySafety.DeferredAuditLevel == InventoryStateAuditLevel.None || InventorySafety.DeferredEnsureReason == InventoryStateEnsureReason.Unknown)
@@ -345,7 +355,7 @@ public sealed partial class InventorySlotsPlugin
             hash = hash * 31 + inventory.m_width;
             hash = hash * 31 + inventory.m_height;
             hash = hash * 31 + GetUsableRegularRows(player);
-            hash = hash * 31 + _slotDefinitionVersion;
+            hash = hash * 31 + InventoryDefinitions.SlotDefinitionVersion;
             hash = hash * 31 + GetKnownMaterialHash(player);
             foreach (SlotDefinition slot in SlotDefinitions)
             {

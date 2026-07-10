@@ -280,14 +280,4 @@ public sealed partial class InventorySlotsPlugin
             _pinnedTooltipKey != null ? _pinnedTooltipKey.Value.GetDisplayText() : KeyCode.Mouse2.GetDisplayText(),
             GetControllerHotkeyDisplayText(_controllerPinnedTooltipButton));
 
-    private static void SetFavoriteKeyHintsActive(GameObject? activeHint)
-    {
-        foreach (GameObject hint in InventoryPanels.FavoriteKeyHintObjects.Values.Concat(InventoryPanels.PinnedTooltipKeyHintObjects.Values))
-        {
-            if (!IsUnityNull(hint))
-            {
-                hint.SetActive(activeHint != null && hint == activeHint);
-            }
-        }
-    }
 }

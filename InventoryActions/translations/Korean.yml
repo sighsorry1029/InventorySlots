@@ -1,32 +1,7 @@
-﻿inventoryactions_search: 검색
-inventoryactions_style: 스타일
-inventoryactions_sort_group_first: 그룹 우선
-inventoryactions_sort_group_first_tooltip: 분류를 먼저, 그다음 자원 티어로 정렬합니다.
-inventoryactions_sort_tier_first: 티어 우선
-inventoryactions_sort_tier_first_tooltip: 자원 티어를 먼저, 그다음 분류로 정렬합니다.
-inventoryactions_keyhint_favorite: 즐겨찾기
-inventoryactions_keyhint_tooltip: 툴팁
-inventoryactions_max: 최대
-inventoryactions_group_favorite: 즐겨찾기
-inventoryactions_group_favorite_short: 즐겨
-inventoryactions_group_melee: 근접
-inventoryactions_group_ranged: 원거리
-inventoryactions_group_ranged_short: 원거리
-inventoryactions_group_magic: 마법
-inventoryactions_group_equipment: 장비
-inventoryactions_group_equipment_short: 장비
-inventoryactions_group_food: 음식
-inventoryactions_group_consumable: 소모품
-inventoryactions_group_consumable_short: 소모
-inventoryactions_group_meadbase: 양조 재료
-inventoryactions_group_meadbase_short: 양조
-inventoryactions_group_tool: 도구
-inventoryactions_group_misc: 기타
 inventoryactions_button_take_all: 모두 가져오기
 inventoryactions_button_place_stacks: 스택 넣기
 inventoryactions_button_place_all: 모두 놓기
 inventoryactions_button_take_stacks: 묶음 갖기
-inventoryactions_button_sort: 정렬
 inventoryactions_trash_title: 휴지통
 inventoryactions_trash_tooltip: 들고 있는 인벤토리 아이템을 여기에 놓으면 확인 후 삭제합니다.
 inventoryactions_trash_confirm_format: "{item}을(를) 삭제할까요?"
@@ -36,17 +11,9 @@ inventoryactions_trash_player_inventory_only: 플레이어 인벤토리 아이�
 inventoryactions_trash_item_missing: 해당 아이템을 더 이상 찾을 수 없습니다.
 inventoryactions_trash_hotbar_item: 일반 인벤토리 아이템만 삭제할 수 있습니다.
 inventoryactions_trash_favorite_item: 즐겨찾기 아이템은 삭제할 수 없습니다.
-inventoryactions_craft_button_count_format: "{label} x{count}"
-inventoryactions_crafting_progress_count_format: "{label} 중 x{count}"
 inventoryactions_action_stack: 스택 넣기
 inventoryactions_action_take_stacks: 스택 가져오기
 inventoryactions_action_sort: 정렬
-inventoryactions_action_sort_requested: 정렬 요청됨.
 inventoryactions_action_result_format: "{action}: {count}"
 inventoryactions_container_not_ready: 컨테이너를 사용할 수 없습니다.
-inventoryactions_hold_to_stack: 누르고 있으면 빠른 스택
 inventoryactions_hold_to_restock: 누르고 있으면 보충
-inventoryactions_hotbar_switch_hint: "전환\n[{key}]"
-inventoryactions_quick_slot_format: "퀵 {index}"
-inventoryactions_clear_favorites_hint_format: "{key}: 즐겨찾기 해제"
-

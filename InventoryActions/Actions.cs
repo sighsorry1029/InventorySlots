@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using UnityEngine;
 using ItemData = ItemDrop.ItemData;
 
@@ -9,8 +8,6 @@ namespace InventoryActions;
 
 public sealed partial class InventoryActionsPlugin
 {
-    private static readonly Dictionary<Type, SfxVolumeMemberCache> SfxVolumeMembersByType = new();
-
     private enum RestockMode
     {
         CurrentContainerMatchingStacks,
@@ -167,9 +164,6 @@ public sealed partial class InventoryActionsPlugin
     {
         List<Vector2i> actionSlots = GetPlayerActionSlots(player, playerInventory, includeHotbar: false, blockFavorites: true);
         HashSet<Vector2i> allowedSlots = new(actionSlots);
-        List<Vector2i> emptySlots = actionSlots
-            .Where(slot => playerInventory.GetItemAt(slot.x, slot.y) == null)
-            .ToList();
 
         List<ItemData> sourceItems = containerInventory.m_inventory
             .Where(item => item?.m_shared != null)
@@ -186,7 +180,7 @@ public sealed partial class InventoryActionsPlugin
             }
 
             int before = source.m_stack;
-            int movedAmount = MoveContainerItemSafelyToPlayer(playerInventory, containerInventory, source, emptySlots, allowedSlots);
+            int movedAmount = MoveItemToInventoryTopFirst(containerInventory, playerInventory, source, allowedSlots);
             if (movedAmount > 0 && (!containerInventory.m_inventory.Contains(source) || source.m_stack < before))
             {
                 movedStacks++;
@@ -194,63 +188,6 @@ public sealed partial class InventoryActionsPlugin
         }
 
         return movedStacks;
-    }
-
-    private static int MoveContainerItemSafelyToPlayer(Inventory playerInventory, Inventory containerInventory, ItemData source, List<Vector2i> emptySlots, HashSet<Vector2i> allowedSlots)
-    {
-        int movedAmount = 0;
-        if (CanMergeForSafeMove(source))
-        {
-            List<ItemData> stackTargets = playerInventory.m_inventory
-                .Where(target => target?.m_shared != null &&
-                                 allowedSlots.Contains(target.m_gridPos) &&
-                                 CanMergeForSafeMove(target) &&
-                                 HasSameStackIdentity(target, source) &&
-                                 target.m_stack < target.m_shared.m_maxStackSize)
-                .OrderBy(target => target.m_gridPos.y)
-                .ThenBy(target => target.m_gridPos.x)
-                .ToList();
-
-            foreach (ItemData target in stackTargets)
-            {
-                if (!containerInventory.m_inventory.Contains(source) || source.m_stack <= 0)
-                {
-                    break;
-                }
-
-                int amount = Math.Min(target.m_shared.m_maxStackSize - target.m_stack, source.m_stack);
-                if (amount <= 0)
-                {
-                    continue;
-                }
-
-                int before = source.m_stack;
-                bool movedOk = playerInventory.MoveItemToThis(containerInventory, source, amount, target.m_gridPos.x, target.m_gridPos.y);
-                movedAmount += CountMovedFromContainerSource(containerInventory, source, before, amount, movedOk);
-            }
-        }
-
-        while (containerInventory.m_inventory.Contains(source) && source.m_stack > 0 && emptySlots.Count > 0)
-        {
-            Vector2i slot = emptySlots[0];
-            emptySlots.RemoveAt(0);
-            int before = source.m_stack;
-            int requestedAmount = source.m_stack;
-            bool movedOk = playerInventory.MoveItemToThis(containerInventory, source, requestedAmount, slot.x, slot.y);
-            int moved = CountMovedFromContainerSource(containerInventory, source, before, requestedAmount, movedOk);
-            movedAmount += moved;
-            if (moved == 0)
-            {
-                break;
-            }
-        }
-
-        return movedAmount;
-    }
-
-    private static bool CanMergeForSafeMove(ItemData item)
-    {
-        return item?.m_shared != null && item.m_shared.m_maxStackSize > 1 && CanUseContainerActionStacking(item);
     }
 
     private static void QuickStackCurrentContainer(Player? player)
@@ -963,34 +900,19 @@ public sealed partial class InventoryActionsPlugin
 
         int fxMode = includeArea ? GetContainerActionSuccessFxMode() : 0;
         int changedContainerFxCount = 0;
-        int moved = 0;
-        foreach (Container container in containers)
-        {
-            if (container == null || IsUnityNull(container) || container.m_inventory == null)
+        return ContainerTransferCore.Run(
+            containers,
+            container => !IsUnityNull(container) && container.m_inventory != null,
+            transfer,
+            (container, _) => changedContainerFxCount = TryPlayChangedContainerActionSuccessFx(localPlayer, container, fxMode, changedContainerFxCount),
+            () =>
             {
-                continue;
-            }
-
-            int containerMoved = transfer(container);
-            if (containerMoved <= 0)
-            {
-                continue;
-            }
-
-            moved += containerMoved;
-            changedContainerFxCount = TryPlayChangedContainerActionSuccessFx(localPlayer, container, fxMode, changedContainerFxCount);
-        }
-
-        if (moved > 0)
-        {
-            onMoved?.Invoke();
-            if (fxMode == 1)
-            {
-                PlayContainerActionSuccessFx(localPlayer, anchorContainer);
-            }
-        }
-
-        return moved;
+                onMoved?.Invoke();
+                if (fxMode == 1)
+                {
+                    PlayContainerActionSuccessFx(localPlayer, anchorContainer);
+                }
+            });
     }
 
     private static bool IsContainerQuickStackShortcutHeld() =>
@@ -1190,124 +1112,20 @@ public sealed partial class InventoryActionsPlugin
             return;
         }
 
-        foreach (Component component in instance.GetComponentsInChildren<Component>(includeInactive: true))
+        foreach (ZSFX sfx in instance.GetComponentsInChildren<ZSFX>(includeInactive: true))
         {
-            if (component != null && !IsUnityNull(component))
+            if (sfx != null && !IsUnityNull(sfx))
             {
-                ScaleSfxComponentVolume(component, volumeScale);
+                sfx.SetVolumeModifier(sfx.GetVolumeModifier() * volumeScale);
             }
         }
     }
 
-    private static void ScaleSfxComponentVolume(Component component, float volumeScale)
-    {
-        Type type = component.GetType();
-        if (IsUnityAudioSource(type))
-        {
-            ScaleUnityAudioSourceVolume(component, type, volumeScale);
-            return;
-        }
-
-        if (!IsLikelySfxComponent(type))
-        {
-            return;
-        }
-
-        SfxVolumeMemberCache members = GetSfxVolumeMemberCache(type);
-        foreach (FieldInfo field in members.Fields)
-        {
-            try
-            {
-                field.SetValue(component, Mathf.Max(0f, (float)field.GetValue(component) * volumeScale));
-            }
-            catch
-            {
-                // Best-effort support for Unity-backed SFX wrappers.
-            }
-        }
-
-        foreach (PropertyInfo property in members.Properties)
-        {
-            try
-            {
-                property.SetValue(component, Mathf.Max(0f, (float)property.GetValue(component) * volumeScale));
-            }
-            catch
-            {
-                // Best-effort support for writable volume properties.
-            }
-        }
-    }
-
-    private static SfxVolumeMemberCache GetSfxVolumeMemberCache(Type type)
-    {
-        if (SfxVolumeMembersByType.TryGetValue(type, out SfxVolumeMemberCache cache))
-        {
-            return cache;
-        }
-
-        const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-        cache = new SfxVolumeMemberCache(
-            type.GetFields(flags)
-                .Where(field =>
-                    field.FieldType == typeof(float) &&
-                    IsSfxVolumeMemberName(field.Name) &&
-                    !IsUnsupportedSfxVolumeMemberName(field.Name))
-                .ToArray(),
-            type.GetProperties(flags)
-                .Where(property =>
-                    property.PropertyType == typeof(float) &&
-                    property.CanRead &&
-                    property.CanWrite &&
-                    property.GetIndexParameters().Length == 0 &&
-                    IsSfxVolumeMemberName(property.Name) &&
-                    !IsUnsupportedSfxVolumeMemberName(property.Name))
-                .ToArray());
-        SfxVolumeMembersByType[type] = cache;
-        return cache;
-    }
-
-    private static bool IsLikelySfxComponent(Type type)
-    {
-        string name = type.Name;
-        return name.IndexOf("SFX", StringComparison.OrdinalIgnoreCase) >= 0 ||
-               name.IndexOf("Audio", StringComparison.OrdinalIgnoreCase) >= 0;
-    }
-
-    private static bool IsSfxVolumeMemberName(string name)
-    {
-        return name.IndexOf("volume", StringComparison.OrdinalIgnoreCase) >= 0 ||
-               name.IndexOf("vol", StringComparison.OrdinalIgnoreCase) >= 0;
-    }
-
-    private static bool IsUnsupportedSfxVolumeMemberName(string name)
-    {
-        return string.Equals(name, "minVolume", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(name, "maxVolume", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsUnityAudioSource(Type type) =>
-        string.Equals(type.FullName, "UnityEngine.AudioSource", StringComparison.Ordinal);
-
-    private static void ScaleUnityAudioSourceVolume(Component component, Type type, float volumeScale)
-    {
-        PropertyInfo? volumeProperty = type.GetProperty("volume", BindingFlags.Instance | BindingFlags.Public);
-        if (volumeProperty == null || !volumeProperty.CanRead || !volumeProperty.CanWrite)
-        {
-            return;
-        }
-
-        try
-        {
-            volumeProperty.SetValue(component, Mathf.Max(0f, (float)volumeProperty.GetValue(component) * volumeScale));
-        }
-        catch
-        {
-            // Best-effort volume scaling for Unity audio sources.
-        }
-    }
-
-    private static int MoveItemToInventoryTopFirst(Inventory sourceInventory, Inventory targetInventory, ItemData source)
+    private static int MoveItemToInventoryTopFirst(
+        Inventory sourceInventory,
+        Inventory targetInventory,
+        ItemData source,
+        HashSet<Vector2i>? allowedSlots = null)
     {
         if (sourceInventory == null || targetInventory == null || source?.m_shared == null || !sourceInventory.m_inventory.Contains(source))
         {
@@ -1318,7 +1136,9 @@ public sealed partial class InventoryActionsPlugin
         if (CanStackForTopFirstMove(source))
         {
             List<ItemData> stackTargets = targetInventory.m_inventory
-                .Where(target => CanStackIntoTargetForTopFirstMove(target, source))
+                .Where(target =>
+                    (allowedSlots == null || allowedSlots.Contains(target.m_gridPos)) &&
+                    CanStackIntoTargetForTopFirstMove(target, source))
                 .OrderBy(target => target.m_gridPos.y)
                 .ThenBy(target => target.m_gridPos.x)
                 .ToList();
@@ -1347,6 +1167,11 @@ public sealed partial class InventoryActionsPlugin
             if (!sourceInventory.m_inventory.Contains(source) || source.m_stack <= 0)
             {
                 break;
+            }
+
+            if (allowedSlots != null && !allowedSlots.Contains(slot))
+            {
+                continue;
             }
 
             if (targetInventory.GetItemAt(slot.x, slot.y) != null)
@@ -1436,15 +1261,4 @@ public sealed partial class InventoryActionsPlugin
         return ContainerActionCore.CompareGridOrder(a.x, a.y, b.x, b.y);
     }
 
-    private readonly struct SfxVolumeMemberCache
-    {
-        public SfxVolumeMemberCache(FieldInfo[] fields, PropertyInfo[] properties)
-        {
-            Fields = fields;
-            Properties = properties;
-        }
-
-        public FieldInfo[] Fields { get; }
-        public PropertyInfo[] Properties { get; }
-    }
 }

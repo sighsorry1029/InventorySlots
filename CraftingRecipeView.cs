@@ -26,22 +26,6 @@ public sealed partial class InventorySlotsPlugin
         UpdateCraftingPanelRedesign(gui, CraftingPanelUpdateReason.RecipeListChanged);
     }
 
-    internal static void OnCraftingRecipeUpdated(InventoryGui gui)
-    {
-        if (gui == null)
-        {
-            return;
-        }
-
-        string signature = GetCraftingSelectedRecipeChangeSignature(gui);
-        if (!CraftingController.TryStoreSelectedRecipeChangeSignature(signature))
-        {
-            return;
-        }
-
-        UpdateCraftingPanelRedesign(gui, CraftingPanelUpdateReason.RecipeChanged);
-    }
-
     private static string GetCraftingRecipeListChangeSignature(InventoryGui gui)
     {
         unchecked
@@ -70,63 +54,6 @@ public sealed partial class InventorySlotsPlugin
             }
 
             return $"{count}:{hash}";
-        }
-    }
-
-    private static string GetCraftingSelectedRecipeChangeSignature(InventoryGui gui)
-    {
-        unchecked
-        {
-            int hash = 17;
-            hash = hash * 31 + gui.GetInstanceID();
-            hash = hash * 31 + (IsCraftingCraftTabSelected(gui) ? 1 : 0);
-            hash = hash * 31 + (IsCraftingUpgradeTabSelected(gui) ? 1 : 0);
-            hash = hash * 31 + GetCraftingTabAdapterState(gui).Kind.GetHashCode();
-            hash = hash * 31 + GetSelectedCraftingRecipeIndexSafe(gui);
-            hash = hash * 31 + gui.m_selectedVariant;
-            hash = hash * 31 + GetCraftingRecipePairChangeHash(gui.m_selectedRecipe);
-            hash = hash * 31 + GetCraftingSelectedRequirementAvailabilityHash(gui);
-
-            int selectedIndex = GetSelectedCraftingRecipeIndexSafe(gui);
-            if (gui.m_availableRecipes != null && selectedIndex >= 0 && selectedIndex < gui.m_availableRecipes.Count)
-            {
-                hash = hash * 31 + GetCraftingRecipePairChangeHash(gui.m_availableRecipes[selectedIndex]);
-            }
-
-            return hash.ToString();
-        }
-    }
-
-    private static int GetCraftingSelectedRequirementAvailabilityHash(InventoryGui gui)
-    {
-        Recipe? recipe = gui.m_selectedRecipe.Recipe;
-        if (recipe?.m_resources == null)
-        {
-            return 0;
-        }
-
-        unchecked
-        {
-            int hash = 17;
-            int quality = gui.m_selectedRecipe.ItemData != null ? gui.m_selectedRecipe.ItemData.m_quality + 1 : 1;
-            int craftMultiplier = Mathf.Max(1, GetEffectiveCraftingCount(gui));
-            hash = hash * 31 + quality;
-            hash = hash * 31 + craftMultiplier;
-            hash = hash * 31 + (HasNoCraftCost() ? 1 : 0);
-            foreach (Requirement requirement in recipe.m_resources)
-            {
-                if (requirement == null || requirement.m_resItem == null)
-                {
-                    continue;
-                }
-
-                hash = hash * 31 + requirement.m_resItem.GetInstanceID();
-                hash = hash * 31 + StringComparer.OrdinalIgnoreCase.GetHashCode(requirement.m_resItem.m_itemData?.m_shared?.m_name ?? "");
-                hash = hash * 31 + Mathf.Max(0, requirement.GetAmount(quality) * craftMultiplier);
-                hash = hash * 31 + GetAvailableCraftingRequirementAmount(requirement);
-            }
-
-            return hash;
         }
     }
 

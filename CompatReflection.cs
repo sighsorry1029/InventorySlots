@@ -22,7 +22,7 @@ public sealed partial class InventorySlotsPlugin
         api = runtime.Api;
         if (api != null)
         {
-            return SetCompatCapabilityState(ref runtime.CapabilityState, CompatCapabilityState.Available, capability);
+            return true;
         }
 
         if (!TryGetCompatAssembly(guid, capability, runtime, out Assembly? assembly))
@@ -35,20 +35,18 @@ public sealed partial class InventorySlotsPlugin
         {
             if (!factory(assembly!, out api, out string detail) || api == null)
             {
-                return MarkCompatMissingApi(
-                    runtime,
-                    capability,
-                    detail,
-                    $"{warningPrefix}: {detail}.");
+                runtime.ReflectionFailed = true;
+                Log.LogWarning($"{warningPrefix}: {detail}.");
+                return false;
             }
 
             runtime.Api = api;
-            return SetCompatCapabilityState(ref runtime.CapabilityState, CompatCapabilityState.Available, capability);
+            return true;
         }
         catch (Exception ex)
         {
             api = null;
-            return MarkCompatReflectionFailed(runtime, capability, ex.Message, warningPrefix);
+            return MarkCompatReflectionFailed(runtime, ex.Message, warningPrefix);
         }
     }
 
@@ -58,14 +56,12 @@ public sealed partial class InventorySlotsPlugin
         assembly = null;
         if (!HasPlugin(guid))
         {
-            return SetCompatCapabilityState(ref runtime.CapabilityState, CompatCapabilityState.Unavailable, capability);
+            return false;
         }
 
         if (runtime.ReflectionFailed)
         {
-            return runtime.CapabilityState == CompatCapabilityState.MissingApi
-                ? false
-                : SetCompatCapabilityState(ref runtime.CapabilityState, CompatCapabilityState.Failed, capability);
+            return false;
         }
 
         try
@@ -75,24 +71,14 @@ public sealed partial class InventorySlotsPlugin
         }
         catch (Exception ex)
         {
-            return MarkCompatReflectionFailed(runtime, capability, ex.Message, $"{capability} compatibility disabled");
+            return MarkCompatReflectionFailed(runtime, ex.Message, $"{capability} compatibility disabled");
         }
     }
 
-    private static bool MarkCompatMissingApi<TApi>(CompatApiRuntimeState<TApi> runtime, string capability, string detail, string warning)
+    private static bool MarkCompatReflectionFailed<TApi>(CompatApiRuntimeState<TApi> runtime, string detail, string warningPrefix)
         where TApi : class
     {
         runtime.ReflectionFailed = true;
-        SetCompatCapabilityState(ref runtime.CapabilityState, CompatCapabilityState.MissingApi, capability, detail);
-        Log.LogWarning(warning);
-        return false;
-    }
-
-    private static bool MarkCompatReflectionFailed<TApi>(CompatApiRuntimeState<TApi> runtime, string capability, string detail, string warningPrefix)
-        where TApi : class
-    {
-        runtime.ReflectionFailed = true;
-        SetCompatCapabilityState(ref runtime.CapabilityState, CompatCapabilityState.Failed, capability, detail);
         Log.LogWarning($"{warningPrefix}: {detail}");
         return false;
     }

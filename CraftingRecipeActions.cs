@@ -81,7 +81,7 @@ public sealed partial class InventorySlotsPlugin
     {
         Player? player = Player.m_localPlayer;
         Recipe? recipe = gui.m_selectedRecipe.Recipe;
-        if (player == null || recipe == null || _craftingQueueRecipe == null || recipe != _craftingQueueRecipe || gui.m_selectedVariant != _craftingQueueVariant || gui.m_selectedRecipe.ItemData != null)
+        if (player == null || recipe == null || CraftingQueue.QueueRecipe == null || recipe != CraftingQueue.QueueRecipe || gui.m_selectedVariant != CraftingQueue.QueueVariant || gui.m_selectedRecipe.ItemData != null)
         {
             return false;
         }

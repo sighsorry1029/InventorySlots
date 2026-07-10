@@ -98,7 +98,6 @@ public sealed partial class InventorySlotsPlugin
         public TMP_Text? HoverTooltipText;
         public readonly ScrollableTooltipBodyState HoverTooltipTextScroll = new();
         public RectTransform? TooltipRecipeOverlay;
-        public RectTransform? TooltipExpandedPanel;
         public RectTransform? TooltipGemIconRow;
         public TMP_InputField? SearchInput;
         public RectTransform? SearchInputRect;
@@ -144,7 +143,6 @@ public sealed partial class InventorySlotsPlugin
         public CraftingSortModeButtonsStamp SortModeButtonsStamp;
         public CraftingFrameFastPathStamp FrameFastPathStamp;
         public string RecipeListChangeSignature = "";
-        public string SelectedRecipeChangeSignature = "";
     }
 
     private static class CraftingController
@@ -313,21 +311,9 @@ public sealed partial class InventorySlotsPlugin
             return true;
         }
 
-        public static bool TryStoreSelectedRecipeChangeSignature(string signature)
-        {
-            if (string.Equals(CraftingRefresh.SelectedRecipeChangeSignature, signature, StringComparison.Ordinal))
-            {
-                return false;
-            }
-
-            CraftingRefresh.SelectedRecipeChangeSignature = signature;
-            return true;
-        }
-
-        public static void ResetRecipeChangeSignatures()
+        public static void ResetRecipeListChangeSignature()
         {
             CraftingRefresh.RecipeListChangeSignature = "";
-            CraftingRefresh.SelectedRecipeChangeSignature = "";
         }
 
         public static void MarkRecipeGridLayoutDirty()
@@ -394,23 +380,14 @@ public sealed partial class InventorySlotsPlugin
     private static RectTransform? _craftingRecipeGrid { get => CraftingGrid.RecipeGrid; set => CraftingGrid.RecipeGrid = value; }
     private static RectTransform? _craftingRecipeScrollbar { get => CraftingScrollbar.RecipeScrollbar; set => CraftingScrollbar.RecipeScrollbar = value; }
     private static RectTransform? _craftingGroupRail { get => CraftingUi.GroupRail; set => CraftingUi.GroupRail = value; }
-    private static Scrollbar? _craftingRecipeScrollbarComponent { get => CraftingScrollbar.RecipeScrollbarComponent; set => CraftingScrollbar.RecipeScrollbarComponent = value; }
     private static TMP_InputField? _craftingCountInput { get => CraftingUi.CountInput; set => CraftingUi.CountInput = value; }
     private static RectTransform? _craftingCountInputRect { get => CraftingUi.CountInputRect; set => CraftingUi.CountInputRect = value; }
-    private static RectTransform? _craftingCountInputViewport { get => CraftingUi.CountInputViewport; set => CraftingUi.CountInputViewport = value; }
     private static RectTransform? _craftingUpgradeProgressionRect { get => CraftingUi.UpgradeProgressionRect; set => CraftingUi.UpgradeProgressionRect = value; }
-    private static TMP_Text? _craftingUpgradeProgressionText { get => CraftingUi.UpgradeProgressionText; set => CraftingUi.UpgradeProgressionText = value; }
     private static RectTransform? _craftingSortModeButtonGroup { get => CraftingUi.SortModeButtonGroup; set => CraftingUi.SortModeButtonGroup = value; }
     private static RectTransform? _craftingControlsBackground { get => CraftingUi.ControlsBackground; set => CraftingUi.ControlsBackground = value; }
-    private static RectTransform? _craftingSocketWarningRect { get => CraftingUi.SocketWarningRect; set => CraftingUi.SocketWarningRect = value; }
-    private static TMP_Text? _craftingSocketWarningText { get => CraftingUi.SocketWarningText; set => CraftingUi.SocketWarningText = value; }
-    private static Transform? _craftingRequiredStationLevelOriginalRoot { get => CraftingUi.RequiredStationLevelOriginalRoot; set => CraftingUi.RequiredStationLevelOriginalRoot = value; }
-    private static RectTransform? _craftingRequiredStationLevelHitbox { get => CraftingUi.RequiredStationLevelHitbox; set => CraftingUi.RequiredStationLevelHitbox = value; }
     private static RectTransformSnapshot? _craftingPanelRootSnapshot { get => CraftingUi.PanelRootSnapshot; set => CraftingUi.PanelRootSnapshot = value; }
     private static Vector2 _craftingPanelOriginalSizeDelta { get => CraftingUi.PanelOriginalSizeDelta; set => CraftingUi.PanelOriginalSizeDelta = value; }
 
-    private static bool _continuingCraftingQueue { get => CraftingQueue.ContinuingQueue; set => CraftingQueue.ContinuingQueue = value; }
-    private static bool _updatingCraftingRecipeScrollbar { get => CraftingScrollbar.UpdatingRecipeScrollbar; set => CraftingScrollbar.UpdatingRecipeScrollbar = value; }
     private static bool _craftingRedesignApplied;
     private static bool _craftingVanillaRecipeElementsHidden;
     private static bool _craftingVanillaDetailHidden;
@@ -419,11 +396,6 @@ public sealed partial class InventorySlotsPlugin
     private static bool _craftingEnglishLocalizationIndexBuilt;
 
     private static int _craftingRecipePage { get => CraftingGrid.RecipePage; set => CraftingGrid.RecipePage = value; }
-    private static int _craftingQueueTotal { get => CraftingQueue.QueueTotal; set => CraftingQueue.QueueTotal = value; }
-    private static int _craftingQueueRemaining { get => CraftingQueue.QueueRemaining; set => CraftingQueue.QueueRemaining = value; }
-    private static int _craftingQueueVariant { get => CraftingQueue.QueueVariant; set => CraftingQueue.QueueVariant = value; }
-    private static int _craftingProgressLabelCount { get => CraftingQueue.ProgressLabelCount; set => CraftingQueue.ProgressLabelCount = value; }
-    private static int _craftingProgressLabelVariant { get => CraftingQueue.ProgressLabelVariant; set => CraftingQueue.ProgressLabelVariant = value; }
     private static int _lastCraftingSelectedVariant = -1;
     private static int _craftingRecipeVariantVersion;
     private static int _craftingFavoritesVersion;
@@ -437,11 +409,9 @@ public sealed partial class InventorySlotsPlugin
     private static string _craftingGroupAvailabilitySignature = "";
     private static string _craftingGroupAvailabilityContextSignature = "";
     private static string _craftingSelectableGroupFilterIdsSignature = "";
-    private static string _craftingRecipeGridLayoutSignature { get => CraftingGrid.RecipeGridLayoutSignature; set => CraftingGrid.RecipeGridLayoutSignature = value; }
     private static string _craftingPanelExtensionSignature = "";
     private static string _pendingUpgradeFavoriteItemId = "";
     private static string _pendingUpgradeFavoritePrefab = "";
-    private static int _craftingRecipeGridCellCapacity { get => CraftingGrid.RecipeGridCellCapacity; set => CraftingGrid.RecipeGridCellCapacity = value; }
     private static int _pendingUpgradeFavoriteQuality = -1;
     private static int _pendingUpgradeFavoriteVariant = -1;
     private static int _visibleRecycleNReclaimTabFrame = -1;
@@ -449,8 +419,6 @@ public sealed partial class InventorySlotsPlugin
     private static Vector2i _pendingUpgradeFavoriteGridPos = new(-1, -1);
     private static bool _visibleRecycleNReclaimTabValue;
 
-    private static Recipe? _craftingQueueRecipe { get => CraftingQueue.QueueRecipe; set => CraftingQueue.QueueRecipe = value; }
-    private static Recipe? _craftingProgressLabelRecipe { get => CraftingQueue.ProgressLabelRecipe; set => CraftingQueue.ProgressLabelRecipe = value; }
     private static Recipe? _lastCraftingSelectedRecipe;
     private static object? _craftingGroupAvailabilityRecipeListRef;
     private static int _craftingGroupAvailabilityRecipeCount = -1;

@@ -89,19 +89,8 @@
         </Reference>
     </ItemGroup>
     <ItemGroup>
-        <Compile Include="Plugin.cs"/>
-        <Compile Include="ConfigAndUtility.cs"/>
-        <Compile Include="RuntimeModels.cs"/>
+        <Compile Include="*.cs"/>
         <Compile Include="LocalizationManager\Localizer.cs"/>
-        <Compile Include="InventoryCellKind.cs"/>
-        <Compile Include="InventoryActionCellPolicyCore.cs"/>
-        <Compile Include="ContainerActionCore.cs"/>
-        <Compile Include="Favorites.cs"/>
-        <Compile Include="Actions.cs"/>
-        <Compile Include="RestockTargetLimitCore.cs"/>
-        <Compile Include="RestockTargetLimitConfigDrawer.cs"/>
-        <Compile Include="Ui.cs"/>
-        <Compile Include="Patches.cs"/>
         <Compile Include="Properties\AssemblyInfo.cs"/>
     </ItemGroup>
     <ItemGroup>

@@ -20,7 +20,6 @@ public sealed partial class InventorySlotsPlugin
         {
             return MarkCompatReflectionFailed(
                 CompatRuntime.BetterArcheryQuiver,
-                "BetterArchery quiver",
                 ex.Message,
                 "BetterArchery quiver compatibility disabled");
         }

@@ -4,21 +4,11 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
-    private enum CompatCapabilityState
-    {
-        Unknown,
-        Unavailable,
-        Available,
-        MissingApi,
-        Failed
-    }
-
     private sealed class CompatApiRuntimeState<TApi>
         where TApi : class
     {
         public TApi? Api;
         public bool ReflectionFailed;
-        public CompatCapabilityState CapabilityState = CompatCapabilityState.Unknown;
     }
 
     private sealed class CompatRuntimeState

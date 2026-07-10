@@ -99,7 +99,6 @@ public sealed partial class InventorySlotsPlugin : BaseUnityPlugin
     private const float LightSafetyAuditInterval = 5f;
     private const float HeavySafetyAuditInterval = 30f;
     private const float HeavySafetyAuditActivityDelay = 2f;
-    private const int MaxInventoryStateAuditPasses = 3;
     private const float PendingSlotActionTimeout = 30f;
     private const float InventoryPinnedJewelcraftingReservedHeight = 190f;
     private const string ProgressiveSlotsConfigSection = "2 - Progressive Slots";

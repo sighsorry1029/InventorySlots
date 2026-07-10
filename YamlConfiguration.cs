@@ -217,10 +217,10 @@ public sealed partial class InventorySlotsPlugin
             new HashSet<string>(FermenterInputTokens, StringComparer.OrdinalIgnoreCase),
             new HashSet<string>(FermenterOutputTokens, StringComparer.OrdinalIgnoreCase),
             new HashSet<string>(FermenterFoodInputTokens, StringComparer.OrdinalIgnoreCase),
-            _stationInputTokensInitialized,
-            _cachedStationInputObjectDbItemCount,
-            _cachedStationInputPrefabCount,
-            _cachedStationInputRecipeCount);
+            InventoryDefinitions.StationInputTokensInitialized,
+            InventoryDefinitions.CachedStationInputObjectDbItemCount,
+            InventoryDefinitions.CachedStationInputPrefabCount,
+            InventoryDefinitions.CachedStationInputRecipeCount);
 
     private static void RestoreYamlApplySnapshot(YamlApplySnapshot snapshot)
     {
@@ -269,10 +269,10 @@ public sealed partial class InventorySlotsPlugin
         FermenterFoodInputTokens.Clear();
         FermenterFoodInputTokens.UnionWith(snapshot.FermenterFoodInputTokens);
 
-        _stationInputTokensInitialized = snapshot.StationInputTokensInitialized;
-        _cachedStationInputObjectDbItemCount = snapshot.CachedStationInputObjectDbItemCount;
-        _cachedStationInputPrefabCount = snapshot.CachedStationInputPrefabCount;
-        _cachedStationInputRecipeCount = snapshot.CachedStationInputRecipeCount;
+        InventoryDefinitions.StationInputTokensInitialized = snapshot.StationInputTokensInitialized;
+        InventoryDefinitions.CachedStationInputObjectDbItemCount = snapshot.CachedStationInputObjectDbItemCount;
+        InventoryDefinitions.CachedStationInputPrefabCount = snapshot.CachedStationInputPrefabCount;
+        InventoryDefinitions.CachedStationInputRecipeCount = snapshot.CachedStationInputRecipeCount;
     }
 
     private sealed class YamlApplySnapshot

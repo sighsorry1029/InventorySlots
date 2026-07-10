@@ -60,10 +60,6 @@ public sealed partial class InventorySlotsPlugin
         public Button? ContainerSortButton;
         public RectTransformSnapshot? TakeAllButtonOriginal;
         public RectTransformSnapshot? StackAllButtonOriginal;
-        public RectTransform? PlayerInventoryScrollbar;
-        public Scrollbar? PlayerInventoryScrollbarComponent;
-        public RectTransform? PlayerInventoryResizeHandle;
-        public TMP_Text? PlayerInventoryResizeHandleLabel;
         public RectTransform? TrackedContainerPanel;
         public RectTransform? TrackedContainerWeightPanel;
         public Vector3 ContainerPanelBasePosition;
@@ -73,19 +69,13 @@ public sealed partial class InventorySlotsPlugin
         public RectTransform? DraggedInventoryPanel;
         public Vector2 InventoryPanelDragStartLocalMouse;
         public Vector2 InventoryPanelDragStartOffset;
-        public bool UpdatingPlayerInventoryScrollbar;
-        public bool PlayerInventoryRowsDragging;
         public bool ContainerPanelBasePositionSet;
         public bool ContainerWeightPanelBasePositionSet;
         public bool DraggingQuickSlotsPanelOffset;
         public bool DraggingEquipmentSlotsPanelOffset;
         public Vector2 EquipmentSlotsPanelRuntimeOffset = EquipmentSlotsPanelFixedOffset;
         public Vector2 QuickSlotsPanelRuntimeOffset = QuickSlotsPanelFixedOffset;
-        public Vector3 PlayerInventoryRowsDragStartMouse;
-        public int PlayerInventoryRowsDragStartRows;
         public int LastExpandableInventoryRows = BaseRows;
-        public int PlayerInventoryScrollOffset;
-        public int PlayerInventoryMaxScroll;
         public float QuickSlotPanelIntroStartTime = -1f;
         public float QuickSlotPanelIntroDuration = QuickSlotPanelIntroFallbackDuration;
         public float QuickSlotPanelOutroStartTime = -1f;
@@ -233,37 +223,12 @@ public sealed partial class InventorySlotsPlugin
     private static HashSet<string> FermenterOutputTokens => InventoryDefinitions.FermenterOutputTokens;
     private static HashSet<string> FermenterFoodInputTokens => InventoryDefinitions.FermenterFoodInputTokens;
     private static Dictionary<string, string> ItemNameTokens => InventoryDefinitions.ItemNameTokens;
-    private static int _slotDefinitionVersion
-    {
-        get => InventoryDefinitions.SlotDefinitionVersion;
-        set => InventoryDefinitions.SlotDefinitionVersion = value;
-    }
     private static readonly string[] PlayerStatPanelExtraNames = { "Jewelcrafting Synergy", "Trash" };
     private static readonly string[] QuickStackStoreMiniButtonNames = { "sortInventoryButton", "restockAreaButton", "quickStackAreaButton", "favoritingTogglingButton" };
-    private static int _cachedStationInputObjectDbItemCount
-    {
-        get => InventoryDefinitions.CachedStationInputObjectDbItemCount;
-        set => InventoryDefinitions.CachedStationInputObjectDbItemCount = value;
-    }
-    private static int _cachedStationInputPrefabCount
-    {
-        get => InventoryDefinitions.CachedStationInputPrefabCount;
-        set => InventoryDefinitions.CachedStationInputPrefabCount = value;
-    }
-    private static int _cachedStationInputRecipeCount
-    {
-        get => InventoryDefinitions.CachedStationInputRecipeCount;
-        set => InventoryDefinitions.CachedStationInputRecipeCount = value;
-    }
     private float _nextRefreshTime;
     private float _nextLightAuditTime;
     private float _nextHeavyAuditTime;
     private static bool _yamlReloadQueued;
-    private static bool _stationInputTokensInitialized
-    {
-        get => InventoryDefinitions.StationInputTokensInitialized;
-        set => InventoryDefinitions.StationInputTokensInitialized = value;
-    }
     private static DateTime _yamlReloadAfterUtc;
     private static HashSet<Vector2i> FavoriteSlots => InventoryClient.FavoriteSlots;
 

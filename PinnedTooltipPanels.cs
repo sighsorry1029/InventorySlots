@@ -17,7 +17,6 @@ public sealed partial class InventorySlotsPlugin
 
     private const float PinnedTooltipScrollbarWidth = 3f;
     private const float PinnedTooltipScrollbarOutsideOffset = 2f;
-    private const float PinnedTooltipDebugInterval = 0.75f;
     private const float PinnedTooltipScrollSensitivity = 240f;
     private const float CraftingPinnedTooltipTextScrollPadding = 0f;
     private const float PinnedTooltipScrollOverflowThreshold = 8f;
@@ -325,9 +324,6 @@ public sealed partial class InventorySlotsPlugin
 
         return !float.IsNaN(x) && !float.IsInfinity(x);
     }
-
-    private static bool IsCraftingPinnedTooltipContext() =>
-        TooltipController.IsCraftingPinnedContext();
 
     private static float GetPinnedTooltipTopOffset() =>
         PinnedTooltipTopOffset;
@@ -683,11 +679,6 @@ public sealed partial class InventorySlotsPlugin
                 text.color = Color.white;
             }
 
-            if (repaired || ShouldLogPinnedTooltipDebug())
-            {
-                LogPinnedTooltipLayoutDebug("frame-repair", slot, panel, text);
-            }
-
             PinnedTooltipPanelUiCache? cache = panel.GetComponent<PinnedTooltipPanelUiCache>();
             if (cache == null || IsUnityNull(cache))
             {
@@ -794,7 +785,6 @@ public sealed partial class InventorySlotsPlugin
             cache.TextScrollbar.value = cache.TextScrollRect.verticalNormalizedPosition;
         }
 
-        LogPinnedTooltipLayoutDebug("wheel", slot, panel, FindPinnedTooltipText(panel), cache.TextContentHeight, cache.TextViewportHeight, true);
         return true;
     }
 
@@ -836,7 +826,6 @@ public sealed partial class InventorySlotsPlugin
         cache.TextScrollRect.verticalScrollbar = needsScroll ? cache.TextScrollbar : null;
         cache.TextScrollRect.verticalScrollbarVisibility = needsScroll ? ScrollRect.ScrollbarVisibility.Permanent : ScrollRect.ScrollbarVisibility.AutoHide;
         cache.TextScrollRect.enabled = needsScroll;
-        LogPinnedTooltipLayoutDebug("scroll-repair", System.Array.IndexOf(PinnedTooltips.Crafting.Panels, panel), panel, text, preferredHeight, viewportHeight, needsScroll);
     }
 
     private static string GetPinnedTooltipRepairSignature(RectTransform panel, TMP_Text text, PinnedTooltipPanelUiCache cache)
@@ -883,11 +872,6 @@ public sealed partial class InventorySlotsPlugin
         return float.IsNaN(height) || float.IsInfinity(height) || height < 1f
             ? 1f
             : Mathf.Max(1f, height);
-    }
-
-    private static float GetCraftingPinnedTooltipMaxTextViewportHeight(float topReserved, float bottomReserved)
-    {
-        return Mathf.Max(120f, GetPinnedTooltipPanelSize().y - topReserved - bottomReserved);
     }
 
     private static float GetPinnedTooltipMaxTextViewportHeight(RectTransform panel, float topReserved, float bottomReserved)
@@ -989,7 +973,6 @@ public sealed partial class InventorySlotsPlugin
         }
 
         cache.TextLayoutSignature = GetPinnedTooltipTextLayoutSignature(panel, text, slot, groupOffset, topReserved, bottomReserved, maxTextViewportHeight);
-        LogPinnedTooltipLayoutDebug("layout", slot, panel, text, contentHeight, availableTextHeight, needsScroll);
         return size;
     }
 
@@ -1123,106 +1106,6 @@ public sealed partial class InventorySlotsPlugin
             graphic.raycastTarget = visible;
         }
     }
-
-    private static bool ShouldLogPinnedTooltipDebug() => false;
-
-    private static void LogPinnedTooltipLayoutDebug(
-        string reason,
-        int slot,
-        RectTransform? panel,
-        TMP_Text? text,
-        float preferredHeight = -1f,
-        float availableHeight = -1f,
-        bool? needsScroll = null)
-    {
-        if (!ShouldLogPinnedTooltipDebug())
-        {
-            return;
-        }
-
-        float now = Time.unscaledTime;
-        string signature = BuildPinnedTooltipLayoutDebugSignature(reason, slot, panel, text, preferredHeight, availableHeight, needsScroll);
-        if (now < PinnedTooltips.NextDebugTime && string.Equals(signature, PinnedTooltips.LastDebugSignature, System.StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        PinnedTooltips.NextDebugTime = now + PinnedTooltipDebugInterval;
-        PinnedTooltips.LastDebugSignature = signature;
-        Log.LogInfo("PinnedTooltipDebug " + signature);
-    }
-
-    private static string BuildPinnedTooltipLayoutDebugSignature(
-        string reason,
-        int slot,
-        RectTransform? panel,
-        TMP_Text? text,
-        float preferredHeight,
-        float availableHeight,
-        bool? needsScroll)
-    {
-        InventoryGui? gui = InventoryGui.instance;
-        string tabs = gui != null
-            ? $"craftTab={SafeReadBool(() => gui.InCraftTab())} upgradeTab={SafeReadBool(() => gui.InUpradeTab())}"
-            : "craftTab=<no-gui> upgradeTab=<no-gui>";
-        PinnedTooltipPanelUiCache? cache = panel != null && !IsUnityNull(panel) ? panel.GetComponent<PinnedTooltipPanelUiCache>() : null;
-        string textState = DescribePinnedTooltipTextState(text);
-        string cacheState = DescribePinnedTooltipScrollState(cache);
-        return $"reason={reason} slot={slot} context={TooltipController.ActivePinnedContext} {tabs} preferred={preferredHeight:0.#} available={availableHeight:0.#} needsScroll={FormatNullableBool(needsScroll)} panel={DescribePinnedTooltipRect(panel)} text={textState} scroll={cacheState}";
-    }
-
-    private static string DescribePinnedTooltipTextState(TMP_Text? text)
-    {
-        if (text == null || IsUnityNull(text))
-        {
-            return "null";
-        }
-
-        RectTransform rect = text.rectTransform;
-        string value = text.text ?? "";
-        return $"{text.name}[enabled={text.enabled},activeSelf={text.gameObject.activeSelf},activeInHierarchy={text.gameObject.activeInHierarchy},alpha={text.color.a:0.###},len={value.Length},maxLines={text.maxVisibleLines},rect={rect.rect.width:0.#}x{rect.rect.height:0.#},parent={rect.parent?.name ?? "<null>"}]";
-    }
-
-    private static string DescribePinnedTooltipScrollState(PinnedTooltipPanelUiCache? cache)
-    {
-        if (cache == null || IsUnityNull(cache))
-        {
-            return "cache-null";
-        }
-
-        string scrollRect = cache.TextScrollRect != null && !IsUnityNull(cache.TextScrollRect)
-            ? $"scrollRect[enabled={cache.TextScrollRect.enabled},normalized={cache.TextScrollRect.verticalNormalizedPosition:0.###},bar={(cache.TextScrollRect.verticalScrollbar != null ? cache.TextScrollRect.verticalScrollbar.name : "<null>")}]"
-            : "scrollRect=null";
-        string scrollbar = cache.TextScrollbar != null && !IsUnityNull(cache.TextScrollbar)
-            ? $"scrollbar[enabled={cache.TextScrollbar.enabled},activeSelf={cache.TextScrollbar.gameObject.activeSelf},activeInHierarchy={cache.TextScrollbar.gameObject.activeInHierarchy},size={cache.TextScrollbar.size:0.###},value={cache.TextScrollbar.value:0.###},rect={((RectTransform)cache.TextScrollbar.transform).rect.width:0.#}x{((RectTransform)cache.TextScrollbar.transform).rect.height:0.#}]"
-            : "scrollbar=null";
-        return $"{scrollRect},{scrollbar},viewport={DescribePinnedTooltipRect(cache.TextViewport)},content={DescribePinnedTooltipRect(cache.TextContent)}";
-    }
-
-    private static string DescribePinnedTooltipRect(RectTransform? rect)
-    {
-        if (rect == null || IsUnityNull(rect))
-        {
-            return "null";
-        }
-
-        return $"{rect.name}[activeSelf={rect.gameObject.activeSelf},activeInHierarchy={rect.gameObject.activeInHierarchy},anchored={rect.anchoredPosition},sizeDelta={rect.sizeDelta},rect={rect.rect.width:0.#}x{rect.rect.height:0.#},parent={rect.parent?.name ?? "<null>"}]";
-    }
-
-    private static string SafeReadBool(System.Func<bool> read)
-    {
-        try
-        {
-            return read() ? "true" : "false";
-        }
-        catch
-        {
-            return "<error>";
-        }
-    }
-
-    private static string FormatNullableBool(bool? value) =>
-        value.HasValue ? (value.Value ? "true" : "false") : "<unknown>";
 
     private static void ConfigurePinnedTooltipPanelBackground(RectTransform panel)
     {

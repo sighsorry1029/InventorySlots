@@ -399,7 +399,7 @@ public sealed partial class InventorySlotsPlugin
             hash = hash * 31 + (inventory?.GetWidth() ?? 0);
             hash = hash * 31 + (inventory?.GetHeight() ?? 0);
             hash = hash * 31 + GetUsableRegularRows(player);
-            hash = hash * 31 + _slotDefinitionVersion;
+            hash = hash * 31 + InventoryDefinitions.SlotDefinitionVersion;
             hash = hash * 31 + GetKnownMaterialHash(player);
             hash = hash * 31 + (inventory?.m_inventory?.Count ?? 0);
             return hash;

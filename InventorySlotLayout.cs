@@ -10,43 +10,145 @@ public sealed partial class InventorySlotsPlugin
     private static string QuickSlotProgressionCachePlayerId = "";
     private static int QuickSlotProgressionCachedRows;
 
+    private static Vector3 GetSidePanelBasePosition(Vector3 origin, int inventoryWidth, float elementSpace)
+    {
+        return origin + new Vector3((inventoryWidth + SidePanelGapColumns) * elementSpace, 0f, 0f);
+    }
+
     internal static bool TryGetSlotAtGridPos(Inventory inventory, Vector2i pos, out SlotDefinition? slot)
     {
-        return InventoryDefinitionController.TryGetSlotAtGridPos(InventoryDefinitions, inventory, pos, GetFixedRegularRows(), out slot);
+        slot = null;
+        int width = inventory.GetWidth();
+        int fixedRegularRows = GetFixedRegularRows();
+        if (pos.y < fixedRegularRows)
+        {
+            return false;
+        }
+
+        int index = (pos.y - fixedRegularRows) * width + pos.x;
+        if (index < 0 || index >= SlotDefinitions.Count)
+        {
+            return false;
+        }
+
+        slot = SlotDefinitions[index];
+        return true;
     }
 
     internal static bool TryGetSlotById(string id, out SlotDefinition? slot)
     {
-        return InventoryDefinitionController.TryGetSlotById(InventoryDefinitions, id, out slot);
+        slot = null;
+        for (int i = 0; i < SlotDefinitions.Count; i++)
+        {
+            SlotDefinition candidate = SlotDefinitions[i];
+            if (string.Equals(candidate.Id, id, StringComparison.Ordinal))
+            {
+                slot = candidate;
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static List<SlotDefinition> GetCustomPanelSlots(Player? player = null, Inventory? inventory = null)
     {
         if (!IsEquipmentSlotProgressionEnabled() || player == null)
         {
-            return InventoryDefinitionController.GetCustomPanelSlots(InventoryDefinitions);
+            return GetCachedCustomPanelSlots();
         }
 
         string signature = GetVisibleEquipmentSlotUnlockSignature(player, inventory);
-        return InventoryDefinitionController.GetVisibleCustomPanelSlots(
-            InventoryDefinitions,
-            signature,
-            slot => IsEquipmentSlotUnlocked(player, inventory, slot));
+        if (InventoryDefinitions.VisibleCustomPanelSlotCacheVersion == InventoryDefinitions.SlotDefinitionVersion &&
+            string.Equals(InventoryDefinitions.VisibleCustomPanelSlotCacheSignature, signature, StringComparison.Ordinal))
+        {
+            return InventoryDefinitions.VisibleCustomPanelSlotCache;
+        }
+
+        InventoryDefinitions.VisibleCustomPanelSlotCache.Clear();
+        foreach (SlotDefinition slot in GetCachedCustomPanelSlots())
+        {
+            if (IsEquipmentSlotUnlocked(player, inventory, slot))
+            {
+                InventoryDefinitions.VisibleCustomPanelSlotCache.Add(slot);
+            }
+        }
+
+        InventoryDefinitions.VisibleCustomPanelSlotCacheVersion = InventoryDefinitions.SlotDefinitionVersion;
+        InventoryDefinitions.VisibleCustomPanelSlotCacheSignature = signature;
+        return InventoryDefinitions.VisibleCustomPanelSlotCache;
     }
 
     private static List<SlotDefinition> GetQuickPanelSlots(Player? player = null)
     {
-        return InventoryDefinitionController.GetQuickPanelSlots(InventoryDefinitions, GetUnlockedQuickSlotCount(player));
+        int unlockedCount = GetUnlockedQuickSlotCount(player);
+        if (InventoryDefinitions.QuickPanelSlotCacheVersion == InventoryDefinitions.SlotDefinitionVersion &&
+            InventoryDefinitions.QuickPanelSlotCacheUnlockedCount == unlockedCount)
+        {
+            return InventoryDefinitions.QuickPanelSlotCache;
+        }
+
+        InventoryDefinitions.QuickPanelSlotCache.Clear();
+        for (int i = 0; i < SlotDefinitions.Count; i++)
+        {
+            SlotDefinition slot = SlotDefinitions[i];
+            if (slot.Kind == SlotKind.Quick && slot.QuickSlotIndex >= 0 && slot.QuickSlotIndex < unlockedCount)
+            {
+                InventoryDefinitions.QuickPanelSlotCache.Add(slot);
+            }
+        }
+
+        InventoryDefinitions.QuickPanelSlotCacheVersion = InventoryDefinitions.SlotDefinitionVersion;
+        InventoryDefinitions.QuickPanelSlotCacheUnlockedCount = unlockedCount;
+        return InventoryDefinitions.QuickPanelSlotCache;
     }
 
     private static bool TryGetQuickSlotDefinition(int quickSlotIndex, out SlotDefinition? slot)
     {
-        return InventoryDefinitionController.TryGetQuickSlotDefinition(InventoryDefinitions, quickSlotIndex, out slot);
+        if (InventoryDefinitions.QuickSlotDefinitionCacheVersion != InventoryDefinitions.SlotDefinitionVersion)
+        {
+            InventoryDefinitions.QuickSlotDefinitionCache.Clear();
+            for (int i = 0; i < SlotDefinitions.Count; i++)
+            {
+                SlotDefinition candidate = SlotDefinitions[i];
+                if (candidate.Kind == SlotKind.Quick && candidate.QuickSlotIndex >= 0)
+                {
+                    InventoryDefinitions.QuickSlotDefinitionCache[candidate.QuickSlotIndex] = candidate;
+                }
+            }
+
+            InventoryDefinitions.QuickSlotDefinitionCacheVersion = InventoryDefinitions.SlotDefinitionVersion;
+        }
+
+        return InventoryDefinitions.QuickSlotDefinitionCache.TryGetValue(quickSlotIndex, out slot);
     }
 
     private static Vector2i GetSlotGridPos(Inventory inventory, SlotDefinition slot)
     {
-        return InventoryDefinitionController.GetSlotGridPos(InventoryDefinitions, inventory, slot, GetFixedRegularRows());
+        int index = SlotDefinitions.IndexOf(slot);
+        int width = inventory.GetWidth();
+        return new Vector2i(index % width, GetFixedRegularRows() + index / width);
+    }
+
+    private static List<SlotDefinition> GetCachedCustomPanelSlots()
+    {
+        if (InventoryDefinitions.CustomPanelSlotCacheVersion == InventoryDefinitions.SlotDefinitionVersion)
+        {
+            return InventoryDefinitions.CustomPanelSlotCache;
+        }
+
+        InventoryDefinitions.CustomPanelSlotCache.Clear();
+        for (int i = 0; i < SlotDefinitions.Count; i++)
+        {
+            SlotDefinition slot = SlotDefinitions[i];
+            if (slot.Kind != SlotKind.Quick)
+            {
+                InventoryDefinitions.CustomPanelSlotCache.Add(slot);
+            }
+        }
+
+        InventoryDefinitions.CustomPanelSlotCacheVersion = InventoryDefinitions.SlotDefinitionVersion;
+        return InventoryDefinitions.CustomPanelSlotCache;
     }
 
     internal static bool IsLockedRowCell(Player player, Vector2i pos)
@@ -69,11 +171,6 @@ public sealed partial class InventorySlotsPlugin
         return pos.x < 0 || pos.x >= inventory.GetWidth() || pos.y < 0 || pos.y >= inventory.GetHeight();
     }
 
-    private static int GetFullHeight()
-    {
-        return GetFullHeightForWidth(InventoryWidth);
-    }
-
     internal static int GetInventoryFullHeight(int width)
     {
         return GetFullHeightForWidth(width);
@@ -91,7 +188,9 @@ public sealed partial class InventorySlotsPlugin
 
     private static int GetSlotTailRows(int width)
     {
-        return InventoryDefinitionController.GetSlotTailRows(InventoryDefinitions, width);
+        return SlotDefinitions.Count == 0
+            ? 0
+            : Mathf.CeilToInt(SlotDefinitions.Count / (float)Mathf.Max(1, width));
     }
 
     private static int GetUsableRegularRows(Player player)
@@ -284,19 +383,19 @@ public sealed partial class InventorySlotsPlugin
 
         InventoryDefinitions.EquipmentSlotUnlockCache.Clear();
         InventoryDefinitions.EquipmentSlotUnlockCacheSignature = signature;
-        InventoryDefinitionController.InvalidateVisibleCustomPanelSlots(InventoryDefinitions);
+        InvalidateVisibleCustomPanelSlots();
     }
 
     private static string GetVisibleEquipmentSlotUnlockSignature(Player player, Inventory? inventory)
     {
         int objectDbCount = ObjectDB.instance?.m_items?.Count ?? -1;
-        return $"{GetPlayerId(player)}|{_slotDefinitionVersion}|{objectDbCount}|{GetKnownMaterialHash(player)}|{GetAcceptedEquipmentInventoryHash(inventory)}";
+        return $"{GetPlayerId(player)}|{InventoryDefinitions.SlotDefinitionVersion}|{objectDbCount}|{GetKnownMaterialHash(player)}|{GetAcceptedEquipmentInventoryHash(inventory)}";
     }
 
     private static string GetEquipmentSlotUnlockCacheSignature(Player player)
     {
         int objectDbCount = ObjectDB.instance?.m_items?.Count ?? -1;
-        return $"{GetPlayerId(player)}|{_slotDefinitionVersion}|{objectDbCount}|{GetKnownMaterialHash(player)}";
+        return $"{GetPlayerId(player)}|{InventoryDefinitions.SlotDefinitionVersion}|{objectDbCount}|{GetKnownMaterialHash(player)}";
     }
 
     private static int GetKnownMaterialHash(Player player)
@@ -401,7 +500,25 @@ public sealed partial class InventorySlotsPlugin
 
     private static void InvalidateSlotDefinitionCaches()
     {
-        InventoryDefinitionController.InvalidateCaches(InventoryDefinitions);
+        unchecked
+        {
+            InventoryDefinitions.SlotDefinitionVersion++;
+        }
+
+        InventoryDefinitions.CustomPanelSlotCacheVersion = -1;
+        InventoryDefinitions.QuickPanelSlotCacheVersion = -1;
+        InventoryDefinitions.QuickPanelSlotCacheUnlockedCount = -1;
+        InventoryDefinitions.QuickSlotDefinitionCacheVersion = -1;
+        InventoryDefinitions.CustomPanelSlotCache.Clear();
+        InventoryDefinitions.QuickPanelSlotCache.Clear();
+        InventoryDefinitions.QuickSlotDefinitionCache.Clear();
+        InvalidateVisibleCustomPanelSlots();
+    }
+
+    private static void InvalidateVisibleCustomPanelSlots()
+    {
+        InventoryDefinitions.VisibleCustomPanelSlotCacheVersion = -1;
+        InventoryDefinitions.VisibleCustomPanelSlotCacheSignature = "";
     }
 
     private static bool IsRowUnlocked(Player player, string configuredItems)

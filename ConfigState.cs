@@ -9,7 +9,8 @@ public sealed partial class InventorySlotsPlugin
     {
         DisplayName = ModName,
         CurrentVersion = ModVersion,
-        MinimumRequiredVersion = ModVersion
+        MinimumRequiredVersion = ModVersion,
+        ModRequired = true
     };
 
     private static ConfigEntry<Toggle> _serverConfigLocked = null!;

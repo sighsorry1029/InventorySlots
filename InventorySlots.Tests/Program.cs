@@ -73,11 +73,13 @@ TestRunner.Run(
     ("Tooltip source cache trims oldest entries", Tests.TooltipSourceCacheTrimsOldestEntries),
     ("Container transfer sums moved amounts and callbacks", Tests.ContainerTransferSumsMovedAmountsAndCallbacks),
     ("Container transfer stays quiet when nothing moves", Tests.ContainerTransferStaysQuietWhenNothingMoves),
+    ("InventoryActions container transfer core copy mirrors InventorySlots behavior", Tests.InventoryActionsContainerTransferCoreCopyMirrorsInventorySlotsBehavior),
     ("InventoryActions container action core copy mirrors InventorySlots behavior", Tests.InventoryActionsContainerActionCoreCopyMirrorsInventorySlotsBehavior),
     ("Restock target limits parse config entries", Tests.RestockTargetLimitsParseConfigEntries),
     ("Restock target limit resolves aliases and clamps to max stack", Tests.RestockTargetLimitResolvesAliasesAndClampsToMaxStack),
     ("Restock target limit resolves localized item names", Tests.RestockTargetLimitResolvesLocalizedItemNames),
-    ("InventoryActions restock target limit copy mirrors InventorySlots behavior", Tests.InventoryActionsRestockTargetLimitCopyMirrorsInventorySlotsBehavior));
+    ("InventoryActions restock target limit copy mirrors InventorySlots behavior", Tests.InventoryActionsRestockTargetLimitCopyMirrorsInventorySlotsBehavior),
+    ("Intentional InventoryActions source copies stay synchronized", Tests.IntentionalInventoryActionsSourceCopiesStaySynchronized));
 
 internal static class Tests
 {
@@ -356,26 +358,32 @@ internal static class Tests
 
     public static void CraftingViewFavoritesSortBeforeCraftable()
     {
-        int comparison = CraftingRecipeViewCore.CompareFavoritesOnly(
+        int comparison = CraftingRecipeViewCore.CompareWithSortKey(
             aIsFavorite: false,
             bIsFavorite: true,
             aCanCraft: true,
             bCanCraft: false,
+            aSortKey: Key(),
+            bSortKey: Key(),
             aOriginalIndex: 0,
-            bOriginalIndex: 1);
+            bOriginalIndex: 1,
+            mode: CraftingRecipeSortMode.GroupThenTier);
 
         Assert.GreaterThan(0, comparison);
     }
 
     public static void CraftingViewCraftableSortBeforeOriginalOrder()
     {
-        int comparison = CraftingRecipeViewCore.CompareFavoritesOnly(
+        int comparison = CraftingRecipeViewCore.CompareWithSortKey(
             aIsFavorite: false,
             bIsFavorite: false,
             aCanCraft: false,
             bCanCraft: true,
+            aSortKey: Key(),
+            bSortKey: Key(),
             aOriginalIndex: 0,
-            bOriginalIndex: 9);
+            bOriginalIndex: 9,
+            mode: CraftingRecipeSortMode.GroupThenTier);
 
         Assert.GreaterThan(0, comparison);
     }
@@ -1155,6 +1163,39 @@ internal static class Tests
         Assert.Equal(0, anyMovedCount);
     }
 
+    public static void InventoryActionsContainerTransferCoreCopyMirrorsInventorySlotsBehavior()
+    {
+        FakeTransferContainer?[] containers =
+        {
+            new("anchor", valid: true, moved: 2),
+            null,
+            new("invalid", valid: false, moved: 7),
+            new("empty", valid: true, moved: 0),
+            new("nearby", valid: true, moved: 3)
+        };
+        List<string> slotsChanged = new();
+        List<string> actionsChanged = new();
+        int slotsAnyMoved = 0;
+        int actionsAnyMoved = 0;
+
+        int slotsMoved = ContainerTransferCore.Run(
+            containers,
+            container => container.Valid,
+            container => container.Moved,
+            (container, amount) => slotsChanged.Add($"{container.Name}:{amount}"),
+            () => slotsAnyMoved++);
+        int actionsMoved = InventoryActions.ContainerTransferCore.Run(
+            containers,
+            container => container.Valid,
+            container => container.Moved,
+            (container, amount) => actionsChanged.Add($"{container.Name}:{amount}"),
+            () => actionsAnyMoved++);
+
+        Assert.Equal(slotsMoved, actionsMoved);
+        Assert.Equal(string.Join(",", slotsChanged), string.Join(",", actionsChanged));
+        Assert.Equal(slotsAnyMoved, actionsAnyMoved);
+    }
+
     public static void InventoryActionsContainerActionCoreCopyMirrorsInventorySlotsBehavior()
     {
         (int Before, int After, int Requested, bool MoveSucceeded, bool UseFallback)[] movedCases =
@@ -1262,6 +1303,56 @@ internal static class Tests
             InventoryActions.RestockTargetLimitCore.StripLocalizationToken("$item_resin"));
     }
 
+    public static void IntentionalInventoryActionsSourceCopiesStaySynchronized()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        (string Main, string Copy)[] copiedSources =
+        {
+            ("InventoryCellKind.cs", "InventoryActions/InventoryCellKind.cs"),
+            ("InventoryActionCellPolicyCore.cs", "InventoryActions/InventoryActionCellPolicyCore.cs"),
+            ("ContainerActionCore.cs", "InventoryActions/ContainerActionCore.cs"),
+            ("ContainerTransferCore.cs", "InventoryActions/ContainerTransferCore.cs"),
+            ("RestockTargetLimitConfigDrawer.cs", "InventoryActions/RestockTargetLimitConfigDrawer.cs")
+        };
+
+        foreach ((string main, string copy) in copiedSources)
+        {
+            string mainSource = NormalizeCopiedSource(Path.Combine(repositoryRoot, main));
+            string copySource = NormalizeCopiedSource(Path.Combine(repositoryRoot, copy));
+            if (!string.Equals(mainSource, copySource, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException($"InventoryActions source copy '{copy}' has drifted from '{main}'.");
+            }
+        }
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        foreach (string startPath in new[] { Directory.GetCurrentDirectory(), AppContext.BaseDirectory })
+        {
+            DirectoryInfo? directory = new(startPath);
+            while (directory != null)
+            {
+                if (File.Exists(Path.Combine(directory.FullName, "InventorySlots.csproj")) &&
+                    Directory.Exists(Path.Combine(directory.FullName, "InventoryActions")))
+                {
+                    return directory.FullName;
+                }
+
+                directory = directory.Parent;
+            }
+        }
+
+        throw new InvalidOperationException("Could not locate the InventorySlots repository root.");
+    }
+
+    private static string NormalizeCopiedSource(string path) =>
+        File.ReadAllText(path)
+            .Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Replace("namespace InventoryActions;", "namespace InventorySlots;", StringComparison.Ordinal)
+            .Replace("InventoryActionsPlugin", "InventorySlotsPlugin", StringComparison.Ordinal)
+            .TrimEnd();
+
     private static string SerializeLimits(Dictionary<string, int> limits) =>
         string.Join(",", limits.OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase).Select(pair => $"{pair.Key}:{pair.Value}"));
 
@@ -1270,20 +1361,13 @@ internal static class Tests
             guiId: 1,
             craftingPanelId: 2,
             gridId: 3,
-            adapterKind,
-            craftTabState: "true",
-            upgradeTabState: "false",
-            recipeViewSignature: "view",
-            selectedIndex: 4,
+            recipeViewSignature: $"view|adapter={adapterKind}",
             recipePage: 1,
             gridDimension: 4,
             availabilityVersion: 7,
             hasNoCraftCost: false,
             pinnedTooltipGridSignature: "pin",
             recipeVariantVersion: 8,
-            favoritesVersion: 9,
-            selectedGroupId: "food",
-            searchQuery: "jam",
             hoveredRecipeIndex: 2,
             screenWidth: 1920,
             screenHeight: 1080);

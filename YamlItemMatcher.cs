@@ -57,32 +57,6 @@ public sealed partial class InventorySlotsPlugin
         ItemNameTokens[clean] = sharedName;
     }
 
-    private static bool ItemMatchesAnyToken(ItemData? item, HashSet<string> tokens)
-    {
-        if (item?.m_shared == null)
-        {
-            return false;
-        }
-
-        foreach (string token in tokens)
-        {
-            if (TryGetPredefinedGroupToken(token, out string groupId) && ItemMatchesPredefinedGroup(item, groupId))
-            {
-                return true;
-            }
-        }
-
-        foreach (string token in tokens)
-        {
-            if (ItemMatchesExactPrefabOrName(item, token))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     private static bool ItemMatchesSlotItems(ItemData? item, IEnumerable<string> items)
     {
         if (item?.m_shared == null)
@@ -96,31 +70,6 @@ public sealed partial class InventorySlotsPlugin
             {
                 return true;
             }
-        }
-
-        return false;
-    }
-
-    private static bool TryGetPredefinedGroupToken(string token, out string groupId)
-    {
-        groupId = "";
-        if (string.IsNullOrWhiteSpace(token))
-        {
-            return false;
-        }
-
-        string trimmed = token.Trim();
-        if (trimmed.StartsWith("@", StringComparison.Ordinal))
-        {
-            groupId = NormalizeGroupId(trimmed.Substring(1));
-            return !string.IsNullOrWhiteSpace(groupId);
-        }
-
-        const string prefix = "group:";
-        if (trimmed.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-        {
-            groupId = NormalizeGroupId(trimmed.Substring(prefix.Length));
-            return !string.IsNullOrWhiteSpace(groupId);
         }
 
         return false;
@@ -356,9 +305,6 @@ public sealed partial class InventorySlotsPlugin
         string localizedName = Localization.instance != null ? Localization.instance.Localize(sharedName) : sharedName;
         return PatternMatches(sharedName, pattern) || PatternMatches(localizedName, pattern);
     }
-
-    private static bool ItemMatchesAnyPattern(ItemData item, IEnumerable<string> patterns) =>
-        patterns.Any(pattern => ItemMatchesPrefabPattern(item, pattern) || ItemMatchesNamePattern(item, pattern));
 
     private static bool PatternMatches(string value, string pattern)
     {
