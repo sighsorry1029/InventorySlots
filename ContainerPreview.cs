@@ -69,7 +69,7 @@ public sealed partial class InventorySlotsPlugin
                !IsUnityNull(gui) &&
                gui == InventoryGui.instance &&
                !_containerPreviewRealGuiVisible &&
-               (_containerPreviewActive || _containerPreviewFrameOwned);
+               (_containerPreviewActive || _containerPreviewFrameOwned || _containerPreviewUiCaptured);
     }
 
     private static ContainerPreviewPhase GetContainerPreviewPhase()
@@ -356,8 +356,9 @@ public sealed partial class InventorySlotsPlugin
             gui.m_animator.SetBool("visible", false);
         }
 
-        bool keepContainerPanel = keepRealGuiVisible && gui.m_currentContainer != null;
-        if (!keepContainerPanel && gui.m_container != null)
+        // Let the vanilla animator finish normal preview closes. When the real
+        // inventory opens without a container, its container panel must be hidden immediately.
+        if (keepRealGuiVisible && gui.m_currentContainer == null && gui.m_container != null)
         {
             gui.m_container.gameObject.SetActive(false);
         }
