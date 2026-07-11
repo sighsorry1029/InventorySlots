@@ -54,6 +54,8 @@ Inventory/container and crafting hover tooltip background opacity are configurab
 
 ### Container Tools
 
+Looking at an accessible container can show its contents in a read-only container panel without opening or claiming the container. The preview keeps the last valid grid during its configurable close delay and supports controller-active UI safely. Set the delay to `0` to disable the preview.
+
 ![](https://i.ibb.co/xtpGM34P/quickstackchest.png) <br>
 Hovering a container shows hold actions for area quick stack and area restock. Area ranges are centered on the interacted container.
 
@@ -371,7 +373,7 @@ KeepOnDeath:
 
 - `1 - General`: server lock, death keep rules, trash panel, area quick stack, area take stacks.
 - `2 - Progressive Slots`: extra rows, quick slot count, quick slot progression.
-- `3 - Client`: inventory display, sort modes, crafting grid, container hover behavior, container FX, mouse UI scroll.
+- `3 - Client`: inventory display, sort modes, crafting grid, container preview and hover behavior, container FX, mouse UI scroll.
 - `4 - Client UI`: hints and tooltip display options.
 - `5 - Client Keys`: keyboard and mouse shortcuts.
 - `6 - Restock`: favorite restock target limits.
@@ -400,8 +402,10 @@ Soft compatibility and adaptive behavior include:
 - EpicLoot: item tooltip content is preserved while InventorySlots-owned tooltip layouts stay isolated.
 - TooltipExpansion: InventorySlots-owned tooltips avoid vanilla tooltip scrollbar/layout interference.
 - VNEI: crafting and upgrade recipe icons expose item tooltip data for VNEI recipe lookup.
+- ContentsWithin: the integrated preview disables itself when the standalone plugin is present to prevent duplicate GUI ownership.
 
 ## Github
 
 Quick stack, restock, and inventory favorite behavior were originally informed by [QuickStackStore](https://github.com/Goldenrevolver/QuickStackStore). <br>
+The container preview is adapted from Redseiko's ContentsWithin and MSchmoecker's [GPL-3.0 fork](https://github.com/MSchmoecker/ComfyMods/tree/fork-upload/ContentsWithin), with a read-only lifecycle and grid-safety rewrite for InventorySlots. <br>
 https://github.com/sighsorry1029/InventorySlots

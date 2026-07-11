@@ -21,6 +21,7 @@ public sealed partial class InventorySlotsPlugin
     private const string MyLittleUIGuid = "shudnal.MyLittleUI";
     private const string RecycleNReclaimGuid = "Azumatt.Recycle_N_Reclaim";
     private const string VeiledRecipesGuid = "sighsorry.VeiledRecipes";
+    private const string ContentsWithinGuid = "com.maxsch.valheim.contentswithin";
 
     private static bool HasServerCharactersActive => !ZNet.IsSinglePlayer && HasPlugin(ServerCharactersGuid);
     private static bool HasMultiUserChestActive => HasPlugin(MultiUserChestGuid);

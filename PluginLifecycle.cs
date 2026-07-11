@@ -111,6 +111,7 @@ public sealed partial class InventorySlotsPlugin
 
     private void OnDestroy()
     {
+        ShutdownContainerPreview();
         LocalizationManager.Localizer.OnLocalizationComplete -= HandleLocalizationComplete;
         StopYamlWatcher();
         Config.Save();

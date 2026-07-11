@@ -340,6 +340,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void OnInventoryGuiShow()
     {
+        OnRealInventoryGuiShown();
         StartQuickSlotPanelIntroAnimation();
         Player? player = Player.m_localPlayer;
         if (player != null && !player.m_isLoading)
@@ -350,6 +351,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void OnInventoryGuiHide()
     {
+        OnInventoryGuiHidden();
         StartQuickSlotPanelOutroAnimation();
         PrunePendingSlotActions();
         RestoreContainerUiState();

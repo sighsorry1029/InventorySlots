@@ -25,9 +25,32 @@ internal static class InventoryGuiDragSlotItemOutPatch
 {
     private static bool Prefix(InventoryGui __instance, InventoryGrid grid, Vector2i pos, InventoryGrid.Modifier mod)
     {
+        if (InventorySlotsPlugin.ShouldBlockContainerPreviewInteraction(__instance))
+        {
+            return false;
+        }
+
         InventorySlotsPlugin.TryPinInventoryItemTooltipFromSelection(__instance, grid, pos, mod);
         return !InventorySlotsPlugin.TryHandleRegularItemDragIntoEquipmentSlot(__instance, grid, pos, mod) &&
                !InventorySlotsPlugin.TryHandleSlotItemDragOut(__instance, grid, pos, mod);
+    }
+}
+
+[HarmonyPatch(typeof(InventoryGui), "OnRightClickItem")]
+internal static class InventoryGuiContainerPreviewRightClickPatch
+{
+    private static bool Prefix(InventoryGui __instance)
+    {
+        return !InventorySlotsPlugin.ShouldBlockContainerPreviewInteraction(__instance);
+    }
+}
+
+[HarmonyPatch(typeof(InventoryGui), "SetupDragItem")]
+internal static class InventoryGuiContainerPreviewDragPatch
+{
+    private static bool Prefix(InventoryGui __instance)
+    {
+        return !InventorySlotsPlugin.ShouldBlockContainerPreviewInteraction(__instance);
     }
 }
 

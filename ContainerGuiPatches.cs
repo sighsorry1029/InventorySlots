@@ -7,7 +7,8 @@ internal static class InventoryGuiSafeTakeAllPatch
 {
     private static bool Prefix(InventoryGui __instance)
     {
-        return !InventorySlotsPlugin.TryHandleSafeTakeAll(__instance);
+        return !InventorySlotsPlugin.ShouldBlockContainerPreviewInteraction(__instance) &&
+               !InventorySlotsPlugin.TryHandleSafeTakeAll(__instance);
     }
 }
 
@@ -16,13 +17,19 @@ internal static class InventoryGuiPlaceStacksPatch
 {
     private static bool Prefix(InventoryGui __instance)
     {
-        return !InventorySlotsPlugin.TryHandleVanillaPlaceStacks(__instance);
+        return !InventorySlotsPlugin.ShouldBlockContainerPreviewInteraction(__instance) &&
+               !InventorySlotsPlugin.TryHandleVanillaPlaceStacks(__instance);
     }
 }
 
 [HarmonyPatch(typeof(InventoryGui), "Show")]
 internal static class InventoryGuiShowValidateInventoryPatch
 {
+    private static void Prefix()
+    {
+        InventorySlotsPlugin.BeforeRealInventoryGuiShown();
+    }
+
     private static void Postfix()
     {
         InventorySlotsPlugin.OnInventoryGuiShow();

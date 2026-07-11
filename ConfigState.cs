@@ -60,6 +60,7 @@ public sealed partial class InventorySlotsPlugin
     private static ConfigEntry<ControllerHotkeyAction> _controllerHotbarSwitchButton = null!;
     private static ConfigEntry<ControllerHotkeyAction> _controllerContainerRestockButton = null!;
     private static ConfigEntry<ControllerHotkeyAction>[] _controllerQuickSlotButtons = null!;
+    private static ConfigEntry<float> _containerPreviewCloseDelay = null!;
     private static ConfigEntry<KeyboardShortcut> _favoriteModifierKey = null!;
     private static ConfigEntry<KeyboardShortcut>[] _quickSlotHotkeys = null!;
     private static ConfigEntry<string>[] _quickSlotHotkeyDisplayTexts = null!;
