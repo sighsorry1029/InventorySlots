@@ -758,7 +758,7 @@ public sealed partial class InventorySlotsPlugin
         rect.anchorMin = Vector2.one;
         rect.anchorMax = Vector2.one;
         rect.pivot = Vector2.one;
-        rect.anchoredPosition = new Vector2(-inset, -inset);
+        rect.anchoredPosition = new Vector2(inset, -inset);
         rect.sizeDelta = new Vector2(size, size);
         rect.localScale = Vector3.one;
         rect.localRotation = Quaternion.identity;
