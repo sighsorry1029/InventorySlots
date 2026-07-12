@@ -655,7 +655,7 @@ public sealed partial class InventorySlotsPlugin
         return item.m_shared.m_appendToolTip?.m_itemData?.m_shared ?? item.m_shared;
     }
 
-    private static bool TryGetDominantFoodStat(ItemData item, out FoodStat stat)
+    internal static bool TryGetDominantFoodStat(ItemData item, out FoodStat stat)
     {
         return FoodStatCore.TryGetDominant(GetFoodHealth(item), GetFoodStamina(item), GetFoodEitr(item), out stat);
     }

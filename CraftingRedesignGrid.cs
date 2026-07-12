@@ -161,11 +161,16 @@ public sealed partial class InventorySlotsPlugin
         CreateCleanCraftingOverlay("queued", go.transform, new Color(1f, 0.68f, 0.18f, 0.28f), active: false);
         CreateCleanCraftingOverlay("selected", go.transform, new Color(0.42f, 0.68f, 0.92f, 0f), active: true);
         CreateCleanCraftingOverlay("noteleport", go.transform, new Color(0.9f, 0.2f, 0.2f, 0.45f), active: false);
-        CreateCleanCraftingOverlay("foodicon", go.transform, new Color(0.2f, 0.85f, 0.35f, 0.35f), active: false);
         CreateCleanCraftingOverlay("durability", go.transform, new Color(0.08f, 0.02f, 0.02f, 0.55f), active: false);
 
         RectTransform icon = CreateTopLeftImageChild("icon", go.transform, Color.white, active: true);
         icon.GetComponent<Image>().raycastTarget = false;
+
+        RectTransform foodIcon = CreateTopLeftImageChild("foodicon", go.transform, Color.white, active: false);
+        Image foodImage = foodIcon.GetComponent<Image>();
+        foodImage.sprite = null;
+        foodImage.preserveAspect = true;
+        foodImage.raycastTarget = false;
 
         CreateTextRect("amount", go.transform);
 

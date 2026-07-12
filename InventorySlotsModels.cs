@@ -341,7 +341,7 @@ internal sealed class CraftingRecipeGridCell
         Equipped = go.transform.Find("equiped")?.gameObject;
         Queued = go.transform.Find("queued")?.gameObject;
         NoTeleport = go.transform.Find("noteleport")?.gameObject;
-        Food = go.transform.Find("foodicon")?.gameObject;
+        Food = go.transform.Find("foodicon")?.GetComponent<Image>();
         Durability = go.transform.Find("durability")?.gameObject;
         Tooltip = go.GetComponent<UITooltip>() ?? go.AddComponent<UITooltip>();
         Input = go.GetComponent<UIInputHandler>() ?? go.AddComponent<UIInputHandler>();
@@ -360,7 +360,7 @@ internal sealed class CraftingRecipeGridCell
     public GameObject? Equipped { get; }
     public GameObject? Queued { get; }
     public GameObject? NoTeleport { get; }
-    public GameObject? Food { get; }
+    public Image? Food { get; }
     public GameObject? Durability { get; }
     public UITooltip Tooltip { get; }
     public UIInputHandler Input { get; }

@@ -394,6 +394,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         ConfigureCraftingRecipeCellIcon(cell.Icon, pair, cellSize);
+        ConfigureCraftingRecipeFoodIcon(gui, cell.Food, pair, cellSize);
         ConfigureCraftingRecipeCellAmountText(cell.Amount, GetCraftingRecipeCellAmountText(gui, pair), cellSize);
         ConfigureCraftingRecipeCellQualityText(cell.Quality, !IsVeiledRecipeMasked(pair) && pair.ItemData != null ? pair.ItemData.m_quality.ToString() : "", cellSize);
         ConfigureCraftingRecipeStyleButton(gui, cell, pair, index, cellSize);
@@ -401,7 +402,6 @@ public sealed partial class InventorySlotsPlugin
         SetCraftingRecipeCellChild(cell.Equipped, false);
         SetCraftingRecipeCellChild(cell.Queued, false);
         SetCraftingRecipeCellChild(cell.NoTeleport, false);
-        SetCraftingRecipeCellChild(cell.Food, false);
         SetCraftingRecipeCellChild(cell.Durability, false);
         SetCraftingRecipeFavoriteBorder(cell, IsFavoriteCraftingRecipe(pair), IsUpgradeFavoritePair(pair));
         SetCraftingRecipeSelectedBorder(cell, false);
@@ -669,7 +669,7 @@ public sealed partial class InventorySlotsPlugin
                 !name.Contains("background") &&
                 !name.Contains("border") &&
                 !name.Contains("frame") &&
-                name is not ("selected" or "equiped" or "queued" or "noteleport" or "foodicon" or "durability"))
+                name is not ("selected" or "equiped" or "queued" or "noteleport" or "durability"))
             {
                 continue;
             }
@@ -716,6 +716,78 @@ public sealed partial class InventorySlotsPlugin
         icon.sprite = GetCraftingRecipeIcon(pair);
         icon.color = IsVeiledRecipeMasked(pair) ? Color.black : pair.CanCraft ? Color.white : new Color(0.68f, 0.68f, 0.68f, 0.72f);
         icon.raycastTarget = false;
+    }
+
+    private static void ConfigureCraftingRecipeFoodIcon(InventoryGui gui, Image? foodIcon, InventoryGui.RecipeDataPair pair, float cellSize)
+    {
+        if (foodIcon == null)
+        {
+            return;
+        }
+
+        ItemData? item = pair.ItemData ?? pair.Recipe?.m_item?.m_itemData;
+        Image? source = GetInventoryFoodIconSource(gui);
+        FoodStat stat = FoodStat.None;
+        bool visible = !IsVeiledRecipeMasked(pair) &&
+                       item != null &&
+                       source != null &&
+                       source.sprite != null &&
+                       TryGetDominantFoodStat(item, out stat);
+        foodIcon.gameObject.SetActive(visible);
+        if (!visible)
+        {
+            return;
+        }
+
+        foodIcon.sprite = source!.sprite;
+        foodIcon.material = source.material;
+        foodIcon.type = source.type;
+        foodIcon.preserveAspect = true;
+        foodIcon.raycastTarget = false;
+        foodIcon.color = stat switch
+        {
+            FoodStat.Health => gui.m_playerGrid.m_foodHealthColor,
+            FoodStat.Stamina => gui.m_playerGrid.m_foodStaminaColor,
+            FoodStat.Eitr => gui.m_playerGrid.m_foodEitrColor,
+            _ => Color.white
+        };
+
+        RectTransform rect = foodIcon.rectTransform;
+        float size = Mathf.Clamp(cellSize * 0.3f, 16f, 30f);
+        float inset = Mathf.Clamp(cellSize * 0.035f, 2f, 5f);
+        rect.anchorMin = Vector2.one;
+        rect.anchorMax = Vector2.one;
+        rect.pivot = Vector2.one;
+        rect.anchoredPosition = new Vector2(-inset, -inset);
+        rect.sizeDelta = new Vector2(size, size);
+        rect.localScale = Vector3.one;
+        rect.localRotation = Quaternion.identity;
+        rect.SetAsLastSibling();
+    }
+
+    private static Image? GetInventoryFoodIconSource(InventoryGui gui)
+    {
+        InventoryGrid? grid = gui.m_playerGrid;
+        if (grid == null)
+        {
+            return null;
+        }
+
+        if (grid.m_elements != null)
+        {
+            foreach (InventoryGrid.Element element in grid.m_elements)
+            {
+                if (element?.m_food != null && element.m_food.sprite != null)
+                {
+                    return element.m_food;
+                }
+            }
+        }
+
+        Transform? foodTransform = grid.m_elementPrefab != null
+            ? grid.m_elementPrefab.transform.Find("foodicon")
+            : null;
+        return foodTransform != null ? foodTransform.GetComponent<Image>() : null;
     }
 
     private static void ConfigureCraftingRecipeStyleButton(InventoryGui gui, CraftingRecipeGridCell cell, InventoryGui.RecipeDataPair pair, int originalIndex, float cellSize)

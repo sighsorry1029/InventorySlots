@@ -4,6 +4,55 @@ using ItemData = ItemDrop.ItemData;
 
 namespace InventorySlots;
 
+[HarmonyPatch(typeof(InventoryGrid), nameof(InventoryGrid.UpdateGui))]
+internal static class InventoryGridDominantFoodIconColorPatch
+{
+    [HarmonyPriority(Priority.Last)]
+    private static void Postfix(InventoryGrid __instance)
+    {
+        Inventory? inventory = __instance.m_inventory;
+        if (inventory == null || __instance.m_elements == null)
+        {
+            return;
+        }
+
+        int width = inventory.GetWidth();
+        if (width <= 0)
+        {
+            return;
+        }
+
+        foreach (ItemData item in inventory.GetAllItems())
+        {
+            if (item == null || !InventorySlotsPlugin.TryGetDominantFoodStat(item, out FoodStat stat))
+            {
+                continue;
+            }
+
+            int index = item.m_gridPos.y * width + item.m_gridPos.x;
+            if (index < 0 || index >= __instance.m_elements.Count)
+            {
+                continue;
+            }
+
+            InventoryGrid.Element element = __instance.m_elements[index];
+            if (element?.m_food == null)
+            {
+                continue;
+            }
+
+            element.m_food.enabled = true;
+            element.m_food.color = stat switch
+            {
+                FoodStat.Health => __instance.m_foodHealthColor,
+                FoodStat.Stamina => __instance.m_foodStaminaColor,
+                FoodStat.Eitr => __instance.m_foodEitrColor,
+                _ => element.m_food.color
+            };
+        }
+    }
+}
+
 [HarmonyPatch(typeof(KeyHints), "Awake")]
 internal static class KeyHintsFavoriteHintAwakePatch
 {

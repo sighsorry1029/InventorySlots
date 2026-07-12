@@ -186,6 +186,12 @@ internal static class Tests
 
     public static void DominantFoodStatTieBreaksAreStable()
     {
+        Assert.True(FoodStatCore.TryGetDominant(30f, 90f, 100f, out FoodStat ratatoskr), "Ratatoskr's Desire should classify");
+        Assert.Equal(FoodStat.Eitr, ratatoskr);
+
+        Assert.True(FoodStatCore.TryGetDominant(41f, 14f, 52f, out FoodStat squirrelStew), "Squirrel Stew should classify");
+        Assert.Equal(FoodStat.Eitr, squirrelStew);
+
         Assert.True(FoodStatCore.TryGetDominant(22f, 22f, 0f, out FoodStat healthTie), "health/stamina tie should classify");
         Assert.Equal(FoodStat.Health, healthTie);
 
