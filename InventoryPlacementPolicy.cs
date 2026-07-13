@@ -75,13 +75,26 @@ public sealed partial class InventorySlotsPlugin
                 result = FindTopFirstRegularLoadPreservationSlot(inventory);
                 return false;
             case InventoryPlacementQueryPlan.LocalPlayerRegularCells:
-                result = TryFindFreeRegularCell(player!, inventory, out Vector2i pos)
+                result = TryFindFreeAutomaticPlacementCell(player!, inventory, out Vector2i pos)
                     ? pos
                     : new Vector2i(-1, -1);
                 return false;
             default:
                 return true;
         }
+    }
+
+    private static bool TryFindFreeAutomaticPlacementCell(Player player, Inventory inventory, out Vector2i pos)
+    {
+        HashSet<Vector2i> occupied = BuildOccupiedCellSet(inventory);
+        bool found = InventoryPlacementPolicyCore.TrySelectRegularBeforeHotbarCell(
+            inventory.GetWidth(),
+            GetUsableRegularRows(player),
+            (x, y) => IsUsableRegularCell(inventory, player, new Vector2i(x, y)),
+            (x, y) => IsCellOccupied(occupied, x, y),
+            out InventorySlotSafetyCore.GridCell cell);
+        pos = new Vector2i(cell.X, cell.Y);
+        return found;
     }
 
     private static Vector2i FindTopFirstEmptySlot(Inventory inventory)
@@ -324,8 +337,15 @@ public sealed partial class InventorySlotsPlugin
             return true;
         }
 
-        if (TryGetCachedCanAddItemFailure(player, inventory, item, requestedStack))
+        if (!IsCraftingInventoryLimitNoticeActive() && TryGetCachedCanAddItemFailure(player, inventory, item, requestedStack))
         {
+            return false;
+        }
+
+        if (!CanAddWithinInventoryLimits(inventory, item, requestedStack, out int maxAllowed))
+        {
+            RecordCraftingInventoryLimitRejection(item, maxAllowed);
+            CacheCanAddItemFailure(player, inventory, item, requestedStack);
             return false;
         }
 
@@ -354,6 +374,160 @@ public sealed partial class InventorySlotsPlugin
         }
 
         return canAdd;
+    }
+
+    private static bool CanAddWithinInventoryLimits(Inventory inventory, ItemData item, int incomingAmount, out int maxAllowed)
+    {
+        maxAllowed = -1;
+        int requestedAmount = incomingAmount;
+        if (requestedAmount <= 0 ||
+            item?.m_shared == null ||
+            InventoryLimits.Count == 0 ||
+            inventory == null ||
+            inventory.ContainsItem(item) ||
+            IsInventoryLoadPreserving(inventory) ||
+            !TryGetLocalPlayerInventory(inventory, out _))
+        {
+            return true;
+        }
+
+        bool matchesAnyRule = false;
+        foreach (string target in InventoryLimits.Keys)
+        {
+            if (ItemMatchesYamlReferenceToken(item, target))
+            {
+                matchesAnyRule = true;
+                break;
+            }
+        }
+
+        if (!matchesAnyRule)
+        {
+            return true;
+        }
+
+        EnsureInventoryLimitCountCache(inventory);
+        long greatestOverflow = long.MinValue;
+        foreach (KeyValuePair<string, int> rule in InventoryLimits)
+        {
+            if (!ItemMatchesYamlReferenceToken(item, rule.Key))
+            {
+                continue;
+            }
+
+            InventorySafety.InventoryLimitCountCache.TryGetValue(rule.Key, out long currentAmount);
+            if (InventoryPlacementPolicyCore.CanAcceptInventoryLimit(currentAmount, requestedAmount, rule.Value))
+            {
+                continue;
+            }
+
+            long overflow = Math.Max(0L, currentAmount) + requestedAmount - rule.Value;
+            if (overflow > greatestOverflow || overflow == greatestOverflow && (maxAllowed < 0 || rule.Value < maxAllowed))
+            {
+                greatestOverflow = overflow;
+                maxAllowed = rule.Value;
+            }
+        }
+
+        return maxAllowed < 0;
+    }
+
+    private static void EnsureInventoryLimitCountCache(Inventory inventory)
+    {
+        if (ReferenceEquals(InventorySafety.InventoryLimitCountCacheInventory, inventory) &&
+            InventorySafety.InventoryLimitCountCachePlacementVersion == InventorySafety.InventoryPlacementCacheVersion &&
+            InventorySafety.InventoryLimitCountCacheRuleVersion == InventoryDefinitions.InventoryLimitVersion)
+        {
+            return;
+        }
+
+        Dictionary<string, long> counts = InventorySafety.InventoryLimitCountCache;
+        counts.Clear();
+        foreach (string target in InventoryLimits.Keys)
+        {
+            counts[target] = 0L;
+        }
+
+        foreach (ItemData existing in inventory.m_inventory)
+        {
+            if (existing?.m_shared == null || existing.m_stack <= 0)
+            {
+                continue;
+            }
+
+            foreach (string target in InventoryLimits.Keys)
+            {
+                if (ItemMatchesYamlReferenceToken(existing, target))
+                {
+                    counts[target] += existing.m_stack;
+                }
+            }
+        }
+
+        InventorySafety.InventoryLimitCountCacheInventory = inventory;
+        InventorySafety.InventoryLimitCountCachePlacementVersion = InventorySafety.InventoryPlacementCacheVersion;
+        InventorySafety.InventoryLimitCountCacheRuleVersion = InventoryDefinitions.InventoryLimitVersion;
+    }
+
+    internal static bool TryValidatePlayerInventoryLimit(Inventory inventory, ItemData item, int amount, ref bool result)
+    {
+        if (CanAddWithinInventoryLimits(inventory, item, amount, out int maxAllowed))
+        {
+            return true;
+        }
+
+        result = false;
+        if (TryGetLocalPlayerInventory(inventory, out Player? player))
+        {
+            ShowInventoryLimitReached(player!, item, maxAllowed);
+        }
+
+        return false;
+    }
+
+    private static void ShowInventoryLimitReached(Player player, ItemData item, int maxAllowed, bool force = false)
+    {
+        string prefabName = GetItemPrefabName(item);
+        string sharedName = item.m_shared?.m_name ?? "";
+        string fallbackName = StripLocalizationToken(sharedName);
+        if (string.IsNullOrWhiteSpace(fallbackName))
+        {
+            fallbackName = !string.IsNullOrWhiteSpace(prefabName) ? prefabName : "Item";
+        }
+
+        string itemName = LocalizeUi(sharedName, fallbackName);
+        string messageKey = $"{prefabName}|{sharedName}|{maxAllowed}";
+        float now = Time.unscaledTime;
+        if (!force && string.Equals(InventorySafety.LastInventoryLimitMessageKey, messageKey, StringComparison.Ordinal) &&
+            now - InventorySafety.LastInventoryLimitMessageTime < 0.5f)
+        {
+            return;
+        }
+
+        InventorySafety.LastInventoryLimitMessageKey = messageKey;
+        InventorySafety.LastInventoryLimitMessageTime = now;
+        string message = LocalizeUi(
+                "$inventoryslots_inventory_limit_reached",
+                "{item}: you can carry at most {max}.")
+            .Replace("{item}", itemName)
+            .Replace("{max}", maxAllowed.ToString());
+        player.Message(MessageHud.MessageType.Center, message, 0, null);
+    }
+
+    internal static void OnHumanoidPickupResult(Humanoid humanoid, GameObject itemObject, bool result)
+    {
+        if (result || humanoid != Player.m_localPlayer || IsUnityNull(itemObject))
+        {
+            return;
+        }
+
+        ItemDrop? itemDrop = itemObject.GetComponent<ItemDrop>();
+        ItemData? item = itemDrop?.m_itemData;
+        Inventory inventory = humanoid.GetInventory();
+        if (item?.m_shared != null && !CanAddWithinInventoryLimits(inventory, item, item.m_stack, out int maxAllowed))
+        {
+            ShowInventoryLimitReached((Player)humanoid, item, maxAllowed, force: true);
+        }
     }
 
     private static bool TryGetCachedCanAddItemFailure(Player player, Inventory inventory, ItemData item, int requestedStack)
@@ -460,6 +634,10 @@ public sealed partial class InventorySlotsPlugin
         InventorySafety.CanAddItemFailureCacheContext = 0;
         InventorySafety.CanAddItemFailureCacheItemKey = 0;
         InventorySafety.CanAddItemFailureCacheRequestedStack = 0;
+        InventorySafety.InventoryLimitCountCacheInventory = null;
+        InventorySafety.InventoryLimitCountCachePlacementVersion = -1;
+        InventorySafety.InventoryLimitCountCacheRuleVersion = -1;
+        InventorySafety.InventoryLimitCountCache.Clear();
     }
 
     private static int CountStackSpaceForIncomingItem(Inventory inventory, ItemData item)
@@ -514,7 +692,10 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        result = TryAutoPlaceItemInSpecialSlot(player!, inventory, item);
+        if (CanAddWithinInventoryLimits(inventory, item, item.m_stack, out _))
+        {
+            result = TryAutoPlaceItemInSpecialSlot(player!, inventory, item);
+        }
     }
 
     internal static bool TryPreserveLoadedSlotTailItem(Inventory inventory, ItemData item, ref bool result)
@@ -652,8 +833,21 @@ public sealed partial class InventorySlotsPlugin
         return runOriginal;
     }
 
-    internal static bool TryValidatePlayerInventoryMoveItemToThis(Inventory inventory, ref bool result, ItemData item, ref int x, ref int y)
+    internal static bool TryValidatePlayerInventoryMoveItemToThis(
+        Inventory inventory,
+        ref bool result,
+        Inventory fromInventory,
+        ItemData item,
+        int amount,
+        ref int x,
+        ref int y)
     {
+        int requestedAmount = Math.Min(Math.Max(0, amount), Math.Max(0, item.m_stack));
+        if (!ReferenceEquals(inventory, fromInventory) && !TryValidatePlayerInventoryLimit(inventory, item, requestedAmount, ref result))
+        {
+            return false;
+        }
+
         Vector2i pos = new(x, y);
         bool runOriginal = TryValidatePlayerInventoryInsert(inventory, item, ref pos, ref result, preserveLoadedTailItem: false);
         x = pos.x;

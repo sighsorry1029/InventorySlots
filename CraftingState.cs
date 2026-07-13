@@ -88,6 +88,9 @@ public sealed partial class InventorySlotsPlugin
         public int ProgressLabelVariant;
         public Recipe? QueueRecipe;
         public Recipe? ProgressLabelRecipe;
+        public int InventoryLimitNoticeDepth;
+        public ItemDrop.ItemData? PendingInventoryLimitItem;
+        public int PendingInventoryLimitMax = -1;
     }
 
     private sealed class CraftingUiRuntimeState

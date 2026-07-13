@@ -132,6 +132,12 @@ public sealed partial class InventorySlotsPlugin
         public int CanAddItemFailureCacheContext;
         public int CanAddItemFailureCacheItemKey;
         public int CanAddItemFailureCacheRequestedStack;
+        public Inventory? InventoryLimitCountCacheInventory;
+        public int InventoryLimitCountCachePlacementVersion = -1;
+        public int InventoryLimitCountCacheRuleVersion = -1;
+        public readonly Dictionary<string, long> InventoryLimitCountCache = new(StringComparer.OrdinalIgnoreCase);
+        public string LastInventoryLimitMessageKey = "";
+        public float LastInventoryLimitMessageTime = -1f;
         public bool SlotUnequipInProgress;
         public bool SuppressSlotAutoEquip;
         public bool HandlingSlotDropOutside;
@@ -153,6 +159,7 @@ public sealed partial class InventorySlotsPlugin
         public readonly Dictionary<string, YamlPredefinedGroup> PredefinedGroupDefinitions = new(StringComparer.OrdinalIgnoreCase);
         public readonly List<string> PredefinedGroupOrder = new();
         public readonly Dictionary<string, List<string>> PredefinedGroupOrders = new(StringComparer.OrdinalIgnoreCase);
+        public readonly Dictionary<string, int> InventoryLimits = new(StringComparer.OrdinalIgnoreCase);
         public readonly Dictionary<string, int> ResourceTierByToken = new(StringComparer.OrdinalIgnoreCase);
         public readonly HashSet<string> CookingStationInputTokens = new(StringComparer.OrdinalIgnoreCase);
         public readonly HashSet<string> CraftingRecipeFoodInputTokens = new(StringComparer.OrdinalIgnoreCase);
@@ -163,6 +170,7 @@ public sealed partial class InventorySlotsPlugin
         public readonly Dictionary<string, string> ItemNameTokens = new(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, int> RestockTargetStackLimits = new(StringComparer.OrdinalIgnoreCase);
         public int SlotDefinitionVersion;
+        public int InventoryLimitVersion;
         public int CustomPanelSlotCacheVersion = -1;
         public int VisibleCustomPanelSlotCacheVersion = -1;
         public string VisibleCustomPanelSlotCacheSignature = "";
@@ -215,6 +223,7 @@ public sealed partial class InventorySlotsPlugin
     private static Dictionary<string, YamlPredefinedGroup> PredefinedGroupDefinitions => InventoryDefinitions.PredefinedGroupDefinitions;
     private static List<string> PredefinedGroupOrder => InventoryDefinitions.PredefinedGroupOrder;
     private static Dictionary<string, List<string>> PredefinedGroupOrders => InventoryDefinitions.PredefinedGroupOrders;
+    private static Dictionary<string, int> InventoryLimits => InventoryDefinitions.InventoryLimits;
     private static Dictionary<string, int> ResourceTierByToken => InventoryDefinitions.ResourceTierByToken;
     private static HashSet<string> CookingStationInputTokens => InventoryDefinitions.CookingStationInputTokens;
     private static HashSet<string> CraftingRecipeFoodInputTokens => InventoryDefinitions.CraftingRecipeFoodInputTokens;

@@ -48,3 +48,4 @@ inventoryslots_hold_to_restock: 누르고 있으면 보충
 inventoryslots_hotbar_switch_hint: "전환\n[{key}]"
 inventoryslots_quick_slot_format: "퀵 {index}"
 inventoryslots_clear_favorites_hint_format: "{key}: 즐겨찾기 해제"
+inventoryslots_inventory_limit_reached: "{item}: 최대 {max}개까지 지닐 수 있습니다."

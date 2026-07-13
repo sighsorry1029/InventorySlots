@@ -110,6 +110,15 @@ Groups:
     - Tankard_dvergr
     - TankardAnniversary
 
+# Maximum total item units the player can carry across regular rows, hotbar,
+# quick slots, and equipment slots. Keys can be exact prefab/internal names,
+# built-in groups, or custom groups above. A limit of 0 blocks new additions.
+# Existing excess items are preserved when loading or lowering a limit.
+InventoryLimits:
+  FishingRod: 1
+  tankards: 3
+  FLG_TamingOrb: 3
+
 # Items matching these built-in groups, custom groups, or exact prefab/internal
 # names stay in the player inventory instead of moving to the tombstone.
 KeepOnDeath:

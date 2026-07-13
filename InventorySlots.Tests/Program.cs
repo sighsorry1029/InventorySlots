@@ -4,6 +4,8 @@ TestRunner.Run(
     ("Default YAML parses with expected sections", Tests.DefaultYamlParsesWithExpectedSections),
     ("Invalid YAML leaves prior stable config intact", Tests.InvalidYamlLeavesPriorStableConfigIntact),
     ("Unknown YAML property is rejected", Tests.UnknownYamlPropertyIsRejected),
+    ("Inventory limits parse exact and group targets", Tests.InventoryLimitsParseExactAndGroupTargets),
+    ("Inventory limits reject negative values", Tests.InventoryLimitsRejectNegativeValues),
     ("Slot id normalization preserves compat dots", Tests.SlotIdNormalizationPreservesCompatDots),
     ("Group id normalization removes punctuation", Tests.GroupIdNormalizationRemovesPunctuation),
     ("Localization token stripping preserves item identity", Tests.LocalizationTokenStrippingPreservesItemIdentity),
@@ -51,6 +53,10 @@ TestRunner.Run(
     ("Inventory placement policy delegates non-container general inventory to vanilla", Tests.InventoryPlacementPolicyDelegatesNonContainerGeneralInventoryToVanilla),
     ("Inventory placement policy keeps containers top-first", Tests.InventoryPlacementPolicyKeepsContainersTopFirst),
     ("Inventory placement policy shares top-first empty count", Tests.InventoryPlacementPolicySharesTopFirstEmptyCount),
+    ("Inventory automatic placement prefers regular rows before hotbar", Tests.InventoryAutomaticPlacementPrefersRegularRowsBeforeHotbar),
+    ("Inventory automatic placement falls back to hotbar", Tests.InventoryAutomaticPlacementFallsBackToHotbar),
+    ("Inventory limits accept the exact remaining amount", Tests.InventoryLimitsAcceptExactRemainingAmount),
+    ("Inventory limits reject excess and additions to existing excess", Tests.InventoryLimitsRejectExcessAdditions),
     ("Inventory placement policy overrides player load and container scopes", Tests.InventoryPlacementPolicyOverridesPlayerLoadAndContainerScopes),
     ("Action cell policy favorites include quickslots", Tests.ActionCellPolicyFavoritesIncludeQuickslots),
     ("Action cell policy keeps quickslots out of container action sources", Tests.ActionCellPolicyKeepsQuickslotsOutOfContainerActionSources),
@@ -105,6 +111,9 @@ internal static class Tests
         Assert.Contains(root.Groups["tankards"], "Tankard");
         Assert.Contains(root.Groups["tankards"], "Tankard_dvergr");
         Assert.Contains(root.Groups["tankards"], "TankardAnniversary");
+        Assert.Equal(1, root.InventoryLimits["FishingRod"]);
+        Assert.Equal(3, root.InventoryLimits["tankards"]);
+        Assert.Equal(3, root.InventoryLimits["FLG_TamingOrb"]);
         Assert.True(root.ResourceMap.Count >= 8, "default resourceMap should contain biome tiers");
     }
 
@@ -132,6 +141,31 @@ internal static class Tests
 
         Assert.False(InventorySlotsConfigCore.TryParseYaml(yaml, out _, out Exception? error), "unknown root property should fail strict parsing");
         Assert.True(error != null, "unknown root property should report an error");
+    }
+
+    public static void InventoryLimitsParseExactAndGroupTargets()
+    {
+        YamlRoot root = InventorySlotsConfigCore.ParseYaml("""
+        InventoryLimits:
+          FishingRod: 1
+          tankards: 3
+        """);
+
+        Dictionary<string, int> limits = InventorySlotsConfigCore.BuildInventoryLimits(root);
+
+        Assert.Equal(1, limits["fishingrod"]);
+        Assert.Equal(3, limits["TANKARDS"]);
+    }
+
+    public static void InventoryLimitsRejectNegativeValues()
+    {
+        bool parsed = InventorySlotsConfigCore.TryParseYaml("""
+        InventoryLimits:
+          FishingRod: -1
+        """, out _, out Exception? error);
+
+        Assert.False(parsed, "negative inventory limits should fail parsing");
+        Assert.True(error != null, "negative inventory limits should report an error");
     }
 
     public static void SlotIdNormalizationPreservesCompatDots()
@@ -794,6 +828,57 @@ internal static class Tests
         Assert.Equal(-1, cell.X);
         Assert.Equal(-1, cell.Y);
         Assert.Equal(0, emptySlots);
+    }
+
+    public static void InventoryAutomaticPlacementPrefersRegularRowsBeforeHotbar()
+    {
+        bool found = InventoryPlacementPolicyCore.TrySelectRegularBeforeHotbarCell(
+            inventoryWidth: 3,
+            rowCount: 3,
+            isAllowed: (_, _) => true,
+            isOccupied: (_, _) => false,
+            out InventorySlotSafetyCore.GridCell cell);
+
+        Assert.True(found, "automatic placement should find an available regular inventory cell");
+        Assert.Equal(0, cell.X);
+        Assert.Equal(1, cell.Y);
+    }
+
+    public static void InventoryAutomaticPlacementFallsBackToHotbar()
+    {
+        bool found = InventoryPlacementPolicyCore.TrySelectRegularBeforeHotbarCell(
+            inventoryWidth: 3,
+            rowCount: 3,
+            isAllowed: (_, _) => true,
+            isOccupied: (x, y) => y > 0 || x == 0,
+            out InventorySlotSafetyCore.GridCell cell);
+
+        Assert.True(found, "automatic placement should use hotbar when every regular inventory cell is occupied");
+        Assert.Equal(1, cell.X);
+        Assert.Equal(0, cell.Y);
+    }
+
+    public static void InventoryLimitsAcceptExactRemainingAmount()
+    {
+        Assert.True(
+            InventoryPlacementPolicyCore.CanAcceptInventoryLimit(currentAmount: 1, incomingAmount: 2, maxAmount: 3),
+            "an addition that reaches the limit exactly should be allowed");
+        Assert.True(
+            InventoryPlacementPolicyCore.CanAcceptInventoryLimit(currentAmount: 3, incomingAmount: 0, maxAmount: 3),
+            "a non-positive addition should not be blocked");
+    }
+
+    public static void InventoryLimitsRejectExcessAdditions()
+    {
+        Assert.False(
+            InventoryPlacementPolicyCore.CanAcceptInventoryLimit(currentAmount: 2, incomingAmount: 2, maxAmount: 3),
+            "an addition above the limit should be rejected");
+        Assert.False(
+            InventoryPlacementPolicyCore.CanAcceptInventoryLimit(currentAmount: 4, incomingAmount: 1, maxAmount: 3),
+            "existing excess should be preserved without allowing more items");
+        Assert.False(
+            InventoryPlacementPolicyCore.CanAcceptInventoryLimit(currentAmount: 0, incomingAmount: 1, maxAmount: 0),
+            "a zero limit should block new additions");
     }
 
     public static void InventoryPlacementPolicyOverridesPlayerLoadAndContainerScopes()

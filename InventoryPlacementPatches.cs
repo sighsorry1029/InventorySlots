@@ -55,6 +55,12 @@ internal static class InventoryAddItemDataPatch
 {
     private static bool Prefix(Inventory __instance, ItemData item, ref bool __result, out bool __state)
     {
+        __state = false;
+        if (!InventorySlotsPlugin.TryValidatePlayerInventoryLimit(__instance, item, item.m_stack, ref __result))
+        {
+            return false;
+        }
+
         __state = InventorySlotsPlugin.BeginInventoryAddItemDataStackLookup(item);
         bool runOriginal = InventorySlotsPlugin.TryPreserveLoadedSlotTailItem(__instance, item, ref __result);
         if (!runOriginal)
@@ -81,8 +87,14 @@ internal static class InventoryAddItemDataPatch
 [HarmonyPatch(typeof(Inventory), "AddItem", typeof(ItemData), typeof(int), typeof(int), typeof(int))]
 internal static class InventoryAddItemXyPatch
 {
-    private static bool Prefix(Inventory __instance, ref bool __result, ItemData item, ref int x, ref int y)
+    private static bool Prefix(Inventory __instance, ref bool __result, ItemData item, int amount, ref int x, ref int y)
     {
+        int requestedAmount = Math.Min(Math.Max(0, amount), Math.Max(0, item.m_stack));
+        if (!InventorySlotsPlugin.TryValidatePlayerInventoryLimit(__instance, item, requestedAmount, ref __result))
+        {
+            return false;
+        }
+
         return InventorySlotsPlugin.TryValidatePlayerInventoryInsert(__instance, item, ref x, ref y, ref __result);
     }
 
@@ -97,6 +109,11 @@ internal static class InventoryAddItemPosPatch
 {
     private static bool Prefix(Inventory __instance, ref bool __result, ItemData item, ref Vector2i pos)
     {
+        if (!InventorySlotsPlugin.TryValidatePlayerInventoryLimit(__instance, item, item.m_stack, ref __result))
+        {
+            return false;
+        }
+
         return InventorySlotsPlugin.TryValidatePlayerInventoryInsert(__instance, item, ref pos, ref __result);
     }
 
@@ -111,12 +128,21 @@ internal static class InventoryMoveItemToThisPatch
 {
     private static bool Prefix(Inventory __instance, ref bool __result, Inventory fromInventory, ItemData item, int amount, ref int x, ref int y)
     {
-        return InventorySlotsPlugin.TryValidatePlayerInventoryMoveItemToThis(__instance, ref __result, item, ref x, ref y);
+        return InventorySlotsPlugin.TryValidatePlayerInventoryMoveItemToThis(__instance, ref __result, fromInventory, item, amount, ref x, ref y);
     }
 
     private static void Postfix(Inventory __instance, bool __result, ItemData item, int x, int y)
     {
         InventorySlotsPlugin.OnPlayerInventoryItemPlaced(__instance, item, new Vector2i(x, y), __result);
+    }
+}
+
+[HarmonyPatch(typeof(Humanoid), nameof(Humanoid.Pickup), typeof(GameObject), typeof(bool), typeof(bool))]
+internal static class HumanoidPickupInventoryLimitPatch
+{
+    private static void Postfix(Humanoid __instance, GameObject go, bool __result)
+    {
+        InventorySlotsPlugin.OnHumanoidPickupResult(__instance, go, __result);
     }
 }
 

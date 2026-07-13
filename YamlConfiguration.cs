@@ -51,6 +51,7 @@ public sealed partial class InventorySlotsPlugin
         Log.LogError($"Built-in InventorySlots YAML failed to parse. Falling back to built-in equipment slots only: {error}");
         _yamlConfig = new YamlRoot();
         RebuildPredefinedGroups();
+        RebuildInventoryLimits();
         RebuildResourceMap();
         RebuildSlotDefinitions();
         ClearCraftingRecipeCaches();
@@ -180,6 +181,7 @@ public sealed partial class InventorySlotsPlugin
             YamlRoot nextConfig = ParseYaml(yaml);
             _yamlConfig = nextConfig;
             RebuildPredefinedGroups();
+            RebuildInventoryLimits();
             RebuildResourceMap();
             RebuildStationInputTokens(force: true);
             RebuildSlotDefinitions();
@@ -244,6 +246,8 @@ public sealed partial class InventorySlotsPlugin
         {
             PredefinedGroupOrders[entry.Key] = entry.Value.ToList();
         }
+
+        RebuildInventoryLimits();
 
         ResourceTierByToken.Clear();
         foreach (KeyValuePair<string, int> entry in snapshot.ResourceTierByToken)
@@ -344,6 +348,22 @@ public sealed partial class InventorySlotsPlugin
 
         AddBuiltInPredefinedGroupOrders();
         ApplyYamlGroups(_yamlConfig.Groups);
+    }
+
+    private static void RebuildInventoryLimits()
+    {
+        InventoryLimits.Clear();
+        foreach (KeyValuePair<string, int> entry in InventorySlotsConfigCore.BuildInventoryLimits(_yamlConfig))
+        {
+            InventoryLimits[entry.Key] = entry.Value;
+        }
+
+        unchecked
+        {
+            InventoryDefinitions.InventoryLimitVersion++;
+        }
+
+        InvalidateInventoryPlacementCaches();
     }
 
     private static void AddBuiltInPredefinedGroupOrders()

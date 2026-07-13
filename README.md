@@ -303,7 +303,22 @@ Groups:
     - THSwordSlayer
 ```
 
-Custom groups can then be reused by sorting, quick slots, keep-on-death, and custom equipment slots.
+Custom groups can then be reused by sorting, quick slots, inventory limits, keep-on-death, and custom equipment slots.
+
+## Inventory Limits
+
+`InventoryLimits` caps the total number of matching item units in the player inventory. Keys can be exact prefab/internal names, built-in groups, or custom groups. Counts include regular rows, hotbar, equipment slots, and quick slots.
+
+```yaml
+InventoryLimits:
+  FishingRod: 1
+  tankards: 3
+  FLG_TamingOrb: 3
+```
+
+A limit of `0` blocks new additions. Existing excess items remain intact after loading a character or lowering a limit, but no more matching items can be added until the count is below the limit. Moves within the same player inventory do not count as additions.
+
+Blocked crafting attempts, manual pickups, and inventory transfers show a localized center message with the item name and configured maximum. Crafting is stopped before consuming materials, and an active crafting queue ends when it reaches a limit. Passive auto-pickup checks stay silent to avoid repeating the message every frame.
 
 ## Keep On Death
 
@@ -329,6 +344,7 @@ The server-authoritative YAML controls:
 
 - `Slots`
 - `Groups`
+- `InventoryLimits`
 - `QuickSlots`
 - `KeepOnDeath`
 - `resourceMap`
@@ -359,6 +375,10 @@ Groups:
   Food:
     - healthfood
     - staminafood
+
+InventoryLimits:
+  FishingRod: 1
+  tankards: 3
 
 QuickSlots:
   - Melee

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
@@ -19,7 +20,9 @@ internal static class InventorySlotsConfigCore
             .WithNamingConvention(CamelCaseNamingConvention.Instance)
             .Build();
 
-        return deserializer.Deserialize<YamlRoot>(yaml) ?? new YamlRoot();
+        YamlRoot config = deserializer.Deserialize<YamlRoot>(yaml) ?? new YamlRoot();
+        BuildInventoryLimits(config);
+        return config;
     }
 
     public static bool TryParseYaml(string yaml, out YamlRoot config, out Exception? error)
@@ -58,6 +61,33 @@ internal static class InventorySlotsConfigCore
                     result[token] = index;
                 }
             }
+        }
+
+        return result;
+    }
+
+    public static Dictionary<string, int> BuildInventoryLimits(YamlRoot config)
+    {
+        Dictionary<string, int> result = new(StringComparer.OrdinalIgnoreCase);
+        foreach (KeyValuePair<string, int> entry in config?.InventoryLimits ?? new Dictionary<string, int>())
+        {
+            string target = entry.Key?.Trim() ?? "";
+            if (string.IsNullOrWhiteSpace(target))
+            {
+                throw new InvalidDataException("InventoryLimits contains an empty target.");
+            }
+
+            if (entry.Value < 0)
+            {
+                throw new InvalidDataException($"Inventory limit '{target}' cannot be negative.");
+            }
+
+            if (result.ContainsKey(target))
+            {
+                throw new InvalidDataException($"Inventory limit '{target}' is duplicated with different casing.");
+            }
+
+            result[target] = entry.Value;
         }
 
         return result;

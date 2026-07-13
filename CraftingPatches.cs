@@ -1,3 +1,4 @@
+using System;
 using HarmonyLib;
 
 namespace InventorySlots;
@@ -71,12 +72,24 @@ internal static class InventoryGuiCraftingQueueStartPatch
 {
     private static void Prefix(InventoryGui __instance)
     {
+        InventorySlotsPlugin.BeginCraftingInventoryLimitNotice();
         InventorySlotsPlugin.PrepareCraftingQueue(__instance);
     }
 
     private static void Postfix(InventoryGui __instance)
     {
+        if (InventorySlotsPlugin.EndCraftingInventoryLimitNotice(showMessage: true))
+        {
+            InventorySlotsPlugin.ClearCraftingQueue();
+        }
+
         InventorySlotsPlugin.ValidateCraftingQueueStarted(__instance);
+    }
+
+    private static Exception? Finalizer(Exception? __exception)
+    {
+        InventorySlotsPlugin.EndCraftingInventoryLimitNotice(showMessage: false);
+        return __exception;
     }
 }
 
@@ -94,11 +107,22 @@ internal static class InventoryGuiUpgradeFavoriteCraftingPatch
 {
     private static void Prefix(InventoryGui __instance)
     {
+        InventorySlotsPlugin.BeginCraftingInventoryLimitNotice();
         InventorySlotsPlugin.CaptureUpgradeFavoriteBeforeCrafting(__instance);
     }
 
     private static void Postfix(InventoryGui __instance, Player player)
     {
         InventorySlotsPlugin.RestoreUpgradeFavoriteAfterCrafting(__instance, player);
+        if (InventorySlotsPlugin.EndCraftingInventoryLimitNotice(showMessage: true))
+        {
+            InventorySlotsPlugin.ClearCraftingQueue();
+        }
+    }
+
+    private static Exception? Finalizer(Exception? __exception)
+    {
+        InventorySlotsPlugin.EndCraftingInventoryLimitNotice(showMessage: false);
+        return __exception;
     }
 }

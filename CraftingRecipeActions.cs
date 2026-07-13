@@ -96,7 +96,18 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        if (!player.GetInventory().CanAddItem(((Component)recipe.m_item).gameObject, amount))
+        bool canAdd;
+        BeginCraftingInventoryLimitNotice();
+        try
+        {
+            canAdd = player.GetInventory().CanAddItem(((Component)recipe.m_item).gameObject, amount);
+        }
+        finally
+        {
+            EndCraftingInventoryLimitNotice(showMessage: true);
+        }
+
+        if (!canAdd)
         {
             return false;
         }
@@ -115,6 +126,62 @@ public sealed partial class InventorySlotsPlugin
             {
                 return false;
             }
+        }
+
+        return true;
+    }
+
+    internal static void BeginCraftingInventoryLimitNotice()
+    {
+        if (CraftingQueue.InventoryLimitNoticeDepth == 0)
+        {
+            CraftingQueue.PendingInventoryLimitItem = null;
+            CraftingQueue.PendingInventoryLimitMax = -1;
+        }
+
+        CraftingQueue.InventoryLimitNoticeDepth++;
+    }
+
+    private static bool IsCraftingInventoryLimitNoticeActive() =>
+        CraftingQueue.InventoryLimitNoticeDepth > 0;
+
+    private static void RecordCraftingInventoryLimitRejection(ItemData item, int maxAllowed)
+    {
+        if (!IsCraftingInventoryLimitNoticeActive() || item?.m_shared == null || maxAllowed < 0)
+        {
+            return;
+        }
+
+        CraftingQueue.PendingInventoryLimitItem = item;
+        CraftingQueue.PendingInventoryLimitMax = maxAllowed;
+    }
+
+    internal static bool EndCraftingInventoryLimitNotice(bool showMessage)
+    {
+        if (CraftingQueue.InventoryLimitNoticeDepth <= 0)
+        {
+            return false;
+        }
+
+        CraftingQueue.InventoryLimitNoticeDepth--;
+        if (CraftingQueue.InventoryLimitNoticeDepth > 0)
+        {
+            return false;
+        }
+
+        ItemData? item = CraftingQueue.PendingInventoryLimitItem;
+        int maxAllowed = CraftingQueue.PendingInventoryLimitMax;
+        CraftingQueue.PendingInventoryLimitItem = null;
+        CraftingQueue.PendingInventoryLimitMax = -1;
+        if (item?.m_shared == null || maxAllowed < 0)
+        {
+            return false;
+        }
+
+        Player? player = Player.m_localPlayer;
+        if (showMessage && player != null)
+        {
+            ShowInventoryLimitReached(player, item, maxAllowed, force: true);
         }
 
         return true;

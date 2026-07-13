@@ -48,3 +48,4 @@ inventoryslots_hold_to_restock: Hold to restock
 inventoryslots_hotbar_switch_hint: "Switch\n[{key}]"
 inventoryslots_quick_slot_format: "Quick {index}"
 inventoryslots_clear_favorites_hint_format: "{key}: clear favorites"
+inventoryslots_inventory_limit_reached: "{item}: you can carry at most {max}."
