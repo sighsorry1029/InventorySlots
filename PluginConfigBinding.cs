@@ -10,7 +10,7 @@ public sealed partial class InventorySlotsPlugin
 {
     private static void BindConfigs()
     {
-        _serverConfigLocked = ConfigEntry("1 - General", "Lock Configuration", Toggle.On, "When enabled, only server admins can modify this mod's synced configuration.");
+        _serverConfigLocked = OrderedConfigEntry("1 - General", "Lock Configuration", Toggle.On, "When enabled, only server admins can modify this mod's synced configuration.", order: 1000);
         _ = ConfigSync.AddLockingConfigEntry(_serverConfigLocked);
 
         _progressiveRowsEnabled = ConfigEntry(ProgressiveSlotsConfigSection, "Enable Progressive Rows", Toggle.On, "When enabled, extra inventory rows unlock by item discovery while the internal inventory height stays fixed.");
@@ -24,7 +24,7 @@ public sealed partial class InventorySlotsPlugin
             ConfigEntry(ProgressiveSlotsConfigSection, "Extra Row 5 Items", "YagluthDrop", "Comma-separated item prefab names or internal item names. Discovering any listed item unlocks extra row 5.")
         };
 
-        _quickSlotCount = ConfigEntry(ProgressiveSlotsConfigSection, "Quick Slot Count", 9, new ConfigDescription("Number of fixed quick slots reserved after equipment slots.", new AcceptableValueRange<int>(0, MaxSupportedQuickSlots)));
+        _quickSlotRows = ConfigEntry(ProgressiveSlotsConfigSection, "Quick Slot Rows", 3, new ConfigDescription("Number of fixed three-slot quick slot rows reserved after equipment slots.", new AcceptableValueRange<int>(0, QuickSlotPanelRows)));
         _quickSlotProgressionEnabled = ConfigEntry(ProgressiveSlotsConfigSection, "Enable Quick Slot Progression", Toggle.On, "When enabled, quick slot row 1 is available at start and quick slot rows 2-3 unlock by item discovery.");
         _quickSlotRowUnlockItems = new[]
         {
@@ -34,35 +34,39 @@ public sealed partial class InventorySlotsPlugin
         _equipmentSlotProgressionEnabled = ConfigEntry(ProgressiveSlotsConfigSection, "Enable Equipment Slot Progression", Toggle.On, "When enabled, equipment slots unlock after the player discovers, carries, or has equipped an item accepted by that slot.");
         BindInventoryStateConfigInvalidation();
 
-        _deathKeepRulesEnabled = ConfigEntry("1 - General", "Enable Death Keep Rules", Toggle.On, "When enabled, items matching the YAML KeepOnDeath list stay in the player inventory instead of moving to the tombstone. When disabled, KeepOnDeath is ignored and death uses the normal tombstone behavior.");
-        _enableInventoryTrashPanel = ConfigEntry("1 - General", "Enable Inventory Trash Panel", Toggle.On, "When enabled, shows a trash panel below the player inventory. Dropping a held player-inventory item on it opens a confirmation dialog before deleting the held amount.");
+        _restockTargetStackLimitsConfig = ConfigEntry(
+            RestockConfigSection,
+            "Restock Target Stack Limits",
+            "",
+            new ConfigDescription(
+                "Client-only per-item target stack caps for Take stacks/restock into favorite slots. Keys may be prefab names, internal item names, or localized item names in the current client language, such as Stone: 10, Coins: 500. Separate entries with commas, semicolons, or new lines. Empty uses each item's normal max stack; 0 prevents restocking that item.",
+                null,
+                new ConfigurationManagerAttributes
+                {
+                    Order = 700,
+                    CustomDrawer = DrawRestockTargetStackLimitsConfig
+                }),
+            synchronizedSetting: false);
+        _restockTargetStackLimitsConfig.SettingChanged += (_, _) => RefreshRestockTargetStackLimits();
+        RefreshRestockTargetStackLimits();
 
-        _areaQuickStackRange = ConfigEntry("1 - General", "Area Quick Stack Range", 10f, new ConfigDescription("Range in meters for hover Area Quick Stack. Set to 0 to disable area quick stack. The opened-container Place stacks button only uses the current container.", new AcceptableValueRange<float>(0f, 50f)));
-        _areaRestockRange = ConfigEntry("1 - General", "Area Take Stacks Range", 10f, new ConfigDescription("Range in meters for hover Area Take Stacks. Set to 0 to disable area take stacks. The opened-container Take stacks button only uses the current container.", new AcceptableValueRange<float>(0f, 50f)));
+        _deathKeepRulesEnabled = OrderedConfigEntry("1 - General", "Enable Death Keep Rules", Toggle.On, "When enabled, items matching the YAML KeepOnDeath list stay in the player inventory instead of moving to the tombstone. When disabled, KeepOnDeath is ignored and death uses the normal tombstone behavior.", order: 990);
+        _enableInventoryTrashPanel = OrderedConfigEntry("1 - General", "Enable Inventory Trash Panel", Toggle.On, "When enabled, shows a trash panel below the player inventory. Dropping a held player-inventory item on it opens a confirmation dialog before deleting the held amount.", order: 980);
+
+        _areaQuickStackRange = OrderedConfigEntry("1 - General", "Area Quick Stack Range", 10f, new ConfigDescription("Range in meters for hover Area Quick Stack. Set to 0 to disable area quick stack. The opened-container Place stacks button only uses the current container.", new AcceptableValueRange<float>(0f, 50f)), order: 970);
+        _areaRestockRange = OrderedConfigEntry("1 - General", "Area Take Stacks Range", 10f, new ConfigDescription("Range in meters for hover Area Take Stacks. Set to 0 to disable area take stacks. The opened-container Take stacks button only uses the current container.", new AcceptableValueRange<float>(0f, 50f)), order: 960);
 
         _inventoryRowsDisplayMode = OrderedConfigEntry(ClientConfigSection, "Inventory Rows Display Mode", InventoryRowsDisplayMode.Expandable, "Client-only regular inventory row display mode. Fixed always shows all unlocked regular inventory rows. Expandable restores the last locally remembered visible row count and changes it with mouse wheel while the inventory is open.", order: 900, synchronizedSetting: false);
         _autoFavoriteHotbarSwitchRow = OrderedConfigEntry(ClientConfigSection, "Auto Favorite Hotbar Switch Row", Toggle.On, "When enabled, marks row 2 as favorite when the local player is loaded or spawned. Turn this Off if you want row 2 favorites to stay manually controlled. Not synced with server.", order: 890, synchronizedSetting: false);
         _inventorySortMode = OrderedConfigEntry(ClientConfigSection, "Inventory Sort Mode", CraftingRecipeSortMode.GroupThenTier, "Sorting mode used by player inventory and container sort buttons. GroupThenTier sorts predefined group first, then biome/resource tier. TierThenGroup sorts biome/resource tier first, then predefined group.", order: 880, synchronizedSetting: false);
-        _containerPreviewCloseDelay = OrderedConfigEntry(ClientConfigSection, "Container Preview Close Delay", 0.3f, new ConfigDescription("Client-only container preview control. 0 disables the preview. Values above 0 enable it and set how many seconds the last valid container remains visible after looking away. A zero-sized placeholder inventory is never used.", new AcceptableValueRange<float>(0f, 2f)), order: 840, synchronizedSetting: false);
-        _containerHoverHoldDuration = OrderedConfigEntry(ClientConfigSection, "Container Hover Hold Duration", ContainerHoverHoldDurationDefault, new ConfigDescription("Seconds a container must stay hovered while holding E or the Container Restock Key before hover quick stack/restock fires. Lower values make pass-by container actions more responsive. Not synced with server.", new AcceptableValueRange<float>(ContainerHoverHoldDurationMin, ContainerHoverHoldDurationMax)), order: 830, synchronizedSetting: false);
-        _containerActionSuccessFxMode = OrderedConfigEntry(
+        _containerActionSuccessFx = OrderedConfigEntry(
             ClientConfigSection,
-            "Container Action Success FX Mode",
-            4,
-            new ConfigDescription(
-                "Chest-unlock FX mode for hover hold area actions. 0 disables FX. 1 spawns FX at the interacted container. 2-12 spawns FX at each container whose stack changed, up to this many containers. Opened-container buttons do not spawn FX.",
-                new AcceptableValueRange<int>(0, 12)),
-            order: 820,
+            "Container Action Success FX",
+            Toggle.On,
+            "Enables chest-unlock success effects for hover hold area quick stack/restock. Shows VFX at up to 10 changed containers and plays the SFX once at the interacted container. Opened-container buttons do not spawn effects. Not synced with server.",
+            order: 870,
             synchronizedSetting: false);
-        _containerActionSuccessFxVolume = OrderedConfigEntry(
-            ClientConfigSection,
-            "Container Action Success FX Volume",
-            1f,
-            new ConfigDescription(
-                "Volume multiplier for InventorySlots container action success FX audio. 0 mutes the FX sound and 1 keeps the original prefab volume.",
-                new AcceptableValueRange<float>(0f, 1f)),
-            order: 810,
-            synchronizedSetting: false);
+        _containerPreviewCloseDelay = OrderedConfigEntry(ClientConfigSection, "Container Preview Close Delay", 0.3f, new ConfigDescription("Client-only container preview control. 0 disables the preview. Values above 0 enable it and set how many seconds, up to 1 second, the last valid container remains visible after looking away. A zero-sized placeholder inventory is never used.", new AcceptableValueRange<float>(0f, 1f)), order: 860, synchronizedSetting: false);
         _mouseUiScrollMultiplier = OrderedConfigEntry(ClientConfigSection, "Mouse UI Scroll Multiplier", 1f, new ConfigDescription("Global multiplier for InventorySlots mouse-wheel UI scrolling. Applies to recipe pages, recipe zoom, expandable inventory rows, and InventorySlots tooltip scrolling. Not synced with server.", new AcceptableValueRange<float>(0.1f, 5f)), order: 790, synchronizedSetting: false);
 
         _quickSlotHudFollowsPanel = OrderedConfigEntry(ClientUiConfigSection, "Quick Slot HUD Follows Panel", Toggle.On, "When enabled, the quick slot HUD follows the quick slot inventory panel position. Turn this Off to keep the HUD at its last saved position while moving the panel separately. Not synced with server.", order: 910, synchronizedSetting: false);
@@ -85,22 +89,6 @@ public sealed partial class InventorySlotsPlugin
         _quickSlotHudFollowsPanel.SettingChanged += (_, _) => OnQuickSlotHudFollowsPanelChanged();
 
         BindCraftingClientConfigs();
-
-        _restockTargetStackLimitsConfig = ConfigEntry(
-            RestockConfigSection,
-            "Restock Target Stack Limits",
-            "",
-            new ConfigDescription(
-                "Client-only per-item target stack caps for Take stacks/restock into favorite slots. Keys may be prefab names, internal item names, or localized item names in the current client language, such as Stone: 10, Coins: 500. Separate entries with commas, semicolons, or new lines. Empty uses each item's normal max stack; 0 prevents restocking that item.",
-                null,
-                new ConfigurationManagerAttributes
-                {
-                    Order = 700,
-                    CustomDrawer = DrawRestockTargetStackLimitsConfig
-                }),
-            synchronizedSetting: false);
-        _restockTargetStackLimitsConfig.SettingChanged += (_, _) => RefreshRestockTargetStackLimits();
-        RefreshRestockTargetStackLimits();
 
         _enableGamepadUiScroll = OrderedConfigEntry(ControllerInputConfigSection, "Enable Gamepad UI Scroll", Toggle.On, "Allow gamepad input to emulate InventorySlots UI scrolling while gamepad input is active. Not synced with server.", order: 600, synchronizedSetting: false);
         _gamepadUiScrollSource = OrderedConfigEntry(ControllerInputConfigSection, "Gamepad UI Scroll Source", GamepadUiScrollSource.RightStickY, "Gamepad input used for InventorySlots UI scrolling. RightStickY uses the right stick vertical axis; DPadVertical uses held up/down; RightStickYOrDPadVertical accepts either.", order: 590, synchronizedSetting: false);
@@ -145,18 +133,6 @@ public sealed partial class InventorySlotsPlugin
             OrderedConfigEntry(ClientKeysConfigSection, "Quick Slot 8 Hotkey", new KeyboardShortcut(KeyCode.Alpha2, KeyCode.LeftAlt), new ConfigDescription("Hotkey used to activate quick slot 8.", new AcceptableShortcuts()), order: 716, synchronizedSetting: false),
             OrderedConfigEntry(ClientKeysConfigSection, "Quick Slot 9 Hotkey", new KeyboardShortcut(KeyCode.Alpha3, KeyCode.LeftAlt), new ConfigDescription("Hotkey used to activate quick slot 9.", new AcceptableShortcuts()), order: 714, synchronizedSetting: false)
         };
-        _quickSlotHotkeyDisplayTexts = new[]
-        {
-            OrderedConfigEntry(ClientKeysConfigSection, "Quick Slot 1 Hotkey Display Text", "", "Optional text shown on quick slot 1 instead of the generated hotkey label. Leave empty to auto-generate, for example M4+[ or Alt+1.", order: 729, synchronizedSetting: false),
-            OrderedConfigEntry(ClientKeysConfigSection, "Quick Slot 2 Hotkey Display Text", "", "Optional text shown on quick slot 2 instead of the generated hotkey label. Leave empty to auto-generate, for example M4+[ or Alt+1.", order: 727, synchronizedSetting: false),
-            OrderedConfigEntry(ClientKeysConfigSection, "Quick Slot 3 Hotkey Display Text", "", "Optional text shown on quick slot 3 instead of the generated hotkey label. Leave empty to auto-generate, for example M4+[ or Alt+1.", order: 725, synchronizedSetting: false),
-            OrderedConfigEntry(ClientKeysConfigSection, "Quick Slot 4 Hotkey Display Text", "", "Optional text shown on quick slot 4 instead of the generated hotkey label. Leave empty to auto-generate, for example M4+[ or Alt+1.", order: 723, synchronizedSetting: false),
-            OrderedConfigEntry(ClientKeysConfigSection, "Quick Slot 5 Hotkey Display Text", "", "Optional text shown on quick slot 5 instead of the generated hotkey label. Leave empty to auto-generate, for example M4+[ or Alt+1.", order: 721, synchronizedSetting: false),
-            OrderedConfigEntry(ClientKeysConfigSection, "Quick Slot 6 Hotkey Display Text", "", "Optional text shown on quick slot 6 instead of the generated hotkey label. Leave empty to auto-generate, for example M4+[ or Alt+1.", order: 719, synchronizedSetting: false),
-            OrderedConfigEntry(ClientKeysConfigSection, "Quick Slot 7 Hotkey Display Text", "", "Optional text shown on quick slot 7 instead of the generated hotkey label. Leave empty to auto-generate, for example M4+[ or Alt+1.", order: 717, synchronizedSetting: false),
-            OrderedConfigEntry(ClientKeysConfigSection, "Quick Slot 8 Hotkey Display Text", "", "Optional text shown on quick slot 8 instead of the generated hotkey label. Leave empty to auto-generate, for example M4+[ or Alt+1.", order: 715, synchronizedSetting: false),
-            OrderedConfigEntry(ClientKeysConfigSection, "Quick Slot 9 Hotkey Display Text", "", "Optional text shown on quick slot 9 instead of the generated hotkey label. Leave empty to auto-generate, for example M4+[ or Alt+1.", order: 713, synchronizedSetting: false)
-        };
     }
 
     private static void BindInventoryStateConfigInvalidation()
@@ -168,7 +144,7 @@ public sealed partial class InventorySlotsPlugin
             AddInventoryStateConfigInvalidation(entry);
         }
 
-        AddSlotDefinitionConfigInvalidation(_quickSlotCount);
+        AddSlotDefinitionConfigInvalidation(_quickSlotRows);
         AddInventoryStateConfigInvalidation(_quickSlotProgressionEnabled);
         foreach (ConfigEntry<string> entry in _quickSlotRowUnlockItems)
         {

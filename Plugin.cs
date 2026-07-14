@@ -40,7 +40,6 @@ public sealed partial class InventorySlotsPlugin : BaseUnityPlugin
     private const int BaseRows = 4;
     private const int InventoryWidth = 8;
     private const int MaxSupportedExtraRows = 5;
-    private const int MaxSupportedQuickSlots = 9;
     private const string SlotIdKey = "InventorySlotsSlotId";
     private const string EquippedByKey = "InventorySlotsEquippedBy";
     private const string BackupKey = "InventorySlotsBackup";
@@ -90,9 +89,7 @@ public sealed partial class InventorySlotsPlugin : BaseUnityPlugin
     private const float ContainerActionPairButtonWidthMultiplier = 1f;
     private const float SortButtonOutsideGap = 1f;
     private const float QuickSlotPanelIntroFallbackDuration = 0.25f;
-    private const float ContainerHoverHoldDurationDefault = 0.5f;
-    private const float ContainerHoverHoldDurationMin = 0.1f;
-    private const float ContainerHoverHoldDurationMax = 0.5f;
+    private const float ContainerHoverHoldDuration = 0.5f;
     private const int PinnedTooltipSlotCount = 3;
     private const float PinnedTooltipFixedPanelGap = 15f;
     private const float InventoryMaintenanceInterval = 1f;
@@ -102,10 +99,10 @@ public sealed partial class InventorySlotsPlugin : BaseUnityPlugin
     private const float PendingSlotActionTimeout = 30f;
     private const float InventoryPinnedJewelcraftingReservedHeight = 190f;
     private const string ProgressiveSlotsConfigSection = "2 - Progressive Slots";
-    private const string ClientConfigSection = "3 - Client";
-    private const string ClientUiConfigSection = "4 - Client UI";
-    private const string ClientKeysConfigSection = "5 - Client Keys";
-    private const string RestockConfigSection = "6 - Restock";
+    private const string RestockConfigSection = "3 - Restock";
+    private const string ClientConfigSection = "4 - Client";
+    private const string ClientUiConfigSection = "5 - Client UI";
+    private const string ClientKeysConfigSection = "6 - Client Keys";
     private const string ControllerInputConfigSection = "7 - Controller Input";
     private static readonly Vector2 HotbarSwitchHintOffset = new(-50f, -32f);
     private static readonly Color HotbarSwitchHintColor = new(174f / 255f, 224f / 255f, 1f, 1f);

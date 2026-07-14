@@ -11,7 +11,7 @@ namespace InventoryActions;
 public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
 {
     internal const string ModName = "InventoryActions";
-    internal const string ModVersion = "1.0.3";
+    internal const string ModVersion = "1.0.4";
     internal const string Author = "sighsorry";
     internal const string ModGUID = $"{Author}.{ModName}";
 
@@ -22,11 +22,10 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
     private const string ClientConfigSection = "2 - Client";
     private const string RestockConfigSection = "3 - Restock";
     private const string GeneralConfigSection = "1 - General";
-    private const float ContainerHoverHoldDurationDefault = 0.5f;
-    private const float ContainerHoverHoldDurationMin = 0.1f;
-    private const float ContainerHoverHoldDurationMax = 0.5f;
+    private const float ContainerHoverHoldDuration = 0.5f;
     private const string ContainerActionSuccessFxPrefabName = "fx_HildirChest_Unlock";
-    private const int ContainerActionSuccessFxMaxMode = 12;
+    private const int ContainerActionSuccessVfxLimit = 10;
+    private const float ContainerActionSuccessSfxLifetime = 5f;
 
     internal static readonly ManualLogSource Log = BepInEx.Logging.Logger.CreateLogSource(ModName);
 

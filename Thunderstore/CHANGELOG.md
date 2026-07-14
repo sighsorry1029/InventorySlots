@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.3
+
+- Replaced `Quick Slot Count` with `Quick Slot Rows`, using 0-3 rows of three slots each, and removed the nine redundant quick-slot hotkey display-text options.
+- Reorganized Configuration Manager sections and option ordering, moved Restock directly after Progressive Slots, hid crafting grid size and crafting sort mode while retaining their in-game controls and saved values, and limited Container Preview Close Delay to 1 second.
+- Simplified container action success effects to one On/Off option. Area quick stack/restock now shows VFX at up to 10 changed containers and plays its SFX once at the interacted container, with the hold duration fixed at 0.5 seconds.
+
 ## 1.2.2
 
 - Added server-authoritative `InventoryLimits` rules for exact prefab/internal names, built-in groups, and custom YAML groups. Limits count total item units across regular rows, the hotbar, quick slots, and equipment slots.

@@ -327,15 +327,6 @@ public sealed partial class InventorySlotsPlugin
             return "";
         }
 
-        if (_quickSlotHotkeyDisplayTexts != null && slot.QuickSlotIndex < _quickSlotHotkeyDisplayTexts.Length)
-        {
-            string custom = (_quickSlotHotkeyDisplayTexts[slot.QuickSlotIndex].Value ?? "").Trim();
-            if (!string.IsNullOrWhiteSpace(custom))
-            {
-                return custom;
-            }
-        }
-
         string keyboard = _quickSlotHotkeys != null && slot.QuickSlotIndex < _quickSlotHotkeys.Length
             ? _quickSlotHotkeys[slot.QuickSlotIndex].Value.GetCompactDisplayText()
             : "";

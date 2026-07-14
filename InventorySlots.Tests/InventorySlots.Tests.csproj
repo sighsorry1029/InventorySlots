@@ -15,6 +15,7 @@
     <Compile Include="..\CraftingTabAdapterModels.cs" Link="CraftingTabAdapterModels.cs" />
     <Compile Include="..\CraftingUiStamps.cs" Link="CraftingUiStamps.cs" />
     <Compile Include="..\FoodStatCore.cs" Link="FoodStatCore.cs" />
+    <Compile Include="..\ColoredFork\FoodStatCore.cs" Link="ColoredFork\FoodStatCore.cs" />
     <Compile Include="..\InventorySlotsConfigCore.cs" Link="InventorySlotsConfigCore.cs" />
     <Compile Include="..\InventoryActionCellPolicyCore.cs" Link="InventoryActionCellPolicyCore.cs" />
     <Compile Include="..\InventoryCellKind.cs" Link="InventoryCellKind.cs" />

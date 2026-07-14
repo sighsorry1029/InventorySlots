@@ -25,9 +25,7 @@ public sealed partial class InventoryActionsPlugin
     private static ConfigEntry<float> _areaQuickStackRange = null!;
     private static ConfigEntry<float> _areaRestockRange = null!;
     private static ConfigEntry<Color> _favoriteBorderColor = null!;
-    private static ConfigEntry<float> _containerHoverHoldDuration = null!;
-    private static ConfigEntry<int> _containerActionSuccessFxMode = null!;
-    private static ConfigEntry<float> _containerActionSuccessFxVolume = null!;
+    private static ConfigEntry<Toggle> _containerActionSuccessFx = null!;
     private static ConfigEntry<KeyboardShortcut> _favoriteModifierKey = null!;
     private static ConfigEntry<KeyboardShortcut> _containerRestockKey = null!;
     private static ConfigEntry<string> _sortButtonPositionOffset = null!;
@@ -63,28 +61,14 @@ public sealed partial class InventoryActionsPlugin
             synchronizedSetting: false);
         _favoriteBorderColor.SettingChanged += (_, _) => RefreshFavoriteBorders();
 
-        _containerHoverHoldDuration = ConfigEntry(ClientConfigSection, "Container Hover Hold Duration", ContainerHoverHoldDurationDefault, new ConfigDescription(
-            "Seconds a container must stay hovered while holding E or the Container Restock Key before hover quick stack/restock fires. Lower values make pass-by container actions more responsive. Not synced with server.",
-            new AcceptableValueRange<float>(ContainerHoverHoldDurationMin, ContainerHoverHoldDurationMax),
-            new ConfigurationManagerAttributes { Order = 870 }),
-            synchronizedSetting: false);
-        _containerActionSuccessFxMode = ConfigEntry(
+        _containerActionSuccessFx = ConfigEntry(
             ClientConfigSection,
-            "Container Action Success FX Mode",
-            4,
+            "Container Action Success FX",
+            Toggle.On,
             new ConfigDescription(
-                "Chest-unlock FX mode for hover hold area actions. 0 disables FX. 1 spawns FX at the interacted container. 2-12 spawns FX at each container whose stack changed, up to this many containers. Opened-container buttons do not spawn FX.",
-                new AcceptableValueRange<int>(0, 12),
-                new ConfigurationManagerAttributes { Order = 860 }),
-            synchronizedSetting: false);
-        _containerActionSuccessFxVolume = ConfigEntry(
-            ClientConfigSection,
-            "Container Action Success FX Volume",
-            1f,
-            new ConfigDescription(
-                "Volume multiplier for InventoryActions container action success FX audio. 0 mutes the FX sound and 1 keeps the original prefab volume.",
-                new AcceptableValueRange<float>(0f, 1f),
-                new ConfigurationManagerAttributes { Order = 850 }),
+                "Enables chest-unlock success effects for hover hold area quick stack/restock. Shows VFX at up to 10 changed containers and plays the SFX once at the interacted container. Opened-container buttons do not spawn effects. Not synced with server.",
+                null,
+                new ConfigurationManagerAttributes { Order = 870 }),
             synchronizedSetting: false);
         _sortButtonPositionOffset = ConfigEntry(
             ClientConfigSection,

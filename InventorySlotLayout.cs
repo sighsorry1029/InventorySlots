@@ -229,7 +229,8 @@ public sealed partial class InventorySlotsPlugin
 
     private static int GetQuickSlotCount()
     {
-        return _quickSlotCount == null ? 0 : Mathf.Clamp(_quickSlotCount.Value, 0, MaxSupportedQuickSlots);
+        int rows = _quickSlotRows == null ? 0 : Mathf.Clamp(_quickSlotRows.Value, 0, QuickSlotPanelRows);
+        return rows * QuickSlotPanelColumns;
     }
 
     private static int GetUnlockedQuickSlotCount(Player? player)

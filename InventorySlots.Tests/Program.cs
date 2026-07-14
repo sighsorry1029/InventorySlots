@@ -13,6 +13,7 @@ TestRunner.Run(
     ("Built-in group section names normalize to ids", Tests.BuiltInGroupSectionNamesNormalizeToIds),
     ("Dominant food stat tie breaks are stable", Tests.DominantFoodStatTieBreaksAreStable),
     ("Dominant food stat ignores empty foods", Tests.DominantFoodStatIgnoresEmptyFoods),
+    ("ColoredFork food stat copy mirrors InventorySlots behavior", Tests.ColoredForkFoodStatCopyMirrorsInventorySlotsBehavior),
     ("Crafting frame fast-path stamp tracks relevant fields", Tests.CraftingFrameFastPathStampTracksRelevantFields),
     ("Crafting grid stamp tracks pinned tooltip changes", Tests.CraftingGridStampTracksPinnedTooltipChanges),
     ("Crafting scrollbar stamp ignores sub-pixel jitter", Tests.CraftingScrollbarStampIgnoresSubPixelJitter),
@@ -240,6 +241,31 @@ internal static class Tests
     {
         Assert.False(FoodStatCore.TryGetDominant(0f, 0f, 0f, out FoodStat stat), "zero-value food should not classify");
         Assert.Equal(FoodStat.None, stat);
+    }
+
+    public static void ColoredForkFoodStatCopyMirrorsInventorySlotsBehavior()
+    {
+        (float Health, float Stamina, float Eitr)[] cases =
+        {
+            (0f, 0f, 0f),
+            (22f, 22f, 0f),
+            (0f, 30f, 30f),
+            (50f, 50f, 50f),
+            (30f, 90f, 100f)
+        };
+
+        foreach ((float health, float stamina, float eitr) in cases)
+        {
+            bool inventorySlotsResult = FoodStatCore.TryGetDominant(health, stamina, eitr, out FoodStat inventorySlotsStat);
+            bool coloredForkResult = ColoredFork.FoodStatCore.TryGetDominant(
+                health,
+                stamina,
+                eitr,
+                out ColoredFork.FoodStat coloredForkStat);
+
+            Assert.Equal(inventorySlotsResult, coloredForkResult);
+            Assert.Equal(inventorySlotsStat.ToString(), coloredForkStat.ToString());
+        }
     }
 
     public static void CraftingFrameFastPathStampTracksRelevantFields()

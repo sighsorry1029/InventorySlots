@@ -254,7 +254,9 @@ Core features:
 
 Crafting search indexes user-facing names, English localization text, prefab/internal names, and recipe materials.
 
-Crafting and inventory/container sorting use separate client sort modes:
+The crafting recipe grid starts at `6x6`; zoom changes made with the grid controls are remembered without exposing a separate Configuration Manager option.
+
+Crafting and inventory/container sorting use separate client sort modes. Crafting defaults to `TierThenGroup` and is changed with the crafting panel buttons, while inventory/container sorting is configured in `4 - Client`:
 
 - `TierThenGroup`: resource tier first, then group.
 - `GroupThenTier`: group first, then resource tier.
@@ -392,11 +394,11 @@ KeepOnDeath:
 ## Config Sections
 
 - `1 - General`: server lock, death keep rules, trash panel, area quick stack, area take stacks.
-- `2 - Progressive Slots`: extra rows, quick slot count, quick slot progression.
-- `3 - Client`: inventory display, sort modes, crafting grid, container preview and hover behavior, container FX, mouse UI scroll.
-- `4 - Client UI`: hints and tooltip display options.
-- `5 - Client Keys`: keyboard and mouse shortcuts.
-- `6 - Restock`: favorite restock target limits.
+- `2 - Progressive Slots`: extra rows, quick slot rows, quick slot progression.
+- `3 - Restock`: favorite restock target limits.
+- `4 - Client`: inventory display, sort modes, crafting grid, container preview and hover behavior, container FX, mouse UI scroll.
+- `5 - Client UI`: hints and tooltip display options.
+- `6 - Client Keys`: keyboard and mouse shortcuts.
 - `7 - Controller Input`: controller scrolling and controller hotkeys.
 
 ## Controller Input

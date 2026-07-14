@@ -17,7 +17,7 @@ public sealed partial class InventorySlotsPlugin
     private static ConfigEntry<Toggle> _progressiveRowsEnabled = null!;
     private static ConfigEntry<int> _maxExtraRows = null!;
     private static ConfigEntry<string>[] _rowUnlockItems = null!;
-    private static ConfigEntry<int> _quickSlotCount = null!;
+    private static ConfigEntry<int> _quickSlotRows = null!;
     private static ConfigEntry<Toggle> _quickSlotProgressionEnabled = null!;
     private static ConfigEntry<string>[] _quickSlotRowUnlockItems = null!;
     private static ConfigEntry<Toggle> _equipmentSlotProgressionEnabled = null!;
@@ -39,9 +39,7 @@ public sealed partial class InventorySlotsPlugin
     private static ConfigEntry<float> _craftingHoverTooltipBackgroundAlpha = null!;
     private static ConfigEntry<float> _inventoryContainerHoverTooltipBackgroundAlpha = null!;
     private static ConfigEntry<PlayerStatBarLengthScaling> _playerStatBarLengthScaling = null!;
-    private static ConfigEntry<float> _containerHoverHoldDuration = null!;
-    private static ConfigEntry<int> _containerActionSuccessFxMode = null!;
-    private static ConfigEntry<float> _containerActionSuccessFxVolume = null!;
+    private static ConfigEntry<Toggle> _containerActionSuccessFx = null!;
     private static ConfigEntry<CraftingRecipeSortMode> _inventorySortMode = null!;
     private static ConfigEntry<Toggle> _autoFavoriteHotbarSwitchRow = null!;
     private static ConfigEntry<float> _mouseUiScrollMultiplier = null!;
@@ -63,6 +61,5 @@ public sealed partial class InventorySlotsPlugin
     private static ConfigEntry<float> _containerPreviewCloseDelay = null!;
     private static ConfigEntry<KeyboardShortcut> _favoriteModifierKey = null!;
     private static ConfigEntry<KeyboardShortcut>[] _quickSlotHotkeys = null!;
-    private static ConfigEntry<string>[] _quickSlotHotkeyDisplayTexts = null!;
     private static YamlRoot _yamlConfig = new();
 }

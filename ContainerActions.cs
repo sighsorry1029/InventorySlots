@@ -9,7 +9,8 @@ namespace InventorySlots;
 public sealed partial class InventorySlotsPlugin
 {
     private const string ContainerActionSuccessFxPrefabName = "fx_HildirChest_Unlock";
-    private const int ContainerActionSuccessFxMaxMode = 12;
+    private const int ContainerActionSuccessVfxLimit = 10;
+    private const float ContainerActionSuccessSfxLifetime = 5f;
     private delegate bool TryGetContainerHoldContext(Player player, out Container container);
 
     private static List<Container> GetActionContainers(Player player, Container currentContainer, bool areaForQuickStack)
@@ -78,8 +79,8 @@ public sealed partial class InventorySlotsPlugin
             return 0;
         }
 
-        int fxMode = includeArea ? GetContainerActionSuccessFxMode() : 0;
-        int changedContainerFxCount = 0;
+        int vfxLimit = includeArea && IsContainerActionSuccessFxEnabled() ? ContainerActionSuccessVfxLimit : 0;
+        int changedContainerVfxCount = 0;
         List<Container> containers = includeArea
             ? GetActionContainers(localPlayer, anchorContainer, areaForQuickStack)
             : new List<Container> { anchorContainer };
@@ -88,13 +89,13 @@ public sealed partial class InventorySlotsPlugin
             containers,
             container => !IsUnityNull(container) && container.m_inventory != null,
             transfer,
-            (container, _) => changedContainerFxCount = TryPlayChangedContainerActionSuccessFx(localPlayer, container, fxMode, changedContainerFxCount),
+            (container, _) => changedContainerVfxCount = TryPlayChangedContainerActionSuccessVfx(container, vfxLimit, changedContainerVfxCount),
             () =>
             {
                 onMoved?.Invoke();
-                if (fxMode == 1)
+                if (vfxLimit > 0)
                 {
-                    PlayContainerActionSuccessFx(localPlayer, anchorContainer);
+                    PlayContainerActionSuccessSfx(anchorContainer);
                 }
             });
     }
@@ -287,11 +288,8 @@ public sealed partial class InventorySlotsPlugin
         return ContainerActionCore.CompareGridOrder(a.x, a.y, b.x, b.y);
     }
 
-    private static int GetContainerActionSuccessFxMode() =>
-        Mathf.Clamp(_containerActionSuccessFxMode != null ? _containerActionSuccessFxMode.Value : 1, 0, ContainerActionSuccessFxMaxMode);
-
-    private static float GetContainerHoverHoldDuration() =>
-        Mathf.Clamp(_containerHoverHoldDuration != null ? _containerHoverHoldDuration.Value : ContainerHoverHoldDurationDefault, ContainerHoverHoldDurationMin, ContainerHoverHoldDurationMax);
+    private static bool IsContainerActionSuccessFxEnabled() =>
+        _containerActionSuccessFx == null || _containerActionSuccessFx.Value == Toggle.On;
 
     private static void HandleContainerHoldHotkey(
         Player player,
@@ -312,7 +310,7 @@ public sealed partial class InventorySlotsPlugin
             hold.Triggered = false;
         }
 
-        if (hold.Triggered || Time.time - hold.StartTime < GetContainerHoverHoldDuration())
+        if (hold.Triggered || Time.time - hold.StartTime < ContainerHoverHoldDuration)
         {
             return;
         }
@@ -334,25 +332,20 @@ public sealed partial class InventorySlotsPlugin
         hold.Triggered = false;
     }
 
-    private static float GetContainerActionSuccessFxVolume() =>
-        Mathf.Clamp01(_containerActionSuccessFxVolume != null ? _containerActionSuccessFxVolume.Value : 1f);
-
-    private static int TryPlayChangedContainerActionSuccessFx(Player player, Container container, int mode, int played)
+    private static int TryPlayChangedContainerActionSuccessVfx(Container container, int limit, int played)
     {
-        if (mode < 2 || played >= mode)
+        if (limit <= 0 || played >= limit)
         {
             return played;
         }
 
-        PlayContainerActionSuccessFx(player, container);
+        PlayContainerActionSuccessVfx(container);
         return played + 1;
     }
 
-    private static void PlayContainerActionSuccessFx(Player player, Container container)
+    private static void PlayContainerActionSuccessVfx(Container container)
     {
-        if (player == null ||
-            IsUnityNull(player) ||
-            container == null ||
+        if (container == null ||
             IsUnityNull(container) ||
             ZNetScene.instance == null)
         {
@@ -368,23 +361,41 @@ public sealed partial class InventorySlotsPlugin
         Vector3 position = container.transform.position;
         Quaternion rotation = container.transform.rotation;
         GameObject instance = UnityEngine.Object.Instantiate(prefab, position, rotation);
-        ApplyContainerActionSuccessFxVolume(instance);
+        foreach (ZSFX sfx in instance.GetComponentsInChildren<ZSFX>(includeInactive: true))
+        {
+            if (sfx == null || IsUnityNull(sfx))
+            {
+                continue;
+            }
+
+            sfx.Stop();
+            sfx.gameObject.SetActive(false);
+        }
     }
 
-    private static void ApplyContainerActionSuccessFxVolume(GameObject instance)
+    private static void PlayContainerActionSuccessSfx(Container container)
     {
-        float volumeScale = GetContainerActionSuccessFxVolume();
-        if (instance == null || IsUnityNull(instance) || volumeScale >= 0.999f)
+        if (container == null || IsUnityNull(container) || ZNetScene.instance == null)
         {
             return;
         }
 
-        foreach (ZSFX sfx in instance.GetComponentsInChildren<ZSFX>(includeInactive: true))
+        GameObject? prefab = ZNetScene.instance.GetPrefab(ContainerActionSuccessFxPrefabName);
+        if (prefab == null || IsUnityNull(prefab))
         {
-            if (sfx != null && !IsUnityNull(sfx))
-            {
-                sfx.SetVolumeModifier(sfx.GetVolumeModifier() * volumeScale);
-            }
+            return;
         }
+
+        Transform? sfxRoot = prefab.transform.Find("SFX");
+        if (sfxRoot == null || IsUnityNull(sfxRoot))
+        {
+            return;
+        }
+
+        GameObject instance = UnityEngine.Object.Instantiate(
+            sfxRoot.gameObject,
+            container.transform.position,
+            container.transform.rotation);
+        UnityEngine.Object.Destroy(instance, ContainerActionSuccessSfxLifetime);
     }
 }
