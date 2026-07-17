@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.4
+
+- Changed cooking-recipe ingredient detection into a fallback classification so fermenter outputs, potions, mead bases, tools, equipment, and explicitly grouped items keep their primary category. This allows items such as ValheimCuisine's `VC_VineberryAle` to use the default mead quick-slot rule even when they are also ingredients in food recipes.
+
 ## 1.2.3
 
 - Replaced `Quick Slot Count` with `Quick Slot Rows`, using 0-3 rows of three slots each, and removed the nine redundant quick-slot hotkey display-text options.

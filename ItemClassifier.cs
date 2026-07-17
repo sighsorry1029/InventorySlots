@@ -291,10 +291,25 @@ public sealed partial class InventorySlotsPlugin
         MatchConfiguredCustomGroupInCraftingGroup(item, "armor");
 
     private static bool MatchFoodCategory(ItemData item) =>
+        MatchPrimaryFoodCategory(item) ||
+        IsStationFoodInput(item) && !MatchPrimaryNonFoodCategory(item);
+
+    private static bool MatchPrimaryFoodCategory(ItemData item) =>
         MatchFeastCategory(item) ||
         IsNativeFoodCategory(item) ||
-        MatchStationFoodInputCategory(item) ||
         MatchConfiguredCustomGroupInCraftingGroup(item, "food");
+
+    // Recipe usage is a fallback signal and must not replace an item's primary identity.
+    private static bool MatchPrimaryNonFoodCategory(ItemData item) =>
+        MatchMeleeCategory(item) ||
+        MatchRangedCategory(item) ||
+        MatchMagicCategory(item) ||
+        MatchArmorCategory(item) ||
+        MatchConsumableCategory(item) ||
+        MatchMeadBaseCategory(item) ||
+        item.m_shared.m_itemType == ItemType.Trophy ||
+        item.m_shared.m_value > 0 ||
+        MatchConfiguredCustomGroupInCraftingGroup(item, "misc");
 
     private static bool MatchHealthFoodCategory(ItemData item) =>
         !MatchFeastCategory(item) &&
@@ -318,7 +333,7 @@ public sealed partial class InventorySlotsPlugin
         HasFoodCarrier(item) &&
         (GetFoodHealth(item) > 0f || GetFoodStamina(item) > 0f || GetFoodEitr(item) > 0f);
 
-    private static bool MatchStationFoodInputCategory(ItemData item) =>
+    private static bool IsStationFoodInput(ItemData item) =>
         ItemMatchesStationInput(CraftingRecipeFoodInputTokens, item) ||
         ItemMatchesStationInput(CookingStationFoodInputTokens, item) ||
         ItemMatchesStationInput(FermenterFoodInputTokens, item);
@@ -356,30 +371,27 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool MatchConsumableCategory(ItemData item) =>
         !MatchMeadBaseCategory(item) &&
-        !MatchStationFoodInputCategory(item) &&
         (MatchMeadCategory(item) ||
          MatchPotionCategory(item) ||
          MatchConfiguredCustomGroupInCraftingGroup(item, "consumable"));
 
     private static bool MatchMeadCategory(ItemData item) =>
         !MatchMeadBaseCategory(item) &&
-        !MatchStationFoodInputCategory(item) &&
         ItemMatchesStationInput(FermenterOutputTokens, item);
 
     private static bool MatchPotionCategory(ItemData item) =>
-        !MatchFoodCategory(item) &&
+        !MatchPrimaryFoodCategory(item) &&
         !MatchMeadCategory(item) &&
         !MatchMeadBaseCategory(item) &&
         (item.m_shared.m_itemType == ItemType.Material || item.m_shared.m_itemType == ItemType.Consumable) &&
         item.m_shared.m_consumeStatusEffect != null;
 
     private static bool MatchMeadBaseCategory(ItemData item) =>
-        !MatchStationFoodInputCategory(item) &&
-        (ItemMatchesStationInput(FermenterInputTokens, item) ||
-         MatchConfiguredCustomGroupInCraftingGroup(item, "meadbase"));
+        ItemMatchesStationInput(FermenterInputTokens, item) ||
+        MatchConfiguredCustomGroupInCraftingGroup(item, "meadbase");
 
     private static bool MatchToolCategory(ItemData item) =>
-        !MatchFoodCategory(item) &&
+        !MatchPrimaryFoodCategory(item) &&
         !MatchConsumableCategory(item) &&
         !MatchMeadBaseCategory(item) &&
         (item.m_shared.m_itemType == ItemType.Tool ||
