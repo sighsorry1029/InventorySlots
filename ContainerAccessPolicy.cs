@@ -1,10 +1,16 @@
-using System.Linq;
 using UnityEngine;
 
 namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
+    private enum ContainerAccessMode
+    {
+        Unavailable,
+        DirectOwner,
+        MultiUserChestRemote
+    }
+
     private static bool CanHandleContainerRestock(Player player, Container container)
     {
         return player != null &&
@@ -83,48 +89,64 @@ public sealed partial class InventorySlotsPlugin
         return zdo != null && zdo.GetInt("InUse", 0) == 1;
     }
 
-    private static bool CanUseContainerThroughOwnerOrMultiUserChest(Container container, bool allowLocalWithoutZNetView = false)
+    private static ContainerAccessMode GetContainerAccessMode(Container container, bool allowLocalWithoutZNetView = false)
     {
         if (container == null)
         {
-            return false;
+            return ContainerAccessMode.Unavailable;
         }
 
         if (container.m_nview == null || !container.m_nview.IsValid())
         {
-            return allowLocalWithoutZNetView;
+            return allowLocalWithoutZNetView
+                ? ContainerAccessMode.DirectOwner
+                : ContainerAccessMode.Unavailable;
         }
 
         if (container.m_nview.IsOwner())
         {
-            return true;
+            return ContainerAccessMode.DirectOwner;
         }
 
-        return HasMultiUserChestActive && !IsMultiUserChestIgnored(container);
+        return HasMultiUserChestActive && !IsMultiUserChestIgnored(container)
+            ? ContainerAccessMode.MultiUserChestRemote
+            : ContainerAccessMode.Unavailable;
     }
 
-    private static bool CanMutateContainerDirectly(Container container, bool allowLocalWithoutZNetView = false)
-    {
-        if (container == null)
-        {
-            return false;
-        }
-
-        if (container.m_nview == null || !container.m_nview.IsValid())
-        {
-            return allowLocalWithoutZNetView;
-        }
-
-        return container.m_nview.IsOwner();
-    }
+    private static bool CanMutateContainerDirectly(Container container, bool allowLocalWithoutZNetView = false) =>
+        GetContainerAccessMode(container, allowLocalWithoutZNetView) == ContainerAccessMode.DirectOwner;
 
     private static bool CanProcessContainerSortRpc(Container container, long sender, long requesterPlayerId)
     {
         return sender != 0L &&
                requesterPlayerId != 0L &&
-               sender == requesterPlayerId &&
+               HasMultiUserChestActive &&
+               !IsMultiUserChestIgnored(container) &&
+               IsRpcSenderForPlayer(sender, requesterPlayerId) &&
                CanMutateContainerDirectly(container) &&
-               container.CheckAccess(sender);
+               container.CheckAccess(requesterPlayerId);
+    }
+
+    private static bool IsRpcSenderForPlayer(long sender, long requesterPlayerId)
+    {
+        foreach (Player player in Player.GetAllPlayers())
+        {
+            if (player == null ||
+                player.GetPlayerID() != requesterPlayerId ||
+                player.m_nview == null ||
+                !player.m_nview.IsValid())
+            {
+                continue;
+            }
+
+            ZDO? playerZdo = player.m_nview.GetZDO();
+            if (playerZdo != null && playerZdo.GetOwner() == sender)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool IsMultiUserChestIgnored(Container container)
@@ -133,15 +155,4 @@ public sealed partial class InventorySlotsPlugin
         return zdo != null && zdo.GetBool(MultiUserChestIgnoreZdoKey, false);
     }
 
-    private static bool IsRemoteMultiUserChestInventory(Inventory inventory)
-    {
-        return inventory != null &&
-               HasMultiUserChestActive &&
-               InventoryContainers.KnownContainers.Any(container => container != null &&
-                                                container.m_inventory == inventory &&
-                                                container.m_nview != null &&
-                                                container.m_nview.IsValid() &&
-                                                !container.m_nview.IsOwner() &&
-                                                !IsMultiUserChestIgnored(container));
-    }
 }

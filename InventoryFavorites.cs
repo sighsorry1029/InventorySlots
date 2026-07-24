@@ -38,7 +38,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool ShouldHandleFavoriteClick(InventoryGrid grid)
     {
-        if (!AreFavoritesEnabled() || grid == null || InventoryGui.instance == null || Player.m_localPlayer == null)
+        if (grid == null || InventoryGui.instance == null || Player.m_localPlayer == null)
         {
             return false;
         }
@@ -190,7 +190,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void EnsureFavoritesLoaded(Player player)
     {
-        if (!AreFavoritesEnabled() || player == null)
+        if (player == null)
         {
             return;
         }

@@ -8,14 +8,20 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
+    private static bool _adventureBackpacksPatchesApplied;
+    private static ItemData? _lastAdventureBackpackCompatItem;
+    private static ItemData? _lastSmoothbrainBackpackCompatItem;
+    private static ItemData? _lastRustyBagCompatItem;
+    private static ItemData? _lastRustyQuiverCompatItem;
+
     private static void InitializeBackpackCompatibility()
     {
-        if (!CompatRuntime.AdventureBackpacksPatchesApplied &&
+        if (!_adventureBackpacksPatchesApplied &&
             TryGetAdventureBackpacksApi(out AdventureBackpacksApi? adventureApi) &&
             adventureApi != null)
         {
             adventureApi.ApplyPatches(_instance._harmony);
-            CompatRuntime.AdventureBackpacksPatchesApplied = true;
+            _adventureBackpacksPatchesApplied = true;
         }
 
         _ = TryGetSmoothbrainBackpacksApi(out _);
@@ -129,12 +135,12 @@ public sealed partial class InventorySlotsPlugin
             TryGetAdventureBackpacksApi(out AdventureBackpacksApi? adventureApi) &&
             adventureApi != null)
         {
-            if (!ReferenceEquals(CompatRuntime.LastAdventureBackpackCompatItem, item) || !adventureApi.IsBackpackEquippedFlagSet())
+            if (!ReferenceEquals(_lastAdventureBackpackCompatItem, item) || !adventureApi.IsBackpackEquippedFlagSet())
             {
                 adventureApi.OnCustomBackpackEquipped(player, item);
             }
 
-            CompatRuntime.LastAdventureBackpackCompatItem = item;
+            _lastAdventureBackpackCompatItem = item;
         }
 
         if (IsSmoothbrainBackpackItem(item) &&
@@ -142,7 +148,7 @@ public sealed partial class InventorySlotsPlugin
             smoothbrainApi != null)
         {
             smoothbrainApi.SyncEquippedBackpack(player, item);
-            CompatRuntime.LastSmoothbrainBackpackCompatItem = item;
+            _lastSmoothbrainBackpackCompatItem = item;
         }
 
         if (TryGetRustyBagsApi(out RustyBagsApi? rustyApi) && rustyApi != null)
@@ -150,12 +156,12 @@ public sealed partial class InventorySlotsPlugin
             if (IsRustyBagItem(item))
             {
                 rustyApi.SyncBag(player, item);
-                CompatRuntime.LastRustyBagCompatItem = item;
+                _lastRustyBagCompatItem = item;
             }
             else if (IsRustyQuiverItem(item))
             {
                 rustyApi.SyncQuiver(player, item);
-                CompatRuntime.LastRustyQuiverCompatItem = item;
+                _lastRustyQuiverCompatItem = item;
             }
         }
 
@@ -170,45 +176,45 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        if ((ReferenceEquals(CompatRuntime.LastAdventureBackpackCompatItem, item) || IsAdventureBackpackItem(item)) &&
+        if ((ReferenceEquals(_lastAdventureBackpackCompatItem, item) || IsAdventureBackpackItem(item)) &&
             TryGetAdventureBackpacksApi(out AdventureBackpacksApi? adventureApi) &&
             adventureApi != null)
         {
             adventureApi.OnCustomBackpackUnequipping(player, item);
-            if (ReferenceEquals(CompatRuntime.LastAdventureBackpackCompatItem, item))
+            if (ReferenceEquals(_lastAdventureBackpackCompatItem, item))
             {
-                CompatRuntime.LastAdventureBackpackCompatItem = null;
+                _lastAdventureBackpackCompatItem = null;
             }
         }
 
-        if ((ReferenceEquals(CompatRuntime.LastSmoothbrainBackpackCompatItem, item) || IsSmoothbrainBackpackItem(item)) &&
+        if ((ReferenceEquals(_lastSmoothbrainBackpackCompatItem, item) || IsSmoothbrainBackpackItem(item)) &&
             TryGetSmoothbrainBackpacksApi(out SmoothbrainBackpacksApi? smoothbrainApi) &&
             smoothbrainApi != null)
         {
             smoothbrainApi.SyncEquippedBackpack(player, null);
-            if (ReferenceEquals(CompatRuntime.LastSmoothbrainBackpackCompatItem, item))
+            if (ReferenceEquals(_lastSmoothbrainBackpackCompatItem, item))
             {
-                CompatRuntime.LastSmoothbrainBackpackCompatItem = null;
+                _lastSmoothbrainBackpackCompatItem = null;
             }
         }
 
         if (TryGetRustyBagsApi(out RustyBagsApi? rustyApi) && rustyApi != null)
         {
-            if (ReferenceEquals(CompatRuntime.LastRustyBagCompatItem, item) || IsRustyBagItem(item))
+            if (ReferenceEquals(_lastRustyBagCompatItem, item) || IsRustyBagItem(item))
             {
                 rustyApi.ClearBagIfCurrent(player, item);
-                if (ReferenceEquals(CompatRuntime.LastRustyBagCompatItem, item))
+                if (ReferenceEquals(_lastRustyBagCompatItem, item))
                 {
-                    CompatRuntime.LastRustyBagCompatItem = null;
+                    _lastRustyBagCompatItem = null;
                 }
             }
 
-            if (ReferenceEquals(CompatRuntime.LastRustyQuiverCompatItem, item) || IsRustyQuiverItem(item))
+            if (ReferenceEquals(_lastRustyQuiverCompatItem, item) || IsRustyQuiverItem(item))
             {
                 rustyApi.ClearQuiverIfCurrent(player, item);
-                if (ReferenceEquals(CompatRuntime.LastRustyQuiverCompatItem, item))
+                if (ReferenceEquals(_lastRustyQuiverCompatItem, item))
                 {
-                    CompatRuntime.LastRustyQuiverCompatItem = null;
+                    _lastRustyQuiverCompatItem = null;
                 }
             }
         }
@@ -220,19 +226,19 @@ public sealed partial class InventorySlotsPlugin
     {
         if (!TryGetAdventureBackpacksApi(out AdventureBackpacksApi? api) || api == null)
         {
-            CompatRuntime.LastAdventureBackpackCompatItem = null;
+            _lastAdventureBackpackCompatItem = null;
             return;
         }
 
         ItemData? current = FindCustomEquippedItem(player, IsAdventureBackpackItem);
-        if (!ReferenceEquals(current, CompatRuntime.LastAdventureBackpackCompatItem))
+        if (!ReferenceEquals(current, _lastAdventureBackpackCompatItem))
         {
-            if (CompatRuntime.LastAdventureBackpackCompatItem != null)
+            if (_lastAdventureBackpackCompatItem != null)
             {
-                api.OnCustomBackpackUnequipping(player, CompatRuntime.LastAdventureBackpackCompatItem);
+                api.OnCustomBackpackUnequipping(player, _lastAdventureBackpackCompatItem);
             }
 
-            CompatRuntime.LastAdventureBackpackCompatItem = current;
+            _lastAdventureBackpackCompatItem = current;
             if (current != null)
             {
                 api.OnCustomBackpackEquipped(player, current);
@@ -251,21 +257,21 @@ public sealed partial class InventorySlotsPlugin
     {
         if (!TryGetSmoothbrainBackpacksApi(out SmoothbrainBackpacksApi? api) || api == null)
         {
-            CompatRuntime.LastSmoothbrainBackpackCompatItem = null;
+            _lastSmoothbrainBackpackCompatItem = null;
             return;
         }
 
         ItemData? current = FindCustomEquippedItem(player, IsSmoothbrainBackpackItem);
         api.SyncEquippedBackpack(player, current);
-        CompatRuntime.LastSmoothbrainBackpackCompatItem = current;
+        _lastSmoothbrainBackpackCompatItem = current;
     }
 
     private static void SyncRustyBagsCompatState(Player player)
     {
         if (!TryGetRustyBagsApi(out RustyBagsApi? api) || api == null)
         {
-            CompatRuntime.LastRustyBagCompatItem = null;
-            CompatRuntime.LastRustyQuiverCompatItem = null;
+            _lastRustyBagCompatItem = null;
+            _lastRustyQuiverCompatItem = null;
             return;
         }
 
@@ -273,8 +279,8 @@ public sealed partial class InventorySlotsPlugin
         ItemData? currentQuiver = FindCustomEquippedItem(player, IsRustyQuiverItem);
         api.SyncBag(player, currentBag);
         api.SyncQuiver(player, currentQuiver);
-        CompatRuntime.LastRustyBagCompatItem = currentBag;
-        CompatRuntime.LastRustyQuiverCompatItem = currentQuiver;
+        _lastRustyBagCompatItem = currentBag;
+        _lastRustyQuiverCompatItem = currentQuiver;
     }
 
     private static ItemData? FindCustomEquippedItem(Player player, Func<ItemData?, bool> predicate)

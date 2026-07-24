@@ -145,7 +145,6 @@ public sealed partial class InventorySlotsPlugin
             _craftingRecipeGridZoomModifier == null ||
             _craftingRecipeGridZoomModifier.Value.MainKey == KeyCode.None)
         {
-            CraftingController.InvalidateRecipeGridZoomHint();
             SetHintActive(CraftingUi.RecipeGridZoomHint, false);
             return;
         }
@@ -153,7 +152,6 @@ public sealed partial class InventorySlotsPlugin
         string modifierText = GetCraftingRecipeGridZoomModifierDisplayText();
         if (string.IsNullOrWhiteSpace(modifierText))
         {
-            CraftingController.InvalidateRecipeGridZoomHint();
             SetHintActive(CraftingUi.RecipeGridZoomHint, false);
             return;
         }
@@ -177,7 +175,6 @@ public sealed partial class InventorySlotsPlugin
         rootText.raycastTarget = false;
 
         TMP_Text labelText = EnsureHintText(CraftingUi.RecipeGridZoomHint, "Label", label);
-        CraftingUi.RecipeGridZoomHintText = labelText;
         labelText.enabled = true;
         labelText.fontSize = textSize;
         labelText.alignment = TextAlignmentOptions.Left;
@@ -189,23 +186,7 @@ public sealed partial class InventorySlotsPlugin
         float textWidth = Mathf.Ceil(Mathf.Max(textSize * 1.4f, labelText.GetPreferredValues(label, 1000f, iconHeight).x + 1f));
         float width = textWidth + gap + iconWidth;
         Vector2 size = new(width, height);
-        Vector2 position = GetCraftingRecipeGridZoomHintPosition(grid, size);
-        CraftingRecipeGridZoomHintStamp stamp = new(
-            gui.m_crafting.GetInstanceID(),
-            grid.GetInstanceID(),
-            grid.anchoredPosition.x,
-            grid.anchoredPosition.y,
-            label,
-            textSize,
-            iconWidth,
-            iconHeight,
-            gap,
-            position.x,
-            position.y,
-            InventoryWheelHintColor.r,
-            InventoryWheelHintColor.g,
-            InventoryWheelHintColor.b,
-            InventoryWheelHintColor.a);
+        Vector2 position = CraftingRecipeGridZoomHintFixedOffset;
 
         if (CraftingUi.RecipeGridZoomHint.parent != gui.m_crafting)
         {
@@ -241,13 +222,7 @@ public sealed partial class InventorySlotsPlugin
         image.raycastTarget = false;
         image.color = InventoryWheelHintColor;
 
-        CraftingUi.RecipeGridZoomHintStamp = stamp;
         SetHintActive(CraftingUi.RecipeGridZoomHint, true);
-    }
-
-    private static Vector2 GetCraftingRecipeGridZoomHintPosition(RectTransform grid, Vector2 size)
-    {
-        return CraftingRecipeGridZoomHintFixedOffset;
     }
 
     private static string GetCraftingRecipeGridZoomModifierDisplayText()
@@ -404,7 +379,6 @@ public sealed partial class InventorySlotsPlugin
         SetCraftingRecipeCellChild(cell.NoTeleport, false);
         SetCraftingRecipeCellChild(cell.Durability, false);
         SetCraftingRecipeFavoriteBorder(cell, IsFavoriteCraftingRecipe(pair), IsUpgradeFavoritePair(pair));
-        SetCraftingRecipeSelectedBorder(cell, false);
         SetCraftingRecipePinnedTooltipMarker(cell, tooltipPinned, cellSize);
         ConfigureCraftingRecipeVneiTooltip(cell.Tooltip, pair);
 
@@ -1118,30 +1092,6 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
-    private static void SetCraftingRecipeSelectedBorder(CraftingRecipeGridCell cell, bool active)
-    {
-        RectTransform? border = active
-            ? EnsureCraftingRecipeSelectedBorder(cell)
-            : cell.Rect != null && !IsUnityNull(cell.Rect) && cell.Rect.Find(CraftingSelectedRecipeBorderName) is RectTransform existing
-                ? existing
-                : null;
-        if (border == null)
-        {
-            return;
-        }
-
-        foreach (Image image in border.GetComponentsInChildren<Image>(includeInactive: true))
-        {
-            image.color = new Color(1f, 1f, 1f, 0.98f);
-        }
-
-        border.gameObject.SetActive(active);
-        if (active)
-        {
-            border.SetAsLastSibling();
-        }
-    }
-
     private static void SetCraftingRecipePinnedTooltipMarker(CraftingRecipeGridCell cell, bool active, float cellSize)
     {
         RectTransform? marker = EnsureCraftingRecipePinnedTooltipMarker(cell);
@@ -1214,36 +1164,6 @@ public sealed partial class InventorySlotsPlugin
         state.LayoutSignature = signature;
     }
 
-    private static RectTransform? EnsureCraftingRecipeSelectedBorder(CraftingRecipeGridCell cell)
-    {
-        if (cell.Rect == null || IsUnityNull(cell.Rect))
-        {
-            return null;
-        }
-
-        Transform existing = cell.Rect.Find(CraftingSelectedRecipeBorderName);
-        if (existing is RectTransform existingRect)
-        {
-            return existingRect;
-        }
-
-        GameObject go = new(CraftingSelectedRecipeBorderName, typeof(RectTransform));
-        RectTransform border = go.GetComponent<RectTransform>();
-        border.SetParent(cell.Rect, false);
-        border.anchorMin = Vector2.zero;
-        border.anchorMax = Vector2.one;
-        border.offsetMin = Vector2.zero;
-        border.offsetMax = Vector2.zero;
-        border.localScale = Vector3.one;
-        border.localRotation = Quaternion.identity;
-        CreateFavoriteBorderSide(border, "Top", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, FavoriteBorderThickness), Vector2.zero);
-        CreateFavoriteBorderSide(border, "Bottom", new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, FavoriteBorderThickness), Vector2.zero);
-        CreateFavoriteBorderSide(border, "Left", new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), new Vector2(FavoriteBorderThickness, 0f), Vector2.zero);
-        CreateFavoriteBorderSide(border, "Right", new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), new Vector2(FavoriteBorderThickness, 0f), Vector2.zero);
-        go.SetActive(false);
-        return border;
-    }
-
     private static RectTransform? EnsureCraftingRecipeFavoriteBorder(CraftingRecipeGridCell cell)
     {
         if (cell.Rect == null || IsUnityNull(cell.Rect))
@@ -1276,11 +1196,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool RectContainsCraftingRecipeIconArea(RectTransform grid, Vector2 screenPoint)
     {
-        if (!TryGetLocalPointInRect(grid, screenPoint, out Vector2 localPoint))
-        {
-            return false;
-        }
-
+        Vector2 localPoint = grid.InverseTransformPoint(screenPoint);
         Rect recipeIconArea = new(
             0f,
             -CraftingRecipeIconRows * CraftingRecipeGridCellSpace,

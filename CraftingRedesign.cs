@@ -68,6 +68,7 @@ public sealed partial class InventorySlotsPlugin
         UpdateCraftingQueueLifecycle(gui);
         TryContinueCraftingQueue(gui);
         EnsureCraftingFavoritesLoaded(Player.m_localPlayer);
+        HandleCraftingGroupFavoriteClearShortcut();
         UpdateCraftingSearchInput(gui, grid);
         UpdateCraftingSortModeButtons(gui, grid);
         if (adapter.UsesDefaultGroupRail)
@@ -79,7 +80,6 @@ public sealed partial class InventorySlotsPlugin
             HideCraftingGroupRail();
         }
 
-        HandleCraftingGroupFavoriteClearShortcut();
         bool viewChanged = UpdateCraftingRecipeView(gui);
         EnsureSelectedCraftingRecipeVisible(gui);
         bool recipeWheelHandled = HandleCraftingPinnedTooltipWheel() || HandleCraftingHoverTooltipWheel() || HandleCraftingRecipeGridZoomWheel(gui, grid) || HandleCraftingRecipeGridWheel(gui, grid);
@@ -296,7 +296,6 @@ public sealed partial class InventorySlotsPlugin
     {
         CraftingRecipes.SearchTextCache.Clear();
         CraftingRecipes.HoverTooltipContentCache.Clear();
-        CraftingController.ClearHoverTooltipContentKey();
         CraftingRecipes.SortKeyCache.Clear();
         CraftingRecipes.GroupMatchCache.Clear();
         ClearInventorySortCaches();
@@ -452,8 +451,6 @@ public sealed partial class InventorySlotsPlugin
         {
             CraftingUi.RecipeGridZoomHint.gameObject.SetActive(false);
         }
-
-        CraftingController.InvalidateRecipeGridZoomHint();
 
         HideCraftingSocketWarning();
     }

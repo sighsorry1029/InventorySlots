@@ -209,7 +209,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool IsFavoriteRestockTarget(Player player, ItemData item)
     {
-        return AreFavoritesEnabled() && IsFavoriteSlot(player, item.m_gridPos);
+        return IsFavoriteSlot(player, item.m_gridPos);
     }
 
     private static int GetRestockTargetStack(ItemData item)
@@ -250,8 +250,7 @@ public sealed partial class InventorySlotsPlugin
                source?.m_shared != null &&
                CanUseContainerActionStacking(target) &&
                CanUseContainerActionStacking(source) &&
-               string.Equals(target.m_shared.m_name, source.m_shared.m_name, StringComparison.OrdinalIgnoreCase) &&
-               target.m_quality == source.m_quality;
+               CanShareInventoryStack(target, source);
     }
 
     private static int RestockTargetsFromContainer(Inventory playerInventory, Inventory containerInventory, List<ItemData> targets, ContainerTakeStacksMode mode)
@@ -289,7 +288,7 @@ public sealed partial class InventorySlotsPlugin
 
                 int before = containerItem.m_stack;
                 bool movedOk = playerInventory.MoveItemToThis(containerInventory, containerItem, amount, playerItem.m_gridPos.x, playerItem.m_gridPos.y);
-                int moved = CountMovedFromContainerSource(containerInventory, containerItem, before, amount, movedOk, out _);
+                int moved = CountMovedFromContainerSource(containerInventory, containerItem, before, amount, movedOk);
                 potential += moved;
                 movedAmount += moved;
             }

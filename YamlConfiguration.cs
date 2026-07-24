@@ -12,6 +12,8 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
+    private static YamlRoot _yamlConfig = new();
+
     private static void InitializeYamlSync()
     {
         _syncedYaml = new CustomSyncedValue<string>(ConfigSync, "InventorySlotsYaml", "");
@@ -175,54 +177,82 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool ApplyYaml(string yaml, bool fromSync)
     {
+        string source = fromSync ? "synced" : "local";
+        YamlRoot nextConfig;
+        try
+        {
+            nextConfig = InventorySlotsConfigCore.ParseYaml(yaml);
+        }
+        catch (Exception ex)
+        {
+            Log.LogWarning($"Failed to parse {source} InventorySlots YAML; keeping the last stable configuration: {ex}");
+            return false;
+        }
+
         YamlApplySnapshot snapshot = CreateYamlApplySnapshot();
         try
         {
-            YamlRoot nextConfig = ParseYaml(yaml);
             _yamlConfig = nextConfig;
             RebuildPredefinedGroups();
             RebuildInventoryLimits();
             RebuildResourceMap();
-            RebuildStationInputTokens(force: true);
             RebuildSlotDefinitions();
+        }
+        catch (Exception ex)
+        {
+            RestoreYamlApplySnapshot(snapshot);
+            Log.LogWarning($"Failed to apply {source} InventorySlots YAML; keeping the last stable configuration: {ex}");
+            return false;
+        }
+
+        try
+        {
+            RebuildStationInputTokens(force: true);
+        }
+        catch (Exception ex)
+        {
+            Log.LogWarning($"Applied {source} InventorySlots YAML, but station token refresh failed: {ex}");
+        }
+
+        try
+        {
             ClearCraftingRecipeCaches();
+        }
+        catch (Exception ex)
+        {
+            Log.LogWarning($"Applied {source} InventorySlots YAML, but crafting cache refresh failed: {ex}");
+        }
+
+        try
+        {
             Player? player = Player.m_localPlayer;
             if (!IsUnityNull(player))
             {
                 EnsureInventoryState(player!, InventoryStateEnsureReason.YamlReload);
             }
-
-            return true;
         }
         catch (Exception ex)
         {
-            RestoreYamlApplySnapshot(snapshot);
-            Log.LogWarning($"Failed to apply {(fromSync ? "synced" : "local")} InventorySlots YAML; keeping the last stable configuration: {ex}");
-            return false;
+            Log.LogWarning($"Applied {source} InventorySlots YAML, but player inventory reconciliation failed: {ex}");
         }
+
+        return true;
     }
 
     private static YamlApplySnapshot CreateYamlApplySnapshot() =>
         new(
             _yamlConfig,
             SlotDefinitions.ToList(),
-            new Dictionary<string, YamlPredefinedGroup>(PredefinedGroupDefinitions, StringComparer.OrdinalIgnoreCase),
+            PredefinedGroupDefinitions.ToDictionary(
+                entry => entry.Key,
+                entry => entry.Value.ToList(),
+                StringComparer.OrdinalIgnoreCase),
             PredefinedGroupOrder.ToList(),
             PredefinedGroupOrders.ToDictionary(
                 entry => entry.Key,
                 entry => entry.Value.ToList(),
                 StringComparer.OrdinalIgnoreCase),
-            new Dictionary<string, int>(ResourceTierByToken, StringComparer.OrdinalIgnoreCase),
-            new HashSet<string>(CookingStationInputTokens, StringComparer.OrdinalIgnoreCase),
-            new HashSet<string>(CraftingRecipeFoodInputTokens, StringComparer.OrdinalIgnoreCase),
-            new HashSet<string>(CookingStationFoodInputTokens, StringComparer.OrdinalIgnoreCase),
-            new HashSet<string>(FermenterInputTokens, StringComparer.OrdinalIgnoreCase),
-            new HashSet<string>(FermenterOutputTokens, StringComparer.OrdinalIgnoreCase),
-            new HashSet<string>(FermenterFoodInputTokens, StringComparer.OrdinalIgnoreCase),
-            InventoryDefinitions.StationInputTokensInitialized,
-            InventoryDefinitions.CachedStationInputObjectDbItemCount,
-            InventoryDefinitions.CachedStationInputPrefabCount,
-            InventoryDefinitions.CachedStationInputRecipeCount);
+            new Dictionary<string, int>(ResourceTierByToken, StringComparer.OrdinalIgnoreCase));
 
     private static void RestoreYamlApplySnapshot(YamlApplySnapshot snapshot)
     {
@@ -233,9 +263,9 @@ public sealed partial class InventorySlotsPlugin
         InvalidateSlotDefinitionCaches();
 
         PredefinedGroupDefinitions.Clear();
-        foreach (KeyValuePair<string, YamlPredefinedGroup> entry in snapshot.PredefinedGroupDefinitions)
+        foreach (KeyValuePair<string, List<string>> entry in snapshot.PredefinedGroupDefinitions)
         {
-            PredefinedGroupDefinitions[entry.Key] = entry.Value;
+            PredefinedGroupDefinitions[entry.Key] = entry.Value.ToList();
         }
 
         PredefinedGroupOrder.Clear();
@@ -254,29 +284,6 @@ public sealed partial class InventorySlotsPlugin
         {
             ResourceTierByToken[entry.Key] = entry.Value;
         }
-
-        CookingStationInputTokens.Clear();
-        CookingStationInputTokens.UnionWith(snapshot.CookingStationInputTokens);
-
-        CraftingRecipeFoodInputTokens.Clear();
-        CraftingRecipeFoodInputTokens.UnionWith(snapshot.CraftingRecipeFoodInputTokens);
-
-        CookingStationFoodInputTokens.Clear();
-        CookingStationFoodInputTokens.UnionWith(snapshot.CookingStationFoodInputTokens);
-
-        FermenterInputTokens.Clear();
-        FermenterInputTokens.UnionWith(snapshot.FermenterInputTokens);
-
-        FermenterOutputTokens.Clear();
-        FermenterOutputTokens.UnionWith(snapshot.FermenterOutputTokens);
-
-        FermenterFoodInputTokens.Clear();
-        FermenterFoodInputTokens.UnionWith(snapshot.FermenterFoodInputTokens);
-
-        InventoryDefinitions.StationInputTokensInitialized = snapshot.StationInputTokensInitialized;
-        InventoryDefinitions.CachedStationInputObjectDbItemCount = snapshot.CachedStationInputObjectDbItemCount;
-        InventoryDefinitions.CachedStationInputPrefabCount = snapshot.CachedStationInputPrefabCount;
-        InventoryDefinitions.CachedStationInputRecipeCount = snapshot.CachedStationInputRecipeCount;
     }
 
     private sealed class YamlApplySnapshot
@@ -284,20 +291,10 @@ public sealed partial class InventorySlotsPlugin
         public YamlApplySnapshot(
             YamlRoot config,
             List<SlotDefinition> slotDefinitions,
-            Dictionary<string, YamlPredefinedGroup> predefinedGroupDefinitions,
+            Dictionary<string, List<string>> predefinedGroupDefinitions,
             List<string> predefinedGroupOrder,
             Dictionary<string, List<string>> predefinedGroupOrders,
-            Dictionary<string, int> resourceTierByToken,
-            HashSet<string> cookingStationInputTokens,
-            HashSet<string> craftingRecipeFoodInputTokens,
-            HashSet<string> cookingStationFoodInputTokens,
-            HashSet<string> fermenterInputTokens,
-            HashSet<string> fermenterOutputTokens,
-            HashSet<string> fermenterFoodInputTokens,
-            bool stationInputTokensInitialized,
-            int cachedStationInputObjectDbItemCount,
-            int cachedStationInputPrefabCount,
-            int cachedStationInputRecipeCount)
+            Dictionary<string, int> resourceTierByToken)
         {
             Config = config;
             SlotDefinitions = slotDefinitions;
@@ -305,39 +302,14 @@ public sealed partial class InventorySlotsPlugin
             PredefinedGroupOrder = predefinedGroupOrder;
             PredefinedGroupOrders = predefinedGroupOrders;
             ResourceTierByToken = resourceTierByToken;
-            CookingStationInputTokens = cookingStationInputTokens;
-            CraftingRecipeFoodInputTokens = craftingRecipeFoodInputTokens;
-            CookingStationFoodInputTokens = cookingStationFoodInputTokens;
-            FermenterInputTokens = fermenterInputTokens;
-            FermenterOutputTokens = fermenterOutputTokens;
-            FermenterFoodInputTokens = fermenterFoodInputTokens;
-            StationInputTokensInitialized = stationInputTokensInitialized;
-            CachedStationInputObjectDbItemCount = cachedStationInputObjectDbItemCount;
-            CachedStationInputPrefabCount = cachedStationInputPrefabCount;
-            CachedStationInputRecipeCount = cachedStationInputRecipeCount;
         }
 
         public YamlRoot Config { get; }
         public List<SlotDefinition> SlotDefinitions { get; }
-        public Dictionary<string, YamlPredefinedGroup> PredefinedGroupDefinitions { get; }
+        public Dictionary<string, List<string>> PredefinedGroupDefinitions { get; }
         public List<string> PredefinedGroupOrder { get; }
         public Dictionary<string, List<string>> PredefinedGroupOrders { get; }
         public Dictionary<string, int> ResourceTierByToken { get; }
-        public HashSet<string> CookingStationInputTokens { get; }
-        public HashSet<string> CraftingRecipeFoodInputTokens { get; }
-        public HashSet<string> CookingStationFoodInputTokens { get; }
-        public HashSet<string> FermenterInputTokens { get; }
-        public HashSet<string> FermenterOutputTokens { get; }
-        public HashSet<string> FermenterFoodInputTokens { get; }
-        public bool StationInputTokensInitialized { get; }
-        public int CachedStationInputObjectDbItemCount { get; }
-        public int CachedStationInputPrefabCount { get; }
-        public int CachedStationInputRecipeCount { get; }
-    }
-
-    private static YamlRoot ParseYaml(string yaml)
-    {
-        return InventorySlotsConfigCore.ParseYaml(yaml);
     }
 
     private static void RebuildPredefinedGroups()
@@ -397,14 +369,10 @@ public sealed partial class InventorySlotsPlugin
                 continue;
             }
 
-            PredefinedGroupDefinitions[id] = new YamlPredefinedGroup
-            {
-                Id = id,
-                Match = new YamlGroupMatch
-                {
-                    Prefabs = (entry.Value ?? new List<string>()).Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim()).ToList()
-                }
-            };
+            PredefinedGroupDefinitions[id] = (entry.Value ?? new List<string>())
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value.Trim())
+                .ToList();
         }
 
         foreach (KeyValuePair<string, List<string>> entry in rawGroups)

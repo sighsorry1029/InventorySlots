@@ -102,7 +102,6 @@ public sealed partial class InventorySlotsPlugin
     private static void PerformInventoryStateAudit(Player player, InventoryStateEnsureReason reason, InventoryStateAuditLevel auditLevel)
     {
         InventoryStateAuditLevel normalizedAuditLevel = NormalizeAuditLevel(auditLevel, reason);
-        RecordInventoryEnsureReason(reason);
         InventorySafety.PendingEnsureReason = InventoryStateEnsureReason.Unknown;
         InventorySafety.PendingAuditLevel = InventoryStateAuditLevel.None;
         InventorySafety.EnsuringInventoryState = true;
@@ -283,12 +282,6 @@ public sealed partial class InventorySlotsPlugin
         }
 
         return next == InventoryStateEnsureReason.Unknown ? current : InventoryStateEnsureReason.ReentrantFollowUp;
-    }
-
-    private static void RecordInventoryEnsureReason(InventoryStateEnsureReason reason)
-    {
-        InventorySafety.EnsureCounts.TryGetValue(reason, out int current);
-        InventorySafety.EnsureCounts[reason] = current + 1;
     }
 
     private static bool ProjectSlotDisplayState(Player player, Inventory inventory)

@@ -15,6 +15,8 @@ internal readonly struct CraftingFrameFastPathStamp : IEquatable<CraftingFrameFa
         int guiId,
         int craftingPanelId,
         int gridId,
+        CraftingTabAdapterKind adapterKind,
+        int selectedRecipeIndex,
         string recipeViewSignature,
         int recipePage,
         int gridDimension,
@@ -30,6 +32,8 @@ internal readonly struct CraftingFrameFastPathStamp : IEquatable<CraftingFrameFa
         GuiId = guiId;
         CraftingPanelId = craftingPanelId;
         GridId = gridId;
+        AdapterKind = adapterKind;
+        SelectedRecipeIndex = selectedRecipeIndex;
         RecipeViewSignature = recipeViewSignature ?? "";
         RecipePage = recipePage;
         GridDimension = gridDimension;
@@ -46,6 +50,8 @@ internal readonly struct CraftingFrameFastPathStamp : IEquatable<CraftingFrameFa
     private int GuiId { get; }
     private int CraftingPanelId { get; }
     private int GridId { get; }
+    private CraftingTabAdapterKind AdapterKind { get; }
+    private int SelectedRecipeIndex { get; }
     private string RecipeViewSignature { get; }
     private int RecipePage { get; }
     private int GridDimension { get; }
@@ -62,6 +68,8 @@ internal readonly struct CraftingFrameFastPathStamp : IEquatable<CraftingFrameFa
         GuiId == other.GuiId &&
         CraftingPanelId == other.CraftingPanelId &&
         GridId == other.GridId &&
+        AdapterKind == other.AdapterKind &&
+        SelectedRecipeIndex == other.SelectedRecipeIndex &&
         string.Equals(RecipeViewSignature, other.RecipeViewSignature, StringComparison.Ordinal) &&
         RecipePage == other.RecipePage &&
         GridDimension == other.GridDimension &&
@@ -84,6 +92,8 @@ internal readonly struct CraftingFrameFastPathStamp : IEquatable<CraftingFrameFa
             hash = hash * 397 ^ GuiId;
             hash = hash * 397 ^ CraftingPanelId;
             hash = hash * 397 ^ GridId;
+            hash = hash * 397 ^ (int)AdapterKind;
+            hash = hash * 397 ^ SelectedRecipeIndex;
             hash = hash * 397 ^ StringComparer.Ordinal.GetHashCode(RecipeViewSignature ?? "");
             hash = hash * 397 ^ RecipePage;
             hash = hash * 397 ^ GridDimension;
@@ -442,107 +452,6 @@ internal readonly struct CraftingSortModeButtonsStamp : IEquatable<CraftingSortM
             hash = hash * 397 ^ TabImageId;
             hash = hash * 397 ^ TabSpriteId;
             hash = hash * 397 ^ TabMaterialId;
-            return hash;
-        }
-    }
-
-}
-
-internal readonly struct CraftingRecipeGridZoomHintStamp : IEquatable<CraftingRecipeGridZoomHintStamp>
-{
-    public CraftingRecipeGridZoomHintStamp(
-        int craftingPanelId,
-        int gridId,
-        float gridX,
-        float gridY,
-        string label,
-        float textSize,
-        float iconWidth,
-        float iconHeight,
-        float gap,
-        float positionX,
-        float positionY,
-        float colorR,
-        float colorG,
-        float colorB,
-        float colorA)
-    {
-        IsValid = true;
-        CraftingPanelId = craftingPanelId;
-        GridId = gridId;
-        GridX = Quantize(gridX);
-        GridY = Quantize(gridY);
-        Label = label ?? "";
-        TextSize = Quantize(textSize);
-        IconWidth = Quantize(iconWidth);
-        IconHeight = Quantize(iconHeight);
-        Gap = Quantize(gap);
-        PositionX = Quantize(positionX);
-        PositionY = Quantize(positionY);
-        ColorR = Quantize(colorR);
-        ColorG = Quantize(colorG);
-        ColorB = Quantize(colorB);
-        ColorA = Quantize(colorA);
-    }
-
-    public bool IsValid { get; }
-    private int CraftingPanelId { get; }
-    private int GridId { get; }
-    private int GridX { get; }
-    private int GridY { get; }
-    private string Label { get; }
-    private int TextSize { get; }
-    private int IconWidth { get; }
-    private int IconHeight { get; }
-    private int Gap { get; }
-    private int PositionX { get; }
-    private int PositionY { get; }
-    private int ColorR { get; }
-    private int ColorG { get; }
-    private int ColorB { get; }
-    private int ColorA { get; }
-
-    public bool Equals(CraftingRecipeGridZoomHintStamp other) =>
-        IsValid == other.IsValid &&
-        CraftingPanelId == other.CraftingPanelId &&
-        GridId == other.GridId &&
-        GridX == other.GridX &&
-        GridY == other.GridY &&
-        string.Equals(Label, other.Label, StringComparison.Ordinal) &&
-        TextSize == other.TextSize &&
-        IconWidth == other.IconWidth &&
-        IconHeight == other.IconHeight &&
-        Gap == other.Gap &&
-        PositionX == other.PositionX &&
-        PositionY == other.PositionY &&
-        ColorR == other.ColorR &&
-        ColorG == other.ColorG &&
-        ColorB == other.ColorB &&
-        ColorA == other.ColorA;
-
-    public override bool Equals(object? obj) =>
-        obj is CraftingRecipeGridZoomHintStamp other && Equals(other);
-
-    public override int GetHashCode()
-    {
-        unchecked
-        {
-            int hash = IsValid ? 1 : 0;
-            hash = hash * 397 ^ CraftingPanelId;
-            hash = hash * 397 ^ GridId;
-            hash = hash * 397 ^ GridX;
-            hash = hash * 397 ^ GridY;
-            hash = hash * 397 ^ StringComparer.Ordinal.GetHashCode(Label ?? "");
-            hash = hash * 397 ^ TextSize;
-            hash = hash * 397 ^ IconWidth;
-            hash = hash * 397 ^ IconHeight;
-            hash = hash * 397 ^ Gap;
-            hash = hash * 397 ^ PositionX;
-            hash = hash * 397 ^ PositionY;
-            hash = hash * 397 ^ ColorR;
-            hash = hash * 397 ^ ColorG;
-            hash = hash * 397 ^ ColorB;
-            hash = hash * 397 ^ ColorA;
             return hash;
         }
     }

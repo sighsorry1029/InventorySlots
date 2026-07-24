@@ -246,7 +246,7 @@ public sealed partial class InventorySlotsPlugin
 
         marker.Hitbox = hitbox;
 
-        SetStretchRectLayoutCached(hitbox, Vector2.zero, Vector2.zero, "crafting-requirement-hitbox");
+        SetStretchRectLayout(hitbox, Vector2.zero, Vector2.zero);
         hitbox.SetAsLastSibling();
 
         Image image = hitbox.GetComponent<Image>();

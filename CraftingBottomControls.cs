@@ -23,7 +23,7 @@ public sealed partial class InventorySlotsPlugin
                 _craftingCountInputRect.gameObject.SetActive(false);
             }
 
-            CraftingController.MarkBottomControlsDirty();
+            CraftingController.StoreBottomControlsSignature(CraftingBottomControlsHiddenSignature);
             return;
         }
 
@@ -290,7 +290,7 @@ public sealed partial class InventorySlotsPlugin
             CraftingUi.SocketWarningText = socketWarningText;
         }
 
-        SetStretchRectLayoutCached(textRect, new Vector2(12f, 5f), new Vector2(-12f, -5f), "crafting-socket-warning-text");
+        SetStretchRectLayout(textRect, new Vector2(12f, 5f), new Vector2(-12f, -5f));
         TMP_Text warningText = CraftingUi.SocketWarningText!;
         ConfigureCraftingSocketWarningText(warningText, warningText.text);
         return CraftingUi.SocketWarningRect;
@@ -368,11 +368,11 @@ public sealed partial class InventorySlotsPlugin
 
             RectTransform viewport = new GameObject("Text Area", typeof(RectTransform), typeof(RectMask2D)).GetComponent<RectTransform>();
             viewport.SetParent(_craftingCountInputRect, false);
-            SetStretchRectLayoutCached(viewport, new Vector2(22f, 3f), new Vector2(-4f, -3f), "crafting-count-input-viewport");
+            SetStretchRectLayout(viewport, new Vector2(22f, 3f), new Vector2(-4f, -3f));
             CraftingUi.CountInputViewport = viewport;
 
             RectTransform textRect = CreateTextRect("Text", viewport, out TMP_Text text);
-            SetStretchRectLayoutCached(textRect, Vector2.zero, Vector2.zero, "crafting-count-input-text");
+            SetStretchRectLayout(textRect, Vector2.zero, Vector2.zero);
 
             text.fontSize = 22f;
             text.alignment = TextAlignmentOptions.Center;
@@ -425,7 +425,7 @@ public sealed partial class InventorySlotsPlugin
 
             RectTransform textRect = CreateTextRect("Text", _craftingUpgradeProgressionRect, out TMP_Text upgradeProgressionText);
             CraftingUi.UpgradeProgressionText = upgradeProgressionText;
-            SetStretchRectLayoutCached(textRect, new Vector2(4f, 3f), new Vector2(-4f, -3f), "crafting-upgrade-progression-text");
+            SetStretchRectLayout(textRect, new Vector2(4f, 3f), new Vector2(-4f, -3f));
             upgradeProgressionText.fontSize = 20f;
             upgradeProgressionText.alignment = TextAlignmentOptions.Center;
             upgradeProgressionText.color = new Color(1f, 0.84f, 0.42f, 1f);
@@ -507,7 +507,7 @@ public sealed partial class InventorySlotsPlugin
 
         if (viewport != null && !IsUnityNull(viewport))
         {
-            SetStretchRectLayoutCached(viewport, new Vector2(22f, 3f), new Vector2(-4f, -3f), "crafting-count-input-viewport");
+            SetStretchRectLayout(viewport, new Vector2(22f, 3f), new Vector2(-4f, -3f));
         }
     }
 

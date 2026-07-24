@@ -21,6 +21,11 @@ internal static class InventorySlotsConfigCore
             .Build();
 
         YamlRoot config = deserializer.Deserialize<YamlRoot>(yaml) ?? new YamlRoot();
+        if (config.Slots?.Any(slot => slot == null) == true)
+        {
+            throw new InvalidDataException("Slots cannot contain null entries.");
+        }
+
         BuildInventoryLimits(config);
         return config;
     }

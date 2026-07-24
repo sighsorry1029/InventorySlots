@@ -426,6 +426,29 @@ Soft compatibility and adaptive behavior include:
 - VNEI: crafting and upgrade recipe icons expose item tooltip data for VNEI recipe lookup.
 - ContentsWithin: the integrated preview disables itself when the standalone plugin is present to prevent duplicate GUI ownership.
 
+## Building Release Packages
+
+Regular Release builds synchronize the Thunderstore manifest version from the compiled assembly and create the versioned package archive:
+
+```powershell
+dotnet build .\InventorySlots.csproj -c Release
+dotnet build .\InventoryActions\InventoryActions.csproj -c Release
+```
+
+To compile a Release build without changing package manifests or archives, opt out explicitly:
+
+```powershell
+dotnet build .\InventorySlots.csproj -c Release -p:BuildPackage=false
+dotnet build .\InventoryActions\InventoryActions.csproj -c Release -p:BuildPackage=false
+```
+
+To copy a development build to the configured game plugin directory, opt in explicitly and deploy only one variant at a time:
+
+```powershell
+dotnet build .\InventorySlots.csproj -c Debug -p:DeployToGame=true
+dotnet build .\InventoryActions\InventoryActions.csproj -c Debug -p:DeployToGame=true
+```
+
 ## Github
 
 Quick stack, restock, and inventory favorite behavior were originally informed by [QuickStackStore](https://github.com/Goldenrevolver/QuickStackStore). <br>

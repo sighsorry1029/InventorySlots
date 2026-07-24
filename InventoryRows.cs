@@ -154,10 +154,4 @@ public sealed partial class InventorySlotsPlugin
         return rectTransform.rect.Contains(localPoint);
     }
 
-    private static bool TryGetLocalPointInRect(RectTransform rectTransform, Vector2 screenPoint, out Vector2 localPoint)
-    {
-        localPoint = rectTransform.InverseTransformPoint(screenPoint);
-        return true;
-    }
-
 }

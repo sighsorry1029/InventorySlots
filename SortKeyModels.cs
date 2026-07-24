@@ -31,26 +31,3 @@ internal sealed class SortKey
     public int EquipmentSlotOrder { get; }
     public string LocalizedName { get; }
 }
-
-internal readonly struct SortKeyComponents
-{
-    public SortKeyComponents(int resourceTier, int groupRank, int bigGroupRank, string setKey, int equipmentSlotOrder, string localizedName)
-    {
-        ResourceTier = resourceTier;
-        GroupRank = groupRank;
-        BigGroupRank = bigGroupRank;
-        SetKey = setKey;
-        EquipmentSlotOrder = equipmentSlotOrder;
-        LocalizedName = localizedName;
-    }
-
-    public int ResourceTier { get; }
-    public int GroupRank { get; }
-    public int BigGroupRank { get; }
-    public string SetKey { get; }
-    public int EquipmentSlotOrder { get; }
-    public string LocalizedName { get; }
-
-    public SortKey ToSortKey() =>
-        new(ResourceTier, GroupRank, BigGroupRank, SetKey, EquipmentSlotOrder, LocalizedName);
-}

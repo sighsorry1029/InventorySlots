@@ -10,20 +10,6 @@ using ItemData = ItemDrop.ItemData;
 
 namespace InventorySlots;
 
-[Serializable]
-internal sealed class InventorySlotsBackup
-{
-    public int version { get; set; }
-    public string date { get; set; } = "";
-    public string worldName { get; set; } = "";
-    public int nrOfItems { get; set; }
-    public int width { get; set; }
-    public int height { get; set; }
-    public int fixedRegularRows { get; set; }
-    public int fullHeight { get; set; }
-    public string inventoryBase64 { get; set; } = "";
-}
-
 internal enum SlotKind
 {
     BuiltIn,
@@ -70,25 +56,20 @@ internal sealed class SlotDefinition
 
 internal sealed class PendingSlotEquip
 {
-    public PendingSlotEquip(ItemData item, SlotDefinition slot, Vector2i sourcePos, float createdAt)
+    public PendingSlotEquip(SlotDefinition slot, float createdAt)
     {
-        Item = item;
         Slot = slot;
-        SourcePos = sourcePos;
         CreatedAt = createdAt;
     }
 
-    public ItemData Item { get; }
     public SlotDefinition Slot { get; }
-    public Vector2i SourcePos { get; }
     public float CreatedAt { get; }
 }
 
 internal sealed class PendingSlotUnequip
 {
-    public PendingSlotUnequip(ItemData item, SlotDefinition sourceSlot, PendingSlotUnequipDestination destination, Inventory? targetInventory, Vector2i targetPos, int amount, float createdAt)
+    public PendingSlotUnequip(SlotDefinition sourceSlot, PendingSlotUnequipDestination destination, Inventory? targetInventory, Vector2i targetPos, int amount, float createdAt)
     {
-        Item = item;
         SourceSlot = sourceSlot;
         Destination = destination;
         TargetInventory = targetInventory;
@@ -97,27 +78,12 @@ internal sealed class PendingSlotUnequip
         CreatedAt = createdAt;
     }
 
-    public ItemData Item { get; }
     public SlotDefinition SourceSlot { get; }
     public PendingSlotUnequipDestination Destination { get; }
     public Inventory? TargetInventory { get; }
     public Vector2i TargetPos { get; }
     public int Amount { get; }
     public float CreatedAt { get; }
-}
-
-internal sealed class QuickHudSlotMarker : MonoBehaviour
-{
-    public int Index { get; set; }
-    public Image? DurabilityFill { get; set; }
-    public GameObject? DurabilityObject { get; set; }
-    public TMP_Text? BindingText { get; set; }
-    public string TooltipSignature { get; set; } = "";
-    public string TooltipTopic { get; set; } = "";
-    public string TooltipText { get; set; } = "";
-    public string LayoutSignature { get; set; } = "";
-    public string BindingSignature { get; set; } = "";
-    public int TooltipHash { get; set; }
 }
 
 internal sealed class InventoryPanelDragMarker : MonoBehaviour
@@ -131,19 +97,6 @@ internal sealed class InventoryActionButtonMarker : MonoBehaviour
     public bool Initialized { get; set; }
     public bool AutoSizeInitialized { get; set; }
     public string LabelSignature { get; set; } = "";
-}
-
-internal sealed class InventoryPinnedTooltipInputMarker : MonoBehaviour
-{
-    public bool HoverInitialized { get; set; }
-}
-
-internal sealed class InventoryPinnedTooltipGridMarker : MonoBehaviour
-{
-    public int ElementListId { get; set; }
-    public int ElementCount { get; set; }
-    public int FirstElementId { get; set; }
-    public int LastElementId { get; set; }
 }
 
 internal sealed class PinnedTooltipPanelUiCache : MonoBehaviour
@@ -181,14 +134,6 @@ internal sealed class JewelcraftingTooltipLayoutCache : MonoBehaviour
     public TMP_Text[] NativeTexts { get; set; } = Array.Empty<TMP_Text>();
     public LayoutGroup[] NativeLayoutGroups { get; set; } = Array.Empty<LayoutGroup>();
     public ContentSizeFitter[] NativeContentSizeFitters { get; set; } = Array.Empty<ContentSizeFitter>();
-}
-
-internal sealed class JewelcraftingSourceRowUiCache : MonoBehaviour
-{
-    public string ChildSignature { get; set; } = "";
-    public TMP_Text? Text { get; set; }
-    public Image? BorderImage { get; set; }
-    public Image? GemImage { get; set; }
 }
 
 internal sealed class InventoryGridElementUiCache : MonoBehaviour
@@ -626,11 +571,6 @@ internal sealed class CraftingRecipeGroupButton
 internal sealed class CraftingGroupButtonMarker : MonoBehaviour
 {
     public string FilterId { get; set; } = "";
-    public bool Initialized { get; set; }
-}
-
-internal sealed class CraftingRecipeScrollbarMarker : MonoBehaviour
-{
     public bool Initialized { get; set; }
 }
 

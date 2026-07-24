@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using ItemData = ItemDrop.ItemData;
@@ -6,32 +7,93 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
-    internal static bool TryPrepareCustomEquipmentProjection(Humanoid humanoid)
+    internal static void PrepareCustomEquipmentProjection(Humanoid humanoid)
     {
         Player? player = Player.m_localPlayer;
         if (humanoid != (Humanoid)player || player == null)
         {
             ClearPreparedCustomEquipmentStatusEffects();
-            return false;
+            return;
         }
 
         PrepareCustomEquipmentStatusEffects(humanoid, player);
-        return true;
     }
 
-    internal static void ApplyCustomEquipmentProjection(Humanoid humanoid)
+    internal static void PrepareCustomEquipmentStatusEffects(Humanoid humanoid, Player player)
     {
-        ApplyPreparedCustomEquipmentStatusEffects(humanoid);
+        EquipmentVisuals.StatusEffects.Clear();
+        EquipmentVisuals.StatusEffectLevels.Clear();
+
+        if (humanoid == null || player == null)
+        {
+            return;
+        }
+
+        foreach (ItemData item in GetCustomEquippedItems(player))
+        {
+            PrepareCustomEquipmentStatusEffect(item.m_shared.m_equipStatusEffect, item.m_quality);
+            if (humanoid.HaveSetEffect(item))
+            {
+                PrepareCustomEquipmentStatusEffect(item.m_shared.m_setStatusEffect, item.m_quality);
+            }
+        }
     }
 
-    internal static void ClearCustomEquipmentProjection()
+    private static void PrepareCustomEquipmentStatusEffect(StatusEffect? statusEffect, int itemLevel)
     {
+        if (IsUnityNull(statusEffect))
+        {
+            return;
+        }
+
+        EquipmentVisuals.StatusEffects.Add(statusEffect!);
+        EquipmentVisuals.StatusEffectLevels.TryGetValue(statusEffect!, out int existingLevel);
+        EquipmentVisuals.StatusEffectLevels[statusEffect!] = Math.Max(existingLevel, itemLevel);
+    }
+
+    internal static void ApplyPreparedCustomEquipmentStatusEffects(Humanoid humanoid)
+    {
+        if (humanoid == null)
+        {
+            ClearPreparedCustomEquipmentStatusEffects();
+            return;
+        }
+
+        foreach (StatusEffect statusEffect in EquipmentVisuals.StatusEffects)
+        {
+            if (IsUnityNull(statusEffect))
+            {
+                continue;
+            }
+
+            EquipmentVisuals.StatusEffectLevels.TryGetValue(statusEffect, out int itemLevel);
+            ((Character)humanoid).m_seman.AddStatusEffect(statusEffect, false, itemLevel, 0f);
+            humanoid.m_equipmentStatusEffects.Add(statusEffect);
+        }
+
         ClearPreparedCustomEquipmentStatusEffects();
     }
 
-    internal static bool ShouldBlockCustomEquipmentStatusRemoval(SEMan seMan, int nameHash)
+    internal static void ClearPreparedCustomEquipmentStatusEffects()
     {
-        return ShouldPreventCustomEquipmentStatusRemoval(seMan, nameHash);
+        EquipmentVisuals.StatusEffects.Clear();
+        EquipmentVisuals.StatusEffectLevels.Clear();
+    }
+
+    internal static bool ShouldPreventCustomEquipmentStatusRemoval(SEMan seMan, int nameHash)
+    {
+        if (nameHash == 0 || EquipmentVisuals.StatusEffects.Count == 0)
+        {
+            return false;
+        }
+
+        Player? player = Player.m_localPlayer;
+        if (player == null || seMan != ((Character)player).m_seman)
+        {
+            return false;
+        }
+
+        return EquipmentVisuals.StatusEffects.Any(statusEffect => !IsUnityNull(statusEffect) && statusEffect.NameHash() == nameHash);
     }
 
     internal static float GetProjectedCustomEquipmentWeight(Player player)
@@ -44,14 +106,25 @@ public sealed partial class InventorySlotsPlugin
         return player == null ? 0f : GetCachedCustomEquipmentEitrRegen(player);
     }
 
-    internal static float GetProjectedCustomEquipmentArmor(Player player)
+    internal static float GetCustomEquipmentArmor(Player player)
     {
-        return GetCustomEquipmentArmor(player);
+        return player == null ? 0f : GetCachedCustomEquipmentArmor(player);
     }
 
-    internal static void ApplyProjectedCustomEquipmentDamageModifiers(Player player, ref HitData.DamageModifiers modifiers)
+    internal static void ApplyCustomEquipmentDamageModifiers(Player player, ref HitData.DamageModifiers modifiers)
     {
-        ApplyCustomEquipmentDamageModifiers(player, ref modifiers);
+        if (player == null)
+        {
+            return;
+        }
+
+        foreach (ItemData item in GetCustomEquippedItems(player))
+        {
+            if (item?.m_shared != null && item.m_shared.m_damageModifiers.Count > 0)
+            {
+                modifiers.Apply(item.m_shared.m_damageModifiers);
+            }
+        }
     }
 
     internal static void DrainProjectedCustomEquipmentDurability(Humanoid humanoid, Player player, float dt)

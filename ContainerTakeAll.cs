@@ -16,7 +16,13 @@ public sealed partial class InventorySlotsPlugin
         }
 
         Container container = gui.m_currentContainer;
-        if (!CanMutateContainerDirectly(container, allowLocalWithoutZNetView: true))
+        ContainerAccessMode accessMode = GetContainerAccessMode(container, allowLocalWithoutZNetView: true);
+        if (accessMode == ContainerAccessMode.MultiUserChestRemote)
+        {
+            return false;
+        }
+
+        if (accessMode != ContainerAccessMode.DirectOwner)
         {
             player.Message(MessageHud.MessageType.Center, LocalizeUi("$inventoryslots_container_not_ready", "Container is not ready."), 0, null);
             return true;
@@ -82,7 +88,9 @@ public sealed partial class InventorySlotsPlugin
     private static int MoveContainerItemSafelyToPlayer(Inventory playerInventory, Inventory containerInventory, ItemData source, List<Vector2i> emptySlots, HashSet<Vector2i> allowedSlots)
     {
         int movedAmount = 0;
-        if (CanMergeForSafeMove(source))
+        if (source.m_shared != null &&
+            source.m_shared.m_maxStackSize > 1 &&
+            CanUseContainerActionStacking(source))
         {
             List<ItemData> stackTargets = GetSafeTakeAllStackTargets(playerInventory, source, allowedSlots);
             foreach (ItemData target in stackTargets)
@@ -100,12 +108,8 @@ public sealed partial class InventorySlotsPlugin
 
                 int before = source.m_stack;
                 bool movedOk = playerInventory.MoveItemToThis(containerInventory, source, amount, target.m_gridPos.x, target.m_gridPos.y);
-                int moved = CountMovedFromContainerSource(containerInventory, source, before, amount, movedOk, out bool remotePending);
+                int moved = CountMovedFromContainerSource(containerInventory, source, before, amount, movedOk);
                 movedAmount += moved;
-                if (remotePending)
-                {
-                    return movedAmount;
-                }
             }
         }
 
@@ -116,9 +120,9 @@ public sealed partial class InventorySlotsPlugin
             int before = source.m_stack;
             int requestedAmount = source.m_stack;
             bool movedOk = playerInventory.MoveItemToThis(containerInventory, source, requestedAmount, slot.x, slot.y);
-            int moved = CountMovedFromContainerSource(containerInventory, source, before, requestedAmount, movedOk, out bool remotePending);
+            int moved = CountMovedFromContainerSource(containerInventory, source, before, requestedAmount, movedOk);
             movedAmount += moved;
-            if (moved == 0 || remotePending)
+            if (moved == 0)
             {
                 break;
             }
@@ -132,9 +136,9 @@ public sealed partial class InventorySlotsPlugin
         return playerInventory.m_inventory
             .Where(target => target?.m_shared != null &&
                              allowedSlots.Contains(target.m_gridPos) &&
-                             CanMergeForSafeMove(target) &&
-                             string.Equals(target.m_shared.m_name, source.m_shared.m_name, StringComparison.OrdinalIgnoreCase) &&
-                             target.m_quality == source.m_quality &&
+                             target.m_shared.m_maxStackSize > 1 &&
+                             CanUseContainerActionStacking(target) &&
+                             CanShareInventoryStack(target, source) &&
                              target.m_stack < target.m_shared.m_maxStackSize)
             .OrderBy(target => target.m_gridPos.y)
             .ThenBy(target => target.m_gridPos.x)
@@ -148,8 +152,4 @@ public sealed partial class InventorySlotsPlugin
             .ToList();
     }
 
-    private static bool CanMergeForSafeMove(ItemData item)
-    {
-        return item?.m_shared != null && item.m_shared.m_maxStackSize > 1 && CanUseContainerActionStacking(item);
-    }
 }

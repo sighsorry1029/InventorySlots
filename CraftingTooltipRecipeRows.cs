@@ -174,7 +174,6 @@ public sealed partial class InventorySlotsPlugin
     {
         if (!includeBody)
         {
-            CraftingController.ClearHoverTooltipContentKey();
             return new CraftingHoverTooltipContent(GetCraftingRecipeDisplayName(pair), "");
         }
 
@@ -182,7 +181,6 @@ public sealed partial class InventorySlotsPlugin
         if (!string.IsNullOrEmpty(cacheKey) &&
             CraftingRecipes.HoverTooltipContentCache.TryGetValue(cacheKey, out CraftingHoverTooltipContent cached))
         {
-            CraftingUi.HoverTooltipContentKey = cacheKey;
             return cached;
         }
 
@@ -190,7 +188,6 @@ public sealed partial class InventorySlotsPlugin
         if (!string.IsNullOrEmpty(cacheKey))
         {
             CraftingRecipes.HoverTooltipContentCache[cacheKey] = content;
-            CraftingUi.HoverTooltipContentKey = cacheKey;
         }
 
         return content;
@@ -203,17 +200,18 @@ public sealed partial class InventorySlotsPlugin
         ItemData? item = pair.ItemData;
         int worldLevel = Game.m_worldLevel;
         int recipeAmount = recipe != null ? recipe.m_amount : 1;
+        CraftingTabAdapterKind adapterKind = GetCraftingTabAdapterState(InventoryGui.instance).Kind;
         string itemRequiresSkillLevelSignature = GetItemRequiresSkillLevelCraftingTooltipSignature(pair);
         string veiledRecipeSignature = GetVeiledRecipeDisplaySignature(pair);
         if (item == null)
         {
-            return $"{pairKey.RecipeId}|{pairKey.ItemKey}|craft|{recipeAmount}|{worldLevel}|irsl:{itemRequiresSkillLevelSignature}|{veiledRecipeSignature}";
+            return $"{pairKey.RecipeId}|{pairKey.ItemKey}|adapter:{adapterKind}|craft|{recipeAmount}|{worldLevel}|irsl:{itemRequiresSkillLevelSignature}|{veiledRecipeSignature}";
         }
 
-        string itemMode = InventoryGui.instance != null && IsJewelcraftingSocketTabActive(InventoryGui.instance)
+        string itemMode = adapterKind == CraftingTabAdapterKind.JewelcraftingSocket
             ? "socket"
             : "upgrade";
-        return $"{pairKey.RecipeId}|{pairKey.ItemKey}|{itemMode}|{recipeAmount}|{worldLevel}|{GetCraftingTooltipItemSignature(item)}|irsl:{itemRequiresSkillLevelSignature}|{veiledRecipeSignature}";
+        return $"{pairKey.RecipeId}|{pairKey.ItemKey}|adapter:{adapterKind}|{itemMode}|{recipeAmount}|{worldLevel}|{GetCraftingTooltipItemSignature(item)}|irsl:{itemRequiresSkillLevelSignature}|{veiledRecipeSignature}";
     }
 
     private static string GetCraftingTooltipItemSignature(ItemData item)
@@ -285,7 +283,6 @@ public sealed partial class InventorySlotsPlugin
         CraftingUi.HoverTooltipTopic = topic;
         CraftingUi.HoverTooltipText = text;
         CraftingUi.HoverTooltipSignature = "";
-        CraftingController.ClearHoverTooltipContentKey();
         CraftingUi.HoverTooltipLayoutSignature = "";
         CraftingUi.HoverTooltipVisualSignature = "";
         return CraftingUi.HoverTooltip;
@@ -716,7 +713,6 @@ public sealed partial class InventorySlotsPlugin
         }
 
         CraftingUi.HoverTooltipSignature = "";
-        CraftingController.ClearHoverTooltipContentKey();
         CraftingUi.HoverTooltipLayoutSignature = "";
         CraftingUi.HoverTooltipVisualSignature = "";
         CraftingUi.HoverGemIconSignature = "";

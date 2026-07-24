@@ -3,6 +3,19 @@ using ItemData = ItemDrop.ItemData;
 
 namespace InventorySlots;
 
+internal sealed class InventoryPinnedTooltipInputMarker : MonoBehaviour
+{
+    public bool HoverInitialized { get; set; }
+}
+
+internal sealed class InventoryPinnedTooltipGridMarker : MonoBehaviour
+{
+    public int ElementListId { get; set; }
+    public int ElementCount { get; set; }
+    public int FirstElementId { get; set; }
+    public int LastElementId { get; set; }
+}
+
 public sealed partial class InventorySlotsPlugin
 {
     private readonly struct InventoryPinnedTooltipTarget

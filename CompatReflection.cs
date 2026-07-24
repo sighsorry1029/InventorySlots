@@ -7,6 +7,35 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
+    private sealed class CompatApiRuntimeState<TApi>
+        where TApi : class
+    {
+        public TApi? Api;
+        public bool ReflectionFailed;
+    }
+
+    private sealed class CompatRuntimeState
+    {
+        public readonly CompatApiRuntimeState<AzuCraftyBoxesApi> AzuCraftyBoxes = new();
+        public readonly CompatApiRuntimeState<JewelcraftingTooltipApi> JewelcraftingTooltip = new();
+        public readonly CompatApiRuntimeState<JewelcraftingGemApi> JewelcraftingGem = new();
+        public readonly CompatApiRuntimeState<JewelcraftingEffectApi> JewelcraftingEffect = new();
+        public readonly CompatApiRuntimeState<JewelcraftingSlotApi> JewelcraftingSlot = new();
+        public readonly CompatApiRuntimeState<JewelcraftingCraftingSocketUiApi> JewelcraftingCraftingSocketUi = new();
+        public readonly CompatApiRuntimeState<JewelcraftingGemCuttingApi> JewelcraftingGemCutting = new();
+        public readonly CompatApiRuntimeState<JewelcraftingVisualApi> JewelcraftingVisual = new();
+        public readonly CompatApiRuntimeState<ItemRequiresSkillLevelApi> ItemRequiresSkillLevel = new();
+        public readonly CompatApiRuntimeState<RecycleNReclaimApi> RecycleNReclaim = new();
+        public readonly CompatApiRuntimeState<AdventureBackpacksApi> AdventureBackpacks = new();
+        public readonly CompatApiRuntimeState<SmoothbrainBackpacksApi> SmoothbrainBackpacks = new();
+        public readonly CompatApiRuntimeState<RustyBagsApi> RustyBags = new();
+        public readonly CompatApiRuntimeState<MagicSupremacyApi> MagicSupremacy = new();
+        public readonly CompatApiRuntimeState<BetterArcheryQuiverApi> BetterArcheryQuiver = new();
+        public readonly CompatApiRuntimeState<VeiledRecipesApi> VeiledRecipes = new();
+    }
+
+    private static readonly CompatRuntimeState CompatRuntime = new();
+
     private delegate bool CompatApiFactory<TApi>(Assembly assembly, out TApi? api, out string detail)
         where TApi : class;
 

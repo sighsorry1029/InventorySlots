@@ -6,6 +6,20 @@ using ItemData = ItemDrop.ItemData;
 
 namespace InventorySlots;
 
+[Serializable]
+internal sealed class InventorySlotsBackup
+{
+    public int version { get; set; }
+    public string date { get; set; } = "";
+    public string worldName { get; set; } = "";
+    public int nrOfItems { get; set; }
+    public int width { get; set; }
+    public int height { get; set; }
+    public int fixedRegularRows { get; set; }
+    public int fullHeight { get; set; }
+    public string inventoryBase64 { get; set; } = "";
+}
+
 public sealed partial class InventorySlotsPlugin
 {
     internal static void PrunePendingSlotActions(Player? player = null)

@@ -64,13 +64,40 @@ public sealed partial class InventorySlotsPlugin
         }
 
         EnsureInventoryState(player, InventoryStateEnsureReason.Tombstone);
+        if (InventoryLimits.Count > 0)
+        {
+            EnsureInventoryLimitCountCache(playerInventory);
+            foreach (KeyValuePair<string, int> rule in InventoryLimits)
+            {
+                if (rule.Value < 0)
+                {
+                    continue;
+                }
+
+                long incomingAmount = 0L;
+                foreach (ItemData item in tombInventory.GetAllItems())
+                {
+                    if (item?.m_shared != null && item.m_stack > 0 && ItemMatchesYamlReferenceToken(item, rule.Key))
+                    {
+                        incomingAmount += item.m_stack;
+                    }
+                }
+
+                InventorySafety.InventoryLimitCountCache.TryGetValue(rule.Key, out long currentAmount);
+                if (incomingAmount > 0L && Math.Max(0L, currentAmount) + incomingAmount > rule.Value)
+                {
+                    return false;
+                }
+            }
+        }
+
         if (playerInventory.GetTotalWeight() + tombInventory.GetTotalWeight() > player.GetMaxCarryWeight())
         {
             return false;
         }
 
         HashSet<Vector2i> claimed = new();
-        Dictionary<string, int> stackSpace = new(StringComparer.Ordinal);
+        List<(ItemData Item, int Free)> stackSpace = new();
         foreach (ItemData item in playerInventory.GetAllItems())
         {
             if (item == null)
@@ -79,10 +106,10 @@ public sealed partial class InventorySlotsPlugin
             }
 
             claimed.Add(item.m_gridPos);
-            if (item.m_shared.m_maxStackSize > 1)
+            int free = item.m_shared.m_maxStackSize - item.m_stack;
+            if (free > 0)
             {
-                string key = GetStackKey(item);
-                stackSpace[key] = stackSpace.TryGetValue(key, out int current) ? current + item.m_shared.m_maxStackSize - item.m_stack : item.m_shared.m_maxStackSize - item.m_stack;
+                stackSpace.Add((item, free));
             }
         }
 
@@ -93,14 +120,23 @@ public sealed partial class InventorySlotsPlugin
                 continue;
             }
 
-            if (item.m_shared.m_maxStackSize > 1)
+            int remaining = Math.Max(0, item.m_stack);
+            for (int i = 0; i < stackSpace.Count && remaining > 0; i++)
             {
-                string key = GetStackKey(item);
-                if (stackSpace.TryGetValue(key, out int freeStack) && freeStack >= item.m_stack)
+                (ItemData stackItem, int free) = stackSpace[i];
+                if (free <= 0 || !CanShareInventoryStack(stackItem, item))
                 {
-                    stackSpace[key] = freeStack - item.m_stack;
                     continue;
                 }
+
+                int moved = Math.Min(free, remaining);
+                stackSpace[i] = (stackItem, free - moved);
+                remaining -= moved;
+            }
+
+            if (remaining <= 0)
+            {
+                continue;
             }
 
             if (!TryFindVirtualFitCell(player, playerInventory, item, claimed, out Vector2i pos))
@@ -109,6 +145,11 @@ public sealed partial class InventorySlotsPlugin
             }
 
             claimed.Add(pos);
+            int newStackFree = Math.Max(0, item.m_shared.m_maxStackSize - remaining);
+            if (newStackFree > 0)
+            {
+                stackSpace.Add((item, newStackFree));
+            }
         }
 
         return true;
@@ -197,11 +238,6 @@ public sealed partial class InventorySlotsPlugin
 
         pos = new Vector2i(-1, -1);
         return false;
-    }
-
-    private static string GetStackKey(ItemData item)
-    {
-        return $"{item.m_shared.m_name}|{item.m_quality}|{item.m_worldLevel}";
     }
 
     private static bool IsTombstoneContainer(Container container)

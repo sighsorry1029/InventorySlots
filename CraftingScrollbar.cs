@@ -5,6 +5,11 @@ using UnityEngine.UI;
 
 namespace InventorySlots;
 
+internal sealed class CraftingRecipeScrollbarMarker : MonoBehaviour
+{
+    public bool Initialized { get; set; }
+}
+
 public sealed partial class InventorySlotsPlugin
 {
     private static void UpdateCraftingRecipeScrollbar(InventoryGui gui, RectTransform grid)
@@ -287,7 +292,6 @@ public sealed partial class InventorySlotsPlugin
         CraftingController.ClearHoveredRecipe();
         CraftingController.MarkRecipeGridLayoutDirty();
         int pageStart = _craftingRecipePage * GetCraftingRecipeGridCapacity();
-        UpdateCraftingRecipeView(gui);
         if (pageStart >= 0 && pageStart < CraftingRecipes.View.Count)
         {
             SetCraftingRecipeWithStoredVariant(gui, CraftingRecipes.View[pageStart].OriginalIndex, center: false);

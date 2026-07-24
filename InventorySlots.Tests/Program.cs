@@ -2,8 +2,10 @@ using InventorySlots;
 
 TestRunner.Run(
     ("Default YAML parses with expected sections", Tests.DefaultYamlParsesWithExpectedSections),
-    ("Invalid YAML leaves prior stable config intact", Tests.InvalidYamlLeavesPriorStableConfigIntact),
+    ("Malformed YAML is rejected", Tests.MalformedYamlIsRejected),
+    ("Null YAML slot entry is rejected", Tests.NullYamlSlotEntryIsRejected),
     ("Unknown YAML property is rejected", Tests.UnknownYamlPropertyIsRejected),
+    ("Structured YAML group matcher is rejected", Tests.StructuredYamlGroupMatcherIsRejected),
     ("Inventory limits parse exact and group targets", Tests.InventoryLimitsParseExactAndGroupTargets),
     ("Inventory limits reject negative values", Tests.InventoryLimitsRejectNegativeValues),
     ("Slot id normalization preserves compat dots", Tests.SlotIdNormalizationPreservesCompatDots),
@@ -20,7 +22,6 @@ TestRunner.Run(
     ("Crafting group rail stamp tracks selected group", Tests.CraftingGroupRailStampTracksSelectedGroup),
     ("Crafting search stamp tracks query and focus", Tests.CraftingSearchStampTracksQueryAndFocus),
     ("Crafting sort buttons stamp tracks mode", Tests.CraftingSortButtonsStampTracksMode),
-    ("Crafting zoom hint stamp tracks label", Tests.CraftingZoomHintStampTracksLabel),
     ("Crafting status HUD stamp tracks warning text", Tests.CraftingStatusHudStampTracksWarningText),
     ("Crafting text stamp separates text fields", Tests.CraftingTextStampSeparatesTextFields),
     ("Crafting text color stamp tracks color state", Tests.CraftingTextColorStampTracksColorState),
@@ -51,14 +52,12 @@ TestRunner.Run(
     ("Inventory load preservation overflows occupied tail cell", Tests.InventoryLoadPreservationOverflowsOccupiedTailCell),
     ("Inventory load preservation never falls back into hotbar", Tests.InventoryLoadPreservationNeverFallsBackIntoHotbar),
     ("Inventory load preservation ignores out-of-width tail requests", Tests.InventoryLoadPreservationIgnoresOutOfWidthTailRequests),
-    ("Inventory placement policy delegates non-container general inventory to vanilla", Tests.InventoryPlacementPolicyDelegatesNonContainerGeneralInventoryToVanilla),
     ("Inventory placement policy keeps containers top-first", Tests.InventoryPlacementPolicyKeepsContainersTopFirst),
     ("Inventory placement policy shares top-first empty count", Tests.InventoryPlacementPolicySharesTopFirstEmptyCount),
     ("Inventory automatic placement prefers regular rows before hotbar", Tests.InventoryAutomaticPlacementPrefersRegularRowsBeforeHotbar),
     ("Inventory automatic placement falls back to hotbar", Tests.InventoryAutomaticPlacementFallsBackToHotbar),
     ("Inventory limits accept the exact remaining amount", Tests.InventoryLimitsAcceptExactRemainingAmount),
     ("Inventory limits reject excess and additions to existing excess", Tests.InventoryLimitsRejectExcessAdditions),
-    ("Inventory placement policy overrides player load and container scopes", Tests.InventoryPlacementPolicyOverridesPlayerLoadAndContainerScopes),
     ("Action cell policy favorites include quickslots", Tests.ActionCellPolicyFavoritesIncludeQuickslots),
     ("Action cell policy keeps quickslots out of container action sources", Tests.ActionCellPolicyKeepsQuickslotsOutOfContainerActionSources),
     ("Action cell policy restock targets include hotbar and quickslots", Tests.ActionCellPolicyRestockTargetsIncludeHotbarAndQuickslots),
@@ -86,7 +85,8 @@ TestRunner.Run(
     ("Restock target limit resolves aliases and clamps to max stack", Tests.RestockTargetLimitResolvesAliasesAndClampsToMaxStack),
     ("Restock target limit resolves localized item names", Tests.RestockTargetLimitResolvesLocalizedItemNames),
     ("InventoryActions restock target limit copy mirrors InventorySlots behavior", Tests.InventoryActionsRestockTargetLimitCopyMirrorsInventorySlotsBehavior),
-    ("Intentional InventoryActions source copies stay synchronized", Tests.IntentionalInventoryActionsSourceCopiesStaySynchronized));
+    ("Intentional InventoryActions source copies stay synchronized", Tests.IntentionalInventoryActionsSourceCopiesStaySynchronized),
+    ("Release metadata versions stay synchronized", Tests.ReleaseMetadataVersionsStaySynchronized));
 
 internal static class Tests
 {
@@ -118,18 +118,21 @@ internal static class Tests
         Assert.True(root.ResourceMap.Count >= 8, "default resourceMap should contain biome tiers");
     }
 
-    public static void InvalidYamlLeavesPriorStableConfigIntact()
+    public static void MalformedYamlIsRejected()
     {
-        YamlRoot stable = InventorySlotsConfigCore.ParseYaml(InventorySlotsPlugin.DefaultYaml);
-        int stableSlotCount = stable.Slots.Count;
-        int stableResourceTierCount = InventorySlotsConfigCore.BuildResourceTierMap(stable).Count;
-
         bool parsed = InventorySlotsConfigCore.TryParseYaml("Slots:\n  - id: [", out YamlRoot next, out Exception? error);
 
-        Assert.False(parsed, "invalid YAML should not parse");
+        Assert.False(parsed, "malformed YAML should not parse");
         Assert.True(error != null, "parse error should be reported");
-        Assert.Equal(stableSlotCount, stable.Slots.Count);
-        Assert.Equal(stableResourceTierCount, InventorySlotsConfigCore.BuildResourceTierMap(stable).Count);
+        Assert.Equal(0, next.Slots.Count);
+    }
+
+    public static void NullYamlSlotEntryIsRejected()
+    {
+        bool parsed = InventorySlotsConfigCore.TryParseYaml("Slots: [null]", out YamlRoot next, out Exception? error);
+
+        Assert.False(parsed, "null slot entries should fail parsing before configuration apply");
+        Assert.True(error is InvalidDataException, "null slot entries should report an invalid data error");
         Assert.Equal(0, next.Slots.Count);
     }
 
@@ -142,6 +145,21 @@ internal static class Tests
 
         Assert.False(InventorySlotsConfigCore.TryParseYaml(yaml, out _, out Exception? error), "unknown root property should fail strict parsing");
         Assert.True(error != null, "unknown root property should report an error");
+    }
+
+    public static void StructuredYamlGroupMatcherIsRejected()
+    {
+        string yaml = """
+        Groups:
+          customWeapons:
+            Prefabs:
+              - SwordIron
+        """;
+
+        Assert.False(
+            InventorySlotsConfigCore.TryParseYaml(yaml, out _, out Exception? error),
+            "custom groups must remain simple prefab-name lists");
+        Assert.True(error != null, "structured group syntax should report an error");
     }
 
     public static void InventoryLimitsParseExactAndGroupTargets()
@@ -273,9 +291,11 @@ internal static class Tests
         CraftingFrameFastPathStamp baseline = FrameStamp(adapterKind: CraftingTabAdapterKind.Vanilla);
         CraftingFrameFastPathStamp same = FrameStamp(adapterKind: CraftingTabAdapterKind.Vanilla);
         CraftingFrameFastPathStamp differentAdapter = FrameStamp(adapterKind: CraftingTabAdapterKind.RecycleNReclaim);
+        CraftingFrameFastPathStamp differentSelection = FrameStamp(adapterKind: CraftingTabAdapterKind.Vanilla, selectedRecipeIndex: 4);
 
         Assert.True(baseline.Equals(same), "same fast-path state should reuse the frame stamp");
         Assert.False(baseline.Equals(differentAdapter), "adapter changes must invalidate the frame stamp");
+        Assert.False(baseline.Equals(differentSelection), "selection changes must invalidate the frame stamp");
     }
 
     public static void CraftingGridStampTracksPinnedTooltipChanges()
@@ -328,16 +348,6 @@ internal static class Tests
 
         Assert.True(baseline.Equals(same), "tiny layout jitter should not invalidate the sort button stamp");
         Assert.False(baseline.Equals(changedMode), "sort mode changes must invalidate the sort button stamp");
-    }
-
-    public static void CraftingZoomHintStampTracksLabel()
-    {
-        CraftingRecipeGridZoomHintStamp baseline = new(1, 2, 10f, -20f, "Alt+", 16f, 12f, 20f, 4f, 3f, 4f, 1f, 0.8f, 0.2f, 1f);
-        CraftingRecipeGridZoomHintStamp same = new(1, 2, 10.0001f, -20.0001f, "Alt+", 16.0001f, 12.0001f, 20.0001f, 4.0001f, 3.0001f, 4.0001f, 1f, 0.8001f, 0.2001f, 1f);
-        CraftingRecipeGridZoomHintStamp changedLabel = new(1, 2, 10.0001f, -20.0001f, "Ctrl+", 16.0001f, 12.0001f, 20.0001f, 4.0001f, 3.0001f, 4.0001f, 1f, 0.8001f, 0.2001f, 1f);
-
-        Assert.True(baseline.Equals(same), "tiny layout jitter should not invalidate the zoom hint stamp");
-        Assert.False(baseline.Equals(changedLabel), "modifier label changes must invalidate the zoom hint stamp");
     }
 
     public static void CraftingStatusHudStampTracksWarningText()
@@ -800,13 +810,6 @@ internal static class Tests
         Assert.Equal(-1, cell.Y);
     }
 
-    public static void InventoryPlacementPolicyDelegatesNonContainerGeneralInventoryToVanilla()
-    {
-        InventoryPlacementQueryPlan plan = InventoryPlacementPolicyCore.SelectQueryPlan(InventoryPlacementScope.General);
-
-        Assert.Equal(InventoryPlacementQueryPlan.RunOriginal, plan);
-    }
-
     public static void InventoryPlacementPolicyKeepsContainersTopFirst()
     {
         HashSet<(int X, int Y)> occupied = new()
@@ -816,7 +819,7 @@ internal static class Tests
             (0, 1)
         };
 
-        bool found = InventoryPlacementPolicyCore.TrySelectTopFirstCell(
+        bool found = InventorySlotSafetyCore.TrySelectFirstFreeCell(
             inventoryWidth: 3,
             rowCount: 2,
             isAllowed: (_, _) => true,
@@ -838,7 +841,7 @@ internal static class Tests
             (1, 1)
         };
 
-        bool found = InventoryPlacementPolicyCore.TrySelectTopFirstCell(
+        bool found = InventorySlotSafetyCore.TrySelectFirstFreeCell(
             inventoryWidth: 2,
             rowCount: 2,
             isAllowed: (_, _) => true,
@@ -905,22 +908,6 @@ internal static class Tests
         Assert.False(
             InventoryPlacementPolicyCore.CanAcceptInventoryLimit(currentAmount: 0, incomingAmount: 1, maxAmount: 0),
             "a zero limit should block new additions");
-    }
-
-    public static void InventoryPlacementPolicyOverridesPlayerLoadAndContainerScopes()
-    {
-        Assert.Equal(
-            InventoryPlacementQueryPlan.TopFirstAllCells,
-            InventoryPlacementPolicyCore.SelectQueryPlan(InventoryPlacementScope.Container));
-        Assert.Equal(
-            InventoryPlacementQueryPlan.LocalPlayerRegularCells,
-            InventoryPlacementPolicyCore.SelectQueryPlan(InventoryPlacementScope.LocalPlayer));
-        Assert.Equal(
-            InventoryPlacementQueryPlan.LoadPreservationRegularCells,
-            InventoryPlacementPolicyCore.SelectQueryPlan(InventoryPlacementScope.LoadPreservation));
-        Assert.Equal(
-            InventoryPlacementQueryPlan.RunOriginal,
-            InventoryPlacementPolicyCore.SelectQueryPlan((InventoryPlacementScope)999));
     }
 
     public static void ActionCellPolicyFavoritesIncludeQuickslots()
@@ -1443,6 +1430,56 @@ internal static class Tests
         }
     }
 
+    public static void ReleaseMetadataVersionsStaySynchronized()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        AssertReleaseVersionContract(
+            repositoryRoot,
+            "PluginMetadata.cs",
+            "Thunderstore/manifest.json",
+            "Thunderstore/CHANGELOG.md");
+        AssertReleaseVersionContract(
+            repositoryRoot,
+            "InventoryActions/Plugin.cs",
+            "InventoryActions/Thunderstore/manifest.json",
+            "InventoryActions/Thunderstore/CHANGELOG.md");
+    }
+
+    private static void AssertReleaseVersionContract(
+        string repositoryRoot,
+        string sourcePath,
+        string manifestPath,
+        string changelogPath)
+    {
+        string sourceVersion = ReadVersion(
+            Path.Combine(repositoryRoot, sourcePath),
+            @"ModVersion\s*=\s*""(?<version>[^""]+)""",
+            "source");
+        string manifestVersion = ReadVersion(
+            Path.Combine(repositoryRoot, manifestPath),
+            @"""version_number""\s*:\s*""(?<version>[^""]+)""",
+            "manifest");
+        string changelogVersion = ReadVersion(
+            Path.Combine(repositoryRoot, changelogPath),
+            @"(?m)^##\s+(?<version>\d+\.\d+\.\d+)\s*$",
+            "changelog");
+
+        Assert.Equal(sourceVersion, manifestVersion);
+        Assert.Equal(sourceVersion, changelogVersion);
+    }
+
+    private static string ReadVersion(string path, string pattern, string source)
+    {
+        System.Text.RegularExpressions.Match match =
+            System.Text.RegularExpressions.Regex.Match(File.ReadAllText(path), pattern);
+        if (!match.Success)
+        {
+            throw new InvalidOperationException($"Could not find a version in {source} file '{path}'.");
+        }
+
+        return match.Groups["version"].Value;
+    }
+
     private static string FindRepositoryRoot()
     {
         foreach (string startPath in new[] { Directory.GetCurrentDirectory(), AppContext.BaseDirectory })
@@ -1473,12 +1510,14 @@ internal static class Tests
     private static string SerializeLimits(Dictionary<string, int> limits) =>
         string.Join(",", limits.OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase).Select(pair => $"{pair.Key}:{pair.Value}"));
 
-    private static CraftingFrameFastPathStamp FrameStamp(CraftingTabAdapterKind adapterKind) =>
+    private static CraftingFrameFastPathStamp FrameStamp(CraftingTabAdapterKind adapterKind, int selectedRecipeIndex = 2) =>
         new(
             guiId: 1,
             craftingPanelId: 2,
             gridId: 3,
-            recipeViewSignature: $"view|adapter={adapterKind}",
+            adapterKind: adapterKind,
+            selectedRecipeIndex: selectedRecipeIndex,
+            recipeViewSignature: "view",
             recipePage: 1,
             gridDimension: 4,
             availabilityVersion: 7,

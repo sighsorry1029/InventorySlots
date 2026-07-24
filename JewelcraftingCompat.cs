@@ -12,6 +12,11 @@ namespace InventorySlots;
 public sealed partial class InventorySlotsPlugin
 {
     private const string JewelcraftingGemcutterStationPrefabName = "op_transmution_table";
+    private static bool _jewelcraftingSlotStateInitialized;
+    private static bool _lastJewelcraftingRingSlotEnabled;
+    private static bool _lastJewelcraftingNecklaceSlotEnabled;
+    private static bool _lastJewelcraftingWisplightGemEnabled;
+    private static bool _lastJewelcraftingWishboneGemEnabled;
 
     private static void AddJewelcraftingSlot(YamlSlot? yamlSlot, string slotId)
     {
@@ -234,11 +239,11 @@ public sealed partial class InventorySlotsPlugin
 
     private static void CaptureJewelcraftingSlotConfigState()
     {
-        CompatRuntime.LastJewelcraftingRingSlotEnabled = IsJewelcraftingRingSlotEnabled();
-        CompatRuntime.LastJewelcraftingNecklaceSlotEnabled = IsJewelcraftingNecklaceSlotEnabled();
-        CompatRuntime.LastJewelcraftingWisplightGemEnabled = IsJewelcraftingWisplightGemEnabled();
-        CompatRuntime.LastJewelcraftingWishboneGemEnabled = IsJewelcraftingWishboneGemEnabled();
-        CompatRuntime.JewelcraftingSlotStateInitialized = true;
+        _lastJewelcraftingRingSlotEnabled = IsJewelcraftingRingSlotEnabled();
+        _lastJewelcraftingNecklaceSlotEnabled = IsJewelcraftingNecklaceSlotEnabled();
+        _lastJewelcraftingWisplightGemEnabled = IsJewelcraftingWisplightGemEnabled();
+        _lastJewelcraftingWishboneGemEnabled = IsJewelcraftingWishboneGemEnabled();
+        _jewelcraftingSlotStateInitialized = true;
     }
 
     private static void RefreshJewelcraftingSlotDefinitionsIfNeeded(Player? player)
@@ -252,28 +257,28 @@ public sealed partial class InventorySlotsPlugin
         bool necklaceEnabled = IsJewelcraftingNecklaceSlotEnabled();
         bool wisplightGemEnabled = IsJewelcraftingWisplightGemEnabled();
         bool wishboneGemEnabled = IsJewelcraftingWishboneGemEnabled();
-        if (!CompatRuntime.JewelcraftingSlotStateInitialized)
+        if (!_jewelcraftingSlotStateInitialized)
         {
-            CompatRuntime.LastJewelcraftingRingSlotEnabled = ringEnabled;
-            CompatRuntime.LastJewelcraftingNecklaceSlotEnabled = necklaceEnabled;
-            CompatRuntime.LastJewelcraftingWisplightGemEnabled = wisplightGemEnabled;
-            CompatRuntime.LastJewelcraftingWishboneGemEnabled = wishboneGemEnabled;
-            CompatRuntime.JewelcraftingSlotStateInitialized = true;
+            _lastJewelcraftingRingSlotEnabled = ringEnabled;
+            _lastJewelcraftingNecklaceSlotEnabled = necklaceEnabled;
+            _lastJewelcraftingWisplightGemEnabled = wisplightGemEnabled;
+            _lastJewelcraftingWishboneGemEnabled = wishboneGemEnabled;
+            _jewelcraftingSlotStateInitialized = true;
             return;
         }
 
-        if (ringEnabled == CompatRuntime.LastJewelcraftingRingSlotEnabled &&
-            necklaceEnabled == CompatRuntime.LastJewelcraftingNecklaceSlotEnabled &&
-            wisplightGemEnabled == CompatRuntime.LastJewelcraftingWisplightGemEnabled &&
-            wishboneGemEnabled == CompatRuntime.LastJewelcraftingWishboneGemEnabled)
+        if (ringEnabled == _lastJewelcraftingRingSlotEnabled &&
+            necklaceEnabled == _lastJewelcraftingNecklaceSlotEnabled &&
+            wisplightGemEnabled == _lastJewelcraftingWisplightGemEnabled &&
+            wishboneGemEnabled == _lastJewelcraftingWishboneGemEnabled)
         {
             return;
         }
 
-        CompatRuntime.LastJewelcraftingRingSlotEnabled = ringEnabled;
-        CompatRuntime.LastJewelcraftingNecklaceSlotEnabled = necklaceEnabled;
-        CompatRuntime.LastJewelcraftingWisplightGemEnabled = wisplightGemEnabled;
-        CompatRuntime.LastJewelcraftingWishboneGemEnabled = wishboneGemEnabled;
+        _lastJewelcraftingRingSlotEnabled = ringEnabled;
+        _lastJewelcraftingNecklaceSlotEnabled = necklaceEnabled;
+        _lastJewelcraftingWisplightGemEnabled = wisplightGemEnabled;
+        _lastJewelcraftingWishboneGemEnabled = wishboneGemEnabled;
         RebuildSlotDefinitions();
         if (!IsUnityNull(player))
         {

@@ -144,11 +144,6 @@ public sealed partial class InventorySlotsPlugin
     private static HashSet<Vector2i> GetFavoriteBlockedSlots(Player player, Inventory inventory)
     {
         HashSet<Vector2i> blocked = new();
-        if (!AreFavoritesEnabled())
-        {
-            return blocked;
-        }
-
         EnsureFavoritesLoaded(player);
         foreach (ItemData item in inventory.m_inventory)
         {
@@ -266,13 +261,10 @@ public sealed partial class InventorySlotsPlugin
                token.StartsWith("Reagent", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static int CountMovedFromContainerSource(Inventory sourceInventory, ItemData sourceItem, int before, int requestedAmount, bool moveSucceeded, out bool remotePending)
+    private static int CountMovedFromContainerSource(Inventory sourceInventory, ItemData sourceItem, int before, int requestedAmount, bool moveSucceeded)
     {
         int after = sourceInventory.m_inventory.Contains(sourceItem) ? sourceItem.m_stack : 0;
-        bool useFallback = IsRemoteMultiUserChestInventory(sourceInventory);
-        int moved = ContainerActionCore.CountMovedAmount(before, after, requestedAmount, moveSucceeded, useFallback);
-        remotePending = Math.Max(0, before - after) == 0 && moveSucceeded && useFallback && moved > 0;
-        return moved;
+        return ContainerActionCore.CountMovedAmount(before, after, requestedAmount, moveSucceeded, useMoveSucceededFallback: false);
     }
 
     private static void RemoveItemIfStillOwned(Inventory inventory, ItemData item)

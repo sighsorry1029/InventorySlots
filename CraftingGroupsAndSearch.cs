@@ -107,7 +107,7 @@ public sealed partial class InventorySlotsPlugin
             _craftingGroupRail.gameObject.SetActive(false);
         }
 
-        CraftingController.MarkGroupRailDirty();
+        CraftingController.StoreGroupRailStamp(default);
     }
 
     private static CraftingGroupRailStamp GetCraftingGroupRailStamp(InventoryGui gui, RectTransform grid)
@@ -495,8 +495,6 @@ public sealed partial class InventorySlotsPlugin
         InventoryGui? gui = InventoryGui.instance;
         if (gui != null && ShouldShowCraftingPanelRedesign(gui))
         {
-            UpdateCraftingRecipeView(gui);
-            EnsureSelectedCraftingRecipeVisible(gui);
             UpdateCraftingPanelRedesign(gui, CraftingPanelUpdateReason.StateChanged);
         }
     }
@@ -520,9 +518,6 @@ public sealed partial class InventorySlotsPlugin
         }
 
         InvalidateCraftingRecipeView();
-        UpdateCraftingRecipeView(gui);
-        EnsureSelectedCraftingRecipeVisible(gui);
-        UpdateCraftingPanelRedesign(gui, CraftingPanelUpdateReason.StateChanged);
     }
 
     private static IReadOnlyList<CraftingRecipeGroupFilter> GetSelectableCraftingGroupFilters(InventoryGui gui)

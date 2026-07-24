@@ -26,7 +26,6 @@ inventoryslots_button_take_all: 모두 가져오기
 inventoryslots_button_place_stacks: 스택 넣기
 inventoryslots_button_place_all: 모두 놓기
 inventoryslots_button_take_stacks: 묶음 갖기
-inventoryslots_button_sort: 정렬
 inventoryslots_trash_title: 휴지통
 inventoryslots_trash_tooltip: 들고 있는 인벤토리 아이템을 여기에 놓으면 확인 후 삭제합니다.
 inventoryslots_trash_confirm_format: "{item}을(를) 삭제할까요?"
@@ -40,11 +39,10 @@ inventoryslots_craft_button_count_format: "{label} x{count}"
 inventoryslots_crafting_progress_count_format: "{label} 중 x{count}"
 inventoryslots_action_stack: 스택 넣기
 inventoryslots_action_take_stacks: 스택 가져오기
-inventoryslots_action_sort_requested: 정렬 요청됨.
 inventoryslots_action_result_format: "{action}: {count}"
 inventoryslots_container_not_ready: 컨테이너를 사용할 수 없습니다.
-inventoryslots_hold_to_stack: 누르고 있으면 빠른 스택
 inventoryslots_hold_to_restock: 누르고 있으면 보충
+inventoryslots_reclaim_blocked: 차단됨
 inventoryslots_hotbar_switch_hint: "전환\n[{key}]"
 inventoryslots_quick_slot_format: "퀵 {index}"
 inventoryslots_clear_favorites_hint_format: "{key}: 즐겨찾기 해제"

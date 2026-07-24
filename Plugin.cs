@@ -76,7 +76,6 @@ public sealed partial class InventorySlotsPlugin : BaseUnityPlugin
     private const string FavoriteBorderName = "InventorySlots_FavoriteBorder";
     private const float FavoriteBorderThickness = 2f;
     private const float QuickSlotsHudSlotBackgroundAlpha = 0.25f;
-    private const string RpcRequestSort = "InventorySlots_RequestSort";
     private const int CustomSlotPanelRows = 3;
     private const int QuickSlotPanelColumns = 3;
     private const int QuickSlotPanelRows = 3;

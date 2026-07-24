@@ -8,6 +8,15 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
+    private const string RpcRequestSort = "InventorySlots_RequestSortV2";
+    private const string RpcSortResponse = "InventorySlots_SortResponseV2";
+    private const float ContainerSortRequestTimeout = 2f;
+    private static Container? _pendingSortContainer;
+    private static int _pendingSortRequestId;
+    private static int _nextSortRequestId = 1;
+    private static long _pendingSortOwner;
+    private static float _pendingSortStartedAt = -1f;
+
     private static void SortCurrentContainer(Player? player)
     {
         if (player == null || player.m_isLoading || InventoryGui.instance == null)
@@ -21,20 +30,32 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        if (CanMutateContainerDirectly(container, allowLocalWithoutZNetView: true))
+        ContainerAccessMode accessMode = GetContainerAccessMode(container, allowLocalWithoutZNetView: true);
+        if (accessMode == ContainerAccessMode.DirectOwner)
         {
             SortContainerInventory(container);
             return;
         }
 
-        if (!CanUseContainerThroughOwnerOrMultiUserChest(container))
+        if (accessMode != ContainerAccessMode.MultiUserChestRemote ||
+            IsContainerSortRequestPending(container))
         {
-            player.Message(MessageHud.MessageType.Center, LocalizeUi("$inventoryslots_container_not_ready", "Container is not ready."), 0, null);
             return;
         }
 
-        container.m_nview.InvokeRPC(RpcRequestSort, player.GetPlayerID());
-        player.Message(MessageHud.MessageType.Center, LocalizeUi("$inventoryslots_action_sort_requested", "Sort requested."), 0, null);
+        ZDO? zdo = container.m_nview.GetZDO();
+        long owner = zdo != null ? zdo.GetOwner() : 0L;
+        if (owner == 0L)
+        {
+            return;
+        }
+
+        int requestId = GetNextContainerSortRequestId();
+        _pendingSortContainer = container;
+        _pendingSortRequestId = requestId;
+        _pendingSortOwner = owner;
+        _pendingSortStartedAt = Time.unscaledTime;
+        container.m_nview.InvokeRPC(RpcRequestSort, requestId, player.GetPlayerID());
     }
 
     private static int SortContainerInventory(Container container)
@@ -67,6 +88,7 @@ public sealed partial class InventorySlotsPlugin
     {
         if (container != null)
         {
+            ClearPendingContainerSortRequest(container);
             InventoryContainers.KnownContainers.Remove(container);
         }
     }
@@ -89,15 +111,86 @@ public sealed partial class InventorySlotsPlugin
         }
 
         container.m_nview.Unregister(RpcRequestSort);
-        container.m_nview.Register<long>(RpcRequestSort, (sender, requesterPlayerId) => RPC_RequestSort(container, sender, requesterPlayerId));
+        container.m_nview.Unregister(RpcSortResponse);
+        container.m_nview.Register<int, long>(RpcRequestSort, (sender, requestId, requesterPlayerId) =>
+            RPC_RequestSort(container, sender, requestId, requesterPlayerId));
+        container.m_nview.Register<int, bool>(RpcSortResponse, (sender, requestId, success) =>
+            RPC_SortResponse(container, sender, requestId, success));
     }
 
-    private static void RPC_RequestSort(Container container, long sender, long requesterPlayerId)
+    private static void RPC_RequestSort(Container container, long sender, int requestId, long requesterPlayerId)
     {
-        if (CanProcessContainerSortRpc(container, sender, requesterPlayerId))
+        bool success = CanProcessContainerSortRpc(container, sender, requesterPlayerId);
+        if (success)
         {
             SortContainerInventory(container);
         }
+
+        if (sender != 0L && container?.m_nview != null && container.m_nview.IsValid())
+        {
+            container.m_nview.InvokeRPC(sender, RpcSortResponse, requestId, success);
+        }
+    }
+
+    private static void RPC_SortResponse(Container container, long sender, int requestId, bool success)
+    {
+        if (container == null ||
+            _pendingSortContainer != container ||
+            _pendingSortRequestId != requestId ||
+            _pendingSortOwner != sender)
+        {
+            return;
+        }
+
+        ClearPendingContainerSortRequest();
+        if (!success && !IsUnityNull(Player.m_localPlayer))
+        {
+            Player.m_localPlayer.Message(
+                MessageHud.MessageType.Center,
+                LocalizeUi("$inventoryslots_container_not_ready", "Container is not ready."),
+                0,
+                null);
+        }
+    }
+
+    private static bool IsContainerSortRequestPending(Container container)
+    {
+        if (_pendingSortContainer == null)
+        {
+            ClearPendingContainerSortRequest();
+            return false;
+        }
+
+        if (Time.unscaledTime - _pendingSortStartedAt >= ContainerSortRequestTimeout)
+        {
+            ClearPendingContainerSortRequest();
+            return false;
+        }
+
+        return _pendingSortContainer == container;
+    }
+
+    private static int GetNextContainerSortRequestId()
+    {
+        if (_nextSortRequestId <= 0)
+        {
+            _nextSortRequestId = 1;
+        }
+
+        return _nextSortRequestId++;
+    }
+
+    private static void ClearPendingContainerSortRequest(Container? container = null)
+    {
+        if (container != null && _pendingSortContainer != container)
+        {
+            return;
+        }
+
+        _pendingSortContainer = null;
+        _pendingSortRequestId = 0;
+        _pendingSortOwner = 0L;
+        _pendingSortStartedAt = -1f;
     }
 
     private static void SortPlayerInventory(Player? player)
@@ -167,7 +260,7 @@ public sealed partial class InventorySlotsPlugin
         bool changed = false;
         List<List<ItemData>> grouped = toMerge
             .Where(item => item?.m_shared != null && item.m_stack < item.m_shared.m_maxStackSize && CanUseContainerActionStacking(item))
-            .GroupBy(item => new { item.m_shared.m_name, item.m_quality })
+            .GroupBy(item => new { item.m_shared.m_name, item.m_quality, item.m_worldLevel })
             .Select(grouping => grouping.ToList())
             .ToList();
 

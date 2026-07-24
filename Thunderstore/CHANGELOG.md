@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.6
+
+- Added acknowledged, owner-validated remote container sort requests with stale-response and timeout handling; older peers are rejected before incompatible RPC contracts can diverge.
+- Prevented sorting, Take All, and restocking from treating different world-level item stacks as interchangeable, and made tombstone fit checks honor compatible partial stacks and configured inventory limits before pickup.
+- Hardened YAML reloads and station conversion-token refreshes so invalid slot entries keep the last stable configuration and transient collection failures can retry.
+- Reduced crafting-panel work by reusing prepared tab state, removing duplicate Recycle N Reclaim API calls, and including adapter state in tooltip caches.
+- Removed dead UI/cache state and proxy layers, simplified valid YAML matching, co-located feature state with its owners, and reused the shared ServerSync assembly for InventoryActions builds.
+- Made Release builds synchronize manifest versions and create versioned packages automatically, with `BuildPackage=false` available for compile-only builds and `DeployToGame=true` still required for game-folder deployment.
+
 ## 1.2.4
 
 - Changed cooking-recipe ingredient detection into a fallback classification so fermenter outputs, potions, mead bases, tools, equipment, and explicitly grouped items keep their primary category. This allows items such as ValheimCuisine's `VC_VineberryAle` to use the default mead quick-slot rule even when they are also ingredients in food recipes.

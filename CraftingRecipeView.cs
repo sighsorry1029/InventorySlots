@@ -102,7 +102,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         CraftingTabAdapterState adapter = GetCraftingTabAdapterState(gui);
-        string signature = GetCraftingRecipeViewSignature(gui);
+        string signature = GetCraftingRecipeViewSignature(gui, adapter);
         if (CraftingController.CanReuseRecipeView(signature))
         {
             return false;
@@ -128,7 +128,7 @@ public sealed partial class InventorySlotsPlugin
                 IsVeiledRecipePreview(pair)));
         }
 
-        CraftingRecipes.View.Sort(CompareCraftingRecipeViewEntries);
+        CraftingRecipes.View.Sort((a, b) => CompareCraftingRecipeViewEntriesForAdapter(adapter, a, b));
         RebuildCraftingRecipeViewIndexCache();
         CraftingController.StoreRecipeViewSignature(signature);
         CraftingController.MarkRecipeGridLayoutDirty();
@@ -144,24 +144,24 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
-    private static string GetCraftingRecipeViewSignature(InventoryGui gui)
+    private static string GetCraftingRecipeViewSignature(InventoryGui gui, CraftingTabAdapterState? adapter = null)
     {
+        CraftingTabAdapterState currentAdapter = adapter ?? GetCraftingTabAdapterState(gui);
         string sortMode = _craftingRecipeSortMode?.Value.ToString() ?? "";
-        return $"{GetCraftingRecipeListContextSignature(gui)}|{_selectedCraftingGroupId}|{_craftingSearchQuery}|{sortMode}|{AreFavoritesEnabled()}|{_craftingFavoritesVersion}|{_loadedCraftingFavoritesPlayerId}|{GetVeiledRecipeGroupingSignature()}";
+        return $"{GetCraftingRecipeListContextSignature(gui, currentAdapter)}|{_selectedCraftingGroupId}|{_craftingSearchQuery}|{sortMode}|{_craftingFavoritesVersion}|{_loadedCraftingFavoritesPlayerId}|{GetVeiledRecipeGroupingSignature()}";
     }
 
-    private static string GetCraftingRecipeListContextSignature(InventoryGui gui)
+    private static string GetCraftingRecipeListContextSignature(InventoryGui gui, CraftingTabAdapterState? adapter = null)
     {
         int listId = gui.m_availableRecipes != null
             ? System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(gui.m_availableRecipes)
             : 0;
         int count = gui.m_availableRecipes?.Count ?? -1;
-        int selectedIndex = GetSelectedCraftingRecipeIndexSafe(gui);
-        CraftingTabAdapterState adapter = GetCraftingTabAdapterState(gui);
-        string recycleNReclaimSignature = adapter.IsRecycleNReclaim
+        CraftingTabAdapterState currentAdapter = adapter ?? GetCraftingTabAdapterState(gui);
+        string recycleNReclaimSignature = currentAdapter.IsRecycleNReclaim
             ? $"{GetRecycleNReclaimContextSignature()}|{GetRecycleNReclaimRecipeListSignature(gui)}"
             : "";
-        return $"list={listId}|count={count}|craft={IsCraftingCraftTabSelected(gui)}|upgrade={IsCraftingUpgradeTabSelected(gui)}|adapter={adapter.Kind}|rnr={recycleNReclaimSignature}|selected={selectedIndex}";
+        return $"list={listId}|count={count}|craft={IsCraftingCraftTabSelected(gui)}|upgrade={IsCraftingUpgradeTabSelected(gui)}|adapter={currentAdapter.Kind}|rnr={recycleNReclaimSignature}";
     }
 
     private static int GetSelectedCraftingRecipeIndexSafe(InventoryGui gui)
@@ -174,11 +174,6 @@ public sealed partial class InventorySlotsPlugin
         {
             return -1;
         }
-    }
-
-    private static int CompareCraftingRecipeViewEntries(CraftingRecipeViewEntry a, CraftingRecipeViewEntry b)
-    {
-        return CompareCraftingRecipeViewEntriesForAdapter(GetCraftingTabAdapterState(InventoryGui.instance), a, b);
     }
 
     private static SortKey GetCraftingRecipeSortKey(InventoryGui.RecipeDataPair pair)

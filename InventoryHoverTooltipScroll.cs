@@ -735,7 +735,7 @@ public sealed partial class InventorySlotsPlugin
         _inventoryHoverTooltip.SetActive(false);
 
         RectTransform panel = _inventoryHoverTooltip.GetComponent<RectTransform>();
-        SetTopLeftRectLayoutCached(panel, panel.anchoredPosition, panel.sizeDelta, "inventory-hover-panel-base");
+        SetTopLeftRectLayout(panel, panel.anchoredPosition, panel.sizeDelta);
         ApplyInventoryContainerCustomTooltipBackground(_inventoryHoverTooltip.GetComponent<Image>(), GetInventoryContainerHoverTooltipBackgroundAlpha());
 
         CreateTextRect("Topic", panel, out TMP_Text topicText);
@@ -843,7 +843,7 @@ public sealed partial class InventorySlotsPlugin
         float bodyHeight = contentHeight > 0f ? Mathf.Min(contentHeight, maxBodyHeight) : 0f;
         float panelHeight = bodyTop + bodyHeight + padding;
 
-        SetTopLeftRectLayoutCached(panel, panel.anchoredPosition, new Vector2(width, panelHeight), "inventory-hover-panel-size");
+        SetTopLeftRectLayout(panel, panel.anchoredPosition, new Vector2(width, panelHeight));
 
         if (_inventoryHoverTooltipTopic != null && !IsUnityNull(_inventoryHoverTooltipTopic))
         {
@@ -890,7 +890,7 @@ public sealed partial class InventorySlotsPlugin
             root.SetParent(content, false);
         }
 
-        SetTopLeftRectLayoutCached(root, new Vector2(0f, -textHeight - InventoryPinnedJewelcraftingScrollGap), new Vector2(textWidth, Mathf.Max(1f, root.sizeDelta.y)), "inventory-hover-jewelcrafting-root");
+        SetTopLeftRectLayout(root, new Vector2(0f, -textHeight - InventoryPinnedJewelcraftingScrollGap), new Vector2(textWidth, Mathf.Max(1f, root.sizeDelta.y)));
         root.SetAsLastSibling();
 
         float height = LayoutJewelcraftingNativeTooltip(root, textWidth);
@@ -1215,15 +1215,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void LayoutInventoryHoverTooltipTextRect(RectTransform rect, float horizontalPadding, float top, float height)
     {
-        string key = rect.name == "Topic" ? "inventory-hover-topic-text" : "inventory-hover-body-text";
-        string signature = $"{key}|{horizontalPadding:0.###}|{top:0.###}|{height:0.###}";
-        if (CanReuseRectLayout(rect, signature))
-        {
-            return;
-        }
-
         SetRectLayout(rect, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -top), new Vector2(-horizontalPadding * 2f, height));
-        SetRectLayoutSignature(rect, signature);
     }
 
     private static string LocalizeTooltipText(string text)

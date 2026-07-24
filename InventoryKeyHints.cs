@@ -36,7 +36,7 @@ public sealed partial class InventorySlotsPlugin
 
         RemoveMisplacedInventorySlotsKeyHints(group.transform, keyboardParent);
 
-        bool favoriteVisible = AreFavoritesEnabled() && _favoriteModifierKey != null;
+        bool favoriteVisible = _favoriteModifierKey != null;
         GameObject? favoriteHint = EnsureInventorySlotsKeyHint(keyboardParent, FavoriteKeyHintName, InventoryPanels.FavoriteKeyHintObjects);
         if (favoriteHint != null)
         {

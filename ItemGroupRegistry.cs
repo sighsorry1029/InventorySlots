@@ -38,14 +38,11 @@ internal static class ItemGroupRegistry
         new("Misc", "misc", "Crafting", "Misc", "Dandelion", "trophy", "valuable")
     };
 
-    public static readonly IReadOnlyList<string> DefaultKeepOnDeath = new[] { "Melee", "Ranged", "Magic", "Equipment" };
-    public static readonly IReadOnlyList<string> DefaultQuickSlots = new[] { "Melee", "Ranged", "Magic", "healthfood", "staminafood", "eitrfood", "mead", "potion" };
-
     private static readonly HashSet<string> BuiltInGroupIds = new(
         new[] { "all", "favorite", "equipment" }
             .Concat(Sections.Select(section => section.Id))
             .Concat(Sections.SelectMany(section => section.Subgroups))
-            .Select(NormalizeId),
+            .Select(InventorySlotsConfigCore.NormalizeGroupId),
         StringComparer.OrdinalIgnoreCase);
 
     public static bool TryNormalizeSectionId(string? rawId, out string sectionId)
@@ -69,18 +66,8 @@ internal static class ItemGroupRegistry
     }
 
     public static bool IsBuiltInGroupId(string groupId) =>
-        BuiltInGroupIds.Contains(NormalizeId(groupId));
+        BuiltInGroupIds.Contains(InventorySlotsConfigCore.NormalizeGroupId(groupId));
 
     public static IEnumerable<string> GlobalSubgroupOrder() =>
         new[] { "favorite" }.Concat(Sections.SelectMany(section => section.Subgroups)).Distinct(StringComparer.OrdinalIgnoreCase);
-
-    private static string NormalizeId(string? id)
-    {
-        if (string.IsNullOrWhiteSpace(id))
-        {
-            return "";
-        }
-
-        return new string(id!.Trim().Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
-    }
 }

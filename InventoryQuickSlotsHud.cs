@@ -14,6 +14,20 @@ using ItemData = ItemDrop.ItemData;
 
 namespace InventorySlots;
 
+internal sealed class QuickHudSlotMarker : MonoBehaviour
+{
+    public int Index { get; set; }
+    public Image? DurabilityFill { get; set; }
+    public GameObject? DurabilityObject { get; set; }
+    public TMP_Text? BindingText { get; set; }
+    public string TooltipSignature { get; set; } = "";
+    public string TooltipTopic { get; set; } = "";
+    public string TooltipText { get; set; } = "";
+    public string LayoutSignature { get; set; } = "";
+    public string BindingSignature { get; set; } = "";
+    public int TooltipHash { get; set; }
+}
+
 public sealed partial class InventorySlotsPlugin
 {
     private static void UpdateQuickSlotsHud(Player player)

@@ -52,8 +52,6 @@ public sealed partial class InventorySlotsPlugin
 
     private static class TooltipController
     {
-        public static PinnedTooltipContext ActivePinnedContext => PinnedTooltips.ActiveContext;
-
         public static void SetPinnedContext(PinnedTooltipContext context)
         {
             if (PinnedTooltips.ActiveContext == context)

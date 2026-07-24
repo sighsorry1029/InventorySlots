@@ -492,7 +492,7 @@ public sealed partial class InventorySlotsPlugin
             iconRect.SetParent(panel, false);
         }
 
-        SetTopLeftRectLayoutCached(iconRect, new Vector2(16f, -16f), new Vector2(72f, 72f), "pinned-tooltip-icon");
+        SetTopLeftRectLayout(iconRect, new Vector2(16f, -16f), new Vector2(72f, 72f));
 
         Image icon = iconRect.GetComponent<Image>() ?? iconRect.gameObject.AddComponent<Image>();
         icon.raycastTarget = false;
@@ -1049,13 +1049,13 @@ public sealed partial class InventorySlotsPlugin
             : 1f;
         Vector2 oldContentPosition = cache.TextContent.anchoredPosition;
         RectTransform scrollView = cache.TextScrollView;
-        SetTopLeftRectLayoutCached(scrollView, new Vector2(18f, -cache.TextTopReserved), new Vector2(textWidth, viewportHeight), "pinned-tooltip-scroll-view");
+        SetTopLeftRectLayout(scrollView, new Vector2(18f, -cache.TextTopReserved), new Vector2(textWidth, viewportHeight));
 
         RectTransform viewport = cache.TextViewport;
-        SetStretchRectLayoutCached(viewport, Vector2.zero, Vector2.zero, "pinned-tooltip-viewport");
+        SetStretchRectLayout(viewport, Vector2.zero, Vector2.zero);
 
         RectTransform content = cache.TextContent;
-        SetTopLeftRectLayoutCached(content, resetScroll || !needsScroll ? Vector2.zero : oldContentPosition, new Vector2(textWidth, contentHeight), "pinned-tooltip-content");
+        SetTopLeftRectLayout(content, resetScroll || !needsScroll ? Vector2.zero : oldContentPosition, new Vector2(textWidth, contentHeight));
 
         RectTransform textRect = text.rectTransform;
         if (textRect.parent != content)
@@ -1063,7 +1063,7 @@ public sealed partial class InventorySlotsPlugin
             textRect.SetParent(content, false);
         }
 
-        SetTopLeftRectLayoutCached(textRect, Vector2.zero, new Vector2(textWidth, contentHeight), "pinned-tooltip-text");
+        SetTopLeftRectLayout(textRect, Vector2.zero, new Vector2(textWidth, contentHeight));
         text.gameObject.SetActive(true);
 
         Canvas.ForceUpdateCanvases();

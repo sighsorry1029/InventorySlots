@@ -15,7 +15,7 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        if (!AreFavoritesEnabled() || !IsFavoriteModifierHeld())
+        if (!IsFavoriteModifierHeld())
         {
             return false;
         }
@@ -29,8 +29,6 @@ public sealed partial class InventorySlotsPlugin
 
         ToggleCraftingRecipeFavorite(player, pair);
         InvalidateCraftingRecipeView();
-        UpdateCraftingRecipeView(gui);
-        EnsureSelectedCraftingRecipeVisible(gui);
         UpdateCraftingPanelRedesign(gui, CraftingPanelUpdateReason.StateChanged);
         return true;
     }
@@ -70,7 +68,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool ClearCraftingFavorites(Player? player, bool upgradeFavorites)
     {
-        if (!AreFavoritesEnabled() || player == null)
+        if (player == null)
         {
             return false;
         }
@@ -96,11 +94,6 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool IsFavoriteCraftingRecipe(InventoryGui.RecipeDataPair pair)
     {
-        if (!AreFavoritesEnabled())
-        {
-            return false;
-        }
-
         if (IsRecycleNReclaimReclaimTabActive(InventoryGui.instance))
         {
             return false;
@@ -194,7 +187,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void EnsureCraftingFavoritesLoaded(Player? player)
     {
-        if (!AreFavoritesEnabled() || player == null)
+        if (player == null)
         {
             return;
         }

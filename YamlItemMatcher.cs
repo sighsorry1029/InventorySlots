@@ -104,115 +104,24 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool ItemMatchesPredefinedGroup(ItemData? item, string groupId)
     {
-        return ItemMatchesPredefinedGroup(item, groupId, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
-    }
-
-    private static bool ItemMatchesPredefinedGroup(ItemData? item, string groupId, HashSet<string> visiting)
-    {
         if (item?.m_shared == null)
         {
             return false;
         }
 
         string id = NormalizeGroupId(groupId);
-        if (string.IsNullOrWhiteSpace(id) || !visiting.Add(id))
+        if (string.IsNullOrWhiteSpace(id))
         {
             return false;
         }
 
-        try
+        if (PredefinedGroupDefinitions.TryGetValue(id, out List<string> items))
         {
-            if (PredefinedGroupDefinitions.TryGetValue(id, out YamlPredefinedGroup yamlGroup))
-            {
-                return ItemMatchesYamlPredefinedGroup(item, yamlGroup, visiting);
-            }
+            return items.Any(token => ItemMatchesExactPrefabOrName(item, token));
+        }
 
-            return ItemMatchesBuiltInPredefinedGroup(item, id);
-        }
-        finally
-        {
-            visiting.Remove(id);
-        }
+        return ItemMatchesBuiltInPredefinedGroup(item, id);
     }
-
-    private static bool ItemMatchesYamlPredefinedGroup(ItemData item, YamlPredefinedGroup group, HashSet<string> visiting)
-    {
-        YamlGroupMatch? match = group.Match;
-        if (match == null)
-        {
-            return false;
-        }
-
-        bool hasCondition = false;
-        bool matched = true;
-
-        void Require(bool condition)
-        {
-            hasCondition = true;
-            matched &= condition;
-        }
-
-        if (HasConfiguredValues(match.Groups))
-        {
-            Require(match.Groups.Any(groupId => ItemMatchesPredefinedGroup(item, groupId, visiting)));
-        }
-
-        if (HasConfiguredValues(match.ItemTypes))
-        {
-            Require(match.ItemTypes.Any(token => ItemTypeTokenMatches(item.m_shared.m_itemType, token)));
-        }
-
-        if (HasConfiguredValues(match.SkillTypes))
-        {
-            Require(match.SkillTypes.Any(token => SkillTypeTokenMatches(item.m_shared.m_skillType, token)));
-        }
-
-        if (HasConfiguredValues(match.Prefabs))
-        {
-            Require(match.Prefabs.Any(token => ItemMatchesExactPrefabOrName(item, token)));
-        }
-
-        if (HasConfiguredValues(match.PrefabAny))
-        {
-            Require(match.PrefabAny.Any(pattern => ItemMatchesPrefabPattern(item, pattern)));
-        }
-
-        if (HasConfiguredValues(match.NameAny))
-        {
-            Require(match.NameAny.Any(pattern => ItemMatchesNamePattern(item, pattern)));
-        }
-
-        if (HasConfiguredValues(match.AmmoTypes))
-        {
-            string ammoType = GetAmmoType(item);
-            Require(match.AmmoTypes.Any(token => string.Equals(ammoType, token, StringComparison.OrdinalIgnoreCase)));
-        }
-
-        if (match.MaxStackGreaterThan.HasValue)
-        {
-            Require(item.m_shared.m_maxStackSize > match.MaxStackGreaterThan.Value);
-        }
-
-        if (match.ValueGreaterThan.HasValue)
-        {
-            Require(item.m_shared.m_value > match.ValueGreaterThan.Value);
-        }
-
-        if (match.HasFood.HasValue)
-        {
-            Require(MatchFoodCategory(item) == match.HasFood.Value);
-        }
-
-        if (match.HasStatusEffect.HasValue)
-        {
-            Require((item.m_shared.m_consumeStatusEffect != null) == match.HasStatusEffect.Value);
-        }
-
-        return hasCondition && matched;
-    }
-
-    private static bool HasConfiguredValues(List<string>? values) =>
-        values != null && values.Any(value => !string.IsNullOrWhiteSpace(value));
 
     private static bool ItemMatchesExactPrefabOrName(ItemData item, string token)
     {
@@ -273,80 +182,4 @@ public sealed partial class InventorySlotsPlugin
                string.Equals(normalizedIdentity, normalizedToken, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool ItemMatchesPrefabPattern(ItemData item, string pattern)
-    {
-        string prefab = GetItemPrefabName(item);
-        return PatternMatches(prefab, pattern) || ItemMatchesKnownPrefabPattern(item, pattern);
-    }
-
-    private static bool ItemMatchesKnownPrefabPattern(ItemData item, string pattern)
-    {
-        string sharedName = GetSharedName(item);
-        if (string.IsNullOrWhiteSpace(sharedName))
-        {
-            return false;
-        }
-
-        foreach (KeyValuePair<string, string> entry in ItemNameTokens)
-        {
-            if (ItemIdentityTokenMatches(sharedName, entry.Value) &&
-                PatternMatches(entry.Key, pattern))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static bool ItemMatchesNamePattern(ItemData item, string pattern)
-    {
-        string sharedName = GetSharedName(item);
-        string localizedName = Localization.instance != null ? Localization.instance.Localize(sharedName) : sharedName;
-        return PatternMatches(sharedName, pattern) || PatternMatches(localizedName, pattern);
-    }
-
-    private static bool PatternMatches(string value, string pattern)
-    {
-        if (string.IsNullOrWhiteSpace(value) || string.IsNullOrWhiteSpace(pattern))
-        {
-            return false;
-        }
-
-        string text = CleanPrefabName(value);
-        string needle = CleanPrefabName(pattern);
-        if (needle.IndexOf("*", StringComparison.Ordinal) >= 0)
-        {
-            return WildcardMatches(text, needle);
-        }
-
-        return text.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0;
-    }
-
-    private static bool WildcardMatches(string value, string pattern)
-    {
-        string[] parts = pattern.Split(new[] { '*' }, StringSplitOptions.None);
-        int position = 0;
-        bool anchoredStart = !pattern.StartsWith("*", StringComparison.Ordinal);
-        bool anchoredEnd = !pattern.EndsWith("*", StringComparison.Ordinal);
-
-        for (int i = 0; i < parts.Length; i++)
-        {
-            string part = parts[i];
-            if (part.Length == 0)
-            {
-                continue;
-            }
-
-            int index = value.IndexOf(part, position, StringComparison.OrdinalIgnoreCase);
-            if (index < 0 || anchoredStart && i == 0 && index != 0)
-            {
-                return false;
-            }
-
-            position = index + part.Length;
-        }
-
-        return !anchoredEnd || parts.Length == 0 || value.EndsWith(parts[parts.Length - 1], StringComparison.OrdinalIgnoreCase);
-    }
 }

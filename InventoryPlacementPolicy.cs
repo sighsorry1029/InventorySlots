@@ -66,15 +66,15 @@ public sealed partial class InventorySlotsPlugin
     internal static bool TryOverrideFindEmptySlot(Inventory inventory, ref Vector2i result)
     {
         InventoryPlacementScope scope = GetInventoryPlacementScope(inventory, out Player? player);
-        switch (InventoryPlacementPolicyCore.SelectQueryPlan(scope))
+        switch (scope)
         {
-            case InventoryPlacementQueryPlan.TopFirstAllCells:
+            case InventoryPlacementScope.Container:
                 result = FindTopFirstEmptySlot(inventory);
                 return false;
-            case InventoryPlacementQueryPlan.LoadPreservationRegularCells:
+            case InventoryPlacementScope.LoadPreservation:
                 result = FindTopFirstRegularLoadPreservationSlot(inventory);
                 return false;
-            case InventoryPlacementQueryPlan.LocalPlayerRegularCells:
+            case InventoryPlacementScope.LocalPlayer:
                 result = TryFindFreeAutomaticPlacementCell(player!, inventory, out Vector2i pos)
                     ? pos
                     : new Vector2i(-1, -1);
@@ -100,7 +100,7 @@ public sealed partial class InventorySlotsPlugin
     private static Vector2i FindTopFirstEmptySlot(Inventory inventory)
     {
         HashSet<Vector2i> occupied = BuildOccupiedCellSet(inventory);
-        bool found = InventoryPlacementPolicyCore.TrySelectTopFirstCell(
+        bool found = InventorySlotSafetyCore.TrySelectFirstFreeCell(
             inventory.GetWidth(),
             inventory.GetHeight(),
             (_, _) => true,
@@ -231,15 +231,15 @@ public sealed partial class InventorySlotsPlugin
     internal static bool TryOverrideGetEmptySlots(Inventory inventory, ref int result)
     {
         InventoryPlacementScope scope = GetInventoryPlacementScope(inventory, out Player? player);
-        switch (InventoryPlacementPolicyCore.SelectQueryPlan(scope))
+        switch (scope)
         {
-            case InventoryPlacementQueryPlan.TopFirstAllCells:
+            case InventoryPlacementScope.Container:
                 result = CountAllEmptyCells(inventory);
                 return false;
-            case InventoryPlacementQueryPlan.LoadPreservationRegularCells:
+            case InventoryPlacementScope.LoadPreservation:
                 result = CountRegularLoadPreservationEmptyCells(inventory);
                 return false;
-            case InventoryPlacementQueryPlan.LocalPlayerRegularCells:
+            case InventoryPlacementScope.LocalPlayer:
                 result = CountUsableRegularEmptyCells(inventory, player!);
                 return false;
             default:
@@ -302,15 +302,15 @@ public sealed partial class InventorySlotsPlugin
     internal static bool TryOverrideHaveEmptySlot(Inventory inventory, ref bool result)
     {
         InventoryPlacementScope scope = GetInventoryPlacementScope(inventory, out Player? player);
-        switch (InventoryPlacementPolicyCore.SelectQueryPlan(scope))
+        switch (scope)
         {
-            case InventoryPlacementQueryPlan.TopFirstAllCells:
+            case InventoryPlacementScope.Container:
                 result = FindTopFirstEmptySlot(inventory).x >= 0;
                 return false;
-            case InventoryPlacementQueryPlan.LoadPreservationRegularCells:
+            case InventoryPlacementScope.LoadPreservation:
                 result = TryFindFreeRegularLoadPreservationCell(inventory, out _);
                 return false;
-            case InventoryPlacementQueryPlan.LocalPlayerRegularCells:
+            case InventoryPlacementScope.LocalPlayer:
                 result = TryFindFreeRegularCell(player!, inventory, out _);
                 return false;
             default:
@@ -656,7 +656,7 @@ public sealed partial class InventorySlotsPlugin
         int capacity = 0;
         foreach (ItemData existing in inventory.m_inventory)
         {
-            if (!CanStackIncomingItemInto(existing, item, trustedCustomDataStacking))
+            if (!CanStackIncomingItemInto(existing, item))
             {
                 continue;
             }
@@ -667,22 +667,25 @@ public sealed partial class InventorySlotsPlugin
         return capacity;
     }
 
-    private static bool CanStackIncomingItemInto(ItemData? existing, ItemData incoming, bool trustedCustomDataStacking)
+    private static bool CanStackIncomingItemInto(ItemData? existing, ItemData incoming)
+    {
+        return existing?.m_shared != null &&
+               existing.m_stack < existing.m_shared.m_maxStackSize &&
+               CanShareInventoryStack(existing, incoming);
+    }
+
+    private static bool CanShareInventoryStack(ItemData? existing, ItemData? incoming)
     {
         if (existing?.m_shared == null || incoming?.m_shared == null)
         {
             return false;
         }
 
-        if (trustedCustomDataStacking)
-        {
-            return existing.m_shared.m_name == incoming.m_shared.m_name &&
-                   existing.m_quality == incoming.m_quality &&
-                   existing.m_stack < existing.m_shared.m_maxStackSize &&
-                   (float)existing.m_worldLevel == incoming.m_worldLevel;
-        }
-
-        return CanStackIntoItem(existing, incoming.m_shared.m_name, incoming.m_quality, incoming.m_worldLevel);
+        bool trustedCustomDataStacking = IsTrustedCustomDataStackingItem(incoming);
+        return (trustedCustomDataStacking || HasNoCustomData(incoming) && HasNoCustomData(existing)) &&
+               existing.m_shared.m_name == incoming.m_shared.m_name &&
+               existing.m_quality == incoming.m_quality &&
+               (float)existing.m_worldLevel == incoming.m_worldLevel;
     }
 
     internal static void OnInventoryAddItemData(Inventory inventory, ItemData item, ref bool result)

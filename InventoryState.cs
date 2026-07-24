@@ -105,7 +105,6 @@ public sealed partial class InventorySlotsPlugin
         public readonly Stack<ItemData?> InventoryAddItemDataStackLookupItems = new();
         public readonly HashSet<string> SlotRecoveryWarnings = new(StringComparer.OrdinalIgnoreCase);
         public readonly HashSet<string> ForeignSlotPreservationWarnings = new(StringComparer.OrdinalIgnoreCase);
-        public readonly Dictionary<InventoryStateEnsureReason, int> EnsureCounts = new();
         public readonly Dictionary<ItemData, float> SlotUnequipToInventoryRequests = new();
         public bool RoutingEquipToDedicatedSlot;
         public bool RestoringSlotBackup;
@@ -156,7 +155,7 @@ public sealed partial class InventorySlotsPlugin
         public readonly List<SlotDefinition> QuickPanelSlotCache = new();
         public readonly Dictionary<int, SlotDefinition> QuickSlotDefinitionCache = new();
         public readonly Dictionary<string, bool> EquipmentSlotUnlockCache = new(StringComparer.Ordinal);
-        public readonly Dictionary<string, YamlPredefinedGroup> PredefinedGroupDefinitions = new(StringComparer.OrdinalIgnoreCase);
+        public readonly Dictionary<string, List<string>> PredefinedGroupDefinitions = new(StringComparer.OrdinalIgnoreCase);
         public readonly List<string> PredefinedGroupOrder = new();
         public readonly Dictionary<string, List<string>> PredefinedGroupOrders = new(StringComparer.OrdinalIgnoreCase);
         public readonly Dictionary<string, int> InventoryLimits = new(StringComparer.OrdinalIgnoreCase);
@@ -220,7 +219,7 @@ public sealed partial class InventorySlotsPlugin
     private static readonly EquipmentVisualRuntimeState EquipmentVisuals = new();
     private static readonly InventorySortRuntimeState InventorySort = new();
     private static List<SlotDefinition> SlotDefinitions => InventoryDefinitions.SlotDefinitions;
-    private static Dictionary<string, YamlPredefinedGroup> PredefinedGroupDefinitions => InventoryDefinitions.PredefinedGroupDefinitions;
+    private static Dictionary<string, List<string>> PredefinedGroupDefinitions => InventoryDefinitions.PredefinedGroupDefinitions;
     private static List<string> PredefinedGroupOrder => InventoryDefinitions.PredefinedGroupOrder;
     private static Dictionary<string, List<string>> PredefinedGroupOrders => InventoryDefinitions.PredefinedGroupOrders;
     private static Dictionary<string, int> InventoryLimits => InventoryDefinitions.InventoryLimits;

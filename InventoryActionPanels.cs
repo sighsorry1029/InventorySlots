@@ -58,8 +58,9 @@ public sealed partial class InventorySlotsPlugin
         Button template = gui.m_takeAllButton;
         RectTransform takeAllRect = (RectTransform)gui.m_takeAllButton.transform;
         RectTransform stackAllRect = (RectTransform)gui.m_stackAllButton.transform;
-        bool canMutateDirectly = CanMutateContainerDirectly(currentContainer, allowLocalWithoutZNetView: true);
-        bool canRequestSort = canMutateDirectly || CanUseContainerThroughOwnerOrMultiUserChest(currentContainer);
+        ContainerAccessMode accessMode = GetContainerAccessMode(currentContainer, allowLocalWithoutZNetView: true);
+        bool canMutateDirectly = accessMode == ContainerAccessMode.DirectOwner;
+        bool canRequestSort = accessMode != ContainerAccessMode.Unavailable;
         SetActionButtonLabel(gui.m_takeAllButton, LocalizeUi("$inventoryslots_button_take_all", "Take all"));
         SetActionButtonLabel(gui.m_stackAllButton, LocalizeUi("$inventoryslots_button_place_stacks", "Place stacks"));
 
@@ -68,7 +69,7 @@ public sealed partial class InventorySlotsPlugin
             HideContainerMutationButtons();
             InventoryPanels.ContainerSortButton = EnsureContainerSortButton(stackAllRect, template, GetContainerSortButtonSize(gui), (Vector3)ContainerSortButtonFixedOffset);
             SetButtonActive(InventoryPanels.ContainerSortButton, canRequestSort);
-            SetButtonInteractable(InventoryPanels.ContainerSortButton, canRequestSort);
+            SetButtonInteractable(InventoryPanels.ContainerSortButton, canRequestSort && !IsContainerSortRequestPending(currentContainer));
             return;
         }
 

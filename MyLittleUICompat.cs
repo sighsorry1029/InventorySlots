@@ -59,11 +59,12 @@ public sealed partial class InventorySlotsPlugin
     private static bool _myLittleUIPluginPresenceResolved;
     private static bool _myLittleUIPluginDetected;
     private static bool _myLittleUICraftingSuppressionActive;
+    private static bool _myLittleUICraftingCompatibilityApplied;
     private static string _myLittleUICraftingSuppressionSignature = "";
 
     private static void ApplyMyLittleUICraftingCompatibility()
     {
-        if (CompatRuntime.MyLittleUICraftingCompatibilityApplied || !IsMyLittleUIActive())
+        if (_myLittleUICraftingCompatibilityApplied || !IsMyLittleUIActive())
         {
             return;
         }
@@ -83,7 +84,7 @@ public sealed partial class InventorySlotsPlugin
             removed += UnpatchMyLittleUIConflictingPatches(original, patchInfo.Finalizers);
         }
 
-        CompatRuntime.MyLittleUICraftingCompatibilityApplied = true;
+        _myLittleUICraftingCompatibilityApplied = true;
         if (removed > 0)
         {
             Log.LogInfo($"Disabled {removed} MyLittleUI conflicting UI patch(es) for InventorySlots compatibility.");

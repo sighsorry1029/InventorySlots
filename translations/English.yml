@@ -26,7 +26,6 @@ inventoryslots_button_take_all: Take all
 inventoryslots_button_place_stacks: Place stacks
 inventoryslots_button_place_all: Place all
 inventoryslots_button_take_stacks: Take stacks
-inventoryslots_button_sort: Sort
 inventoryslots_trash_title: Trash
 inventoryslots_trash_tooltip: Drop a held inventory item here to delete it after confirmation.
 inventoryslots_trash_confirm_format: "Delete {item}?"
@@ -40,11 +39,10 @@ inventoryslots_craft_button_count_format: "{label} x{count}"
 inventoryslots_crafting_progress_count_format: "{label} x{count}"
 inventoryslots_action_stack: Stack
 inventoryslots_action_take_stacks: Take stacks
-inventoryslots_action_sort_requested: Sort requested.
 inventoryslots_action_result_format: "{action}: {count}"
 inventoryslots_container_not_ready: Container is not ready.
-inventoryslots_hold_to_stack: Hold to quick stack
 inventoryslots_hold_to_restock: Hold to restock
+inventoryslots_reclaim_blocked: Blocked
 inventoryslots_hotbar_switch_hint: "Switch\n[{key}]"
 inventoryslots_quick_slot_format: "Quick {index}"
 inventoryslots_clear_favorites_hint_format: "{key}: clear favorites"

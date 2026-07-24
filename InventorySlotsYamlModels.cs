@@ -38,26 +38,3 @@ internal sealed class YamlSlot
     public string Name { get; set; } = "";
     public List<string> Items { get; set; } = new();
 }
-
-internal sealed class YamlPredefinedGroup
-{
-    public string Id { get; set; } = "";
-    public string Name { get; set; } = "";
-    public string Icon { get; set; } = "";
-    public YamlGroupMatch Match { get; set; } = new();
-}
-
-internal sealed class YamlGroupMatch
-{
-    public List<string> Groups { get; set; } = new();
-    public List<string> ItemTypes { get; set; } = new();
-    public List<string> SkillTypes { get; set; } = new();
-    public List<string> Prefabs { get; set; } = new();
-    public List<string> PrefabAny { get; set; } = new();
-    public List<string> NameAny { get; set; } = new();
-    public List<string> AmmoTypes { get; set; } = new();
-    public int? MaxStackGreaterThan { get; set; }
-    public int? ValueGreaterThan { get; set; }
-    public bool? HasFood { get; set; }
-    public bool? HasStatusEffect { get; set; }
-}

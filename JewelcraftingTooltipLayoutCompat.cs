@@ -9,6 +9,14 @@ using ItemData = ItemDrop.ItemData;
 
 namespace InventorySlots;
 
+internal sealed class JewelcraftingSourceRowUiCache : MonoBehaviour
+{
+    public string ChildSignature { get; set; } = "";
+    public TMP_Text? Text { get; set; }
+    public Image? BorderImage { get; set; }
+    public Image? GemImage { get; set; }
+}
+
 public sealed partial class InventorySlotsPlugin
 {
     private const float InventoryPinnedJewelcraftingScrollGap = 12f;

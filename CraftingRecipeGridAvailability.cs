@@ -22,11 +22,8 @@ public sealed partial class InventorySlotsPlugin
                 hash = hash * 31 + originalIndex;
                 hash = hash * 31 + (pair.Recipe != null && pair.Recipe.m_enabled ? 1 : 0);
                 hash = hash * 31 + (pair.CanCraft ? 1 : 0);
-                hash = hash * 31 + (IsCraftingRecipeActionAvailable(gui, pair, originalIndex) ? 1 : 0);
-                if (IsRecycleNReclaimReclaimTabActive(gui) && TryGetRecycleNReclaimRecyclingImpedimentCount(originalIndex, out int impediments))
-                {
-                    hash = hash * 31 + impediments;
-                }
+                bool actionAvailable = IsCraftingRecipeActionAvailable(gui, pair, originalIndex);
+                hash = hash * 31 + (actionAvailable ? 1 : 0);
             }
 
             return hash;

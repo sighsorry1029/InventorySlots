@@ -29,11 +29,8 @@ public sealed partial class InventorySlotsPlugin
         _craftingRecipeGridSize.SettingChanged += (_, _) =>
         {
             CraftingController.MarkRecipeGridLayoutDirty();
-            CraftingController.InvalidateRecipeGridZoomHint();
         };
-        _craftingRecipeGridZoomModifier.SettingChanged += (_, _) => CraftingController.InvalidateRecipeGridZoomHint();
         _craftingClearFavoritesKey.SettingChanged += (_, _) => CraftingController.MarkGroupRailDirty();
-        _showCraftingRecipeGridZoomHint.SettingChanged += (_, _) => CraftingController.InvalidateRecipeGridZoomHint();
 
         _craftingRecipeSortMode = ConfigEntry(
             ClientConfigSection,

@@ -234,22 +234,12 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool IsFavoriteProtected(Player player, Inventory inventory, ItemData item)
     {
-        return AreFavoritesEnabled() && IsFavoriteSlot(player, item.m_gridPos);
+        return IsFavoriteSlot(player, item.m_gridPos);
     }
 
     private static bool IsFavoriteSlot(Player player, Vector2i pos)
     {
-        if (!AreFavoritesEnabled())
-        {
-            return false;
-        }
-
         EnsureFavoritesLoaded(player);
         return FavoriteSlots.Contains(pos);
-    }
-
-    private static bool AreFavoritesEnabled()
-    {
-        return true;
     }
 }

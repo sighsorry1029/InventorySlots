@@ -156,7 +156,7 @@ public sealed partial class InventorySlotsPlugin
                 _craftingCountInputRect.gameObject.SetActive(false);
             }
 
-            CraftingController.MarkBottomControlsDirty();
+            CraftingController.StoreBottomControlsSignature(CraftingBottomControlsHiddenSignature);
             return;
         }
 
@@ -203,8 +203,8 @@ public sealed partial class InventorySlotsPlugin
         }
 
         bool hasSummary = TryPrepareRecycleNReclaimSelectedSummary(gui);
-        LayoutRecycleNReclaimYieldIcons(gui, grid, updateLayout, hasSummary ? RecycleNReclaimHudYields : null);
-        LayoutRecycleNReclaimHud(gui, grid);
+        LayoutRecycleNReclaimYieldIcons(gui, grid, hasSummary ? RecycleNReclaimHudYields : null);
+        LayoutRecycleNReclaimHud(gui, grid, hasSummary, RecycleNReclaimHudImpediments, RecycleNReclaimHudYields);
         HideRecycleNReclaimVanillaDetailUi(gui);
 
         if (gui.m_craftButton != null)
@@ -220,9 +220,14 @@ public sealed partial class InventorySlotsPlugin
         return $"{gui.m_crafting.GetInstanceID()}|{grid.GetInstanceID()}|{grid.anchoredPosition.x:0.###}|{grid.anchoredPosition.y:0.###}|{GetUnityObjectId(gui.m_craftButton)}|{GetUnityObjectId(gui.m_craftProgressPanel as UnityEngine.Object)}|{CraftingRecipeGridCellSize:0.###}|{CraftingRecipeGridCellSpace:0.###}|reclaim|ownedReq={CraftingRequirements.OwnedSlots.Count}";
     }
 
-    private static void LayoutRecycleNReclaimHud(InventoryGui gui, RectTransform grid)
+    private static void LayoutRecycleNReclaimHud(
+        InventoryGui gui,
+        RectTransform grid,
+        bool hasSummary,
+        IReadOnlyList<string> impediments,
+        IReadOnlyList<RecycleNReclaimYieldTextEntry> yields)
     {
-        string text = BuildRecycleNReclaimHudText(gui);
+        string text = BuildRecycleNReclaimHudText(gui, hasSummary, impediments, yields);
         if (string.IsNullOrWhiteSpace(text))
         {
             HideRecycleNReclaimHud();
@@ -297,7 +302,7 @@ public sealed partial class InventorySlotsPlugin
         textRect.offsetMax = new Vector2(-12f, -5f);
         textRect.localScale = Vector3.one;
         textRect.localRotation = Quaternion.identity;
-        SetStretchRectLayoutCached(textRect, new Vector2(12f, 5f), new Vector2(-12f, -5f), "recycle-reclaim-hud-text");
+        SetStretchRectLayout(textRect, new Vector2(12f, 5f), new Vector2(-12f, -5f));
         ConfigureRecycleNReclaimHudText(_recycleNReclaimHudText, _recycleNReclaimHudText.text);
         return _recycleNReclaimHudRect;
     }
@@ -325,7 +330,7 @@ public sealed partial class InventorySlotsPlugin
         return TryGetRecycleNReclaimSummary(selectedIndex, RecycleNReclaimHudImpediments, RecycleNReclaimHudYields);
     }
 
-    private static void LayoutRecycleNReclaimYieldIcons(InventoryGui gui, RectTransform grid, bool updateLayout, IReadOnlyList<RecycleNReclaimYieldTextEntry>? yields)
+    private static void LayoutRecycleNReclaimYieldIcons(InventoryGui gui, RectTransform grid, IReadOnlyList<RecycleNReclaimYieldTextEntry>? yields)
     {
         HideCraftingVanillaRequirementSlots(gui);
 
@@ -471,7 +476,11 @@ public sealed partial class InventorySlotsPlugin
         text.raycastTarget = false;
     }
 
-    private static string BuildRecycleNReclaimHudText(InventoryGui gui)
+    private static string BuildRecycleNReclaimHudText(
+        InventoryGui gui,
+        bool hasSummary,
+        IReadOnlyList<string> impediments,
+        IReadOnlyList<RecycleNReclaimYieldTextEntry> yields)
     {
         int selectedIndex = GetSelectedCraftingRecipeIndexSafe(gui);
         if (selectedIndex < 0)
@@ -479,12 +488,11 @@ public sealed partial class InventorySlotsPlugin
             return "";
         }
 
-        bool hasSummary = TryGetRecycleNReclaimSummary(selectedIndex, RecycleNReclaimHudImpediments, RecycleNReclaimHudYields);
-        string status = BuildRecycleNReclaimStatusText(gui, hasSummary ? RecycleNReclaimHudImpediments : null);
+        string status = BuildRecycleNReclaimStatusText(gui, hasSummary ? impediments : null);
         string detail = BuildRecycleNReclaimDetailText(gui);
         if (string.IsNullOrWhiteSpace(detail) && !HasVisibleRecycleNReclaimYieldIcons(gui))
         {
-            detail = BuildRecycleNReclaimYieldText(hasSummary ? RecycleNReclaimHudYields : null, gui);
+            detail = BuildRecycleNReclaimYieldText(hasSummary ? yields : null);
         }
 
         if (string.IsNullOrWhiteSpace(status))
@@ -526,7 +534,7 @@ public sealed partial class InventorySlotsPlugin
         return detail;
     }
 
-    private static string BuildRecycleNReclaimYieldText(IReadOnlyList<RecycleNReclaimYieldTextEntry>? yields, InventoryGui gui)
+    private static string BuildRecycleNReclaimYieldText(IReadOnlyList<RecycleNReclaimYieldTextEntry>? yields)
     {
         IEnumerable<string> parts = yields != null && yields.Count > 0
             ? yields.Select(entry => $"{LocalizeUi(entry.Name, entry.Name)} x{entry.Amount}")

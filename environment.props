@@ -5,6 +5,7 @@
         <CorlibPath>$(ValheimGamePath)\valheim_Data\Managed</CorlibPath>
         <PublicizedAssembliesPath>$(ValheimGamePath)\valheim_Data\Managed\publicized_assemblies</PublicizedAssembliesPath>
         <RuntimeIdentifiers Condition="'$(RuntimeIdentifiers)' == ''">win</RuntimeIdentifiers>
+        <DeployToGame Condition="'$(DeployToGame)' == ''">false</DeployToGame>
         <CopyOutputDLLPath Condition="'$(CopyOutputDLLPath)' == '' AND Exists('C:\Users\blizz\AppData\Roaming\com.kesomannen.gale\valheim\profiles\sloittest\BepInEx\plugins')">C:\Users\blizz\AppData\Roaming\com.kesomannen.gale\valheim\profiles\sloittest\BepInEx\plugins</CopyOutputDLLPath>
         <CopyOutputDLLPath Condition="'$(CopyOutputDLLPath)' == '' AND Exists('C:\Users\blizz\AppData\Roaming\com.kesomannen.gale\valheim\profiles\zzzz\BepInEx\plugins')">C:\Users\blizz\AppData\Roaming\com.kesomannen.gale\valheim\profiles\zzzz\BepInEx\plugins</CopyOutputDLLPath> <!-- This is where the output DLL will be copied to after building. The templates support doing this for up to three locations. Duplicate this line and append a number. Example below -->
         <CopyOutputDLLPath Condition="'$(CopyOutputDLLPath)' == '' AND Exists('C:\Users\blizz\AppData\Roaming\com.kesomannen.gale\valheim\profiles\zxcv\BepInEx\plugins')">C:\Users\blizz\AppData\Roaming\com.kesomannen.gale\valheim\profiles\zxcv\BepInEx\plugins</CopyOutputDLLPath>

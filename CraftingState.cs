@@ -105,7 +105,6 @@ public sealed partial class InventorySlotsPlugin
         public TMP_InputField? SearchInput;
         public RectTransform? SearchInputRect;
         public RectTransform? RecipeGridZoomHint;
-        public TMP_Text? RecipeGridZoomHintText;
         public RectTransform? GroupRail;
         public TMP_InputField? CountInput;
         public RectTransform? CountInputRect;
@@ -123,9 +122,7 @@ public sealed partial class InventorySlotsPlugin
         public bool SearchInputDirty = true;
         public int HoveredRecipeIndex = -1;
         public CraftingSearchInputStamp SearchInputStamp;
-        public CraftingRecipeGridZoomHintStamp RecipeGridZoomHintStamp;
         public string HoverTooltipSignature = "";
-        public string HoverTooltipContentKey = "";
         public string HoverTooltipLayoutSignature = "";
         public string HoverTooltipVisualSignature = "";
         public string HoverGemIconSignature = "";
@@ -356,15 +353,6 @@ public sealed partial class InventorySlotsPlugin
             return true;
         }
 
-        public static void InvalidateRecipeGridZoomHint()
-        {
-            CraftingUi.RecipeGridZoomHintStamp = default;
-        }
-
-        public static void ClearHoverTooltipContentKey()
-        {
-            CraftingUi.HoverTooltipContentKey = "";
-        }
     }
 
     private static readonly CraftingRecipeRuntimeState CraftingRecipes = new();

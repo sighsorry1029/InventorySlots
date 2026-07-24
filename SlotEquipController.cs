@@ -809,7 +809,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         ClearSlotActionState(item);
-        InventorySafety.PendingSlotEquips[item] = new PendingSlotEquip(item, slot, item.m_gridPos, Time.time);
+        InventorySafety.PendingSlotEquips[item] = new PendingSlotEquip(slot, Time.time);
         player.RemoveEquipAction(item);
 
         if (IsEquipableForInventorySlotsRouting(item) && item.m_shared.m_equipDuration > 0f)
@@ -994,7 +994,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         ClearSlotActionState(item);
-        InventorySafety.PendingSlotUnequips[item] = new PendingSlotUnequip(item, sourceSlot, destination, targetInventory, targetPos, amount, Time.time);
+        InventorySafety.PendingSlotUnequips[item] = new PendingSlotUnequip(sourceSlot, destination, targetInventory, targetPos, amount, Time.time);
         player.RemoveEquipAction(item);
 
         if (item.m_shared.m_equipDuration > 0f)

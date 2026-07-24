@@ -369,6 +369,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void RestoreContainerUiState()
     {
+        ClearPendingContainerSortRequest();
         RestoreContainerPanelPosition();
         RestoreContainerWeightPanelPosition();
         HideInventoryActionPanels();

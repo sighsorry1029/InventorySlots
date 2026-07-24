@@ -27,9 +27,9 @@ public sealed partial class InventorySlotsPlugin
     private const string CraftingRequiredStationHitboxName = "InventorySlots_CraftingRequiredStationHitbox";
     private const string CraftingRecipeGridZoomHintName = "InventorySlots_CraftingRecipeGridZoomHint";
     private const string CraftingFavoriteBorderName = "InventorySlots_CraftingFavoriteBorder";
-    private const string CraftingSelectedRecipeBorderName = "InventorySlots_CraftingSelectedRecipeBorder";
     private const string CraftingPinnedTooltipMarkerName = "InventorySlots_CraftingPinnedTooltipMarker";
     private const string CraftingSocketWarningName = "InventorySlots_CraftingSocketWarning";
+    private const string CraftingBottomControlsHiddenSignature = "hidden";
 
     private const int CraftingRecipeGridMinDimension = 4;
     private const int CraftingRecipeGridMaxDimension = 8;

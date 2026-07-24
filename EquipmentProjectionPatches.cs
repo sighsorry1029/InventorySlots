@@ -7,17 +7,17 @@ internal static class HumanoidUpdateEquipmentStatusEffectsPatch
 {
     private static void Prefix(Humanoid __instance)
     {
-        InventorySlotsPlugin.TryPrepareCustomEquipmentProjection(__instance);
+        InventorySlotsPlugin.PrepareCustomEquipmentProjection(__instance);
     }
 
     private static void Postfix(Humanoid __instance)
     {
-        InventorySlotsPlugin.ApplyCustomEquipmentProjection(__instance);
+        InventorySlotsPlugin.ApplyPreparedCustomEquipmentStatusEffects(__instance);
     }
 
     private static void Finalizer()
     {
-        InventorySlotsPlugin.ClearCustomEquipmentProjection();
+        InventorySlotsPlugin.ClearPreparedCustomEquipmentStatusEffects();
     }
 }
 
@@ -26,7 +26,11 @@ internal static class SEManRemoveStatusEffectInventorySlotsPatch
 {
     private static void Prefix(SEMan __instance, ref int nameHash)
     {
-        InventorySlotsPlugin.FilterCustomEquipmentStatusRemoval(__instance, ref nameHash);
+        Player? player = Player.m_localPlayer;
+        if (player != null && InventorySlotsPlugin.ShouldPreventCustomEquipmentStatusRemoval(__instance, nameHash))
+        {
+            nameHash = 0;
+        }
     }
 }
 
@@ -35,7 +39,10 @@ internal static class HumanoidGetEquipmentWeightPatch
 {
     private static void Postfix(Humanoid __instance, ref float __result)
     {
-        InventorySlotsPlugin.AddProjectedEquipmentWeight(__instance, ref __result);
+        if (InventorySlotsPlugin.IsLocalPlayerHumanoid(__instance, out Player? player) && player != null)
+        {
+            __result += InventorySlotsPlugin.GetProjectedCustomEquipmentWeight(player);
+        }
     }
 }
 
@@ -44,7 +51,10 @@ internal static class PlayerGetEquipmentEitrRegenModifierPatch
 {
     private static void Postfix(Player __instance, ref float __result)
     {
-        InventorySlotsPlugin.AddProjectedEquipmentEitrRegenModifier(__instance, ref __result);
+        if (__instance == Player.m_localPlayer)
+        {
+            __result += InventorySlotsPlugin.GetProjectedCustomEquipmentEitrRegenModifier(__instance);
+        }
     }
 }
 
@@ -53,7 +63,10 @@ internal static class PlayerGetBodyArmorInventorySlotsPatch
 {
     private static void Postfix(Player __instance, ref float __result)
     {
-        InventorySlotsPlugin.AddProjectedBodyArmor(__instance, ref __result);
+        if (__instance == Player.m_localPlayer)
+        {
+            __result += InventorySlotsPlugin.GetCustomEquipmentArmor(__instance);
+        }
     }
 }
 
@@ -62,7 +75,10 @@ internal static class PlayerApplyArmorDamageModsInventorySlotsPatch
 {
     private static void Postfix(Player __instance, ref HitData.DamageModifiers mods)
     {
-        InventorySlotsPlugin.ApplyProjectedArmorDamageModifiers(__instance, ref mods);
+        if (__instance == Player.m_localPlayer)
+        {
+            InventorySlotsPlugin.ApplyCustomEquipmentDamageModifiers(__instance, ref mods);
+        }
     }
 }
 
@@ -71,7 +87,10 @@ internal static class HumanoidUpdateEquipmentPatch
 {
     private static void Postfix(Humanoid __instance, float dt)
     {
-        InventorySlotsPlugin.OnHumanoidUpdateEquipment(__instance, dt);
+        if (InventorySlotsPlugin.IsLocalPlayerHumanoid(__instance, out Player? player) && player != null)
+        {
+            InventorySlotsPlugin.DrainProjectedCustomEquipmentDurability(__instance, player, dt);
+        }
     }
 }
 
@@ -80,7 +99,10 @@ internal static class HumanoidGetSetCountPatch
 {
     private static void Postfix(Humanoid __instance, string setName, ref int __result)
     {
-        InventorySlotsPlugin.AddProjectedEquipmentSetCount(__instance, setName, ref __result);
+        if (InventorySlotsPlugin.IsLocalPlayerHumanoid(__instance, out Player? player) && player != null)
+        {
+            __result += InventorySlotsPlugin.GetProjectedCustomEquipmentSetCount(player, setName);
+        }
     }
 }
 
@@ -89,6 +111,9 @@ internal static class PlayerUpdateModifiersPatch
 {
     private static void Postfix(Player __instance)
     {
-        InventorySlotsPlugin.OnPlayerUpdateModifiers(__instance);
+        if (__instance == Player.m_localPlayer && Player.s_equipmentModifierSourceFields != null)
+        {
+            InventorySlotsPlugin.ApplyProjectedEquipmentModifierValues(__instance);
+        }
     }
 }

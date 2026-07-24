@@ -14,6 +14,8 @@
         <FileAlignment>512</FileAlignment>
         <LangVersion>preview</LangVersion>
         <Nullable>enable</Nullable>
+        <BuildPackage Condition="'$(BuildPackage)' == '' AND '$(Configuration)' == 'Release'">true</BuildPackage>
+        <BuildPackage Condition="'$(BuildPackage)' == ''">false</BuildPackage>
         <ILRepackTargetsFile>$(MSBuildProjectDirectory)\build\ILRepack.targets</ILRepackTargetsFile>
     </PropertyGroup>
     <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -167,7 +169,7 @@
             <NexusZip>$(ProjectDir)\Nexus\$(PackageName).zip</NexusZip>
         </PropertyGroup>
     </Target>
-    <Target Name="PackageRelease" AfterTargets="GetAssemblyVersion" Condition="'$(Configuration)' == 'Release'">
+    <Target Name="PackageRelease" AfterTargets="GetAssemblyVersion" Condition="'$(Configuration)' == 'Release' AND '$(BuildPackage)' == 'true'">
         <Delete Files="$(ProjectDir)\Thunderstore\README.md" Condition="Exists('$(ProjectDir)\Thunderstore\README.md')"/>
         <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;$ErrorActionPreference = 'Stop'; $p = '$(ProjectDir)\Thunderstore\manifest.json'; $text = Get-Content -Raw -LiteralPath $p; $updated = [regex]::Replace($text, '(\x22version_number\x22\s*:\s*\x22)[^\x22]+(\x22)', '${1}$(PackageVersion)${2}'); if ($updated -ne $text) { $enc = New-Object System.Text.UTF8Encoding $false; [System.IO.File]::WriteAllText($p, $updated, $enc) }&quot;"/>
 
@@ -190,7 +192,7 @@
         <Exec Condition="Exists('$(ProjectDir)\Nexus')" Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;Compress-Archive -Path '$(NexusPackageDir)\*' -DestinationPath '$(NexusZip)' -Force&quot;"/>
         <RemoveDir Directories="$(NexusPackageDir)" Condition="Exists('$(NexusPackageDir)')"/>
     </Target>
-    <Target Name="CopyOutputDLL" AfterTargets="GetAssemblyVersion">
+    <Target Name="CopyOutputDLL" AfterTargets="GetAssemblyVersion" Condition="'$(DeployToGame)' == 'true' AND '$(BuildPackage)' != 'true'">
         <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(CopyOutputDLLPath)" Condition="'$(CopyOutputDLLPath)' != '' AND Exists('$(CopyOutputDLLPath)')"/>
         <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(CopyOutputDLLPath2)" Condition="'$(CopyOutputDLLPath2)' != '' AND Exists('$(CopyOutputDLLPath2)')"/>
         <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(CopyOutputDLLPath3)" Condition="'$(CopyOutputDLLPath3)' != '' AND Exists('$(CopyOutputDLLPath3)')"/>

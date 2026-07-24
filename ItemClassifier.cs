@@ -198,52 +198,6 @@ public sealed partial class InventorySlotsPlugin
         ItemClassifierRuntime.AppliedVersion = version;
     }
 
-    private static bool IsWeaponItemType(ItemType itemType) =>
-        itemType is ItemType.OneHandedWeapon or ItemType.TwoHandedWeapon or ItemType.TwoHandedWeaponLeft or ItemType.Bow or ItemType.Attach_Atgeir or ItemType.Torch;
-
-    private static bool ItemTypeTokenMatches(ItemType itemType, string token)
-    {
-        if (Enum.TryParse(token, ignoreCase: true, out ItemType parsedType))
-        {
-            return itemType == parsedType;
-        }
-
-        return NormalizeGroupId(token) switch
-        {
-            "legs" => itemType == ItemType.Legs,
-            "cape" => itemType == ItemType.Shoulder,
-            "armor" => itemType is ItemType.Helmet or ItemType.Chest or ItemType.Legs or ItemType.Shoulder or ItemType.Utility or ItemType.Trinket,
-            "weapon" => IsWeaponItemType(itemType),
-            "ammo" => itemType == ItemType.Ammo || itemType == ItemType.AmmoNonEquipable,
-            _ => false
-        };
-    }
-
-    private static bool SkillTypeTokenMatches(Skills.SkillType skillType, string token)
-    {
-        if (Enum.TryParse(token, ignoreCase: true, out Skills.SkillType parsedType))
-        {
-            return skillType == parsedType;
-        }
-
-        return NormalizeGroupId(token) switch
-        {
-            "axe" => skillType == Skills.SkillType.Axes,
-            "club" => skillType == Skills.SkillType.Clubs,
-            "knife" => skillType == Skills.SkillType.Knives,
-            "pickaxe" => skillType == Skills.SkillType.Pickaxes,
-            "polearm" => skillType == Skills.SkillType.Polearms,
-            "spear" => skillType == Skills.SkillType.Spears,
-            "sword" => skillType == Skills.SkillType.Swords,
-            "fists" => skillType == Skills.SkillType.Unarmed,
-            "bow" => skillType == Skills.SkillType.Bows,
-            "crossbow" => skillType == Skills.SkillType.Crossbows,
-            "elementalmagic" => skillType == Skills.SkillType.ElementalMagic,
-            "bloodmagic" => skillType == Skills.SkillType.BloodMagic,
-            _ => false
-        };
-    }
-
     private static bool MatchMeleeCategory(ItemData item) =>
         !MatchNativeRangedCategory(item) &&
         !MatchNativeMagicCategory(item) &&

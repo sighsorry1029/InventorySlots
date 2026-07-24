@@ -9,12 +9,11 @@ public sealed partial class InventorySlotsPlugin
         ItemData? item = GetCraftingRecipeItemData(pair);
         string bigGroupId = GetCraftingRecipeBigGroupId(pair);
         string localizedName = item?.m_shared != null ? GetLocalizedItemName(item) : GetCraftingRecipeDisplayName(pair);
-        return CreateSortKeyComponents(
-                item,
-                GetCraftingRecipeResourceTier(pair.Recipe),
-                bigGroupId,
-                localizedName)
-            .ToSortKey();
+        return CreateSortKey(
+            item,
+            GetCraftingRecipeResourceTier(pair.Recipe),
+            bigGroupId,
+            localizedName);
     }
 
     private static SortKey GetInventoryItemSortKey(ItemData item)
@@ -25,19 +24,18 @@ public sealed partial class InventorySlotsPlugin
         }
 
         string bigGroupId = GetInventoryItemBigGroupId(item);
-        return CreateSortKeyComponents(
-                item,
-                GetInventoryItemResourceTier(item),
-                bigGroupId,
-                GetLocalizedItemName(item))
-            .ToSortKey();
+        return CreateSortKey(
+            item,
+            GetInventoryItemResourceTier(item),
+            bigGroupId,
+            GetLocalizedItemName(item));
     }
 
-    private static SortKeyComponents CreateSortKeyComponents(ItemData? item, int resourceTier, string bigGroupId, string localizedName)
+    private static SortKey CreateSortKey(ItemData? item, int resourceTier, string bigGroupId, string localizedName)
     {
         int bigGroupRank = GetItemBigGroupRank(bigGroupId);
         int groupRank = GetItemPredefinedGroupRank(item, bigGroupId, bigGroupRank);
-        return new SortKeyComponents(
+        return new SortKey(
             resourceTier,
             groupRank,
             bigGroupRank,

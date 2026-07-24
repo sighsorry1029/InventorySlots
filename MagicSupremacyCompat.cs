@@ -7,6 +7,8 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
+    private static ItemData? _lastMagicSupremacyBeltCompatItem;
+
     private static void InitializeMagicSupremacyCompatibility()
     {
         _ = TryGetMagicSupremacyApi(out _);
@@ -56,19 +58,19 @@ public sealed partial class InventorySlotsPlugin
 
         if (!TryGetMagicSupremacyApi(out MagicSupremacyApi? api) || api == null)
         {
-            CompatRuntime.LastMagicSupremacyBeltCompatItem = null;
+            _lastMagicSupremacyBeltCompatItem = null;
             return;
         }
 
         ItemData? current = FindCustomEquippedItem(player, IsMagicSupremacyBeltItem);
-        if (!ReferenceEquals(current, CompatRuntime.LastMagicSupremacyBeltCompatItem))
+        if (!ReferenceEquals(current, _lastMagicSupremacyBeltCompatItem))
         {
-            if (CompatRuntime.LastMagicSupremacyBeltCompatItem != null)
+            if (_lastMagicSupremacyBeltCompatItem != null)
             {
-                api.ClearBeltIfCurrent(player, CompatRuntime.LastMagicSupremacyBeltCompatItem);
+                api.ClearBeltIfCurrent(player, _lastMagicSupremacyBeltCompatItem);
             }
 
-            CompatRuntime.LastMagicSupremacyBeltCompatItem = current;
+            _lastMagicSupremacyBeltCompatItem = current;
             if (current != null)
             {
                 api.SyncBelt(player, current);
@@ -93,7 +95,7 @@ public sealed partial class InventorySlotsPlugin
         if (TryGetMagicSupremacyApi(out MagicSupremacyApi? api) && api != null)
         {
             api.SyncBelt(player, item);
-            CompatRuntime.LastMagicSupremacyBeltCompatItem = item;
+            _lastMagicSupremacyBeltCompatItem = item;
         }
     }
 
@@ -104,14 +106,14 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        if ((ReferenceEquals(CompatRuntime.LastMagicSupremacyBeltCompatItem, item) || IsMagicSupremacyBeltItem(item)) &&
+        if ((ReferenceEquals(_lastMagicSupremacyBeltCompatItem, item) || IsMagicSupremacyBeltItem(item)) &&
             TryGetMagicSupremacyApi(out MagicSupremacyApi? api) &&
             api != null)
         {
             api.ClearBeltIfCurrent(player, item);
-            if (ReferenceEquals(CompatRuntime.LastMagicSupremacyBeltCompatItem, item))
+            if (ReferenceEquals(_lastMagicSupremacyBeltCompatItem, item))
             {
-                CompatRuntime.LastMagicSupremacyBeltCompatItem = null;
+                _lastMagicSupremacyBeltCompatItem = null;
             }
         }
     }

@@ -10,38 +10,8 @@ internal enum InventoryPlacementScope
     LoadPreservation
 }
 
-internal enum InventoryPlacementQueryPlan
-{
-    RunOriginal,
-    TopFirstAllCells,
-    LocalPlayerRegularCells,
-    LoadPreservationRegularCells
-}
-
 internal static class InventoryPlacementPolicyCore
 {
-    public static InventoryPlacementQueryPlan SelectQueryPlan(InventoryPlacementScope scope) =>
-        scope switch
-        {
-            InventoryPlacementScope.Container => InventoryPlacementQueryPlan.TopFirstAllCells,
-            InventoryPlacementScope.LocalPlayer => InventoryPlacementQueryPlan.LocalPlayerRegularCells,
-            InventoryPlacementScope.LoadPreservation => InventoryPlacementQueryPlan.LoadPreservationRegularCells,
-            _ => InventoryPlacementQueryPlan.RunOriginal
-        };
-
-    public static bool TrySelectTopFirstCell(
-        int inventoryWidth,
-        int rowCount,
-        Func<int, int, bool> isAllowed,
-        Func<int, int, bool> isOccupied,
-        out InventorySlotSafetyCore.GridCell cell) =>
-        InventorySlotSafetyCore.TrySelectFirstFreeCell(
-            inventoryWidth,
-            rowCount,
-            isAllowed,
-            isOccupied,
-            out cell);
-
     public static bool TrySelectRegularBeforeHotbarCell(
         int inventoryWidth,
         int rowCount,
