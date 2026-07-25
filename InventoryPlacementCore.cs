@@ -99,7 +99,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool TryFindSafeInsertCell(Player player, Inventory inventory, ItemData item, out Vector2i pos)
     {
-        if (TryFindFreeRegularCell(player, inventory, out pos))
+        if (TryFindFreeAutomaticPlacementCell(player, inventory, out pos))
         {
             return true;
         }

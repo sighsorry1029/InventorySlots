@@ -129,8 +129,18 @@ public sealed partial class InventorySlotsPlugin
         InvalidateInventoryPlacementCaches();
         InvalidateCustomEquipmentProjectionCache();
         ClearPendingSlotActions();
+        if (player == Player.m_localPlayer)
+        {
+            PreserveOccupiedQuickSlotRowsDuringLoad(player, ((Humanoid)player).GetInventory());
+        }
+
         EnsureInventoryState(player, InventoryStateEnsureReason.PlayerLoad);
         TryRestoreSlotBackup(player);
+        if (player == Player.m_localPlayer)
+        {
+            PreserveOccupiedQuickSlotRowsDuringLoad(player, ((Humanoid)player).GetInventory());
+        }
+
         EnsureInventoryState(player, InventoryStateEnsureReason.BackupRestore);
         ApplyAutoFavoriteHotbarSwitchRowForPlayer(player);
     }
@@ -164,7 +174,11 @@ public sealed partial class InventorySlotsPlugin
             InvalidateInventoryPlacementCaches();
             InvalidateCustomEquipmentProjectionCache();
             ClearCraftingRequirementAvailabilityCache();
-            RequestInventoryStateEnsure(player, InventoryStateEnsureReason.InventoryChanged, InventoryStateAuditLevel.SlotLight);
+            bool progressionResetPending = HasPendingQuickSlotProgressionReset(player);
+            RequestInventoryStateEnsure(
+                player,
+                progressionResetPending ? InventoryStateEnsureReason.ProgressionReset : InventoryStateEnsureReason.InventoryChanged,
+                progressionResetPending ? InventoryStateAuditLevel.FullIntegrity : InventoryStateAuditLevel.SlotLight);
         }
     }
 
@@ -191,6 +205,7 @@ public sealed partial class InventorySlotsPlugin
     {
         if (TryGetLocalPlayerInventory(inventory, out Player? player))
         {
+            PreserveOccupiedQuickSlotRowsDuringLoad(player!, inventory);
             EnsureInventoryState(player!, InventoryStateEnsureReason.InventoryLoad);
         }
     }

@@ -37,6 +37,10 @@ TestRunner.Run(
     ("Client state normalize trims players and lists", Tests.ClientStateNormalizeTrimsPlayersAndLists),
     ("Custom equipped item keeps stable slot identity during auto-adopt", Tests.CustomEquippedItemKeepsStableSlotIdentityDuringAutoAdopt),
     ("Unmarked item can auto-adopt matching grid slot", Tests.UnmarkedItemCanAutoAdoptMatchingGridSlot),
+    ("Quickslot reset policy clears highest rows first", Tests.QuickslotResetPolicyClearsHighestRowsFirst),
+    ("Quickslot reset policy stops at first blocked row", Tests.QuickslotResetPolicyStopsAtFirstBlockedRow),
+    ("Quickslot reset policy respects naturally unlocked rows", Tests.QuickslotResetPolicyRespectsNaturallyUnlockedRows),
+    ("Quickslot reset policy skips rows that cannot be reduced", Tests.QuickslotResetPolicySkipsRowsThatCannotBeReduced),
     ("Keep-on-death quickslot rows prefer their original slot", Tests.KeepOnDeathQuickslotRowsPreferOriginalSlot),
     ("Keep-on-death quickslot falls back to empty quickslot before inventory", Tests.KeepOnDeathQuickslotFallsBackToEmptyQuickslotBeforeInventory),
     ("Keep-on-death quickslot uses regular cell only after quickslots fail", Tests.KeepOnDeathQuickslotUsesRegularCellOnlyAfterQuickslotsFail),
@@ -70,6 +74,7 @@ TestRunner.Run(
     ("Upgrade favorite creates unique item id", Tests.UpgradeFavoriteCreatesUniqueItemId),
     ("Upgrade favorite set and remove trims id", Tests.UpgradeFavoriteSetAndRemoveTrimsId),
     ("Jewelcrafting native tooltip refresh skips stable same signature rows", Tests.JewelcraftingNativeTooltipRefreshSkipsStableSameSignatureRows),
+    ("Jewelcrafting native tooltip refresh bounds stable rowless retries", Tests.JewelcraftingNativeTooltipRefreshBoundsStableRowlessRetries),
     ("Jewelcrafting native tooltip refresh runs for changed or unstable state", Tests.JewelcraftingNativeTooltipRefreshRunsForChangedOrUnstableState),
     ("Jewelcrafting native tooltip signature tracks detail keys", Tests.JewelcraftingNativeTooltipSignatureTracksDetailKeys),
     ("Simple tooltip owner ignores stale hide", Tests.SimpleTooltipOwnerIgnoresStaleHide),
@@ -571,6 +576,95 @@ internal static class Tests
                 markedSlotId: null,
                 candidateSlotId: "quick1"),
             "regular items can still be adopted by the grid slot they are placed into");
+    }
+
+    public static void QuickslotResetPolicyClearsHighestRowsFirst()
+    {
+        List<int> attemptedRows = new();
+        int rows = InventorySlotSafetyCore.ResolveQuickSlotProgressionResetRows(
+            configuredRows: 3,
+            naturallyUnlockedRows: 1,
+            tryClearRow: row =>
+            {
+                attemptedRows.Add(row);
+                return true;
+            });
+
+        Assert.Equal("3,2", string.Join(",", attemptedRows));
+        Assert.Equal(1, rows);
+    }
+
+    public static void QuickslotResetPolicyStopsAtFirstBlockedRow()
+    {
+        List<int> attemptedRows = new();
+        int rows = InventorySlotSafetyCore.ResolveQuickSlotProgressionResetRows(
+            configuredRows: 3,
+            naturallyUnlockedRows: 1,
+            tryClearRow: row =>
+            {
+                attemptedRows.Add(row);
+                return row != 2;
+            });
+
+        Assert.Equal("3,2", string.Join(",", attemptedRows));
+        Assert.Equal(2, rows);
+
+        attemptedRows.Clear();
+        rows = InventorySlotSafetyCore.ResolveQuickSlotProgressionResetRows(
+            configuredRows: 3,
+            naturallyUnlockedRows: 1,
+            tryClearRow: row =>
+            {
+                attemptedRows.Add(row);
+                return false;
+            });
+
+        Assert.Equal("3", string.Join(",", attemptedRows));
+        Assert.Equal(3, rows);
+    }
+
+    public static void QuickslotResetPolicyRespectsNaturallyUnlockedRows()
+    {
+        List<int> attemptedRows = new();
+        int rows = InventorySlotSafetyCore.ResolveQuickSlotProgressionResetRows(
+            configuredRows: 3,
+            naturallyUnlockedRows: 2,
+            tryClearRow: row =>
+            {
+                attemptedRows.Add(row);
+                return true;
+            });
+
+        Assert.Equal("3", string.Join(",", attemptedRows));
+        Assert.Equal(2, rows);
+    }
+
+    public static void QuickslotResetPolicySkipsRowsThatCannotBeReduced()
+    {
+        int callbackCount = 0;
+        int rows = InventorySlotSafetyCore.ResolveQuickSlotProgressionResetRows(
+            configuredRows: 3,
+            naturallyUnlockedRows: 3,
+            tryClearRow: _ =>
+            {
+                callbackCount++;
+                return false;
+            });
+
+        Assert.Equal(3, rows);
+        Assert.Equal(0, callbackCount);
+
+        rows = InventorySlotSafetyCore.ResolveQuickSlotProgressionResetRows(
+            configuredRows: 0,
+            naturallyUnlockedRows: 0,
+            tryClearRow: _ =>
+            {
+                callbackCount++;
+                return false;
+            });
+
+        Assert.Equal(0, rows);
+        Assert.Equal(0, callbackCount);
     }
 
     public static void KeepOnDeathQuickslotRowsPreferOriginalSlot()
@@ -1091,8 +1185,37 @@ internal static class Tests
                 previousSignature: "same",
                 nextSignature: "same",
                 previousVisible: true,
-                previousHadSocketRows: true),
+                previousHadSocketRows: true,
+                previousRowlessRefreshAttempts: 0),
             "stable pinned socket rows should not call the native tooltip API again for the same signature");
+    }
+
+    public static void JewelcraftingNativeTooltipRefreshBoundsStableRowlessRetries()
+    {
+        Assert.True(
+            JewelcraftingTooltipCore.ShouldRefreshNativeTooltip(
+                previousSignature: "same",
+                nextSignature: "same",
+                previousVisible: true,
+                previousHadSocketRows: false,
+                previousRowlessRefreshAttempts: 1),
+            "stable rowless tooltips should allow the first follow-up refresh");
+        Assert.True(
+            JewelcraftingTooltipCore.ShouldRefreshNativeTooltip(
+                previousSignature: "same",
+                nextSignature: "same",
+                previousVisible: true,
+                previousHadSocketRows: false,
+                previousRowlessRefreshAttempts: 2),
+            "stable rowless tooltips should allow a second follow-up refresh");
+        Assert.False(
+            JewelcraftingTooltipCore.ShouldRefreshNativeTooltip(
+                previousSignature: "same",
+                nextSignature: "same",
+                previousVisible: true,
+                previousHadSocketRows: false,
+                previousRowlessRefreshAttempts: JewelcraftingTooltipCore.MaxRowlessRefreshAttempts),
+            "stable interact-only tooltips should reuse the cache after the bounded retry budget");
     }
 
     public static void JewelcraftingNativeTooltipRefreshRunsForChangedOrUnstableState()
@@ -1102,22 +1225,25 @@ internal static class Tests
                 previousSignature: "old",
                 nextSignature: "new",
                 previousVisible: true,
-                previousHadSocketRows: true),
+                previousHadSocketRows: true,
+                previousRowlessRefreshAttempts: JewelcraftingTooltipCore.MaxRowlessRefreshAttempts),
             "changed key/item/socket signature should call the native tooltip API");
         Assert.True(
             JewelcraftingTooltipCore.ShouldRefreshNativeTooltip(
                 previousSignature: "same",
                 nextSignature: "same",
                 previousVisible: false,
-                previousHadSocketRows: true),
+                previousHadSocketRows: true,
+                previousRowlessRefreshAttempts: JewelcraftingTooltipCore.MaxRowlessRefreshAttempts),
             "hidden tooltip state should refresh before reuse");
         Assert.True(
             JewelcraftingTooltipCore.ShouldRefreshNativeTooltip(
                 previousSignature: "same",
                 nextSignature: "same",
                 previousVisible: true,
-                previousHadSocketRows: false),
-            "interact-only or empty state should keep trying until socket rows are captured");
+                previousHadSocketRows: false,
+                previousRowlessRefreshAttempts: 0),
+            "a newly rowless tooltip should retry while delayed socket rows may still appear");
     }
 
     public static void JewelcraftingNativeTooltipSignatureTracksDetailKeys()

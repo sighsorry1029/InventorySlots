@@ -4,18 +4,27 @@ namespace InventorySlots;
 
 internal static class JewelcraftingTooltipCore
 {
+    public const int MaxRowlessRefreshAttempts = 3;
+
     public static bool ShouldRefreshNativeTooltip(
         string? previousSignature,
         string? nextSignature,
         bool previousVisible,
-        bool previousHadSocketRows)
+        bool previousHadSocketRows,
+        int previousRowlessRefreshAttempts)
     {
-        if (!previousVisible || !previousHadSocketRows)
+        if (!string.Equals(previousSignature ?? "", nextSignature ?? "", StringComparison.Ordinal))
         {
             return true;
         }
 
-        return !string.Equals(previousSignature ?? "", nextSignature ?? "", StringComparison.Ordinal);
+        if (!previousVisible)
+        {
+            return true;
+        }
+
+        return !previousHadSocketRows &&
+               previousRowlessRefreshAttempts < MaxRowlessRefreshAttempts;
     }
 
     public static bool HasVisibleText(string? text) =>

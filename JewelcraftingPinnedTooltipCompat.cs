@@ -50,6 +50,7 @@ public sealed partial class InventorySlotsPlugin
             {
                 cache.Visible = false;
                 cache.HasResolvedSocketGems = false;
+                cache.RowlessRefreshAttempts = 0;
             }
 
             root.gameObject.SetActive(false);

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.7
+
+- Fixed character progression resets, including vanilla reset commands and AdminQoL Unlearn All, so progressive quick-slot rows are recalculated from the remaining known items.
+- Safely moves items out of newly locked quick-slot rows from the highest row downward, preserves occupied rows when regular inventory space is insufficient, and retries automatically after space becomes available.
+- Prevented suppressed equipment restoration from auto-adopting built-in slot grid candidates, and improved recovery of equipment left in hidden or locked rows after death or migration from another inventory mod.
+- Reduced Jewelcrafting equipment-chest tooltip overhead by reusing item signatures and bounding retries for tooltips whose socket rows are not produced.
+
 ## 1.2.6
 
 - Added acknowledged, owner-validated remote container sort requests with stale-response and timeout handling; older peers are rejected before incompatible RPC contracts can diverge.

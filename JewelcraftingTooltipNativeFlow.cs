@@ -18,7 +18,8 @@ public sealed partial class InventorySlotsPlugin
                 cache.Signature,
                 signature,
                 cache.Visible,
-                cache.HasResolvedSocketGems))
+                cache.HasResolvedSocketGems,
+                cache.RowlessRefreshAttempts))
         {
             return false;
         }
@@ -72,9 +73,15 @@ public sealed partial class InventorySlotsPlugin
         bool visible,
         bool hasSocketRows)
     {
+        bool sameSignature = string.Equals(cache.Signature, signature, StringComparison.Ordinal);
         cache.Signature = signature;
         cache.Visible = visible;
         cache.HasResolvedSocketGems = hasSocketRows;
+        cache.RowlessRefreshAttempts = visible && !hasSocketRows
+            ? sameSignature
+                ? Math.Min(cache.RowlessRefreshAttempts + 1, JewelcraftingTooltipCore.MaxRowlessRefreshAttempts)
+                : 1
+            : 0;
         UpdateJewelcraftingTooltipCacheItemIdentity(cache, item);
         root.gameObject.SetActive(visible);
     }

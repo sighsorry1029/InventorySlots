@@ -128,6 +128,7 @@ internal sealed class JewelcraftingTooltipLayoutCache : MonoBehaviour
     public int ItemVariant { get; set; } = -1;
     public bool Visible { get; set; }
     public bool HasResolvedSocketGems { get; set; }
+    public int RowlessRefreshAttempts { get; set; }
     public Transform? SourceRowsRoot { get; set; }
     public Transform? SourceInteract { get; set; }
     public Graphic[] NativeGraphics { get; set; } = Array.Empty<Graphic>();

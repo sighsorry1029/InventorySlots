@@ -33,7 +33,8 @@ public sealed partial class InventorySlotsPlugin
         RectTransform panel,
         ItemData item,
         ref RectTransform? cachedRoot,
-        bool showInteract = false)
+        bool showInteract = false,
+        string? precomputedSignature = null)
     {
         if (item?.m_shared == null)
         {
@@ -42,7 +43,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         ItemData tooltipItem = item;
-        string signature = GetJewelcraftingTooltipUpdateSignature(tooltipItem, showInteract);
+        string signature = precomputedSignature ?? GetJewelcraftingTooltipUpdateSignature(tooltipItem, showInteract);
 
         if (cachedRoot != null && !IsUnityNull(cachedRoot) && cachedRoot.IsChildOf(panel))
         {

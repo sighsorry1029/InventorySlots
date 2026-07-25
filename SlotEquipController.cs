@@ -49,7 +49,10 @@ public sealed partial class InventorySlotsPlugin
     private static ItemData? FindItemForSlotIncludingGridCandidate(Player player, Inventory inventory, SlotDefinition slot)
     {
         ItemData? item = FindItemForSlot(player, inventory, slot);
-        if (item != null || slot.Kind != SlotKind.BuiltIn || inventory == null)
+        if (item != null ||
+            InventorySafety.SuppressSlotAutoEquip ||
+            slot.Kind != SlotKind.BuiltIn ||
+            inventory == null)
         {
             return item;
         }
@@ -1024,6 +1027,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         bool completed;
+        bool wasSlotAutoEquipSuppressed = InventorySafety.SuppressSlotAutoEquip;
         InventorySafety.SuppressSlotAutoEquip = true;
         try
         {
@@ -1042,7 +1046,7 @@ public sealed partial class InventorySlotsPlugin
         }
         finally
         {
-            InventorySafety.SuppressSlotAutoEquip = false;
+            InventorySafety.SuppressSlotAutoEquip = wasSlotAutoEquipSuppressed;
         }
 
         if (!completed)

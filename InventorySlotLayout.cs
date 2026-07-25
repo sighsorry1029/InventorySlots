@@ -9,6 +9,8 @@ public sealed partial class InventorySlotsPlugin
 {
     private static string QuickSlotProgressionCachePlayerId = "";
     private static int QuickSlotProgressionCachedRows;
+    private static string QuickSlotProgressionResetPendingPlayerId = "";
+    private static string QuickSlotProgressionResetWarningPlayerId = "";
 
     private static Vector3 GetSidePanelBasePosition(Vector3 origin, int inventoryWidth, float elementSpace)
     {
@@ -259,6 +261,17 @@ public sealed partial class InventorySlotsPlugin
             return reservedRows;
         }
 
+        int unlockedRows = GetNaturallyUnlockedQuickSlotRows(player, reservedRows);
+        return GetStableUnlockedQuickSlotRows(player, unlockedRows, reservedRows);
+    }
+
+    private static int GetNaturallyUnlockedQuickSlotRows(Player? player, int reservedRows)
+    {
+        if (reservedRows <= 1 || player == null || _quickSlotProgressionEnabled == null || _quickSlotProgressionEnabled.Value.IsOff())
+        {
+            return Math.Max(0, reservedRows);
+        }
+
         int unlockedRows = 1;
         if (reservedRows >= 2 && _quickSlotRowUnlockItems.Length > 0 && IsRowUnlocked(player, _quickSlotRowUnlockItems[0].Value))
         {
@@ -266,7 +279,7 @@ public sealed partial class InventorySlotsPlugin
         }
         else
         {
-            return GetStableUnlockedQuickSlotRows(player, unlockedRows, reservedRows);
+            return unlockedRows;
         }
 
         if (reservedRows >= 3 && _quickSlotRowUnlockItems.Length > 1 && IsRowUnlocked(player, _quickSlotRowUnlockItems[1].Value))
@@ -274,7 +287,7 @@ public sealed partial class InventorySlotsPlugin
             unlockedRows = 3;
         }
 
-        return GetStableUnlockedQuickSlotRows(player, unlockedRows, reservedRows);
+        return Mathf.Clamp(unlockedRows, 1, reservedRows);
     }
 
     private static int GetStableUnlockedQuickSlotRows(Player player, int unlockedRows, int reservedRows)
@@ -296,6 +309,201 @@ public sealed partial class InventorySlotsPlugin
         }
 
         return Mathf.Clamp(Math.Max(unlockedRows, QuickSlotProgressionCachedRows), 1, reservedRows);
+    }
+
+    internal static void OnPlayerProgressionReset(Player player)
+    {
+        if (IsUnityNull(player) || player != Player.m_localPlayer)
+        {
+            return;
+        }
+
+        QuickSlotProgressionResetPendingPlayerId = GetPlayerId(player);
+        QuickSlotProgressionResetWarningPlayerId = "";
+        InvalidateQuickSlotProgressionPanelCache();
+        RequestInventoryStateEnsure(player, InventoryStateEnsureReason.ProgressionReset, InventoryStateAuditLevel.FullIntegrity);
+    }
+
+    private static bool HasPendingQuickSlotProgressionReset(Player player)
+    {
+        return !IsUnityNull(player) &&
+               player == Player.m_localPlayer &&
+               string.Equals(QuickSlotProgressionResetPendingPlayerId, GetPlayerId(player), StringComparison.Ordinal);
+    }
+
+    private static void PreserveOccupiedQuickSlotRowsDuringLoad(Player player, Inventory inventory)
+    {
+        if (IsUnityNull(player) || inventory == null)
+        {
+            return;
+        }
+
+        int occupiedRows = GetHighestOccupiedQuickSlotRow(inventory);
+        if (occupiedRows <= 1)
+        {
+            return;
+        }
+
+        string playerId = GetPlayerId(player);
+        if (!string.Equals(QuickSlotProgressionCachePlayerId, playerId, StringComparison.Ordinal))
+        {
+            QuickSlotProgressionCachePlayerId = playerId;
+            QuickSlotProgressionCachedRows = 0;
+        }
+
+        int previousRows = QuickSlotProgressionCachedRows;
+        QuickSlotProgressionCachedRows = Math.Max(QuickSlotProgressionCachedRows, occupiedRows);
+        QuickSlotProgressionResetPendingPlayerId = playerId;
+        if (QuickSlotProgressionCachedRows != previousRows)
+        {
+            InvalidateQuickSlotProgressionPanelCache();
+        }
+    }
+
+    private static bool ReconcilePendingQuickSlotProgressionReset(Player player, Inventory inventory)
+    {
+        if (!HasPendingQuickSlotProgressionReset(player) || inventory == null)
+        {
+            return false;
+        }
+
+        int configuredSlots = GetQuickSlotCount();
+        int configuredRows = configuredSlots <= 0
+            ? 0
+            : Mathf.CeilToInt(configuredSlots / (float)QuickSlotPanelColumns);
+        int naturallyUnlockedRows = GetNaturallyUnlockedQuickSlotRows(player, configuredRows);
+        int movedItemCount = 0;
+        int blockedItemCount = 0;
+        int requiredRows = InventorySlotSafetyCore.ResolveQuickSlotProgressionResetRows(
+            configuredRows,
+            naturallyUnlockedRows,
+            row =>
+            {
+                bool cleared = TryMoveQuickSlotProgressionRowToRegularCells(
+                    player,
+                    inventory,
+                    row,
+                    out int movedFromRow,
+                    out int itemsInRow);
+                movedItemCount += movedFromRow;
+                if (!cleared)
+                {
+                    blockedItemCount = itemsInRow;
+                }
+
+                return cleared;
+            });
+
+        string playerId = GetPlayerId(player);
+        QuickSlotProgressionCachePlayerId = playerId;
+        QuickSlotProgressionCachedRows = requiredRows;
+        InvalidateQuickSlotProgressionPanelCache();
+
+        if (requiredRows <= naturallyUnlockedRows)
+        {
+            QuickSlotProgressionResetPendingPlayerId = "";
+            QuickSlotProgressionResetWarningPlayerId = "";
+        }
+        else
+        {
+            QuickSlotProgressionResetPendingPlayerId = playerId;
+            WarnQuickSlotProgressionResetDeferred(player, playerId, requiredRows, blockedItemCount);
+        }
+
+        return movedItemCount > 0;
+    }
+
+    private static bool TryMoveQuickSlotProgressionRowToRegularCells(
+        Player player,
+        Inventory inventory,
+        int row,
+        out int movedItemCount,
+        out int rowItemCount)
+    {
+        List<ItemData> items = new();
+        foreach (ItemData item in inventory.m_inventory)
+        {
+            if (item != null &&
+                TryGetSlotAtGridPos(inventory, item.m_gridPos, out SlotDefinition? slot) &&
+                slot!.Kind == SlotKind.Quick &&
+                slot.QuickSlotIndex >= 0 &&
+                slot.QuickSlotIndex / QuickSlotPanelColumns + 1 == row)
+            {
+                items.Add(item);
+            }
+        }
+
+        movedItemCount = 0;
+        rowItemCount = items.Count;
+        if (items.Count == 0)
+        {
+            return true;
+        }
+
+        if (CountUsableRegularEmptyCells(inventory, player) < items.Count)
+        {
+            return false;
+        }
+
+        List<Vector2i> originalPositions = new(items.Count);
+        foreach (ItemData item in items)
+        {
+            originalPositions.Add(item.m_gridPos);
+            if (TryFindFreeAutomaticPlacementCell(player, inventory, out Vector2i target))
+            {
+                item.m_gridPos = target;
+                movedItemCount++;
+                continue;
+            }
+
+            for (int i = 0; i < movedItemCount; i++)
+            {
+                items[i].m_gridPos = originalPositions[i];
+            }
+
+            movedItemCount = 0;
+            return false;
+        }
+
+        return true;
+    }
+
+    private static int GetHighestOccupiedQuickSlotRow(Inventory inventory)
+    {
+        int highestRow = 0;
+        foreach (ItemData item in inventory.m_inventory)
+        {
+            if (item != null &&
+                TryGetSlotAtGridPos(inventory, item.m_gridPos, out SlotDefinition? slot) &&
+                slot!.Kind == SlotKind.Quick &&
+                slot.QuickSlotIndex >= 0)
+            {
+                highestRow = Math.Max(highestRow, slot.QuickSlotIndex / QuickSlotPanelColumns + 1);
+            }
+        }
+
+        return highestRow;
+    }
+
+    private static void WarnQuickSlotProgressionResetDeferred(Player player, string playerId, int requiredRows, int blockedItemCount)
+    {
+        if (string.Equals(QuickSlotProgressionResetWarningPlayerId, playerId, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        QuickSlotProgressionResetWarningPlayerId = playerId;
+        ((Character)player).Message(MessageHud.MessageType.Center, "$msg_inventoryfull", 0, null);
+        Log.LogWarning(
+            $"Quick slot progression reset kept rows 1-{requiredRows} available because row {requiredRows} contains {blockedItemCount} item(s) " +
+            "and there was not enough regular inventory space to move the whole row safely. Free inventory space; InventorySlots will retry automatically.");
+    }
+
+    private static void InvalidateQuickSlotProgressionPanelCache()
+    {
+        InventoryDefinitions.QuickPanelSlotCacheVersion = -1;
+        InventoryDefinitions.QuickPanelSlotCacheUnlockedCount = -1;
+        InventoryDefinitions.QuickPanelSlotCache.Clear();
     }
 
     private static bool IsQuickSlotUnlocked(Player? player, SlotDefinition slot)

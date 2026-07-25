@@ -448,11 +448,13 @@ public sealed partial class InventorySlotsPlugin
         }
 
         ApplyInventoryContainerCustomTooltipBackground(customTooltip.GetComponent<Image>(), backgroundAlpha);
-        bool textChanged = UpdateInventoryContainerCustomTooltipText(topic, body, resetScroll, GetInventoryHoverTooltipItemSignature(tooltipItem));
+        string itemSignature = GetInventoryHoverTooltipItemSignature(tooltipItem);
+        bool textChanged = UpdateInventoryContainerCustomTooltipText(topic, body, resetScroll, itemSignature);
         bool extraChanged = UpdateInventoryHoverJewelcraftingTooltip(
             panel,
             tooltipItem,
-            ShouldShowJewelcraftingInventoryInteract(tooltipItemSource?.Grid));
+            ShouldShowJewelcraftingInventoryInteract(tooltipItemSource?.Grid),
+            itemSignature);
         LayoutInventoryContainerCustomTooltip(panel, resetScroll || textChanged || extraChanged);
         panel.position = ZInput.mousePosition;
         Utils.ClampUIToScreen(panel);
@@ -539,36 +541,7 @@ public sealed partial class InventorySlotsPlugin
     }
 
     private static string GetInventoryHoverTooltipItemSignature(ItemData? item) =>
-        item?.m_shared == null ? "" : GetLightweightInventoryHoverItemSignature(item);
-
-    private static string GetLightweightInventoryHoverItemSignature(ItemData item)
-    {
-        int durability = Mathf.RoundToInt(item.m_durability * 1000f);
-        int customDataHash = GetItemCustomDataOrderIndependentHash(item);
-        return $"{GetItemPrefabName(item)}|{item.m_shared?.m_name ?? ""}|{item.m_gridPos.x}|{item.m_gridPos.y}|{item.m_quality}|{item.m_variant}|{item.m_stack}|{durability}|{item.m_equipped}|{customDataHash}";
-    }
-
-    private static int GetItemCustomDataOrderIndependentHash(ItemData item)
-    {
-        if (item.m_customData is not { Count: > 0 })
-        {
-            return 0;
-        }
-
-        unchecked
-        {
-            int hash = item.m_customData.Count;
-            foreach (KeyValuePair<string, string> pair in item.m_customData)
-            {
-                int pairHash = 17;
-                pairHash = pairHash * 31 + StringComparer.Ordinal.GetHashCode(pair.Key ?? "");
-                pairHash = pairHash * 31 + StringComparer.Ordinal.GetHashCode(pair.Value ?? "");
-                hash ^= pairHash + unchecked((int)0x9E3779B9) + (hash << 6) + (hash >> 2);
-            }
-
-            return hash;
-        }
-    }
+        item?.m_shared == null ? "" : GetEquipmentSlotTooltipSignature(item);
 
     private static void ApplyInventoryHoverTooltipSourceFonts()
     {
@@ -612,30 +585,45 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
-    private static bool UpdateInventoryHoverJewelcraftingTooltip(RectTransform panel, ItemData? item, bool showInteract)
+    private static bool UpdateInventoryHoverJewelcraftingTooltip(
+        RectTransform panel,
+        ItemData? item,
+        bool showInteract,
+        string itemSignature)
     {
         if (item?.m_shared == null)
         {
             return HideInventoryHoverJewelcraftingTooltip();
         }
 
-        string signature = GetInventoryHoverJewelcraftingTooltipSignature(item, showInteract);
+        string signature = GetInventoryHoverJewelcraftingTooltipSignature(item, showInteract, itemSignature);
         if (_inventoryHoverJewelcraftingTooltipRoot != null &&
             !IsUnityNull(_inventoryHoverJewelcraftingTooltipRoot) &&
             _inventoryHoverJewelcraftingTooltipRoot.gameObject.activeSelf &&
             string.Equals(_inventoryHoverJewelcraftingTooltipSignature, signature, StringComparison.Ordinal))
         {
             JewelcraftingTooltipLayoutCache? cache = _inventoryHoverJewelcraftingTooltipRoot.GetComponent<JewelcraftingTooltipLayoutCache>();
-            if (cache == null ||
-                !cache.Visible ||
-                cache.HasResolvedSocketGems && HasNativeJewelcraftingTooltipRows(_inventoryHoverJewelcraftingTooltipRoot))
+            if (cache == null || !cache.Visible)
+            {
+                return false;
+            }
+
+            bool shouldRefresh = JewelcraftingTooltipCore.ShouldRefreshNativeTooltip(
+                cache.Signature,
+                signature,
+                cache.Visible,
+                cache.HasResolvedSocketGems,
+                cache.RowlessRefreshAttempts);
+            if (!shouldRefresh &&
+                (!cache.HasResolvedSocketGems ||
+                 HasNativeJewelcraftingTooltipRows(_inventoryHoverJewelcraftingTooltipRoot)))
             {
                 return false;
             }
         }
 
         RectTransform? jewelcraftingRoot = _inventoryHoverJewelcraftingTooltipRoot;
-        bool updated = UpdateJewelcraftingTooltip(panel, item, ref jewelcraftingRoot, showInteract);
+        bool updated = UpdateJewelcraftingTooltip(panel, item, ref jewelcraftingRoot, showInteract, signature);
         _inventoryHoverJewelcraftingTooltipRoot = jewelcraftingRoot;
         if (updated)
         {
@@ -648,7 +636,10 @@ public sealed partial class InventorySlotsPlugin
         return HideInventoryHoverJewelcraftingTooltip();
     }
 
-    private static string GetInventoryHoverJewelcraftingTooltipSignature(ItemData item, bool showInteract)
+    private static string GetInventoryHoverJewelcraftingTooltipSignature(
+        ItemData item,
+        bool showInteract,
+        string itemSignature)
     {
         return string.Join(
             "|",
@@ -656,7 +647,7 @@ public sealed partial class InventorySlotsPlugin
             IsJewelcraftingAdvancedTooltipPressed(),
             IsJewelcraftingProphecyTooltipPressed(),
             _uiLocalizationVersion,
-            GetEquipmentSlotTooltipSignature(item),
+            itemSignature,
             GetJewelcraftingOpenSocketInventorySignature(item));
     }
 

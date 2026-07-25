@@ -105,6 +105,7 @@ public sealed partial class InventorySlotsPlugin
         InventorySafety.PendingEnsureReason = InventoryStateEnsureReason.Unknown;
         InventorySafety.PendingAuditLevel = InventoryStateAuditLevel.None;
         InventorySafety.EnsuringInventoryState = true;
+        bool wasKnownItemRediscoverySuppressed = InventorySafety.SuppressKnownItemRediscovery;
         try
         {
             Inventory inventory = ((Humanoid)player).GetInventory();
@@ -113,6 +114,8 @@ public sealed partial class InventorySlotsPlugin
                 return;
             }
 
+            bool progressionResetPending = HasPendingQuickSlotProgressionReset(player);
+            InventorySafety.SuppressKnownItemRediscovery |= progressionResetPending;
             bool syncedStateReady = IsSyncedStateReady();
             int fullHeight = GetFullHeightForWidth(inventory.m_width);
             bool inventoryChanged = false;
@@ -131,6 +134,18 @@ public sealed partial class InventorySlotsPlugin
                 warnLockedRows: ShouldWarnLockedRowsDuringAudit(reason),
                 out bool foreignSlotItemsChanged);
             inventoryChanged |= foreignSlotItemsChanged;
+
+            bool canReconcileProgressionReset = reason is not InventoryStateEnsureReason.PlayerAwake
+                and not InventoryStateEnsureReason.PlayerLoad
+                and not InventoryStateEnsureReason.InventoryLoad
+                and not InventoryStateEnsureReason.BackupRestore;
+            if (progressionResetPending &&
+                canReconcileProgressionReset &&
+                normalizedAuditLevel >= InventoryStateAuditLevel.FullIntegrity &&
+                syncedStateReady)
+            {
+                inventoryChanged |= ReconcilePendingQuickSlotProgressionReset(player, inventory);
+            }
 
             if (inventory.m_height != targetHeight)
             {
@@ -185,6 +200,7 @@ public sealed partial class InventorySlotsPlugin
         }
         finally
         {
+            InventorySafety.SuppressKnownItemRediscovery = wasKnownItemRediscoverySuppressed;
             InventorySafety.EnsuringInventoryState = false;
         }
     }
@@ -251,6 +267,7 @@ public sealed partial class InventorySlotsPlugin
             or InventoryStateEnsureReason.BackupRestore
             or InventoryStateEnsureReason.YamlReload
             or InventoryStateEnsureReason.JewelcraftingSlotRefresh
+            or InventoryStateEnsureReason.ProgressionReset
             or InventoryStateEnsureReason.ConfigChanged
             or InventoryStateEnsureReason.ReentrantFollowUp;
     }
@@ -311,6 +328,11 @@ public sealed partial class InventorySlotsPlugin
         }
 
         return changed;
+    }
+
+    internal static bool ShouldSuppressKnownItemRediscovery(Player player)
+    {
+        return InventorySafety.SuppressKnownItemRediscovery && player == Player.m_localPlayer;
     }
 
     private static bool HasInventoryStateSignatureChanged(Player player, Inventory inventory)

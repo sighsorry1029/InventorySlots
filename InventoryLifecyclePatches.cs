@@ -51,6 +51,26 @@ internal static class PlayerSavePatch
     }
 }
 
+[HarmonyPatch(typeof(Player), nameof(Player.ResetCharacter))]
+internal static class PlayerResetCharacterInventorySlotsPatch
+{
+    [HarmonyPriority(Priority.Last)]
+    private static void Postfix(Player __instance)
+    {
+        InventorySlotsPlugin.OnPlayerProgressionReset(__instance);
+    }
+}
+
+[HarmonyPatch(typeof(Player), nameof(Player.ResetCharacterKnownItems))]
+internal static class PlayerResetCharacterKnownItemsInventorySlotsPatch
+{
+    [HarmonyPriority(Priority.Last)]
+    private static void Postfix(Player __instance)
+    {
+        InventorySlotsPlugin.OnPlayerProgressionReset(__instance);
+    }
+}
+
 [HarmonyPatch(typeof(Game), "SpawnPlayer")]
 internal static class GameSpawnPlayerFinalizeInventorySlotsPatch
 {
@@ -67,6 +87,16 @@ internal static class PlayerInventoryChangedPatch
     private static void Postfix(Player __instance)
     {
         InventorySlotsPlugin.OnPlayerInventoryChanged(__instance);
+    }
+}
+
+[HarmonyPatch(typeof(Player), nameof(Player.AddKnownItem))]
+internal static class PlayerAddKnownItemInventorySlotsPatch
+{
+    [HarmonyPriority(Priority.First)]
+    private static bool Prefix(Player __instance)
+    {
+        return !InventorySlotsPlugin.ShouldSuppressKnownItemRediscovery(__instance);
     }
 }
 

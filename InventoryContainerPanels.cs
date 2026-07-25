@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using BepInEx;
 using BepInEx.Configuration;
 using TMPro;
@@ -258,25 +257,31 @@ public sealed partial class InventorySlotsPlugin
 
     private static string GetEquipmentSlotTooltipSignature(ItemData item)
     {
-        string prefab = GetItemPrefabName(item);
-        string customData = item.m_customData is { Count: > 0 }
-            ? string.Join(";", item.m_customData
-                .OrderBy(pair => pair.Key, StringComparer.Ordinal)
-                .Select(pair => $"{pair.Key}={pair.Value}"))
-            : "";
         int durability = Mathf.RoundToInt(item.m_durability * 1000f);
-        return string.Join(
-            "|",
-            prefab,
-            item.m_shared?.m_name ?? "",
-            item.m_gridPos.x,
-            item.m_gridPos.y,
-            item.m_quality,
-            item.m_variant,
-            item.m_stack,
-            durability,
-            item.m_equipped,
-            customData);
+        int customDataHash = GetItemCustomDataOrderIndependentHash(item);
+        return $"{GetItemPrefabName(item)}|{item.m_shared?.m_name ?? ""}|{item.m_gridPos.x}|{item.m_gridPos.y}|{item.m_quality}|{item.m_variant}|{item.m_stack}|{durability}|{item.m_equipped}|{customDataHash}";
+    }
+
+    private static int GetItemCustomDataOrderIndependentHash(ItemData item)
+    {
+        if (item.m_customData is not { Count: > 0 })
+        {
+            return 0;
+        }
+
+        unchecked
+        {
+            int hash = item.m_customData.Count;
+            foreach (KeyValuePair<string, string> pair in item.m_customData)
+            {
+                int pairHash = 17;
+                pairHash = pairHash * 31 + StringComparer.Ordinal.GetHashCode(pair.Key ?? "");
+                pairHash = pairHash * 31 + StringComparer.Ordinal.GetHashCode(pair.Value ?? "");
+                hash ^= pairHash + unchecked((int)0x9E3779B9) + (hash << 6) + (hash >> 2);
+            }
+
+            return hash;
+        }
     }
 
     private static bool IsSlotItemEquippedForDisplay(Player player, ItemData item, SlotDefinition slot)

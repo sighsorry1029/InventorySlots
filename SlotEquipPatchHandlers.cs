@@ -122,6 +122,7 @@ public sealed partial class InventorySlotsPlugin
 
         if (ClearAllCustomEquipmentState(player))
         {
+            bool wasSlotAutoEquipSuppressed = InventorySafety.SuppressSlotAutoEquip;
             SetSlotAutoEquipSuppressed(true);
             try
             {
@@ -130,7 +131,7 @@ public sealed partial class InventorySlotsPlugin
             }
             finally
             {
-                SetSlotAutoEquipSuppressed(false);
+                SetSlotAutoEquipSuppressed(wasSlotAutoEquipSuppressed);
             }
         }
     }

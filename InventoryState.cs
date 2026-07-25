@@ -30,6 +30,7 @@ public sealed partial class InventorySlotsPlugin
         BackupRestore,
         YamlReload,
         JewelcraftingSlotRefresh,
+        ProgressionReset,
         ConfigChanged,
         ReentrantFollowUp
     }
@@ -139,6 +140,7 @@ public sealed partial class InventorySlotsPlugin
         public float LastInventoryLimitMessageTime = -1f;
         public bool SlotUnequipInProgress;
         public bool SuppressSlotAutoEquip;
+        public bool SuppressKnownItemRediscovery;
         public bool HandlingSlotDropOutside;
     }
 

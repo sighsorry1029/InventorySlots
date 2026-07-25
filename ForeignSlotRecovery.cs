@@ -25,8 +25,9 @@ public sealed partial class InventorySlotsPlugin
                 }
 
                 Vector2i originalPos = item.m_gridPos;
-                if (TryMoveToFirstFreeRegularCell(player, inventory, item))
+                if (TryFindFreeAutomaticPlacementCell(player, inventory, out Vector2i target))
                 {
+                    item.m_gridPos = target;
                     ClearForeignSlotItemState(player, item);
                     changed = true;
                     InventorySafety.ForeignSlotPreservationWarnings.Remove(GetForeignSlotPreservationWarningKey(item, originalPos));
@@ -81,9 +82,17 @@ public sealed partial class InventorySlotsPlugin
             return true;
         }
 
-        return IsLegacyExtraSlotsItem(item) &&
-               item.m_gridPos.y >= GetFixedRegularRows() &&
-               !TryGetSlotAtGridPos(inventory, item.m_gridPos, out _);
+        if (IsLegacyExtraSlotsItem(item) &&
+            item.m_gridPos.y >= GetFixedRegularRows() &&
+            !TryGetSlotAtGridPos(inventory, item.m_gridPos, out _))
+        {
+            return true;
+        }
+
+        return !player.m_isLoading &&
+               !item.m_equipped &&
+               !((Humanoid)player).IsItemEquiped(item) &&
+               GetInventoryCellKind(player, inventory, item.m_gridPos) == InventoryCellKind.RegularLocked;
     }
 
     private static bool ShouldPreserveForeignSlotHeight(ItemData? item, int expectedFullHeight)

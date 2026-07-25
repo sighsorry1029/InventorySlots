@@ -121,6 +121,26 @@ internal static class InventorySlotSafetyCore
         return KeepOnDeathRestorePlan.PreserveWithoutOverwriting;
     }
 
+    public static int ResolveQuickSlotProgressionResetRows(
+        int configuredRows,
+        int naturallyUnlockedRows,
+        Func<int, bool> tryClearRow)
+    {
+        int configured = Math.Max(0, configuredRows);
+        int minimum = configured == 0
+            ? 0
+            : Math.Max(1, Math.Min(configured, naturallyUnlockedRows));
+        for (int row = configured; row > minimum; row--)
+        {
+            if (!tryClearRow(row))
+            {
+                return row;
+            }
+        }
+
+        return minimum;
+    }
+
     public static GridCell SelectNonOverlappingPreservationCell(
         int inventoryWidth,
         int inventoryHeight,
