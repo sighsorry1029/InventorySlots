@@ -92,6 +92,7 @@ Jewelcrafting sockets and gem tooltip content are supported in InventorySlots to
 - Crafting browser: icon grid, search, group filters, recipe favorites, recipe sorting, grid zoom, and multicraft.
 - Tooltips: scrollable hover tooltips and pinned comparison panels for inventory, containers, crafting, quick slots, and supported modded tabs.
 - Compatibility support for EpicLoot, Jewelcrafting, backpacks, RustyBags, Magic Supremacy, BetterArchery, MultiUserChest, ServerCharacters, TooltipExpansion, and VNEI.
+- Optional Jötunn-free multi-user access for standard player-built chests, with owner-authoritative transfers and Jewelcrafting-aware previews.
 
 ## Slot Model
 
@@ -176,6 +177,8 @@ QuickSlots:
   - mead
   - potion
 ```
+
+These rules also control automatic empty-cell priority. A matching item's new stack prefers the hotbar before regular rows; a non-matching item keeps the regular-rows-before-hotbar order. Existing compatible partial stacks are still filled before a new stack is created, and explicit drag destinations are unchanged.
 
 Default quick slot hotkeys are `Z`, `X`, `C`, `Alt+Z`, `Alt+X`, `Alt+C`, `Alt+1`, `Alt+2`, and `Alt+3`.
 
@@ -393,13 +396,23 @@ KeepOnDeath:
 
 ## Config Sections
 
-- `1 - General`: server lock, death keep rules, trash panel, area quick stack, area take stacks.
+- `1 - General`: server lock, death keep rules, trash panel, area quick stack, area take stacks, and the built-in multi-user chest setting, which is enabled by default.
 - `2 - Progressive Slots`: extra rows, quick slot rows, quick slot progression.
 - `3 - Restock`: favorite restock target limits.
 - `4 - Client`: inventory display, sort modes, crafting grid, container preview and hover behavior, container FX, mouse UI scroll.
 - `5 - Client UI`: hints and tooltip display options.
 - `6 - Client Keys`: keyboard and mouse shortcuts.
 - `7 - Controller Input`: controller scrolling and controller hotkeys.
+
+### Built-in Multi-user Chest
+
+When `1 - General / Enable Multi User Chest` is On, multiple players can open a standard player-built chest without transferring chest ownership. Ctrl-click, drag/split transfer, matching-stack placement, empty-slot placement, whole-stack occupied-slot exchange, chest-internal swap, remote consume, world drop, Take All, and current-chest Place Stacks use owner-authoritative item transactions. Exact persisted item data, including Jewelcrafting socket data, is validated and shown through a temporary projected inventory while the owner response is pending.
+
+Requests reuse immutable bytes, recover committed results across in-session chest-owner changes through a bounded ZDO receipt, retain unacknowledged receipts until the requester confirms local recovery, and use an acknowledgement tombstone to prevent delayed duplicates. If an owner handoff or container reload leaves only an ambiguous failure, the transfer stays blocked instead of guessing and risking duplication. Single-item responses remain capped at 48 KiB and dual-item exchange requests at 96 KiB; an oversized request is rejected and any local escrow is restored before the owner can mutate the chest.
+
+Occupied player/chest exchange is limited to whole stacks in regular inventory or hotbar cells; equipment and quick slots are never exchange participants or recovery fallbacks. Remote consume first secures the real item in the player inventory and attempts use only once. An explicit world drop attempts networked spawning only once: a definitely-not-spawned result may fall back to local inventory recovery, while an uncertain result blocks both fallback and acknowledgement instead of guessing and risking duplication. Take All and Place Stacks deliberately run as sequential single-item transactions rather than one oversized batch: completed steps remain committed, while any conflict, owner ambiguity, or unobserved result stops the remaining steps.
+
+Ending the client process or destroying the chest while a transfer is in flight is outside the in-session recovery guarantee. The feature is enabled by default and can be turned Off when shared chest access is not wanted. If the standalone MultiUserChest mod is installed, it takes precedence and this built-in implementation stays inactive. Remove the standalone mod from the server and all clients, then restart before using the built-in implementation.
 
 ## Controller Input
 
@@ -419,7 +432,7 @@ Soft compatibility and adaptive behavior include:
 - RustyBags: bag/quiver slot support and equipped state synchronization.
 - Magic Supremacy: belt slot support and equipped-belt synchronization.
 - BetterArchery: quiver/reserved cells are treated conservatively.
-- MultiUserChest: remote-owner container access is respected.
+- MultiUserChest: the standalone mod takes precedence; its remote-owner access remains respected while InventorySlots' built-in implementation stays inactive.
 - ServerCharacters: local slot backup/restore avoids stale server-character data.
 - EpicLoot: item tooltip content is preserved while InventorySlots-owned tooltip layouts stay isolated.
 - TooltipExpansion: InventorySlots-owned tooltips avoid vanilla tooltip scrollbar/layout interference.

@@ -25,7 +25,11 @@ public sealed partial class InventorySlotsPlugin
                 }
 
                 Vector2i originalPos = item.m_gridPos;
-                if (TryFindFreeAutomaticPlacementCell(player, inventory, out Vector2i target))
+                if (TryFindFreeAutomaticPlacementCell(
+                        player,
+                        inventory,
+                        incoming: null,
+                        out Vector2i target))
                 {
                     item.m_gridPos = target;
                     ClearForeignSlotItemState(player, item);

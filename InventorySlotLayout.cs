@@ -449,7 +449,11 @@ public sealed partial class InventorySlotsPlugin
         foreach (ItemData item in items)
         {
             originalPositions.Add(item.m_gridPos);
-            if (TryFindFreeAutomaticPlacementCell(player, inventory, out Vector2i target))
+            if (TryFindFreeAutomaticPlacementCell(
+                    player,
+                    inventory,
+                    incoming: null,
+                    out Vector2i target))
             {
                 item.m_gridPos = target;
                 movedItemCount++;

@@ -41,6 +41,7 @@ inventoryslots_action_stack: Stack
 inventoryslots_action_take_stacks: Take stacks
 inventoryslots_action_result_format: "{action}: {count}"
 inventoryslots_container_not_ready: Container is not ready.
+inventoryslots_multi_user_chest_use_empty_slot: Use an empty slot or a matching stack.
 inventoryslots_hold_to_restock: Hold to restock
 inventoryslots_reclaim_blocked: Blocked
 inventoryslots_hotbar_switch_hint: "Switch\n[{key}]"

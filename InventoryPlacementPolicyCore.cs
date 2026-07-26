@@ -12,15 +12,38 @@ internal enum InventoryPlacementScope
 
 internal static class InventoryPlacementPolicyCore
 {
-    public static bool TrySelectRegularBeforeHotbarCell(
+    public static bool TrySelectAutomaticPlacementCell(
         int inventoryWidth,
         int rowCount,
+        bool preferHotbar,
         Func<int, int, bool> isAllowed,
         Func<int, int, bool> isOccupied,
         out InventorySlotSafetyCore.GridCell cell)
     {
         int width = Math.Max(1, inventoryWidth);
         int rows = Math.Max(0, rowCount);
+        if (preferHotbar)
+        {
+            if (TrySelectFirstFreeCellInRows(
+                    width,
+                    0,
+                    Math.Min(1, rows),
+                    isAllowed,
+                    isOccupied,
+                    out cell))
+            {
+                return true;
+            }
+
+            return TrySelectFirstFreeCellInRows(
+                width,
+                1,
+                rows,
+                isAllowed,
+                isOccupied,
+                out cell);
+        }
+
         if (TrySelectFirstFreeCellInRows(width, 1, rows, isAllowed, isOccupied, out cell))
         {
             return true;

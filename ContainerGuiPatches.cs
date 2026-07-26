@@ -57,6 +57,11 @@ internal static class InventoryGuiCloseContainerRestorePanelPatch
 [HarmonyPatch(typeof(InventoryGui), "UpdateContainer")]
 internal static class InventoryGuiUpdateContainerInventorySlotsPatch
 {
+    private static bool Prefix(InventoryGui __instance, Player player)
+    {
+        return !InventorySlotsPlugin.TryUpdateMultiUserRemoteContainer(__instance, player);
+    }
+
     private static void Postfix(InventoryGui __instance, Player player)
     {
         InventorySlotsPlugin.OnInventoryGuiUpdateContainer(__instance, player);

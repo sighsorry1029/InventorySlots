@@ -82,12 +82,14 @@ public sealed partial class InventorySlotsPlugin
         }
 
         RegisterContainerRpcs(container);
+        RegisterMultiUserContainerRpcs(container);
     }
 
     internal static void UnregisterContainer(Container container)
     {
         if (container != null)
         {
+            UnregisterMultiUserContainerRpcs(container);
             ClearPendingContainerSortRequest(container);
             InventoryContainers.KnownContainers.Remove(container);
         }

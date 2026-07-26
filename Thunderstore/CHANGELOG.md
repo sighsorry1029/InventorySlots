@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.8
+
+- Added a Jötunn-free built-in multi-user chest implementation, enabled by default for standard player-built chests. It supports Ctrl-click, drag and split transfers, stack placement, whole-stack exchanges, remote consume and world drop, Take All, and Place Stacks through owner-authoritative transactions.
+- Preserved exact item state, including Jewelcrafting socket custom data, while validating pre-mutation stack state and projecting pending remote changes in the container UI.
+- Hardened remote transfers with immutable requests, bounded payloads, retries, duplicate prevention, acknowledgement receipts, escrow recovery, and conservative handling of owner changes or ambiguous results. Take All and Place Stacks run as sequential item transactions and stop on the first unresolved conflict.
+- Made the external MultiUserChest mod take precedence automatically, and limited the built-in implementation to eligible player-built chests while excluding tombstones, carts, ships, and unsupported container types.
+- Changed automatic new-stack placement so items matching `InventorySlots.yml` `QuickSlots` rules prefer the hotbar, while other items continue to prefer regular rows. Existing partial-stack filling and explicit drag destinations are unchanged.
+
 ## 1.2.7
 
 - Fixed character progression resets, including vanilla reset commands and AdminQoL Unlearn All, so progressive quick-slot rows are recalculated from the remaining known items.

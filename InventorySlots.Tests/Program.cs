@@ -60,6 +60,8 @@ TestRunner.Run(
     ("Inventory placement policy shares top-first empty count", Tests.InventoryPlacementPolicySharesTopFirstEmptyCount),
     ("Inventory automatic placement prefers regular rows before hotbar", Tests.InventoryAutomaticPlacementPrefersRegularRowsBeforeHotbar),
     ("Inventory automatic placement falls back to hotbar", Tests.InventoryAutomaticPlacementFallsBackToHotbar),
+    ("Quick-slot item automatic placement prefers hotbar", Tests.QuickSlotItemAutomaticPlacementPrefersHotbar),
+    ("Quick-slot item automatic placement falls back to regular rows", Tests.QuickSlotItemAutomaticPlacementFallsBackToRegularRows),
     ("Inventory limits accept the exact remaining amount", Tests.InventoryLimitsAcceptExactRemainingAmount),
     ("Inventory limits reject excess and additions to existing excess", Tests.InventoryLimitsRejectExcessAdditions),
     ("Action cell policy favorites include quickslots", Tests.ActionCellPolicyFavoritesIncludeQuickslots),
@@ -84,6 +86,11 @@ TestRunner.Run(
     ("Tooltip source cache trims oldest entries", Tests.TooltipSourceCacheTrimsOldestEntries),
     ("Container transfer sums moved amounts and callbacks", Tests.ContainerTransferSumsMovedAmountsAndCallbacks),
     ("Container transfer stays quiet when nothing moves", Tests.ContainerTransferStaysQuietWhenNothingMoves),
+    ("Multi-user item snapshot ignores custom data order", Tests.MultiUserItemSnapshotIgnoresCustomDataOrder),
+    ("Multi-user item snapshot rejects socket data changes", Tests.MultiUserItemSnapshotRejectsSocketDataChanges),
+    ("Multi-user item snapshot rejects insufficient stack", Tests.MultiUserItemSnapshotRejectsInsufficientStack),
+    ("Multi-user item snapshot rejects identity field changes", Tests.MultiUserItemSnapshotRejectsIdentityFieldChanges),
+    ("Multi-user transfer requires exact pre-mutation stack state", Tests.MultiUserTransferRequiresExactPreMutationStackState),
     ("InventoryActions container transfer core copy mirrors InventorySlots behavior", Tests.InventoryActionsContainerTransferCoreCopyMirrorsInventorySlotsBehavior),
     ("InventoryActions container action core copy mirrors InventorySlots behavior", Tests.InventoryActionsContainerActionCoreCopyMirrorsInventorySlotsBehavior),
     ("Restock target limits parse config entries", Tests.RestockTargetLimitsParseConfigEntries),
@@ -955,9 +962,10 @@ internal static class Tests
 
     public static void InventoryAutomaticPlacementPrefersRegularRowsBeforeHotbar()
     {
-        bool found = InventoryPlacementPolicyCore.TrySelectRegularBeforeHotbarCell(
+        bool found = InventoryPlacementPolicyCore.TrySelectAutomaticPlacementCell(
             inventoryWidth: 3,
             rowCount: 3,
+            preferHotbar: false,
             isAllowed: (_, _) => true,
             isOccupied: (_, _) => false,
             out InventorySlotSafetyCore.GridCell cell);
@@ -969,9 +977,10 @@ internal static class Tests
 
     public static void InventoryAutomaticPlacementFallsBackToHotbar()
     {
-        bool found = InventoryPlacementPolicyCore.TrySelectRegularBeforeHotbarCell(
+        bool found = InventoryPlacementPolicyCore.TrySelectAutomaticPlacementCell(
             inventoryWidth: 3,
             rowCount: 3,
+            preferHotbar: false,
             isAllowed: (_, _) => true,
             isOccupied: (x, y) => y > 0 || x == 0,
             out InventorySlotSafetyCore.GridCell cell);
@@ -979,6 +988,36 @@ internal static class Tests
         Assert.True(found, "automatic placement should use hotbar when every regular inventory cell is occupied");
         Assert.Equal(1, cell.X);
         Assert.Equal(0, cell.Y);
+    }
+
+    public static void QuickSlotItemAutomaticPlacementPrefersHotbar()
+    {
+        bool found = InventoryPlacementPolicyCore.TrySelectAutomaticPlacementCell(
+            inventoryWidth: 3,
+            rowCount: 3,
+            preferHotbar: true,
+            isAllowed: (_, _) => true,
+            isOccupied: (_, _) => false,
+            out InventorySlotSafetyCore.GridCell cell);
+
+        Assert.True(found, "quick-slot item automatic placement should find an available hotbar cell");
+        Assert.Equal(0, cell.X);
+        Assert.Equal(0, cell.Y);
+    }
+
+    public static void QuickSlotItemAutomaticPlacementFallsBackToRegularRows()
+    {
+        bool found = InventoryPlacementPolicyCore.TrySelectAutomaticPlacementCell(
+            inventoryWidth: 3,
+            rowCount: 3,
+            preferHotbar: true,
+            isAllowed: (_, _) => true,
+            isOccupied: (_, y) => y == 0,
+            out InventorySlotSafetyCore.GridCell cell);
+
+        Assert.True(found, "quick-slot item automatic placement should use regular rows when the hotbar is full");
+        Assert.Equal(0, cell.X);
+        Assert.Equal(1, cell.Y);
     }
 
     public static void InventoryLimitsAcceptExactRemainingAmount()
@@ -1393,6 +1432,113 @@ internal static class Tests
         Assert.Equal(0, anyMovedCount);
     }
 
+    public static void MultiUserItemSnapshotIgnoresCustomDataOrder()
+    {
+        MultiUserContainerItemSnapshot expected = CreateMultiUserItemSnapshot(
+            stack: 3,
+            customData:
+            [
+                new KeyValuePair<string, string>("socket-1", "Ruby"),
+                new KeyValuePair<string, string>("socket-2", "Sapphire")
+            ]);
+        MultiUserContainerItemSnapshot actual = CreateMultiUserItemSnapshot(
+            stack: 5,
+            customData:
+            [
+                new KeyValuePair<string, string>("socket-2", "Sapphire"),
+                new KeyValuePair<string, string>("socket-1", "Ruby")
+            ]);
+
+        Assert.True(
+            MultiUserContainerTransferCore.IsExactMatch(expected, actual, requiredStack: 3),
+            "custom data insertion order must not change item identity");
+    }
+
+    public static void MultiUserItemSnapshotRejectsSocketDataChanges()
+    {
+        MultiUserContainerItemSnapshot expected = CreateMultiUserItemSnapshot(
+            customData:
+            [
+                new KeyValuePair<string, string>("Jewelcrafting.Sockets", "Ruby")
+            ]);
+        MultiUserContainerItemSnapshot actual = CreateMultiUserItemSnapshot(
+            customData:
+            [
+                new KeyValuePair<string, string>("Jewelcrafting.Sockets", "Emerald")
+            ]);
+
+        Assert.False(
+            MultiUserContainerTransferCore.IsExactMatch(expected, actual, requiredStack: 1),
+            "socketed items with different custom data must not be treated as the same item");
+    }
+
+    public static void MultiUserItemSnapshotRejectsInsufficientStack()
+    {
+        MultiUserContainerItemSnapshot expected = CreateMultiUserItemSnapshot(stack: 5);
+        MultiUserContainerItemSnapshot insufficientActual = CreateMultiUserItemSnapshot(stack: 2);
+        MultiUserContainerItemSnapshot malformedExpected = CreateMultiUserItemSnapshot(stack: 2);
+        MultiUserContainerItemSnapshot sufficientActual = CreateMultiUserItemSnapshot(stack: 5);
+
+        Assert.False(
+            MultiUserContainerTransferCore.IsExactMatch(expected, insufficientActual, requiredStack: 3),
+            "the current item must still contain the requested amount");
+        Assert.False(
+            MultiUserContainerTransferCore.IsExactMatch(malformedExpected, sufficientActual, requiredStack: 3),
+            "the captured item must have contained the requested amount");
+    }
+
+    public static void MultiUserItemSnapshotRejectsIdentityFieldChanges()
+    {
+        MultiUserContainerItemSnapshot expected = CreateMultiUserItemSnapshot();
+        MultiUserContainerItemSnapshot[] mismatches =
+        [
+            CreateMultiUserItemSnapshot(prefabName: "ArmorFenringChest"),
+            CreateMultiUserItemSnapshot(quality: 4),
+            CreateMultiUserItemSnapshot(variant: 3),
+            CreateMultiUserItemSnapshot(worldLevel: 2),
+            CreateMultiUserItemSnapshot(crafterId: 99),
+            CreateMultiUserItemSnapshot(crafterName: "Other crafter"),
+            CreateMultiUserItemSnapshot(durability: 49.5f),
+            CreateMultiUserItemSnapshot(pickedUp: false)
+        ];
+
+        foreach (MultiUserContainerItemSnapshot mismatch in mismatches)
+        {
+            Assert.False(
+                MultiUserContainerTransferCore.IsExactMatch(expected, mismatch, requiredStack: 1),
+                "every serialized identity field must participate in exact matching");
+        }
+
+        float negativeZero = BitConverter.Int32BitsToSingle(unchecked((int)0x80000000));
+        MultiUserContainerItemSnapshot positiveZero = CreateMultiUserItemSnapshot(durability: 0f);
+        MultiUserContainerItemSnapshot negativeZeroSnapshot = CreateMultiUserItemSnapshot(durability: negativeZero);
+        Assert.False(
+            MultiUserContainerTransferCore.IsExactMatch(positiveZero, negativeZeroSnapshot, requiredStack: 1),
+            "durability must be compared by its serialized bit value");
+    }
+
+    public static void MultiUserTransferRequiresExactPreMutationStackState()
+    {
+        Assert.True(
+            MultiUserContainerTransferCore.MatchesExpectedStackState(0, null),
+            "an empty target must still be empty");
+        Assert.False(
+            MultiUserContainerTransferCore.MatchesExpectedStackState(0, 1),
+            "a retry must not reuse a target populated by the first application");
+        Assert.True(
+            MultiUserContainerTransferCore.MatchesExpectedStackState(5, 5),
+            "an unchanged populated stack must match");
+        Assert.False(
+            MultiUserContainerTransferCore.MatchesExpectedStackState(5, 3),
+            "a partially consumed source must reject a repeated removal");
+        Assert.False(
+            MultiUserContainerTransferCore.MatchesExpectedStackState(5, 7),
+            "a target changed by an earlier add must reject a repeated add");
+        Assert.False(
+            MultiUserContainerTransferCore.MatchesExpectedStackState(-1, null),
+            "negative sentinels are not valid mutation preconditions");
+    }
+
     public static void InventoryActionsContainerTransferCoreCopyMirrorsInventorySlotsBehavior()
     {
         FakeTransferContainer?[] containers =
@@ -1667,6 +1813,29 @@ internal static class Tests
         public bool Valid { get; }
         public int Moved { get; }
     }
+
+    private static MultiUserContainerItemSnapshot CreateMultiUserItemSnapshot(
+        string prefabName = "ArmorCarapaceChest",
+        int quality = 3,
+        int variant = 2,
+        int worldLevel = 1,
+        long crafterId = 42,
+        string crafterName = "Crafter",
+        float durability = 50f,
+        bool pickedUp = true,
+        int stack = 1,
+        IEnumerable<KeyValuePair<string, string>>? customData = null) =>
+        new(
+            prefabName,
+            quality,
+            variant,
+            worldLevel,
+            crafterId,
+            crafterName,
+            durability,
+            pickedUp,
+            stack,
+            customData);
 
     private static SortKey Key(
         int resourceTier = 0,

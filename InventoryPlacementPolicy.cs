@@ -75,7 +75,11 @@ public sealed partial class InventorySlotsPlugin
                 result = FindTopFirstRegularLoadPreservationSlot(inventory);
                 return false;
             case InventoryPlacementScope.LocalPlayer:
-                result = TryFindFreeAutomaticPlacementCell(player!, inventory, out Vector2i pos)
+                result = TryFindFreeAutomaticPlacementCell(
+                        player!,
+                        inventory,
+                        GetCurrentInventoryAddItemDataStackLookupItem(),
+                        out Vector2i pos)
                     ? pos
                     : new Vector2i(-1, -1);
                 return false;
@@ -84,12 +88,17 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
-    private static bool TryFindFreeAutomaticPlacementCell(Player player, Inventory inventory, out Vector2i pos)
+    private static bool TryFindFreeAutomaticPlacementCell(
+        Player player,
+        Inventory inventory,
+        ItemData? incoming,
+        out Vector2i pos)
     {
         HashSet<Vector2i> occupied = BuildOccupiedCellSet(inventory);
-        bool found = InventoryPlacementPolicyCore.TrySelectRegularBeforeHotbarCell(
+        bool found = InventoryPlacementPolicyCore.TrySelectAutomaticPlacementCell(
             inventory.GetWidth(),
             GetUsableRegularRows(player),
+            preferHotbar: QuickSlotAcceptsItem(incoming),
             (x, y) => IsUsableRegularCell(inventory, player, new Vector2i(x, y)),
             (x, y) => IsCellOccupied(occupied, x, y),
             out InventorySlotSafetyCore.GridCell cell);

@@ -30,6 +30,8 @@ public sealed partial class InventorySlotsPlugin
     private void Update()
     {
         ProcessYamlHotReload();
+        UpdateMultiUserContainerRuntime();
+        UpdateMultiUserContainerBatchRuntime();
 
         if (IsDedicatedServer)
         {
@@ -111,6 +113,7 @@ public sealed partial class InventorySlotsPlugin
 
     private void OnDestroy()
     {
+        ShutdownMultiUserContainerRuntime();
         ShutdownContainerPreview();
         LocalizationManager.Localizer.OnLocalizationComplete -= HandleLocalizationComplete;
         StopYamlWatcher();

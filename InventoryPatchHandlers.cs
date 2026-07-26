@@ -366,6 +366,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void OnInventoryGuiHide()
     {
+        CancelMultiUserContainerBatch();
         OnInventoryGuiHidden();
         StartQuickSlotPanelOutroAnimation();
         PrunePendingSlotActions();
@@ -379,6 +380,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void OnInventoryGuiCloseContainer()
     {
+        CancelMultiUserContainerBatch();
         RestoreContainerUiState();
     }
 

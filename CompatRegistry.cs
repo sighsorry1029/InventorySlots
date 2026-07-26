@@ -24,7 +24,10 @@ public sealed partial class InventorySlotsPlugin
     private const string ContentsWithinGuid = "com.maxsch.valheim.contentswithin";
 
     private static bool HasServerCharactersActive => !ZNet.IsSinglePlayer && HasPlugin(ServerCharactersGuid);
-    private static bool HasMultiUserChestActive => HasPlugin(MultiUserChestGuid);
+    private static bool HasExternalMultiUserChestActive => HasPlugin(MultiUserChestGuid);
+    private static bool IsBuiltInMultiUserChestEnabled =>
+        !HasExternalMultiUserChestActive &&
+        _enableBuiltInMultiUserChest?.Value == Toggle.On;
     private static bool HasJewelcraftingActive => HasPlugin(JewelcraftingGuid);
 
     private static bool HasPlugin(string guid)

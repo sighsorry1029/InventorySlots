@@ -11,6 +11,7 @@
     <Compile Include="..\ClientStateModels.cs" Link="ClientStateModels.cs" />
     <Compile Include="..\ContainerActionCore.cs" Link="ContainerActionCore.cs" />
     <Compile Include="..\ContainerTransferCore.cs" Link="ContainerTransferCore.cs" />
+    <Compile Include="..\MultiUserContainerTransferCore.cs" Link="MultiUserContainerTransferCore.cs" />
     <Compile Include="..\CraftingRecipeViewCore.cs" Link="CraftingRecipeViewCore.cs" />
     <Compile Include="..\CraftingTabAdapterModels.cs" Link="CraftingTabAdapterModels.cs" />
     <Compile Include="..\CraftingUiStamps.cs" Link="CraftingUiStamps.cs" />

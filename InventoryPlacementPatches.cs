@@ -126,14 +126,59 @@ internal static class InventoryAddItemPosPatch
 [HarmonyPatch(typeof(Inventory), "MoveItemToThis", typeof(Inventory), typeof(ItemData), typeof(int), typeof(int), typeof(int))]
 internal static class InventoryMoveItemToThisPatch
 {
-    private static bool Prefix(Inventory __instance, ref bool __result, Inventory fromInventory, ItemData item, int amount, ref int x, ref int y)
+    private static bool Prefix(
+        Inventory __instance,
+        ref bool __result,
+        Inventory fromInventory,
+        ItemData item,
+        int amount,
+        ref int x,
+        ref int y,
+        out bool __state)
     {
+        __state = false;
+        if (InventorySlotsPlugin.TryRouteMultiUserContainerPositionalMove(
+                __instance,
+                fromInventory,
+                item,
+                amount,
+                x,
+                y,
+                out bool multiUserResult))
+        {
+            __state = true;
+            __result = multiUserResult;
+            return false;
+        }
+
         return InventorySlotsPlugin.TryValidatePlayerInventoryMoveItemToThis(__instance, ref __result, fromInventory, item, amount, ref x, ref y);
     }
 
-    private static void Postfix(Inventory __instance, bool __result, ItemData item, int x, int y)
+    private static void Postfix(
+        Inventory __instance,
+        bool __result,
+        ItemData item,
+        int x,
+        int y,
+        bool __state)
     {
-        InventorySlotsPlugin.OnPlayerInventoryItemPlaced(__instance, item, new Vector2i(x, y), __result);
+        if (!__state)
+        {
+            InventorySlotsPlugin.OnPlayerInventoryItemPlaced(
+                __instance,
+                item,
+                new Vector2i(x, y),
+                __result);
+        }
+    }
+}
+
+[HarmonyPatch(typeof(Inventory), "MoveItemToThis", typeof(Inventory), typeof(ItemData))]
+internal static class InventoryMoveItemToThisAutoPatch
+{
+    private static bool Prefix(Inventory __instance, Inventory fromInventory, ItemData item)
+    {
+        return !InventorySlotsPlugin.TryRouteMultiUserContainerAutoMove(__instance, fromInventory, item);
     }
 }
 
@@ -149,8 +194,20 @@ internal static class HumanoidPickupInventoryLimitPatch
 [HarmonyPatch(typeof(InventoryGrid), "DropItem")]
 internal static class InventoryGridDropItemPatch
 {
-    private static bool Prefix(InventoryGrid __instance, Inventory fromInventory, ItemData item, Vector2i pos)
+    private static bool Prefix(InventoryGrid __instance, Inventory fromInventory, ItemData item, int amount, Vector2i pos, ref bool __result)
     {
+        if (InventorySlotsPlugin.TryRouteMultiUserContainerDropItem(
+                __instance,
+                fromInventory,
+                item,
+                amount,
+                pos,
+                out bool multiUserResult))
+        {
+            __result = multiUserResult;
+            return false;
+        }
+
         return InventorySlotsPlugin.ShouldAllowInventoryGridDropItem(__instance, item, pos);
     }
 }

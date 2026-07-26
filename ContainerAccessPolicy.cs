@@ -35,7 +35,10 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        return HasMultiUserChestActive || !IsContainerInUse(container);
+        return HasExternalMultiUserChestActive ||
+               (IsBuiltInMultiUserChestEnabled &&
+                IsBuiltInMultiUserContainerEligible(container)) ||
+               !IsContainerInUse(container);
     }
 
     private static bool IsAreaContainerCandidate(Player player, Container container, Container? currentContainer, Vector3 playerPosition, float rangeSq, out float distanceSq)
@@ -108,7 +111,7 @@ public sealed partial class InventorySlotsPlugin
             return ContainerAccessMode.DirectOwner;
         }
 
-        return HasMultiUserChestActive && !IsMultiUserChestIgnored(container)
+        return CanUseMultiUserChestRemote(container)
             ? ContainerAccessMode.MultiUserChestRemote
             : ContainerAccessMode.Unavailable;
     }
@@ -120,15 +123,35 @@ public sealed partial class InventorySlotsPlugin
     {
         return sender != 0L &&
                requesterPlayerId != 0L &&
-               HasMultiUserChestActive &&
-               !IsMultiUserChestIgnored(container) &&
+               CanUseMultiUserChestRemote(container) &&
                IsRpcSenderForPlayer(sender, requesterPlayerId) &&
                CanMutateContainerDirectly(container) &&
                container.CheckAccess(requesterPlayerId);
     }
 
+    private static bool CanUseMultiUserChestRemote(Container container)
+    {
+        if (container == null || IsMultiUserChestIgnored(container))
+        {
+            return false;
+        }
+
+        return HasExternalMultiUserChestActive ||
+               IsBuiltInMultiUserChestEnabled &&
+               IsBuiltInMultiUserContainerEligible(container);
+    }
+
     private static bool IsRpcSenderForPlayer(long sender, long requesterPlayerId)
     {
+        return TryGetRpcSenderPlayer(sender, requesterPlayerId, out _);
+    }
+
+    private static bool TryGetRpcSenderPlayer(
+        long sender,
+        long requesterPlayerId,
+        out Player? requester)
+    {
+        requester = null;
         foreach (Player player in Player.GetAllPlayers())
         {
             if (player == null ||
@@ -142,6 +165,7 @@ public sealed partial class InventorySlotsPlugin
             ZDO? playerZdo = player.m_nview.GetZDO();
             if (playerZdo != null && playerZdo.GetOwner() == sender)
             {
+                requester = player;
                 return true;
             }
         }

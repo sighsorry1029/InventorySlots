@@ -128,7 +128,9 @@ KeepOnDeath:
   - Equipment
 
 # Items matching these top-level groups, subgroups, custom groups, or exact
-# prefab/internal names can be placed in quick slots.
+# prefab/internal names can be placed in quick slots. When a new stack is
+# automatically added, matching items prefer the hotbar before regular rows;
+# non-matching items keep the regular-rows-before-hotbar order.
 QuickSlots:
   - Melee
   - Ranged

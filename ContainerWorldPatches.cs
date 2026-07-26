@@ -2,6 +2,15 @@ using HarmonyLib;
 
 namespace InventorySlots;
 
+[HarmonyPatch(typeof(Container), "RPC_RequestOpen")]
+internal static class ContainerRequestOpenMultiUserPatch
+{
+    private static bool Prefix(Container __instance, long uid, long playerID)
+    {
+        return !InventorySlotsPlugin.TryHandleMultiUserContainerOpen(__instance, uid, playerID);
+    }
+}
+
 [HarmonyPatch(typeof(Container), "StackAll")]
 internal static class ContainerStackAllFavoriteProtectionPatch
 {
@@ -58,8 +67,29 @@ internal static class ContainerAwakeTombstoneHeightPatch
 [HarmonyPatch(typeof(Container), "OnDestroyed")]
 internal static class ContainerDestroyedInventorySlotsPatch
 {
+    private static void Prefix(Container __instance)
+    {
+        ZDO? zdo = __instance.m_nview?.GetZDO();
+        if (zdo != null)
+        {
+            InventorySlotsPlugin.OnMultiUserContainerPermanentlyDestroyed(
+                __instance,
+                zdo);
+        }
+    }
+
     private static void Postfix(Container __instance)
     {
         InventorySlotsPlugin.UnregisterContainer(__instance);
+    }
+}
+
+[HarmonyPatch(typeof(ZNetScene), "OnZDODestroyed")]
+internal static class ContainerZdoDestroyedInventorySlotsPatch
+{
+    [HarmonyPriority(Priority.First)]
+    private static void Prefix(ZDO zdo)
+    {
+        InventorySlotsPlugin.OnMultiUserContainerZdoDestroyed(zdo);
     }
 }

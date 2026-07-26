@@ -41,6 +41,7 @@ inventoryslots_action_stack: 스택 넣기
 inventoryslots_action_take_stacks: 스택 가져오기
 inventoryslots_action_result_format: "{action}: {count}"
 inventoryslots_container_not_ready: 컨테이너를 사용할 수 없습니다.
+inventoryslots_multi_user_chest_use_empty_slot: 빈 칸이나 같은 아이템 묶음을 사용하세요.
 inventoryslots_hold_to_restock: 누르고 있으면 보충
 inventoryslots_reclaim_blocked: 차단됨
 inventoryslots_hotbar_switch_hint: "전환\n[{key}]"

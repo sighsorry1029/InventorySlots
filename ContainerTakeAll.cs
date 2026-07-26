@@ -19,6 +19,16 @@ public sealed partial class InventorySlotsPlugin
         ContainerAccessMode accessMode = GetContainerAccessMode(container, allowLocalWithoutZNetView: true);
         if (accessMode == ContainerAccessMode.MultiUserChestRemote)
         {
+            if (IsBuiltInMultiUserChestEnabled)
+            {
+                if (!TryStartMultiUserContainerTakeAllBatch(container))
+                {
+                    ShowMultiUserContainerNotReady();
+                }
+
+                return true;
+            }
+
             return false;
         }
 

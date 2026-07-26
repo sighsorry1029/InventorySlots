@@ -14,7 +14,22 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        if (!CanMutateContainerDirectly(gui.m_currentContainer, allowLocalWithoutZNetView: true))
+        ContainerAccessMode accessMode = GetContainerAccessMode(
+            gui.m_currentContainer,
+            allowLocalWithoutZNetView: true);
+        if (accessMode == ContainerAccessMode.MultiUserChestRemote &&
+            IsBuiltInMultiUserChestEnabled)
+        {
+            if (!TryStartMultiUserContainerPlaceStacksBatch(
+                    gui.m_currentContainer))
+            {
+                ShowMultiUserContainerNotReady();
+            }
+
+            return true;
+        }
+
+        if (accessMode != ContainerAccessMode.DirectOwner)
         {
             return false;
         }
@@ -36,7 +51,25 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        if (!CanMutateContainerDirectly(container, allowLocalWithoutZNetView: true))
+        ContainerAccessMode accessMode = GetContainerAccessMode(
+            container,
+            allowLocalWithoutZNetView: true);
+        if (accessMode == ContainerAccessMode.MultiUserChestRemote &&
+            IsBuiltInMultiUserChestEnabled)
+        {
+            InventoryGui? gui = InventoryGui.instance;
+            if (gui == null ||
+                IsUnityNull(gui) ||
+                gui.m_currentContainer != container ||
+                !TryStartMultiUserContainerPlaceStacksBatch(container))
+            {
+                ShowMultiUserContainerNotReady();
+            }
+
+            return true;
+        }
+
+        if (accessMode != ContainerAccessMode.DirectOwner)
         {
             return false;
         }
