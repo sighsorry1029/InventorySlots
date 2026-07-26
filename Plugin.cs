@@ -59,7 +59,7 @@ public sealed partial class InventorySlotsPlugin : BaseUnityPlugin
     private const string ConfigDirectoryName = "InventorySlots";
     private const string YamlFileName = "InventorySlots.yml";
     private const string ResourceMapFileName = "ResourceMap.yml";
-    private const string ClientStateFileName = "Client.yml";
+    private const string ClientStateFileName = "ClientState.yml";
     private const string CustomSlotPanelName = "InventorySlots_CustomSlotPanel";
     private const string QuickSlotPanelName = "InventorySlots_QuickSlotPanel";
     private const string SlotPanelDragBorderName = "InventorySlots_DragBorder";

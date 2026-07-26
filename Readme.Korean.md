@@ -107,7 +107,7 @@ Jewelcrafting의 소켓과 보석 툴팁 내용은 InventorySlots의 툴팁과 �
 - `sighsorry.InventorySlots.cfg`: config 루트에 유지되는 BepInEx 설정 파일임. Configuration Manager에 표시되는 옵션을 저장함.
 - `InventorySlots/InventorySlots.yml`: 서버 권한 설정임. `Slots`, `Groups`, `InventoryLimits`, `QuickSlots`, `KeepOnDeath`를 저장함.
 - `InventorySlots/ResourceMap.yml`: 서버 권한 설정임. 자원 정렬 티어를 저장함.
-- `InventorySlots/Client.yml`: 로컬 UI 상태를 자동으로 저장하는 파일임. 서버 설정으로 배포하지 않아도 됨.
+- `InventorySlots/ClientState.yml`: 로컬 UI 상태를 자동으로 저장하는 파일임. 서버 설정으로 배포하지 않아도 됨.
 
 `InventorySlots/ResourceMap.yml`은 티어 이름과 재료 목록을 직접 연결함. 위에서 아래 순서로 티어가 정해지며, 같은 재료가 여러 번 나오면 처음 나온 티어가 적용됨.
 

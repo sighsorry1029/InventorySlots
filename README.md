@@ -350,7 +350,7 @@ InventorySlots uses the following files under `BepInEx/config`:
 - `sighsorry.InventorySlots.cfg` remains in the config root. It contains the BepInEx options shown in Configuration Manager.
 - `InventorySlots/InventorySlots.yml` is server-authoritative and contains `Slots`, `Groups`, `InventoryLimits`, `QuickSlots`, and `KeepOnDeath`.
 - `InventorySlots/ResourceMap.yml` is server-authoritative and controls resource sorting tiers.
-- `InventorySlots/Client.yml` is local, auto-managed UI state. Do not distribute it as server configuration.
+- `InventorySlots/ClientState.yml` is local, auto-managed UI state. Do not distribute it as server configuration.
 
 Invalid server-authoritative YAML and unknown properties are rejected so the last stable configuration can remain active.
 
