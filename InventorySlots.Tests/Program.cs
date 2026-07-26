@@ -47,6 +47,8 @@ TestRunner.Run(
     ("Quickslot reset policy stops at first blocked row", Tests.QuickslotResetPolicyStopsAtFirstBlockedRow),
     ("Quickslot reset policy respects naturally unlocked rows", Tests.QuickslotResetPolicyRespectsNaturallyUnlockedRows),
     ("Quickslot reset policy skips rows that cannot be reduced", Tests.QuickslotResetPolicySkipsRowsThatCannotBeReduced),
+    ("Quickslot load preservation does not authorize reset", Tests.QuickslotLoadPreservationDoesNotAuthorizeReset),
+    ("Progressive inventory row recovery waits for item lookup", Tests.ProgressiveInventoryRowRecoveryWaitsForItemLookup),
     ("Keep-on-death quickslot rows prefer their original slot", Tests.KeepOnDeathQuickslotRowsPreferOriginalSlot),
     ("Keep-on-death quickslot falls back to empty quickslot before inventory", Tests.KeepOnDeathQuickslotFallsBackToEmptyQuickslotBeforeInventory),
     ("Keep-on-death quickslot uses regular cell only after quickslots fail", Tests.KeepOnDeathQuickslotUsesRegularCellOnlyAfterQuickslotsFail),
@@ -767,6 +769,85 @@ internal static class Tests
 
         Assert.Equal(0, rows);
         Assert.Equal(0, callbackCount);
+    }
+
+    public static void QuickslotLoadPreservationDoesNotAuthorizeReset()
+    {
+        string source = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "InventorySlotLayout.cs"));
+        string naturalUnlock = ReadSourceSection(
+            source,
+            "private static int GetNaturallyUnlockedQuickSlotRows",
+            "private static int GetStableUnlockedQuickSlotRows");
+        string loadPreservation = ReadSourceSection(
+            source,
+            "private static void PreserveOccupiedQuickSlotRowsDuringLoad",
+            "private static bool IsItemProgressionLookupReady");
+        string explicitReset = ReadSourceSection(
+            source,
+            "internal static void OnPlayerProgressionReset",
+            "private static bool HasPendingQuickSlotProgressionReset");
+        string reconciliation = ReadSourceSection(
+            source,
+            "private static bool ReconcilePendingQuickSlotProgressionReset",
+            "private static bool TryMoveQuickSlotProgressionRowToRegularCells");
+
+        Assert.False(
+            loadPreservation.Contains("QuickSlotProgressionResetPendingPlayerId", StringComparison.Ordinal),
+            "normal inventory loading must preserve occupied quick-slot rows without authorizing destructive reset reconciliation");
+        Assert.True(
+            explicitReset.Contains("QuickSlotProgressionResetPendingPlayerId", StringComparison.Ordinal),
+            "explicit character progression resets must still authorize quick-slot reconciliation");
+        Assert.True(
+            reconciliation.Contains("IsQuickSlotProgressionLookupReady", StringComparison.Ordinal),
+            "quick-slot reset reconciliation must defer until item-name lookup data is ready");
+        Assert.True(
+            naturalUnlock.Contains("RefreshItemNameTokens", StringComparison.Ordinal),
+            "cold-start quick-slot unlock checks must populate prefab-to-shared-name tokens before evaluating progression");
+    }
+
+    public static void ProgressiveInventoryRowRecoveryWaitsForItemLookup()
+    {
+        string layoutSource = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "InventorySlotLayout.cs"));
+        string recoverySource = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "ForeignSlotRecovery.cs"));
+        string unlockedRows = ReadSourceSection(
+            layoutSource,
+            "private static int CalculateUnlockedRows",
+            "private static int GetMaxExtraRows");
+        string lookupReadiness = ReadSourceSection(
+            layoutSource,
+            "private static bool IsItemProgressionLookupReady",
+            "private static bool IsRegularRowProgressionLookupReady");
+        string regularRowReadiness = ReadSourceSection(
+            layoutSource,
+            "private static bool IsRegularRowProgressionLookupReady",
+            "private static bool IsQuickSlotProgressionLookupReady");
+        string recoveryPolicy = ReadSourceSection(
+            recoverySource,
+            "private static bool ShouldRecoverForeignSlotItem",
+            "private static bool ShouldPreserveForeignSlotHeight");
+
+        Assert.True(
+            unlockedRows.Contains("RefreshItemNameTokens", StringComparison.Ordinal),
+            "cold-start regular-row unlock checks must populate prefab-to-shared-name tokens before evaluating progression");
+        Assert.True(
+            lookupReadiness.Contains("ObjectDB.instance", StringComparison.Ordinal) &&
+            lookupReadiness.Contains("ItemNameTokens.Count > 0", StringComparison.Ordinal),
+            "progression lookup readiness must require a populated ObjectDB-backed item-name lookup");
+        Assert.True(
+            regularRowReadiness.Contains("IsItemProgressionLookupReady", StringComparison.Ordinal),
+            "progressive regular rows must use the shared item progression readiness check");
+        Assert.True(
+            recoveryPolicy.Contains("ShouldPreserveProgressiveRowsDuringLoad", StringComparison.Ordinal),
+            "locked regular-row recovery must not run while inventory load preservation is active");
+        Assert.True(
+            recoveryPolicy.Contains("IsRegularRowProgressionLookupReady", StringComparison.Ordinal),
+            "locked regular-row recovery must defer until item-name lookup data is ready");
+        Assert.True(
+            recoveryPolicy.IndexOf("ShouldPreserveForeignSlotHeight", StringComparison.Ordinal) <
+            recoveryPolicy.IndexOf("IsRegularRowProgressionLookupReady", StringComparison.Ordinal) &&
+            recoveryPolicy.IndexOf("IsLegacyExtraSlotsItem", StringComparison.Ordinal) <
+            recoveryPolicy.IndexOf("IsRegularRowProgressionLookupReady", StringComparison.Ordinal),
+            "lookup readiness must gate only RegularLocked recovery, not out-of-grid or legacy item recovery");
     }
 
     public static void KeepOnDeathQuickslotRowsPreferOriginalSlot()
@@ -1865,6 +1946,18 @@ internal static class Tests
         }
 
         throw new InvalidOperationException("Could not locate the InventorySlots repository root.");
+    }
+
+    private static string ReadSourceSection(string source, string startMarker, string endMarker)
+    {
+        int start = source.IndexOf(startMarker, StringComparison.Ordinal);
+        int end = start < 0 ? -1 : source.IndexOf(endMarker, start, StringComparison.Ordinal);
+        if (start < 0 || end <= start)
+        {
+            throw new InvalidOperationException($"Could not locate source section '{startMarker}'.");
+        }
+
+        return source.Substring(start, end - start);
     }
 
     private static string NormalizeCopiedSource(string path) =>

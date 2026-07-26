@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.1
+
+- Fixed cold-start character loads moving items out of occupied progressive quick-slot and inventory rows before prefab-to-item-name lookup data is ready.
+- Normal loads now preserve occupied progression rows without authorizing reset reconciliation; explicit progression resets and genuinely locked-row recovery still run after lookup data becomes available.
+
 ## 1.3.0
 
 - Added a Jötunn-free built-in multi-user chest implementation, enabled by default for standard player-built chests. It supports Ctrl-click, drag and split transfers, stack placement, whole-stack exchanges, remote consume and world drop, Take All, and Place Stacks through owner-authoritative transactions.

@@ -93,9 +93,10 @@ public sealed partial class InventorySlotsPlugin
             return true;
         }
 
-        return !player.m_isLoading &&
+        return !ShouldPreserveProgressiveRowsDuringLoad(inventory, player) &&
                !item.m_equipped &&
                !((Humanoid)player).IsItemEquiped(item) &&
+               IsRegularRowProgressionLookupReady(player) &&
                GetInventoryCellKind(player, inventory, item.m_gridPos) == InventoryCellKind.RegularLocked;
     }
 

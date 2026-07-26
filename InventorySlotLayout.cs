@@ -207,6 +207,7 @@ public sealed partial class InventorySlotsPlugin
             return GetMaxExtraRows();
         }
 
+        RefreshItemNameTokens();
         int maxRows = GetMaxExtraRows();
         int unlocked = 0;
         for (int i = 0; i < maxRows; i++)
@@ -272,6 +273,7 @@ public sealed partial class InventorySlotsPlugin
             return Math.Max(0, reservedRows);
         }
 
+        RefreshItemNameTokens();
         int unlockedRows = 1;
         if (reservedRows >= 2 && _quickSlotRowUnlockItems.Length > 0 && IsRowUnlocked(player, _quickSlotRowUnlockItems[0].Value))
         {
@@ -353,11 +355,50 @@ public sealed partial class InventorySlotsPlugin
 
         int previousRows = QuickSlotProgressionCachedRows;
         QuickSlotProgressionCachedRows = Math.Max(QuickSlotProgressionCachedRows, occupiedRows);
-        QuickSlotProgressionResetPendingPlayerId = playerId;
+        // A normal load may run before progression lookups are ready. Only explicit reset hooks
+        // may authorize moving items out of occupied quick-slot rows.
         if (QuickSlotProgressionCachedRows != previousRows)
         {
             InvalidateQuickSlotProgressionPanelCache();
         }
+    }
+
+    private static bool IsItemProgressionLookupReady(Player player)
+    {
+        if (player.m_isLoading)
+        {
+            return false;
+        }
+
+        RefreshItemNameTokens();
+        ObjectDB objectDb = ObjectDB.instance;
+        return !IsUnityNull(objectDb) &&
+               objectDb.m_items is { Count: > 0 } &&
+               ItemNameTokens.Count > 0;
+    }
+
+    private static bool IsRegularRowProgressionLookupReady(Player player)
+    {
+        if (_progressiveRowsEnabled == null ||
+            _progressiveRowsEnabled.Value.IsOff() ||
+            GetMaxExtraRows() <= 0)
+        {
+            return true;
+        }
+
+        return IsItemProgressionLookupReady(player);
+    }
+
+    private static bool IsQuickSlotProgressionLookupReady(Player player, int configuredRows)
+    {
+        if (configuredRows <= 1 ||
+            _quickSlotProgressionEnabled == null ||
+            _quickSlotProgressionEnabled.Value.IsOff())
+        {
+            return true;
+        }
+
+        return IsItemProgressionLookupReady(player);
     }
 
     private static bool ReconcilePendingQuickSlotProgressionReset(Player player, Inventory inventory)
@@ -371,6 +412,11 @@ public sealed partial class InventorySlotsPlugin
         int configuredRows = configuredSlots <= 0
             ? 0
             : Mathf.CeilToInt(configuredSlots / (float)QuickSlotPanelColumns);
+        if (!IsQuickSlotProgressionLookupReady(player, configuredRows))
+        {
+            return false;
+        }
+
         int naturallyUnlockedRows = GetNaturallyUnlockedQuickSlotRows(player, configuredRows);
         int movedItemCount = 0;
         int blockedItemCount = 0;
