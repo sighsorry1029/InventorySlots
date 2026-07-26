@@ -9,7 +9,7 @@ It adds progressive inventory rows, equipment slots, quick slots, favorites, kee
 ### Stable Inventory Growth
 
 ![](https://i.ibb.co/QFFMsQgx/progressiveslotfinal.gif) <br>
-Progressive rows and quick slots unlock over time without reshuffling saved item positions. Clients can expand or collapse the currently visible inventory rows, while equipment slots are defined by `InventorySlots.yml`.
+Progressive rows and quick slots unlock over time without reshuffling saved item positions. Clients can expand or collapse the currently visible inventory rows, while equipment slots are defined by `InventorySlots/InventorySlots.yml`.
 
 ![](https://i.ibb.co/B2RrkCH1/hotbarswitch.gif) <br>
 The hotbar switch key rotates the visible hotbar row, keeping a tall inventory practical without moving the underlying item coordinates.
@@ -75,7 +75,7 @@ Client restock limits can cap favorite restock targets per prefab, such as `Ston
 ### Mod Compatibility Examples
 
 ![](https://i.ibb.co/JWPfnMWn/epiclootcompatible.png) <br>
-EpicLoot items keep their tooltip data and can use InventorySlots equipment/custom slot routing when configured in `InventorySlots.yml`.
+EpicLoot items keep their tooltip data and can use InventorySlots equipment/custom slot routing when configured in `InventorySlots/InventorySlots.yml`.
 
 ![](https://i.ibb.co/4ZD7PW47/upgradeepicloot.png) <br>
 EpicLoot gear can be compared from upgrade views with InventorySlots pinned tooltips.
@@ -264,7 +264,7 @@ Crafting and inventory/container sorting use separate client sort modes. Craftin
 - `TierThenGroup`: resource tier first, then group.
 - `GroupThenTier`: group first, then resource tier.
 
-The resource tier map comes from YAML and defaults to a biome-style progression from Meadows through Ashlands.
+The resource tier map comes from `InventorySlots/ResourceMap.yml` and defaults to a biome-style progression from Meadows through Ashlands.
 
 ## Tooltips
 
@@ -343,20 +343,18 @@ KeepOnDeath:
 
 The feature can be disabled with `Enable Death Keep Rules`.
 
-## YAML Model
+## Configuration Files
 
-The server-authoritative YAML controls:
+InventorySlots uses the following files under `BepInEx/config`:
 
-- `Slots`
-- `Groups`
-- `InventoryLimits`
-- `QuickSlots`
-- `KeepOnDeath`
-- `resourceMap`
+- `sighsorry.InventorySlots.cfg` remains in the config root. It contains the BepInEx options shown in Configuration Manager.
+- `InventorySlots/InventorySlots.yml` is server-authoritative and contains `Slots`, `Groups`, `InventoryLimits`, `QuickSlots`, and `KeepOnDeath`.
+- `InventorySlots/ResourceMap.yml` is server-authoritative and controls resource sorting tiers.
+- `InventorySlots/Client.yml` is local, auto-managed UI state. Do not distribute it as server configuration.
 
-Invalid YAML and unknown YAML properties are rejected so the last stable configuration can remain active.
+Invalid server-authoritative YAML and unknown properties are rejected so the last stable configuration can remain active.
 
-Minimal shape:
+Minimal `InventorySlots/InventorySlots.yml` shape:
 
 ```yaml
 Slots:
@@ -394,7 +392,22 @@ KeepOnDeath:
   - Equipment
 ```
 
+`InventorySlots/ResourceMap.yml` maps tier names directly to material lists. Tier order is top to bottom, and the first tier containing a duplicate material wins:
+
+```yaml
+Meadows:
+  - Wood
+  - Stone
+BlackForest:
+  - HardAntler
+  - Bronze
+```
+
+This release does not read or migrate the former root-level `InventorySlots.yml`, root-level `InventorySlots.Client.yml`, or an inline `resourceMap`. Legacy files are left untouched; manually reapply custom settings to the new files and update the server and all clients together.
+
 ## Config Sections
+
+These options are stored in the root-level `sighsorry.InventorySlots.cfg`:
 
 - `1 - General`: server lock, death keep rules, trash panel, area quick stack, area take stacks, and the built-in multi-user chest setting, which is enabled by default.
 - `2 - Progressive Slots`: extra rows, quick slot rows, quick slot progression.

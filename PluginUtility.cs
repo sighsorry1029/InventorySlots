@@ -29,8 +29,10 @@ public sealed partial class InventorySlotsPlugin
         return profile != null ? profile.GetPlayerID().ToString() : player.GetPlayerID().ToString();
     }
 
-    private static string YamlFilePath => Path.Combine(Paths.ConfigPath, YamlFileName);
-    private static string ClientStateFilePath => Path.Combine(Paths.ConfigPath, ClientStateFileName);
+    private static string ConfigDirectoryPath => Path.Combine(Paths.ConfigPath, ConfigDirectoryName);
+    private static string YamlFilePath => Path.Combine(ConfigDirectoryPath, YamlFileName);
+    private static string ResourceMapFilePath => Path.Combine(ConfigDirectoryPath, ResourceMapFileName);
+    private static string ClientStateFilePath => Path.Combine(ConfigDirectoryPath, ClientStateFileName);
 
     private static bool IsUnityNull(UnityEngine.Object? obj)
     {

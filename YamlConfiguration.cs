@@ -4,8 +4,6 @@ using System.IO;
 using System.Linq;
 using ServerSync;
 using UnityEngine;
-using YamlDotNet.Serialization;
-using YamlDotNet.Serialization.NamingConventions;
 using ItemType = ItemDrop.ItemData.ItemType;
 
 namespace InventorySlots;
@@ -17,9 +15,14 @@ public sealed partial class InventorySlotsPlugin
     private static void InitializeYamlSync()
     {
         _syncedYaml = new CustomSyncedValue<string>(ConfigSync, "InventorySlotsYaml", "");
+        _syncedResourceMapYaml = new CustomSyncedValue<string>(ConfigSync, "InventorySlotsResourceMapYaml", "");
         _syncedYaml.ValueChanged += delegate
         {
             ApplyYaml(_syncedYaml.Value, fromSync: true);
+        };
+        _syncedResourceMapYaml.ValueChanged += delegate
+        {
+            ApplyResourceMapYaml(_syncedResourceMapYaml.Value, fromSync: true);
         };
 
         bool defaultYamlValid = EnsureBuiltInYamlValid();
@@ -30,9 +33,8 @@ public sealed partial class InventorySlotsPlugin
         }
         else
         {
-            if (defaultYamlValid)
+            if (defaultYamlValid && ApplyYaml(DefaultYaml, fromSync: false))
             {
-                ApplyYaml(DefaultYaml, fromSync: false);
                 _syncedYaml.AssignLocalValue(DefaultYaml);
             }
             else
@@ -40,6 +42,25 @@ public sealed partial class InventorySlotsPlugin
                 _syncedYaml.AssignLocalValue("");
             }
         }
+
+        bool defaultResourceMapValid = EnsureBuiltInResourceMapYamlValid();
+        string resourceMapYaml = ReadResourceMapFileOrDefault();
+        if (ApplyResourceMapYaml(resourceMapYaml, fromSync: false))
+        {
+            _syncedResourceMapYaml.AssignLocalValue(resourceMapYaml);
+        }
+        else
+        {
+            if (defaultResourceMapValid && ApplyResourceMapYaml(DefaultResourceMapYaml, fromSync: false))
+            {
+                _syncedResourceMapYaml.AssignLocalValue(DefaultResourceMapYaml);
+            }
+            else
+            {
+                _syncedResourceMapYaml.AssignLocalValue("");
+            }
+        }
+
         StartYamlWatcher();
     }
 
@@ -54,9 +75,29 @@ public sealed partial class InventorySlotsPlugin
         _yamlConfig = new YamlRoot();
         RebuildPredefinedGroups();
         RebuildInventoryLimits();
-        RebuildResourceMap();
         RebuildSlotDefinitions();
         ClearCraftingRecipeCaches();
+        return false;
+    }
+
+    private static bool EnsureBuiltInResourceMapYamlValid()
+    {
+        if (InventorySlotsConfigCore.TryParseResourceMapYaml(DefaultResourceMapYaml, out _, out Exception? error))
+        {
+            return true;
+        }
+
+        Log.LogError($"Built-in ResourceMap YAML failed to parse. Falling back to no resource tiers: {error}");
+        ResourceTierByToken.Clear();
+        try
+        {
+            ClearCraftingRecipeCaches();
+        }
+        catch (Exception ex)
+        {
+            Log.LogWarning($"ResourceMap fallback succeeded, but crafting cache refresh failed: {ex}");
+        }
+
         return false;
     }
 
@@ -64,22 +105,20 @@ public sealed partial class InventorySlotsPlugin
     {
         StopYamlWatcher();
 
-        string? directory = Path.GetDirectoryName(YamlFilePath);
-        if (string.IsNullOrWhiteSpace(directory))
-        {
-            return;
-        }
-
-        Directory.CreateDirectory(directory);
-        _yamlWatcher = new FileSystemWatcher(directory, YamlFileName)
+        Directory.CreateDirectory(ConfigDirectoryPath);
+        _yamlWatcher = new FileSystemWatcher(ConfigDirectoryPath, "*.yml")
         {
             IncludeSubdirectories = false,
             NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.CreationTime
         };
 
-        FileSystemEventHandler queueReload = (_, _) => QueueYamlReload();
-        RenamedEventHandler queueRenameReload = (_, _) => QueueYamlReload();
-        ErrorEventHandler queueErrorReload = (_, _) => QueueYamlReload();
+        FileSystemEventHandler queueReload = (_, args) => QueueYamlReloadForFile(args.FullPath);
+        RenamedEventHandler queueRenameReload = (_, args) =>
+        {
+            QueueYamlReloadForFile(args.OldFullPath);
+            QueueYamlReloadForFile(args.FullPath);
+        };
+        ErrorEventHandler queueErrorReload = (_, _) => QueueYamlReload(reloadYaml: true, reloadResourceMap: true);
         _yamlWatcher.Changed += queueReload;
         _yamlWatcher.Created += queueReload;
         _yamlWatcher.Deleted += queueReload;
@@ -100,20 +139,41 @@ public sealed partial class InventorySlotsPlugin
         _yamlWatcher = null;
     }
 
-    private static void QueueYamlReload()
+    private static void QueueYamlReloadForFile(string? path)
     {
+        string fileName = Path.GetFileName(path);
+        if (string.Equals(fileName, YamlFileName, StringComparison.OrdinalIgnoreCase))
+        {
+            QueueYamlReload(reloadYaml: true, reloadResourceMap: false);
+        }
+        else if (string.Equals(fileName, ResourceMapFileName, StringComparison.OrdinalIgnoreCase))
+        {
+            QueueYamlReload(reloadYaml: false, reloadResourceMap: true);
+        }
+    }
+
+    private static void QueueYamlReload(bool reloadYaml, bool reloadResourceMap)
+    {
+        if (!reloadYaml && !reloadResourceMap)
+        {
+            return;
+        }
+
         lock (YamlReloadLock)
         {
-            _yamlReloadQueued = true;
+            _yamlReloadQueued |= reloadYaml;
+            _resourceMapReloadQueued |= reloadResourceMap;
             _yamlReloadAfterUtc = DateTime.UtcNow.AddMilliseconds(250);
         }
     }
 
     private static void ProcessYamlHotReload()
     {
+        bool reloadYaml;
+        bool reloadResourceMap;
         lock (YamlReloadLock)
         {
-            if (!_yamlReloadQueued)
+            if (!_yamlReloadQueued && !_resourceMapReloadQueued)
             {
                 return;
             }
@@ -123,7 +183,10 @@ public sealed partial class InventorySlotsPlugin
                 return;
             }
 
+            reloadYaml = _yamlReloadQueued;
+            reloadResourceMap = _resourceMapReloadQueued;
             _yamlReloadQueued = false;
+            _resourceMapReloadQueued = false;
         }
 
         if (!CanApplyLocalYamlChanges())
@@ -131,6 +194,19 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
+        if (reloadYaml)
+        {
+            ProcessInventorySlotsYamlHotReload();
+        }
+
+        if (reloadResourceMap)
+        {
+            ProcessResourceMapYamlHotReload();
+        }
+    }
+
+    private static void ProcessInventorySlotsYamlHotReload()
+    {
         try
         {
             string yaml = ReadYamlFileOrDefault();
@@ -145,12 +221,37 @@ public sealed partial class InventorySlotsPlugin
         catch (IOException ex)
         {
             Log.LogWarning($"InventorySlots YAML hot reload delayed because the file is still busy: {ex.Message}");
-            QueueYamlReload();
+            QueueYamlReload(reloadYaml: true, reloadResourceMap: false);
         }
         catch (UnauthorizedAccessException ex)
         {
             Log.LogWarning($"InventorySlots YAML hot reload delayed because the file cannot be read yet: {ex.Message}");
-            QueueYamlReload();
+            QueueYamlReload(reloadYaml: true, reloadResourceMap: false);
+        }
+    }
+
+    private static void ProcessResourceMapYamlHotReload()
+    {
+        try
+        {
+            string yaml = ReadResourceMapFileOrDefault();
+            if (!ApplyResourceMapYaml(yaml, fromSync: false))
+            {
+                return;
+            }
+
+            _syncedResourceMapYaml.AssignLocalValue(yaml);
+            Log.LogInfo("InventorySlots ResourceMap YAML hot-reloaded.");
+        }
+        catch (IOException ex)
+        {
+            Log.LogWarning($"ResourceMap YAML hot reload delayed because the file is still busy: {ex.Message}");
+            QueueYamlReload(reloadYaml: false, reloadResourceMap: true);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Log.LogWarning($"ResourceMap YAML hot reload delayed because the file cannot be read yet: {ex.Message}");
+            QueueYamlReload(reloadYaml: false, reloadResourceMap: true);
         }
     }
 
@@ -164,15 +265,23 @@ public sealed partial class InventorySlotsPlugin
         return File.Exists(YamlFilePath) ? File.ReadAllText(YamlFilePath) : DefaultYaml;
     }
 
-    private static void EnsureDefaultYamlFile()
+    private static string ReadResourceMapFileOrDefault()
     {
-        if (File.Exists(YamlFilePath))
+        return File.Exists(ResourceMapFilePath) ? File.ReadAllText(ResourceMapFilePath) : DefaultResourceMapYaml;
+    }
+
+    private static void EnsureDefaultYamlFiles()
+    {
+        Directory.CreateDirectory(ConfigDirectoryPath);
+        if (!File.Exists(YamlFilePath))
         {
-            return;
+            File.WriteAllText(YamlFilePath, DefaultYaml);
         }
 
-        Directory.CreateDirectory(Path.GetDirectoryName(YamlFilePath)!);
-        File.WriteAllText(YamlFilePath, DefaultYaml);
+        if (!File.Exists(ResourceMapFilePath))
+        {
+            File.WriteAllText(ResourceMapFilePath, DefaultResourceMapYaml);
+        }
     }
 
     private static bool ApplyYaml(string yaml, bool fromSync)
@@ -195,7 +304,6 @@ public sealed partial class InventorySlotsPlugin
             _yamlConfig = nextConfig;
             RebuildPredefinedGroups();
             RebuildInventoryLimits();
-            RebuildResourceMap();
             RebuildSlotDefinitions();
         }
         catch (Exception ex)
@@ -223,6 +331,8 @@ public sealed partial class InventorySlotsPlugin
             Log.LogWarning($"Applied {source} InventorySlots YAML, but crafting cache refresh failed: {ex}");
         }
 
+        InvalidateCraftingRecipeView();
+
         try
         {
             Player? player = Player.m_localPlayer;
@@ -239,6 +349,55 @@ public sealed partial class InventorySlotsPlugin
         return true;
     }
 
+    private static bool ApplyResourceMapYaml(string yaml, bool fromSync)
+    {
+        string source = fromSync ? "synced" : "local";
+        Dictionary<string, int> nextResourceTiers;
+        try
+        {
+            nextResourceTiers = InventorySlotsConfigCore.ParseResourceMapYaml(yaml);
+        }
+        catch (Exception ex)
+        {
+            Log.LogWarning($"Failed to parse {source} ResourceMap YAML; keeping the last stable resource tiers: {ex}");
+            return false;
+        }
+
+        Dictionary<string, int> previousResourceTiers =
+            new(ResourceTierByToken, StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            ResourceTierByToken.Clear();
+            foreach (KeyValuePair<string, int> entry in nextResourceTiers)
+            {
+                ResourceTierByToken[entry.Key] = entry.Value;
+            }
+        }
+        catch (Exception ex)
+        {
+            ResourceTierByToken.Clear();
+            foreach (KeyValuePair<string, int> entry in previousResourceTiers)
+            {
+                ResourceTierByToken[entry.Key] = entry.Value;
+            }
+
+            Log.LogWarning($"Failed to apply {source} ResourceMap YAML; keeping the last stable resource tiers: {ex}");
+            return false;
+        }
+
+        try
+        {
+            ClearCraftingRecipeCaches();
+        }
+        catch (Exception ex)
+        {
+            Log.LogWarning($"Applied {source} ResourceMap YAML, but crafting cache refresh failed: {ex}");
+        }
+
+        InvalidateCraftingRecipeView();
+        return true;
+    }
+
     private static YamlApplySnapshot CreateYamlApplySnapshot() =>
         new(
             _yamlConfig,
@@ -251,8 +410,7 @@ public sealed partial class InventorySlotsPlugin
             PredefinedGroupOrders.ToDictionary(
                 entry => entry.Key,
                 entry => entry.Value.ToList(),
-                StringComparer.OrdinalIgnoreCase),
-            new Dictionary<string, int>(ResourceTierByToken, StringComparer.OrdinalIgnoreCase));
+                StringComparer.OrdinalIgnoreCase));
 
     private static void RestoreYamlApplySnapshot(YamlApplySnapshot snapshot)
     {
@@ -278,12 +436,6 @@ public sealed partial class InventorySlotsPlugin
         }
 
         RebuildInventoryLimits();
-
-        ResourceTierByToken.Clear();
-        foreach (KeyValuePair<string, int> entry in snapshot.ResourceTierByToken)
-        {
-            ResourceTierByToken[entry.Key] = entry.Value;
-        }
     }
 
     private sealed class YamlApplySnapshot
@@ -293,15 +445,13 @@ public sealed partial class InventorySlotsPlugin
             List<SlotDefinition> slotDefinitions,
             Dictionary<string, List<string>> predefinedGroupDefinitions,
             List<string> predefinedGroupOrder,
-            Dictionary<string, List<string>> predefinedGroupOrders,
-            Dictionary<string, int> resourceTierByToken)
+            Dictionary<string, List<string>> predefinedGroupOrders)
         {
             Config = config;
             SlotDefinitions = slotDefinitions;
             PredefinedGroupDefinitions = predefinedGroupDefinitions;
             PredefinedGroupOrder = predefinedGroupOrder;
             PredefinedGroupOrders = predefinedGroupOrders;
-            ResourceTierByToken = resourceTierByToken;
         }
 
         public YamlRoot Config { get; }
@@ -309,7 +459,6 @@ public sealed partial class InventorySlotsPlugin
         public Dictionary<string, List<string>> PredefinedGroupDefinitions { get; }
         public List<string> PredefinedGroupOrder { get; }
         public Dictionary<string, List<string>> PredefinedGroupOrders { get; }
-        public Dictionary<string, int> ResourceTierByToken { get; }
     }
 
     private static void RebuildPredefinedGroups()
@@ -455,15 +604,6 @@ public sealed partial class InventorySlotsPlugin
             {
                 PredefinedGroupOrder.Add(normalizedGroupId);
             }
-        }
-    }
-
-    private static void RebuildResourceMap()
-    {
-        ResourceTierByToken.Clear();
-        foreach (KeyValuePair<string, int> entry in InventorySlotsConfigCore.BuildResourceTierMap(_yamlConfig))
-        {
-            ResourceTierByToken[entry.Key] = entry.Value;
         }
     }
 

@@ -11,7 +11,13 @@ TestRunner.Run(
     ("Slot id normalization preserves compat dots", Tests.SlotIdNormalizationPreservesCompatDots),
     ("Group id normalization removes punctuation", Tests.GroupIdNormalizationRemovesPunctuation),
     ("Localization token stripping preserves item identity", Tests.LocalizationTokenStrippingPreservesItemIdentity),
+    ("Default resource map parses with expected tier order", Tests.DefaultResourceMapParsesWithExpectedTierOrder),
     ("Resource tier map normalizes tokens and keeps first tier", Tests.ResourceTierMapNormalizesTokensAndKeepsFirstTier),
+    ("Malformed resource maps are rejected", Tests.MalformedResourceMapsAreRejected),
+    ("Legacy resource map schema is rejected", Tests.LegacyResourceMapSchemaIsRejected),
+    ("Resource map rejects multiple documents", Tests.ResourceMapRejectsMultipleDocuments),
+    ("Resource map rejects duplicate tier names", Tests.ResourceMapRejectsDuplicateTierNames),
+    ("Main YAML rejects legacy inline resource map", Tests.MainYamlRejectsLegacyInlineResourceMap),
     ("Built-in group section names normalize to ids", Tests.BuiltInGroupSectionNamesNormalizeToIds),
     ("Dominant food stat tie breaks are stable", Tests.DominantFoodStatTieBreaksAreStable),
     ("Dominant food stat ignores empty foods", Tests.DominantFoodStatIgnoresEmptyFoods),
@@ -127,7 +133,6 @@ internal static class Tests
         Assert.Equal(1, root.InventoryLimits["FishingRod"]);
         Assert.Equal(3, root.InventoryLimits["tankards"]);
         Assert.Equal(3, root.InventoryLimits["FLG_TamingOrb"]);
-        Assert.True(root.ResourceMap.Count >= 8, "default resourceMap should contain biome tiers");
     }
 
     public static void MalformedYamlIsRejected()
@@ -221,23 +226,113 @@ internal static class Tests
 
     public static void ResourceTierMapNormalizesTokensAndKeepsFirstTier()
     {
-        YamlRoot root = InventorySlotsConfigCore.ParseYaml("""
-        resourceMap:
-          - biome: Meadows
-            materials:
-              - Wood
-              - $item_Stone
-          - biome: BlackForest
-            materials:
-              - Wood
-              - Bronze(Clone)
+        Dictionary<string, int> tiers = InventorySlotsConfigCore.ParseResourceMapYaml("""
+        Meadows:
+          - Wood
+          - $item_Stone
+        BlackForest:
+          - Wood
+          - Bronze(Clone)
         """);
-
-        Dictionary<string, int> tiers = InventorySlotsConfigCore.BuildResourceTierMap(root);
 
         Assert.Equal(0, tiers["wood"]);
         Assert.Equal(0, tiers["stone"]);
         Assert.Equal(1, tiers["bronze"]);
+    }
+
+    public static void DefaultResourceMapParsesWithExpectedTierOrder()
+    {
+        Dictionary<string, int> tiers =
+            InventorySlotsConfigCore.ParseResourceMapYaml(InventorySlotsPlugin.DefaultResourceMapYaml);
+
+        Assert.Equal(0, tiers["wood"]);
+        Assert.Equal(1, tiers["bronze"]);
+        Assert.Equal(2, tiers["iron"]);
+        Assert.Equal(3, tiers["chitin"]);
+        Assert.Equal(4, tiers["silver"]);
+        Assert.Equal(5, tiers["blackmetal"]);
+        Assert.Equal(6, tiers["eitr"]);
+        Assert.Equal(7, tiers["flametalnew"]);
+        Assert.Equal(0, tiers["resin"]);
+        Assert.Equal(0, tiers["bonefragments"]);
+    }
+
+    public static void MalformedResourceMapsAreRejected()
+    {
+        string[] malformedMaps =
+        [
+            "Meadows: Wood",
+            "Meadows:\n  - prefab: Wood",
+            "Meadows:\n  - \"\""
+        ];
+
+        foreach (string yaml in malformedMaps)
+        {
+            bool parsed = InventorySlotsConfigCore.TryParseResourceMapYaml(yaml, out _, out Exception? error);
+
+            Assert.False(parsed, "malformed ResourceMap.yml should not parse");
+            Assert.True(error != null, "malformed ResourceMap.yml should report an error");
+        }
+    }
+
+    public static void LegacyResourceMapSchemaIsRejected()
+    {
+        string yaml = """
+        - biome: Meadows
+          materials:
+            - Wood
+        """;
+
+        Assert.False(
+            InventorySlotsConfigCore.TryParseResourceMapYaml(yaml, out _, out Exception? error),
+            "the old biome/materials sequence schema should not parse");
+        Assert.True(error != null, "the old ResourceMap schema should report an error");
+    }
+
+    public static void ResourceMapRejectsMultipleDocuments()
+    {
+        string yaml = """
+        Meadows:
+          - Wood
+        ---
+        BlackForest:
+          - Bronze
+        """;
+
+        Assert.False(
+            InventorySlotsConfigCore.TryParseResourceMapYaml(yaml, out _, out Exception? error),
+            "ResourceMap.yml should contain exactly one YAML document");
+        Assert.True(error != null, "multiple YAML documents should report an error");
+    }
+
+    public static void ResourceMapRejectsDuplicateTierNames()
+    {
+        string yaml = """
+        Meadows:
+          - Wood
+        meadows:
+          - Stone
+        """;
+
+        Assert.False(
+            InventorySlotsConfigCore.TryParseResourceMapYaml(yaml, out _, out Exception? error),
+            "tier names duplicated with different casing should not parse");
+        Assert.True(error != null, "duplicate tier names should report an error");
+    }
+
+    public static void MainYamlRejectsLegacyInlineResourceMap()
+    {
+        string yaml = """
+        Slots: []
+        resourceMap:
+          Meadows:
+            - Wood
+        """;
+
+        Assert.False(
+            InventorySlotsConfigCore.TryParseYaml(yaml, out _, out Exception? error),
+            "resourceMap is no longer valid inside InventorySlots.yml");
+        Assert.True(error != null, "legacy inline resourceMap should report an error");
     }
 
     public static void BuiltInGroupSectionNamesNormalizeToIds()

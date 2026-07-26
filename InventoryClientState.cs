@@ -19,6 +19,7 @@ public sealed partial class InventorySlotsPlugin
         InventoryClient.ClientState = new InventorySlotsClientState();
         if (!File.Exists(ClientStateFilePath))
         {
+            SaveClientState();
             return;
         }
 
@@ -44,7 +45,7 @@ public sealed partial class InventorySlotsPlugin
         {
             EnsureClientStateLoaded();
             NormalizeClientState();
-            Directory.CreateDirectory(Paths.ConfigPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(ClientStateFilePath)!);
 
             ISerializer serializer = new SerializerBuilder()
                 .WithNamingConvention(CamelCaseNamingConvention.Instance)

@@ -1,0 +1,124 @@
+# Resource tiers for crafting recipe sorting, ordered from lowest to highest.
+# InventorySlots sorts higher tiers first in the crafting grid. When a material
+# appears in more than one tier, its first occurrence wins. Keep tier keys in
+# progression order; alphabetical key sorting changes their meaning.
+Meadows:
+  - Wood
+  - Stone
+  - Resin
+  - Dandelion
+  - Flint
+  - LeatherScraps
+  - BoneFragments
+  - Honey
+  - Raspberry
+  - Blueberries
+  - DeerHide
+  - DeerMeat
+  - Feathers
+  - GreydwarfEye
+  - RawMeat
+BlackForest:
+  - HardAntler
+  - Bronze
+  - BronzeNails
+  - Copper
+  - Tin
+  - Ectoplasm
+  - SurtlingCore
+  - TrollHide
+  - BjornHide
+  - FineWood
+  - AncientSeed
+  - Carrot
+  - BjornMeat
+  - BjornPaw
+  - RoundLog
+  - Thistle
+Swamp:
+  - Iron
+  - Ooze
+  - Entrails
+  - Guck
+  - Bloodbag
+  - Chain
+  - ElderBark
+  - IronNails
+  - Root
+  - Turnip
+  - WitheredBone
+  - CuredSquirrelHamstring
+Ocean:
+  - Chitin
+  - Resin
+  - SerpentScale
+  - SerpentMeat
+Mountain:
+  - Silver
+  - Crystal
+  - DragonEgg
+  - JuteRed
+  - Obsidian
+  - WolfClaw
+  - WolfFang
+  - WolfHairBundle
+  - WolfMeat
+  - WolfPelt
+Plains:
+  - UndeadBjornRibcage
+  - BlackMetal
+  - DragonTear
+  - Barley
+  - BarleyFlour
+  - BoneFragments
+  - ChickenEgg
+  - ChickenMeat
+  - Flax
+  - GoblinTotem
+  - LinenThread
+  - LoxMeat
+  - LoxPelt
+  - Needle
+  - Tar
+Mistlands:
+  - Eitr
+  - Bilebag
+  - BlackCore
+  - BlackMarble
+  - BugMeat
+  - Carapace
+  - DvergrKeyFragment
+  - DvergrNeedle
+  - GiantBloodSack
+  - HareMeat
+  - JuteBlue
+  - Mandible
+  - Sap
+  - ScaleHide
+  - Softtissue
+  - Wisp
+  - YagluthDrop
+  - YggdrasilWood
+AshLands:
+  - FlametalNew
+  - AskBladder
+  - AskHide
+  - AsksvinEgg
+  - AsksvinMeat
+  - Blackwood
+  - BoneMawSerpentMeat
+  - BonemawSerpentTooth
+  - CelestialFeather
+  - CeramicPlate
+  - CharcoalResin
+  - CharredBone
+  - CharredCogwheel
+  - Charredskull
+  - Grausten
+  - MoltenCore
+  - MorgenHeart
+  - MorgenSinew
+  - ProustitePowder
+  - SulfurStone
+  - VoltureEgg
+  - VoltureMeat

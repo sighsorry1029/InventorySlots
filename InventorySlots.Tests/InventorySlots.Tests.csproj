@@ -38,8 +38,11 @@
     <Compile Include="..\TooltipSourceCacheCore.cs" Link="TooltipSourceCacheCore.cs" />
     <Compile Include="..\UpgradeFavoriteCore.cs" Link="UpgradeFavoriteCore.cs" />
     <Compile Include="..\YamlConfigurationDefaults.cs" Link="YamlConfigurationDefaults.cs" />
-    <EmbeddedResource Include="..\config\InventorySlots.yml" Link="config\InventorySlots.yml">
+    <EmbeddedResource Include="..\config\InventorySlots\InventorySlots.yml" Link="config\InventorySlots\InventorySlots.yml">
       <LogicalName>InventorySlots.Default.yml</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\config\InventorySlots\ResourceMap.yml" Link="config\InventorySlots\ResourceMap.yml">
+      <LogicalName>InventorySlots.ResourceMap.Default.yml</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
 

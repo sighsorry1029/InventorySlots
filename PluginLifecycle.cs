@@ -13,7 +13,7 @@ public sealed partial class InventorySlotsPlugin
         Config.SaveOnConfigSet = false;
 
         BindConfigs();
-        EnsureDefaultYamlFile();
+        EnsureDefaultYamlFiles();
         InitializeJewelcraftingSlotCompatibility();
         InitializeBackpackCompatibility();
         InitializeMagicSupremacyCompatibility();

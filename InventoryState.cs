@@ -211,6 +211,7 @@ public sealed partial class InventorySlotsPlugin
     }
 
     private static CustomSyncedValue<string> _syncedYaml = null!;
+    private static CustomSyncedValue<string> _syncedResourceMapYaml = null!;
     private static FileSystemWatcher? _yamlWatcher;
     private static readonly object YamlReloadLock = new();
     private static readonly InventoryPanelRuntimeState InventoryPanels = new();
@@ -239,6 +240,7 @@ public sealed partial class InventorySlotsPlugin
     private float _nextLightAuditTime;
     private float _nextHeavyAuditTime;
     private static bool _yamlReloadQueued;
+    private static bool _resourceMapReloadQueued;
     private static DateTime _yamlReloadAfterUtc;
     private static HashSet<Vector2i> FavoriteSlots => InventoryClient.FavoriteSlots;
 

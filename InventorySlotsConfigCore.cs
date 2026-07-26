@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using YamlDotNet.RepresentationModel;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
@@ -46,29 +47,89 @@ internal static class InventorySlotsConfigCore
         }
     }
 
-    public static Dictionary<string, int> BuildResourceTierMap(YamlRoot config)
+    public static Dictionary<string, int> ParseResourceMapYaml(string yaml)
     {
         Dictionary<string, int> result = new(StringComparer.OrdinalIgnoreCase);
-        List<YamlResourceTier> tiers = config.ResourceMap ?? new List<YamlResourceTier>();
-        for (int index = 0; index < tiers.Count; index++)
+        if (string.IsNullOrWhiteSpace(yaml))
         {
-            YamlResourceTier tier = tiers[index];
-            if (tier == null)
+            return result;
+        }
+
+        YamlStream stream = new();
+        using (StringReader reader = new(yaml))
+        {
+            stream.Load(reader);
+        }
+
+        if (stream.Documents.Count != 1)
+        {
+            throw new InvalidDataException("ResourceMap.yml must contain exactly one YAML document.");
+        }
+
+        if (stream.Documents[0].RootNode is not YamlMappingNode root)
+        {
+            throw new InvalidDataException("ResourceMap.yml root must be a mapping of tier names to material lists.");
+        }
+
+        HashSet<string> tierNames = new(StringComparer.OrdinalIgnoreCase);
+        int tierIndex = 0;
+        foreach (KeyValuePair<YamlNode, YamlNode> entry in root.Children)
+        {
+            if (entry.Key is not YamlScalarNode tierNode || string.IsNullOrWhiteSpace(tierNode.Value))
             {
-                continue;
+                throw new InvalidDataException("ResourceMap.yml contains an empty or structured tier name.");
             }
 
-            foreach (string material in tier.Materials ?? new List<string>())
+            string tierName = tierNode.Value!.Trim();
+            if (!tierNames.Add(tierName))
             {
-                string token = NormalizeResourceToken(material);
-                if (!string.IsNullOrWhiteSpace(token) && !result.ContainsKey(token))
+                throw new InvalidDataException($"ResourceMap.yml tier '{tierName}' is duplicated with different casing.");
+            }
+
+            if (entry.Value is not YamlSequenceNode materials)
+            {
+                throw new InvalidDataException($"ResourceMap.yml tier '{tierName}' must contain a YAML sequence.");
+            }
+
+            foreach (YamlNode materialNode in materials.Children)
+            {
+                if (materialNode is not YamlScalarNode materialScalar || string.IsNullOrWhiteSpace(materialScalar.Value))
                 {
-                    result[token] = index;
+                    throw new InvalidDataException($"ResourceMap.yml tier '{tierName}' contains an empty or structured material.");
+                }
+
+                string token = NormalizeResourceToken(materialScalar.Value);
+                if (string.IsNullOrWhiteSpace(token))
+                {
+                    throw new InvalidDataException($"ResourceMap.yml tier '{tierName}' contains a material with no usable token.");
+                }
+
+                if (!result.ContainsKey(token))
+                {
+                    result[token] = tierIndex;
                 }
             }
+
+            tierIndex++;
         }
 
         return result;
+    }
+
+    public static bool TryParseResourceMapYaml(string yaml, out Dictionary<string, int> resourceTiers, out Exception? error)
+    {
+        try
+        {
+            resourceTiers = ParseResourceMapYaml(yaml);
+            error = null;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            resourceTiers = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            error = ex;
+            return false;
+        }
     }
 
     public static Dictionary<string, int> BuildInventoryLimits(YamlRoot config)

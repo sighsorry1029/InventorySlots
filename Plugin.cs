@@ -56,8 +56,10 @@ public sealed partial class InventorySlotsPlugin : BaseUnityPlugin
     private const string MagicSupremacyBeltSlotId = "magicsupremacy.belt";
     private const string MagicSupremacyNativeBeltSlotId = "belt";
     private const string MultiUserChestIgnoreZdoKey = "MUC_Ignore";
+    private const string ConfigDirectoryName = "InventorySlots";
     private const string YamlFileName = "InventorySlots.yml";
-    private const string ClientStateFileName = "InventorySlots.Client.yml";
+    private const string ResourceMapFileName = "ResourceMap.yml";
+    private const string ClientStateFileName = "Client.yml";
     private const string CustomSlotPanelName = "InventorySlots_CustomSlotPanel";
     private const string QuickSlotPanelName = "InventorySlots_QuickSlotPanel";
     private const string SlotPanelDragBorderName = "InventorySlots_DragBorder";

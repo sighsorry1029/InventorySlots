@@ -8,13 +8,13 @@
 
 ![](https://i.ibb.co/QFFMsQgx/progressiveslotfinal.gif)
 
-점진적 인벤토리 행과 퀵 슬롯은 시간이 지나며 해금됨. 저장된 아이템 위치를 뒤섞지 않음. 클라이언트에서 현재 보이는 인벤토리 행을 펼치거나 접을 수 있음. 장비 슬롯은 `InventorySlots.yml`에서 정의됨.
+점진적 인벤토리 행과 퀵 슬롯은 시간이 지나며 해금됨. 저장된 아이템 위치를 뒤섞지 않음. 클라이언트에서 현재 보이는 인벤토리 행을 펼치거나 접을 수 있음. 장비 슬롯은 `InventorySlots/InventorySlots.yml`에서 정의됨.
 
 ![](https://i.ibb.co/B2RrkCH1/hotbarswitch.gif)
 
 핫바 전환 키로 현재 표시되는 핫바 행을 순환할 수 있음. 내부 아이템 좌표를 옮기지 않으므로 인벤토리가 커져도 핫바를 실용적으로 사용할 수 있음.
 
-`InventorySlots.yml`의 `QuickSlots` 규칙에 맞는 새 스택은 자동 배치 시 핫바를 먼저 사용하고, 맞지 않는 아이템은 2~n행을 먼저 사용함. 기존 부분 스택 합치기와 직접 드래그 위치는 바뀌지 않음.
+`InventorySlots/InventorySlots.yml`의 `QuickSlots` 규칙에 맞는 새 스택은 자동 배치 시 핫바를 먼저 사용하고, 맞지 않는 아이템은 2~n행을 먼저 사용함. 기존 부분 스택 합치기와 직접 드래그 위치는 바뀌지 않음.
 
 ![](https://i.ibb.co/5XMjS4Cw/keyhint.png)
 
@@ -90,7 +90,7 @@ InventorySlots 툴팁은 스크롤 가능한 패널로 확장될 수 있음. 여
 
 ![](https://i.ibb.co/JWPfnMWn/epiclootcompatible.png)
 
-EpicLoot 아이템은 툴팁 정보를 유지함. `InventorySlots.yml`에 설정하면 InventorySlots의 장비/커스텀 슬롯 라우팅을 사용할 수 있음.
+EpicLoot 아이템은 툴팁 정보를 유지함. `InventorySlots/InventorySlots.yml`에 설정하면 InventorySlots의 장비/커스텀 슬롯 라우팅을 사용할 수 있음.
 
 ![](https://i.ibb.co/4ZD7PW47/upgradeepicloot.png)
 
@@ -99,3 +99,25 @@ EpicLoot 장비도 업그레이드 화면에서 InventorySlots의 고정 툴팁�
 ![](https://i.ibb.co/ymQvwRzd/comparejewel.png)
 
 Jewelcrafting의 소켓과 보석 툴팁 내용은 InventorySlots의 툴팁과 비교 흐름에서 지원됨.
+
+## 구성 파일
+
+`BepInEx/config` 아래에서 다음 파일을 사용함.
+
+- `sighsorry.InventorySlots.cfg`: config 루트에 유지되는 BepInEx 설정 파일임. Configuration Manager에 표시되는 옵션을 저장함.
+- `InventorySlots/InventorySlots.yml`: 서버 권한 설정임. `Slots`, `Groups`, `InventoryLimits`, `QuickSlots`, `KeepOnDeath`를 저장함.
+- `InventorySlots/ResourceMap.yml`: 서버 권한 설정임. 자원 정렬 티어를 저장함.
+- `InventorySlots/Client.yml`: 로컬 UI 상태를 자동으로 저장하는 파일임. 서버 설정으로 배포하지 않아도 됨.
+
+`InventorySlots/ResourceMap.yml`은 티어 이름과 재료 목록을 직접 연결함. 위에서 아래 순서로 티어가 정해지며, 같은 재료가 여러 번 나오면 처음 나온 티어가 적용됨.
+
+```yaml
+Meadows:
+  - Wood
+  - Stone
+BlackForest:
+  - HardAntler
+  - Bronze
+```
+
+이번 버전은 config 루트의 기존 `InventorySlots.yml`, `InventorySlots.Client.yml`, 또는 `InventorySlots.yml` 내부의 `resourceMap`을 읽거나 이전하지 않음. 기존 파일은 삭제하지 않고 그대로 둠. 커스텀 설정을 새 파일에 수동으로 다시 적용하고 서버와 모든 클라이언트를 함께 업데이트해야 함.
