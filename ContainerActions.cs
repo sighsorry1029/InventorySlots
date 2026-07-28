@@ -13,7 +13,11 @@ public sealed partial class InventorySlotsPlugin
     private const float ContainerActionSuccessSfxLifetime = 5f;
     private delegate bool TryGetContainerHoldContext(Player player, out Container container);
 
-    private static List<Container> GetActionContainers(Player player, Container currentContainer, bool areaForQuickStack)
+    private static List<Container> GetActionContainers(
+        Player player,
+        Container currentContainer,
+        bool areaForQuickStack,
+        bool includeBuiltInRemote = false)
     {
         List<Container> containers = new();
         HashSet<Container> seen = new();
@@ -50,14 +54,38 @@ public sealed partial class InventorySlotsPlugin
                 continue;
             }
 
-            if (IsAreaContainerAllowed(player, container, currentContainer, origin, rangeSq, out float distanceSq))
+            if (IsAreaContainerAllowed(
+                    player,
+                    container,
+                    currentContainer,
+                    origin,
+                    rangeSq,
+                    includeBuiltInRemote,
+                    out float distanceSq))
             {
                 areaContainers.Add((container, distanceSq));
                 seen.Add(container);
             }
         }
 
-        areaContainers.Sort((left, right) => left.DistanceSq.CompareTo(right.DistanceSq));
+        areaContainers.Sort((left, right) =>
+        {
+            int distanceComparison =
+                left.DistanceSq.CompareTo(right.DistanceSq);
+            if (distanceComparison != 0)
+            {
+                return distanceComparison;
+            }
+
+            ZDO? leftZdo = left.Container.m_nview?.GetZDO();
+            ZDO? rightZdo = right.Container.m_nview?.GetZDO();
+            if (leftZdo == null || rightZdo == null)
+            {
+                return 0;
+            }
+
+            return leftZdo.m_uid.CompareTo(rightZdo.m_uid);
+        });
         foreach ((Container container, _) in areaContainers)
         {
             containers.Add(container);
@@ -170,6 +198,12 @@ public sealed partial class InventorySlotsPlugin
 
         if (player == null || player.m_isLoading || InventoryGui.instance == null)
         {
+            return false;
+        }
+
+        if (IsMultiUserContainerAreaBatchActive())
+        {
+            ShowMultiUserContainerNotReady();
             return false;
         }
 

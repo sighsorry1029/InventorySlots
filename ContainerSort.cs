@@ -24,6 +24,12 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
+        if (IsMultiUserContainerAreaBatchActive())
+        {
+            ShowMultiUserContainerNotReady();
+            return;
+        }
+
         Container container = InventoryGui.instance.m_currentContainer;
         if (container == null || container.m_inventory == null)
         {

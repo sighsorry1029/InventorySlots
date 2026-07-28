@@ -14,6 +14,12 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
+        if (IsMultiUserContainerAreaBatchActive())
+        {
+            ShowMultiUserContainerNotReady();
+            return true;
+        }
+
         ContainerAccessMode accessMode = GetContainerAccessMode(
             gui.m_currentContainer,
             allowLocalWithoutZNetView: true);
@@ -54,18 +60,16 @@ public sealed partial class InventorySlotsPlugin
         ContainerAccessMode accessMode = GetContainerAccessMode(
             container,
             allowLocalWithoutZNetView: true);
+        if (IsBuiltInMultiUserChestEnabled &&
+            TryHandleMultiUserContainerAreaQuickStack(container))
+        {
+            return true;
+        }
+
         if (accessMode == ContainerAccessMode.MultiUserChestRemote &&
             IsBuiltInMultiUserChestEnabled)
         {
-            InventoryGui? gui = InventoryGui.instance;
-            if (gui == null ||
-                IsUnityNull(gui) ||
-                gui.m_currentContainer != container ||
-                !TryStartMultiUserContainerPlaceStacksBatch(container))
-            {
-                ShowMultiUserContainerNotReady();
-            }
-
+            ShowMultiUserContainerNotReady();
             return true;
         }
 
@@ -109,7 +113,7 @@ public sealed partial class InventorySlotsPlugin
         if (hovered == null ||
             player.m_isLoading ||
             hovered.m_inventory == null ||
-            !CanMutateContainerDirectly(hovered, allowLocalWithoutZNetView: true))
+            !CanHandleContainerAreaAction(player, hovered))
         {
             return false;
         }
@@ -123,7 +127,21 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool TryQuickStackFromHoveredContainer(Player player, Container container)
     {
-        if (container == null || container.m_inventory == null || !CanMutateContainerDirectly(container, allowLocalWithoutZNetView: true))
+        if (container == null ||
+            container.m_inventory == null ||
+            !CanHandleContainerAreaAction(player, container))
+        {
+            return false;
+        }
+
+        if (TryHandleMultiUserContainerAreaQuickStack(container))
+        {
+            return true;
+        }
+
+        if (!CanMutateContainerDirectly(
+                container,
+                allowLocalWithoutZNetView: true))
         {
             return false;
         }

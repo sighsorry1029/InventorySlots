@@ -17,15 +17,39 @@ public sealed partial class InventorySlotsPlugin
                !player.m_isLoading &&
                container != null &&
                container.m_inventory != null &&
-               CanMutateContainerDirectly(container, allowLocalWithoutZNetView: true) &&
+               CanHandleContainerAreaAction(player, container) &&
                HasContainerPlayerAccess(player, container, flashGuardStone: false);
     }
 
-    private static bool IsAreaContainerAllowed(Player player, Container container, Container? currentContainer, Vector3 playerPosition, float rangeSq, out float distanceSq)
+    private static bool IsAreaContainerAllowed(
+        Player player,
+        Container container,
+        Container? currentContainer,
+        Vector3 playerPosition,
+        float rangeSq,
+        bool includeBuiltInRemote,
+        out float distanceSq)
     {
-        if (!IsAreaContainerCandidate(player, container, currentContainer, playerPosition, rangeSq, out distanceSq) ||
-            !CanMutateContainerDirectly(container) ||
+        if (!IsAreaContainerCandidate(
+                player,
+                container,
+                currentContainer,
+                playerPosition,
+                rangeSq,
+                out distanceSq) ||
             !HasContainerPlayerAccess(player, container, flashGuardStone: true))
+        {
+            return false;
+        }
+
+        ContainerAccessMode accessMode = GetContainerAccessMode(container);
+        bool canMutateDirectly =
+            accessMode == ContainerAccessMode.DirectOwner;
+        bool canRequestRemote =
+            includeBuiltInRemote &&
+            accessMode == ContainerAccessMode.MultiUserChestRemote &&
+            CanUseBuiltInRemoteAreaContainer(player, container);
+        if (!canMutateDirectly && !canRequestRemote)
         {
             return false;
         }
@@ -35,9 +59,14 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
+        if (canRequestRemote)
+        {
+            return true;
+        }
+
         return HasExternalMultiUserChestActive ||
                (IsBuiltInMultiUserChestEnabled &&
-                IsBuiltInMultiUserContainerEligible(container)) ||
+                 IsBuiltInMultiUserContainerEligible(container)) ||
                !IsContainerInUse(container);
     }
 
@@ -118,6 +147,35 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool CanMutateContainerDirectly(Container container, bool allowLocalWithoutZNetView = false) =>
         GetContainerAccessMode(container, allowLocalWithoutZNetView) == ContainerAccessMode.DirectOwner;
+
+    private static bool CanHandleContainerAreaAction(
+        Player player,
+        Container container)
+    {
+        ContainerAccessMode accessMode = GetContainerAccessMode(
+            container,
+            allowLocalWithoutZNetView: container.m_nview == null);
+        return accessMode == ContainerAccessMode.DirectOwner ||
+               accessMode == ContainerAccessMode.MultiUserChestRemote &&
+               CanUseBuiltInRemoteAreaContainer(player, container);
+    }
+
+    private static bool CanUseBuiltInRemoteAreaContainer(
+        Player player,
+        Container container)
+    {
+        if (player == null ||
+            container == null ||
+            !IsBuiltInMultiUserChestEnabled ||
+            !IsBuiltInMultiUserContainerEligible(container))
+        {
+            return false;
+        }
+
+        float maximumDistance = MultiUserContainerMaximumInteractionDistance;
+        return (player.transform.position - container.transform.position)
+            .sqrMagnitude <= maximumDistance * maximumDistance;
+    }
 
     private static bool CanProcessContainerSortRpc(Container container, long sender, long requesterPlayerId)
     {

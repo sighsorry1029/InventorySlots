@@ -1,5 +1,7 @@
 using System;
+using System.Reflection;
 using BepInEx.Bootstrap;
+using HarmonyLib;
 
 namespace InventorySlots;
 
@@ -33,5 +35,55 @@ public sealed partial class InventorySlotsPlugin
     private static bool HasPlugin(string guid)
     {
         return !string.IsNullOrWhiteSpace(guid) && Chainloader.PluginInfos.ContainsKey(guid);
+    }
+
+    internal static bool TryGetCurrencyPocketOverlapDetectionMethod(
+        out MethodBase? method)
+    {
+        method = null;
+        if (!Chainloader.PluginInfos.TryGetValue(
+                CurrencyPocketGuid,
+                out BepInEx.PluginInfo pluginInfo) ||
+            pluginInfo.Instance == null)
+        {
+            return false;
+        }
+
+        Type? miscFunctionsType =
+            pluginInfo.Instance.GetType().Assembly.GetType(
+                "CurrencyPocket.MiscFunctions");
+        MethodInfo? candidate = miscFunctionsType?.GetMethod(
+            "IsOverlappingUIModInstalled",
+            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static,
+            binder: null,
+            types: Type.EmptyTypes,
+            modifiers: null);
+        if (candidate == null || candidate.ReturnType != typeof(bool))
+        {
+            return false;
+        }
+
+        method = candidate;
+        return true;
+    }
+}
+
+[HarmonyPatch]
+internal static class CurrencyPocketOverlapDetectionInventorySlotsPatch
+{
+    private static bool Prepare() =>
+        InventorySlotsPlugin.TryGetCurrencyPocketOverlapDetectionMethod(out _);
+
+    private static MethodBase TargetMethod()
+    {
+        InventorySlotsPlugin.TryGetCurrencyPocketOverlapDetectionMethod(
+            out MethodBase? method);
+        return method!;
+    }
+
+    [HarmonyPriority(Priority.Last)]
+    private static void Postfix(ref bool __result)
+    {
+        __result = true;
     }
 }

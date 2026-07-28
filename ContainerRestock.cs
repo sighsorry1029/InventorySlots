@@ -112,6 +112,18 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
+        if (TryHandleMultiUserContainerAreaRestock(container))
+        {
+            return true;
+        }
+
+        if (!CanMutateContainerDirectly(
+                container,
+                allowLocalWithoutZNetView: true))
+        {
+            return false;
+        }
+
         Inventory playerInventory = ((Humanoid)player).GetInventory();
         if (playerInventory == null)
         {

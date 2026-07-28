@@ -43,6 +43,7 @@ public sealed partial class InventorySlotsPlugin
     {
         public Container Container = null!;
         public ZDOID ContainerId;
+        public long RequesterPeerId;
         public long Owner;
         public HashSet<long> RequestOwners = new();
         public MultiUserContainerRequest Request = null!;
@@ -947,6 +948,7 @@ public sealed partial class InventorySlotsPlugin
         {
             Container = container,
             ContainerId = container.m_nview.GetZDO().m_uid,
+            RequesterPeerId = ZNet.GetUID(),
             Owner = owner,
             RequestOwners = new HashSet<long> { owner },
             Request = request,
@@ -1269,16 +1271,24 @@ public sealed partial class InventorySlotsPlugin
     }
 
     private static void HandleMultiUserContainerResponse(
-        Container container,
+        Container? container,
         long sender,
         MultiUserContainerResponse response,
-        bool fromDurableReceipt = false)
+        bool fromDurableReceipt = false,
+        ZDO? durableReceiptZdo = null)
     {
         PendingMultiUserContainerTransfer? pending = _pendingMultiUserContainerTransfer;
-        if (container == null ||
-            IsUnityNull(container) ||
-            pending == null ||
-            pending.Container != container ||
+        bool hasContainer =
+            container != null &&
+            !IsUnityNull(container);
+        bool hasDetachedReceiptContext =
+            fromDurableReceipt &&
+            durableReceiptZdo != null &&
+            pending != null &&
+            durableReceiptZdo.m_uid.Equals(pending.ContainerId);
+        if (pending == null ||
+            (!hasContainer && !hasDetachedReceiptContext) ||
+            (hasContainer && pending.Container != container) ||
             pending.Request.RequestId != response.RequestId ||
             pending.Request.Operation != response.Operation ||
             pending.Request.SourcePosition != response.SourcePosition ||
@@ -1287,7 +1297,8 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        ZDO? responseZdo = container.m_nview?.GetZDO();
+        ZDO? responseZdo = durableReceiptZdo ??
+                           container?.m_nview?.GetZDO();
         ObservePendingMultiUserContainerOwner(
             pending,
             responseZdo?.GetOwner() ?? 0L);
@@ -1316,9 +1327,10 @@ public sealed partial class InventorySlotsPlugin
 
         if (!validSuccess &&
             !fromDurableReceipt &&
-            !IsCurrentMultiUserContainerOwnerResponse(
-                container,
-                sender))
+            (!hasContainer ||
+             !IsCurrentMultiUserContainerOwnerResponse(
+                 container!,
+                 sender)))
         {
             return;
         }
@@ -1351,9 +1363,10 @@ public sealed partial class InventorySlotsPlugin
                 return;
             }
 
-            if (!TryAcknowledgePendingMultiUserContainerResponse(
+            if (!hasContainer ||
+                !TryAcknowledgePendingMultiUserContainerResponse(
                     pending,
-                    container))
+                    container!))
             {
                 return;
             }
@@ -1388,11 +1401,11 @@ public sealed partial class InventorySlotsPlugin
                 break;
         }
 
-        if (responseSecured)
+        if (responseSecured && hasContainer)
         {
             _ = TryAcknowledgePendingMultiUserContainerResponse(
                 pending,
-                container);
+                container!);
         }
 
         if (!pending.LocalRecoveryPending &&
@@ -1485,6 +1498,16 @@ public sealed partial class InventorySlotsPlugin
             container.m_nview == null ||
             !container.m_nview.IsValid())
         {
+            if (!pending.ResponseApplied &&
+                !pending.TerminalFailureReceived &&
+                now - pending.LastReceiptCheckAt >=
+                MultiUserContainerReceiptPollInterval)
+            {
+                pending.LastReceiptCheckAt = now;
+                _ = TryResolveDetachedPendingMultiUserContainerDurableReceipt(
+                    pending);
+            }
+
             return;
         }
 
@@ -1619,12 +1642,23 @@ public sealed partial class InventorySlotsPlugin
     {
         CancelMultiUserContainerBatch();
         PendingMultiUserContainerTransfer? pending = _pendingMultiUserContainerTransfer;
-        if (pending != null &&
-            pending.Container != null &&
-            !IsUnityNull(pending.Container))
+        if (pending != null)
         {
-            _ = TryResolvePendingMultiUserContainerDurableReceipt(
-                pending.Container);
+            bool resolved = false;
+            if (pending.Container != null &&
+                !IsUnityNull(pending.Container))
+            {
+                resolved = TryResolvePendingMultiUserContainerDurableReceipt(
+                    pending.Container);
+            }
+
+            if (!resolved &&
+                _pendingMultiUserContainerTransfer == pending)
+            {
+                _ = TryResolveDetachedPendingMultiUserContainerDurableReceipt(
+                    pending);
+            }
+
             pending = _pendingMultiUserContainerTransfer;
         }
 
@@ -1932,6 +1966,11 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
+        if (IsMultiUserContainerAreaBatchActive())
+        {
+            FinishMultiUserContainerBatch(showResult: true);
+        }
+
         if (pending.ResponseApplied &&
             !pending.LocalRecoveryPending &&
             !pending.AcknowledgementPending)
@@ -2015,6 +2054,14 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
+        _ = TryResolvePendingMultiUserContainerDurableReceipt(zdo);
+        pending = _pendingMultiUserContainerTransfer;
+        if (pending == null ||
+            !zdo.m_uid.Equals(pending.ContainerId))
+        {
+            return;
+        }
+
         Container? container = pending.Container;
         if (container != null && !IsUnityNull(container))
         {
@@ -2025,6 +2072,21 @@ public sealed partial class InventorySlotsPlugin
         pending.PermanentlyDestroyed = true;
         pending.Projection = null;
         ShowMultiUserContainerNotReady();
+    }
+
+    private static bool TryResolveDetachedPendingMultiUserContainerDurableReceipt(
+        PendingMultiUserContainerTransfer pending)
+    {
+        if (pending == null ||
+            _pendingMultiUserContainerTransfer != pending ||
+            ZDOMan.instance == null)
+        {
+            return false;
+        }
+
+        ZDO? zdo = ZDOMan.instance.GetZDO(pending.ContainerId);
+        return zdo != null &&
+               TryResolvePendingMultiUserContainerDurableReceipt(zdo);
     }
 
     private static bool RestoreMultiUserContainerLocalEscrow(
@@ -2775,7 +2837,7 @@ public sealed partial class InventorySlotsPlugin
                 gui.m_containerHoldState == 0)
             {
                 gui.m_containerHoldState = 1;
-                if (!TryStartMultiUserContainerPlaceStacksBatch(
+                if (!TryHandleMultiUserContainerAreaQuickStack(
                         container))
                 {
                     ShowMultiUserContainerNotReady();

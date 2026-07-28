@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.2
+
+- Extended the built-in multi-user chest support to Area Quick Stack and Area Take Stacks when another player owns the loaded zone or target container. Remote targets run as sequential owner-authoritative item transactions while retaining access, eligibility, and distance checks.
+- Hardened pending remote transfers so durable owner receipts can still resolve an operation after its container object closes, unloads, or changes owner, reducing ambiguous retries during area batches.
+- Fixed CurrencyPocket compatibility so the weight panel uses its overlap-aware layout with InventorySlots even when Jewelcrafting is not installed, without adding a second offset when Jewelcrafting is present.
+
 ## 1.3.1
 
 - Fixed cold-start character loads moving items out of occupied progressive quick-slot and inventory rows before prefab-to-item-name lookup data is ready.

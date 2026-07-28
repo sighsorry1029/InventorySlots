@@ -1059,10 +1059,32 @@ public sealed partial class InventorySlotsPlugin
         out MultiUserContainerDurableReceipt? receipt)
     {
         receipt = null;
+        ZDO? zdo =
+            container != null &&
+            !IsUnityNull(container) &&
+            container.m_nview != null &&
+            !IsUnityNull(container.m_nview)
+                ? container.m_nview.GetZDO()
+                : null;
+        return zdo != null &&
+               TryReadMultiUserContainerDurableReceipt(
+                   zdo,
+                   requesterPlayerId,
+                   requestId,
+                   out receipt);
+    }
+
+    private static bool TryReadMultiUserContainerDurableReceipt(
+        ZDO zdo,
+        long requesterPlayerId,
+        int requestId,
+        out MultiUserContainerDurableReceipt? receipt)
+    {
+        receipt = null;
         if (requesterPlayerId == 0L ||
             requestId <= 0 ||
             !TryReadMultiUserContainerDurableReceipts(
-                container,
+                zdo,
                 out List<MultiUserContainerDurableReceipt>? receipts))
         {
             return false;
@@ -1233,8 +1255,29 @@ public sealed partial class InventorySlotsPlugin
         Container container,
         out List<MultiUserContainerDurableReceipt>? receipts)
     {
+        ZDO? zdo =
+            container != null &&
+            !IsUnityNull(container) &&
+            container.m_nview != null &&
+            !IsUnityNull(container.m_nview)
+                ? container.m_nview.GetZDO()
+                : null;
+        if (zdo == null)
+        {
+            receipts = null;
+            return false;
+        }
+
+        return TryReadMultiUserContainerDurableReceipts(
+            zdo,
+            out receipts);
+    }
+
+    private static bool TryReadMultiUserContainerDurableReceipts(
+        ZDO zdo,
+        out List<MultiUserContainerDurableReceipt>? receipts)
+    {
         receipts = new List<MultiUserContainerDurableReceipt>();
-        ZDO? zdo = container?.m_nview?.GetZDO();
         if (zdo == null)
         {
             receipts = null;
@@ -1600,23 +1643,67 @@ public sealed partial class InventorySlotsPlugin
             pending == null ||
             pending.ResponseApplied ||
             pending.TerminalFailureReceived ||
-            pending.Container != container)
+            pending.Container != container ||
+            container.m_nview == null ||
+            IsUnityNull(container.m_nview))
         {
             return false;
         }
 
         ZDO? zdo = container.m_nview?.GetZDO();
+        return zdo != null &&
+               TryResolvePendingMultiUserContainerDurableReceipt(
+                   pending,
+                   container,
+                   zdo);
+    }
+
+    internal static bool TryResolvePendingMultiUserContainerDurableReceipt(
+        ZDO zdo)
+    {
+        PendingMultiUserContainerTransfer? pending =
+            _pendingMultiUserContainerTransfer;
+        if (zdo == null ||
+            pending == null ||
+            pending.ResponseApplied ||
+            pending.TerminalFailureReceived ||
+            !zdo.m_uid.Equals(pending.ContainerId))
+        {
+            return false;
+        }
+
+        Container? container = pending.Container;
+        if (container == null ||
+            IsUnityNull(container) ||
+            container.m_nview == null ||
+            IsUnityNull(container.m_nview) ||
+            container.m_nview.GetZDO() != zdo)
+        {
+            container = null;
+        }
+
+        return TryResolvePendingMultiUserContainerDurableReceipt(
+            pending,
+            container,
+            zdo);
+    }
+
+    private static bool TryResolvePendingMultiUserContainerDurableReceipt(
+        PendingMultiUserContainerTransfer pending,
+        Container? container,
+        ZDO zdo)
+    {
         ObservePendingMultiUserContainerOwner(
             pending,
-            zdo?.GetOwner() ?? 0L);
+            zdo.GetOwner());
         if (!TryReadMultiUserContainerDurableReceipt(
-                container,
+                zdo,
                 pending.Request.RequesterPlayerId,
                 pending.Request.RequestId,
                 out MultiUserContainerDurableReceipt? receipt) ||
             receipt == null ||
             receipt.Acknowledged ||
-            receipt.Sender != ZNet.GetUID() ||
+            receipt.Sender != pending.RequesterPeerId ||
             receipt.RequestId != pending.Request.RequestId ||
             !AreMultiUserContainerDigestsEqual(
                 receipt.RequestDigest,
@@ -1648,7 +1735,8 @@ public sealed partial class InventorySlotsPlugin
             container,
             responseSender,
             response,
-            fromDurableReceipt: true);
+            fromDurableReceipt: true,
+            durableReceiptZdo: zdo);
         return pending.ResponseApplied ||
                _pendingMultiUserContainerTransfer != pending;
     }

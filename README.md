@@ -228,6 +228,8 @@ When hovering a container:
 
 Area ranges use the interacted container as the center. Setting a range to `0` disables nearby-container behavior for that action.
 
+With the built-in multi-user chest enabled, non-owner area transfers use the current chest owner as the authority and run one item transfer at a time. Remote targets must also be within 10 meters of the player. The external MultiUserChest mod does not provide InventorySlots with a transactional area-transfer API, so external-mod remote targets remain excluded.
+
 Container actions respect container access, wards, tombstones, ships, in-use containers, and ownership constraints.
 
 Restock target limits can cap favorite restock targets per item:
