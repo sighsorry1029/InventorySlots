@@ -64,6 +64,11 @@ public sealed partial class InventoryActionsPlugin
         Container container = gui.m_currentContainer;
         if (!CanMutateContainerDirectly(container, allowLocalWithoutZNetView: true))
         {
+            if (CanDelegateTakeAllToExternalMultiUserChest(player, container))
+            {
+                return false;
+            }
+
             player.Message(MessageHud.MessageType.Center, LocalizeUi("$inventoryactions_container_not_ready", "Container is not ready."), 0, null);
             return true;
         }
@@ -202,17 +207,24 @@ public sealed partial class InventoryActionsPlugin
 
     private static void QuickStackIntoContainers(Player localPlayer, Inventory playerInventory, Container container, bool includeArea)
     {
+        if (includeArea)
+        {
+            _ = TryStartAreaContainerTransfer(
+                localPlayer,
+                playerInventory,
+                container,
+                AreaContainerActionKind.QuickStack);
+            return;
+        }
+
         List<ItemData> candidates = playerInventory.m_inventory
             .Where(item => ShouldQuickStackItem(localPlayer, playerInventory, item, includeHotbar: false))
             .ToList();
         candidates.Sort((a, b) => -CompareGridOrder(a.m_gridPos, b.m_gridPos));
 
         InventoryGui.instance?.SetupDragItem(null, null, 0);
-        int moved = RunContainerTransferAcrossContainers(
-            localPlayer,
+        int moved = RunCurrentContainerTransfer(
             container,
-            includeArea,
-            areaForQuickStack: true,
             targetContainer => QuickStackItemsIntoContainer(playerInventory, targetContainer.m_inventory, candidates),
             () => playerInventory.Changed());
 
@@ -331,17 +343,24 @@ public sealed partial class InventoryActionsPlugin
         }
 
         bool includeArea = mode == RestockMode.AreaFavoriteRestock;
+        if (includeArea)
+        {
+            _ = TryStartAreaContainerTransfer(
+                localPlayer,
+                playerInventory,
+                container,
+                AreaContainerActionKind.Restock);
+            return;
+        }
+
         List<ItemData> targets = playerInventory.m_inventory
             .Where(item => ShouldTakeStacksTarget(localPlayer, playerInventory, item, includeHotbar: false, mode))
             .ToList();
         targets.Sort((a, b) => -CompareGridOrder(a.m_gridPos, b.m_gridPos));
 
         InventoryGui.instance?.SetupDragItem(null, null, 0);
-        int movedAmount = RunContainerTransferAcrossContainers(
-            localPlayer,
+        int movedAmount = RunCurrentContainerTransfer(
             container,
-            includeArea,
-            areaForQuickStack: false,
             sourceContainer => RestockTargetsFromContainer(playerInventory, sourceContainer.m_inventory, targets, mode),
             () => playerInventory.Changed());
 
@@ -792,7 +811,13 @@ public sealed partial class InventoryActionsPlugin
     private static Container? TryGetHoverQuickStackContext(Player player)
     {
         Container? hovered = GetHoveredContainer(player);
-        if (hovered == null || player.m_isLoading || hovered.m_inventory == null || !CanHandleContainerAction(player, hovered))
+        if (hovered == null ||
+            player.m_isLoading ||
+            hovered.m_inventory == null ||
+            !CanHandleContainerAction(
+                player,
+                hovered,
+                AreaContainerActionKind.QuickStack))
         {
             return null;
         }
@@ -803,7 +828,11 @@ public sealed partial class InventoryActionsPlugin
     private static Container? TryGetHoverRestockContext(Player player)
     {
         Container? hovered = GetHoveredContainer(player);
-        if (hovered == null || !CanHandleContainerAction(player, hovered))
+        if (hovered == null ||
+            !CanHandleContainerAction(
+                player,
+                hovered,
+                AreaContainerActionKind.Restock))
         {
             return null;
         }
@@ -814,7 +843,11 @@ public sealed partial class InventoryActionsPlugin
     private static bool TryQuickStackFromHoveredContainer(Player player, Container container)
     {
         Inventory? playerInventory = GetPlayerInventory(player);
-        if (playerInventory == null || !CanHandleContainerAction(player, container))
+        if (playerInventory == null ||
+            !CanHandleContainerAction(
+                player,
+                container,
+                AreaContainerActionKind.QuickStack))
         {
             return false;
         }
@@ -826,7 +859,11 @@ public sealed partial class InventoryActionsPlugin
     private static bool TryRestockFromHoveredContainer(Player player, Container container)
     {
         Inventory? playerInventory = GetPlayerInventory(player);
-        if (playerInventory == null || !CanHandleContainerAction(player, container))
+        if (playerInventory == null ||
+            !CanHandleContainerAction(
+                player,
+                container,
+                AreaContainerActionKind.Restock))
         {
             return false;
         }
@@ -853,13 +890,23 @@ public sealed partial class InventoryActionsPlugin
         }
 
         Container? hovered = GetHoveredContainer(player);
-        return hovered == container && CanHandleContainerAction(player, container);
+        return hovered == container &&
+               CanHandleContainerAction(
+                   player,
+                   container,
+                   AreaContainerActionKind.Restock);
     }
 
     internal static void AppendContainerActionHoverText(Container container, ref string text)
     {
         Player? player = Player.m_localPlayer;
-        if (player == null || player.m_isLoading || string.IsNullOrWhiteSpace(text) || !CanHandleContainerAction(player, container))
+        if (player == null ||
+            player.m_isLoading ||
+            string.IsNullOrWhiteSpace(text) ||
+            !CanHandleContainerAction(
+                player,
+                container,
+                AreaContainerActionKind.Restock))
         {
             return;
         }
@@ -873,46 +920,44 @@ public sealed partial class InventoryActionsPlugin
 
     internal static void RegisterContainer(Container container)
     {
-        if (container != null && !Runtime.KnownContainers.Contains(container))
+        if (container == null)
+        {
+            return;
+        }
+
+        if (!Runtime.KnownContainers.Contains(container))
         {
             Runtime.KnownContainers.Add(container);
         }
+
+        RegisterAreaOwnershipRpcs(container);
     }
 
     internal static void UnregisterContainer(Container container)
     {
         if (container != null)
         {
+            UnregisterAreaOwnershipRpcs(container);
             Runtime.KnownContainers.Remove(container);
         }
     }
 
-    private static int RunContainerTransferAcrossContainers(Player localPlayer, Container anchorContainer, bool includeArea, bool areaForQuickStack, Func<Container, int> transfer, Action onMoved)
+    private static int RunCurrentContainerTransfer(
+        Container container,
+        Func<Container, int> transfer,
+        Action onMoved)
     {
-        if (localPlayer == null || anchorContainer == null || transfer == null)
+        if (container == null || transfer == null)
         {
             return 0;
         }
 
-        List<Container> containers = includeArea
-            ? GetActionContainers(localPlayer, anchorContainer, areaForQuickStack)
-            : new List<Container> { anchorContainer };
-
-        int vfxLimit = includeArea && IsContainerActionSuccessFxEnabled() ? ContainerActionSuccessVfxLimit : 0;
-        int changedContainerVfxCount = 0;
         return ContainerTransferCore.Run(
-            containers,
-            container => !IsUnityNull(container) && container.m_inventory != null,
+            new[] { container },
+            target => !IsUnityNull(target) && target.m_inventory != null,
             transfer,
-            (container, _) => changedContainerVfxCount = TryPlayChangedContainerActionSuccessVfx(container, vfxLimit, changedContainerVfxCount),
-            () =>
-            {
-                onMoved?.Invoke();
-                if (vfxLimit > 0)
-                {
-                    PlayContainerActionSuccessSfx(anchorContainer);
-                }
-            });
+            onContainerMoved: null,
+            onAnyMoved: onMoved);
     }
 
     private static bool IsContainerQuickStackShortcutHeld() =>
@@ -930,7 +975,17 @@ public sealed partial class InventoryActionsPlugin
     {
         List<Container> containers = new();
         HashSet<Container> seen = new();
-        if (currentContainer != null && currentContainer.m_inventory != null && seen.Add(currentContainer))
+        AreaContainerActionKind action = areaForQuickStack
+            ? AreaContainerActionKind.QuickStack
+            : AreaContainerActionKind.Restock;
+        if (currentContainer != null &&
+            CanUseAreaContainerNow(
+                player,
+                currentContainer,
+                currentContainer,
+                action,
+                requireDirectOwner: false) &&
+            seen.Add(currentContainer))
         {
             containers.Add(currentContainer);
         }
@@ -958,7 +1013,14 @@ public sealed partial class InventoryActionsPlugin
                 continue;
             }
 
-            if (IsAreaContainerAllowed(player, container, currentContainer, origin, rangeSq, out float distanceSq))
+            if (IsAreaContainerAllowed(
+                    player,
+                    container,
+                    currentContainer,
+                    origin,
+                    rangeSq,
+                    action,
+                    out float distanceSq))
             {
                 areaContainers.Add((container, distanceSq));
                 seen.Add(container);
@@ -974,17 +1036,31 @@ public sealed partial class InventoryActionsPlugin
         return containers;
     }
 
-    private static bool CanHandleContainerAction(Player player, Container container)
+    private static bool CanHandleContainerAction(
+        Player player,
+        Container container,
+        AreaContainerActionKind action)
     {
         return player != null &&
                !player.m_isLoading &&
                container != null &&
                container.m_inventory != null &&
-               CanMutateContainerDirectly(container, allowLocalWithoutZNetView: true) &&
-               HasContainerPlayerAccess(player, container, flashGuardStone: false);
+               CanUseAreaContainerNow(
+                   player,
+                   container,
+                   container,
+                   action,
+                   requireDirectOwner: false);
     }
 
-    private static bool IsAreaContainerAllowed(Player player, Container container, Container? currentContainer, Vector3 origin, float rangeSq, out float distanceSq)
+    private static bool IsAreaContainerAllowed(
+        Player player,
+        Container container,
+        Container? currentContainer,
+        Vector3 origin,
+        float rangeSq,
+        AreaContainerActionKind action,
+        out float distanceSq)
     {
         distanceSq = float.MaxValue;
         if (player == null ||
@@ -992,8 +1068,7 @@ public sealed partial class InventoryActionsPlugin
             container == currentContainer ||
             container.m_inventory == null ||
             container.m_nview == null ||
-            !container.m_nview.IsValid() ||
-            !container.m_nview.IsOwner())
+            !container.m_nview.IsValid())
         {
             return false;
         }
@@ -1004,6 +1079,57 @@ public sealed partial class InventoryActionsPlugin
             return false;
         }
 
+        return CanUseAreaContainerNow(
+            player,
+            container,
+            currentContainer!,
+            action,
+            requireDirectOwner: false);
+    }
+
+    private static bool IsAreaContainerEligible(Container container)
+    {
+        if (container == null ||
+            IsUnityNull(container) ||
+            container.m_inventory == null ||
+            container.m_nview == null ||
+            !container.m_nview.IsValid() ||
+            container.GetComponent<TombStone>() != null ||
+            container.GetComponentInParent<TombStone>() != null ||
+            container.m_nview.GetComponent<Player>() != null ||
+            container.transform.root.GetComponentInChildren<Ship>() != null ||
+            container.m_wagon != null)
+        {
+            return false;
+        }
+
+        return container.m_piece == null || container.m_piece.IsPlacedByPlayer();
+    }
+
+    private static bool CanDelegateTakeAllToExternalMultiUserChest(
+        Player player,
+        Container container)
+    {
+        if (!HasSupportedExternalMultiUserChestActive ||
+            player == null ||
+            container == null ||
+            container.m_nview == null ||
+            !container.m_nview.IsValid() ||
+            !container.m_nview.HasOwner() ||
+            container.m_nview.IsOwner() ||
+            !HasContainerPlayerAccess(player, container, flashGuardStone: false) ||
+            !IsExternalMultiUserChestTransferContainer(container))
+        {
+            return false;
+        }
+
+        ZDO? zdo = container.m_nview.GetZDO();
+        return zdo != null && !zdo.GetBool("MUC_Ignore", false);
+    }
+
+    private static bool IsExternalMultiUserChestTransferContainer(
+        Container container)
+    {
         if (container.GetComponent<TombStone>() != null ||
             container.GetComponentInParent<TombStone>() != null ||
             container.m_nview.GetComponent<Player>() != null ||
@@ -1012,12 +1138,14 @@ public sealed partial class InventoryActionsPlugin
             return false;
         }
 
-        if (container.m_piece != null && !container.m_piece.IsPlacedByPlayer())
-        {
-            return false;
-        }
-
-        return !IsContainerInUse(container) && HasContainerPlayerAccess(player, container, flashGuardStone: true);
+        return !container.transform.root
+            .GetComponentsInChildren<MonoBehaviour>(includeInactive: true)
+            .Any(component =>
+                component != null &&
+                string.Equals(
+                    component.GetType().FullName,
+                    "OdinShip.ShipContainer",
+                    StringComparison.Ordinal));
     }
 
     private static bool HasContainerPlayerAccess(Player player, Container container, bool flashGuardStone)
@@ -1095,7 +1223,22 @@ public sealed partial class InventoryActionsPlugin
             return;
         }
 
-        GameObject instance = UnityEngine.Object.Instantiate(prefab, container.transform.position, container.transform.rotation);
+        bool previousForceDisableInit = ZNetView.m_forceDisableInit;
+        GameObject instance;
+        try
+        {
+            ZNetView.m_forceDisableInit = true;
+            instance = UnityEngine.Object.Instantiate(
+                prefab,
+                container.transform.position,
+                container.transform.rotation);
+        }
+        finally
+        {
+            ZNetView.m_forceDisableInit = previousForceDisableInit;
+        }
+
+        UnityEngine.Object.Destroy(instance, ContainerActionSuccessSfxLifetime);
         foreach (ZSFX sfx in instance.GetComponentsInChildren<ZSFX>(includeInactive: true))
         {
             if (sfx == null || IsUnityNull(sfx))

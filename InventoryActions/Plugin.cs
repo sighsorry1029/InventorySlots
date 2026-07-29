@@ -1,4 +1,5 @@
 using BepInEx;
+using BepInEx.Bootstrap;
 using BepInEx.Logging;
 using HarmonyLib;
 using UnityEngine;
@@ -8,12 +9,14 @@ namespace InventoryActions;
 [BepInPlugin(ModGUID, ModName, ModVersion)]
 [BepInIncompatibility("sighsorry.InventorySlots")]
 [BepInIncompatibility("goldenrevolver.quick_stack_store")]
+[BepInDependency(ExternalMultiUserChestGuid, BepInDependency.DependencyFlags.SoftDependency)]
 public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
 {
     internal const string ModName = "InventoryActions";
-    internal const string ModVersion = "1.0.4";
+    internal const string ModVersion = "1.0.5";
     internal const string Author = "sighsorry";
     internal const string ModGUID = $"{Author}.{ModName}";
+    private const string ExternalMultiUserChestGuid = "com.maxsch.valheim.MultiUserChest";
 
     private const int PlayerInventoryWidth = 8;
     private const int VanillaPlayerRows = 4;
@@ -32,9 +35,19 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
     private readonly Harmony _harmony = new(ModGUID);
     private static InventoryActionsPlugin _instance = null!;
     private static readonly InventoryActionRuntimeState Runtime = new();
+    private static readonly System.Version MinimumSupportedExternalMultiUserChestVersion = new(0, 6, 1);
 
     internal static bool IsDedicatedServer => SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null ||
                                              (Application.isBatchMode && string.Equals(Paths.ProcessName, "valheim_server", System.StringComparison.OrdinalIgnoreCase));
+
+    private static bool HasExternalMultiUserChestActive =>
+        Chainloader.PluginInfos.TryGetValue(ExternalMultiUserChestGuid, out PluginInfo pluginInfo) &&
+        pluginInfo.Instance != null;
+
+    private static bool HasSupportedExternalMultiUserChestActive =>
+        Chainloader.PluginInfos.TryGetValue(ExternalMultiUserChestGuid, out PluginInfo pluginInfo) &&
+        pluginInfo.Instance != null &&
+        pluginInfo.Metadata.Version.CompareTo(MinimumSupportedExternalMultiUserChestVersion) >= 0;
 
     public enum Toggle
     {
@@ -62,17 +75,20 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
         Player? player = Player.m_localPlayer;
         if (player == null || IsUnityNull(player) || player!.m_isLoading)
         {
+            CancelAreaContainerTransfer();
             ResetContainerHold(Runtime.AreaQuickStackHold);
             ResetContainerHold(Runtime.AreaRestockHold);
             return;
         }
 
+        UpdateAreaContainerTransfer(player);
         HandleHoverActions(player);
     }
 
     private void OnDestroy()
     {
         LocalizationManager.Localizer.OnLocalizationComplete -= HandleLocalizationComplete;
+        CancelAreaContainerTransfer();
         // Keep inventory action patches installed during runtime teardown to avoid item-move logic changing mid-session.
         Config.Save();
     }

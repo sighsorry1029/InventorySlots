@@ -101,6 +101,13 @@ TestRunner.Run(
     ("Multi-user transfer requires exact pre-mutation stack state", Tests.MultiUserTransferRequiresExactPreMutationStackState),
     ("InventoryActions container transfer core copy mirrors InventorySlots behavior", Tests.InventoryActionsContainerTransferCoreCopyMirrorsInventorySlotsBehavior),
     ("InventoryActions container action core copy mirrors InventorySlots behavior", Tests.InventoryActionsContainerActionCoreCopyMirrorsInventorySlotsBehavior),
+    ("Area ownership handoff executes a matching grant once", Tests.AreaOwnershipHandoffExecutesMatchingGrantOnce),
+    ("Area ownership handoff ignores mismatched responses", Tests.AreaOwnershipHandoffIgnoresMismatchedResponses),
+    ("Area ownership handoff rejects late responses", Tests.AreaOwnershipHandoffRejectsLateResponses),
+    ("Area ownership handoff duplicate grant does not extend deadline", Tests.AreaOwnershipHandoffDuplicateGrantDoesNotExtendDeadline),
+    ("Area ownership handoff fails closed on owner and token races", Tests.AreaOwnershipHandoffFailsClosedOnOwnerAndTokenRaces),
+    ("Area ownership handoff fails closed on unload", Tests.AreaOwnershipHandoffFailsClosedOnUnload),
+    ("Area ownership handoff enforces serial execution preconditions", Tests.AreaOwnershipHandoffEnforcesSerialExecutionPreconditions),
     ("Restock target limits parse config entries", Tests.RestockTargetLimitsParseConfigEntries),
     ("Restock target limit resolves aliases and clamps to max stack", Tests.RestockTargetLimitResolvesAliasesAndClampsToMaxStack),
     ("Restock target limit resolves localized item names", Tests.RestockTargetLimitResolvesLocalizedItemNames),
@@ -1784,6 +1791,345 @@ internal static class Tests
                 ContainerActionCore.CompareGridOrder(leftX, leftY, rightX, rightY),
                 InventoryActions.ContainerActionCore.CompareGridOrder(leftX, leftY, rightX, rightY));
         }
+    }
+
+    public static void AreaOwnershipHandoffExecutesMatchingGrantOnce()
+    {
+        InventoryActions.AreaOwnershipHandoffCore core = new();
+        InventoryActions.AreaOwnershipRequestIdentity identity =
+            AreaOwnershipIdentity();
+
+        Assert.True(
+            core.TryBegin(identity, expectedResponderUid: 40L, responseDeadlineAt: 2f),
+            "first handoff should begin");
+        Assert.Equal(
+            InventoryActions.AreaOwnershipHandoffDecision.None,
+            core.Observe(
+                now: 0.5f,
+                loaded: true,
+                InventoryActions.AreaOwnershipObservedOwner.LocalRequester,
+                netViewIsOwner: true,
+                InventoryActions.AreaOwnershipGrantTokenStatus.Missing,
+                canExecute: true));
+        Assert.Equal(
+            InventoryActions.AreaOwnershipHandoffDecision.None,
+            core.ReceiveResponse(
+                identity,
+                senderUid: 40L,
+                granted: true,
+                grantToken: 99L,
+                now: 1f,
+                ownershipDeadlineAt: 3f));
+        Assert.Equal(
+            InventoryActions.AreaOwnershipHandoffDecision.None,
+            core.Observe(
+                now: 1.1f,
+                loaded: true,
+                InventoryActions.AreaOwnershipObservedOwner.LocalRequester,
+                netViewIsOwner: false,
+                InventoryActions.AreaOwnershipGrantTokenStatus.Matching,
+                canExecute: true));
+        Assert.Equal(
+            InventoryActions.AreaOwnershipHandoffDecision.Execute,
+            core.Observe(
+                now: 1.2f,
+                loaded: true,
+                InventoryActions.AreaOwnershipObservedOwner.LocalRequester,
+                netViewIsOwner: true,
+                InventoryActions.AreaOwnershipGrantTokenStatus.Matching,
+                canExecute: true));
+        Assert.Equal(
+            InventoryActions.AreaOwnershipHandoffDecision.None,
+            core.Observe(
+                now: 1.3f,
+                loaded: true,
+                InventoryActions.AreaOwnershipObservedOwner.LocalRequester,
+                netViewIsOwner: true,
+                InventoryActions.AreaOwnershipGrantTokenStatus.Matching,
+                canExecute: true));
+        Assert.Equal(
+            InventoryActions.AreaOwnershipHandoffDecision.None,
+            core.ReceiveResponse(
+                identity,
+                senderUid: 40L,
+                granted: true,
+                grantToken: 99L,
+                now: 1.4f,
+                ownershipDeadlineAt: 10f));
+
+        core.CompleteExecution();
+        Assert.Equal(
+            InventoryActions.AreaOwnershipHandoffPhase.Idle,
+            core.Phase);
+    }
+
+    public static void AreaOwnershipHandoffIgnoresMismatchedResponses()
+    {
+        InventoryActions.AreaOwnershipHandoffCore core = new();
+        InventoryActions.AreaOwnershipRequestIdentity identity =
+            AreaOwnershipIdentity();
+        InventoryActions.AreaOwnershipRequestIdentity wrongIdentity =
+            new(
+                identity.RequestId + 1,
+                identity.ContainerUserId,
+                identity.ContainerObjectId,
+                identity.Action);
+        Assert.True(
+            core.TryBegin(identity, expectedResponderUid: 40L, responseDeadlineAt: 5f),
+            "handoff should begin");
+
+        Assert.Equal(
+            InventoryActions.AreaOwnershipHandoffDecision.None,
+            core.ReceiveResponse(
+                wrongIdentity,
+                senderUid: 40L,
+                granted: false,
+                grantToken: 0L,
+                now: 1f,
+                ownershipDeadlineAt: 2f));
+        Assert.Equal(
+            InventoryActions.AreaOwnershipHandoffDecision.None,
+            core.ReceiveResponse(
+                identity,
+                senderUid: 41L,
+                granted: false,
+                grantToken: 0L,
+                now: 1f,
+                ownershipDeadlineAt: 2f));
+        Assert.Equal(
+            InventoryActions.AreaOwnershipHandoffPhase.AwaitingResponse,
+            core.Phase);
+        Assert.Equal(
+            InventoryActions.AreaOwnershipHandoffDecision.Denied,
+            core.ReceiveResponse(
+                identity,
+                senderUid: 40L,
+                granted: false,
+                grantToken: 0L,
+                now: 1f,
+                ownershipDeadlineAt: 2f));
+        Assert.Equal(
+            InventoryActions.AreaOwnershipHandoffPhase.Idle,
+            core.Phase);
+    }
+
+    public static void AreaOwnershipHandoffRejectsLateResponses()
+    {
+        InventoryActions.AreaOwnershipRequestIdentity identity =
+            AreaOwnershipIdentity();
+        InventoryActions.AreaOwnershipHandoffCore responseTimeout = new();
+        Assert.True(
+            responseTimeout.TryBegin(
+                identity,
+                expectedResponderUid: 40L,
+                responseDeadlineAt: 2f),
+            "response timeout handoff should begin");
+        Assert.Equal(
+            InventoryActions.AreaOwnershipHandoffDecision.Timeout,
+            responseTimeout.Observe(
+                now: 2f,
+                loaded: true,
+                InventoryActions.AreaOwnershipObservedOwner.ExpectedResponder,
+                netViewIsOwner: false,
+                InventoryActions.AreaOwnershipGrantTokenStatus.Missing,
+                canExecute: false));
+        Assert.Equal(
+            InventoryActions.AreaOwnershipHandoffDecision.None,
+            responseTimeout.ReceiveResponse(
+                identity,
+                senderUid: 40L,
+                granted: true,
+                grantToken: 99L,
+                now: 2.1f,
+                ownershipDeadlineAt: 5f));
+
+        InventoryActions.AreaOwnershipHandoffCore ownershipTimeout = new();
+        Assert.True(
+            ownershipTimeout.TryBegin(
+                identity,
+                expectedResponderUid: 40L,
+                responseDeadlineAt: 2f),
+            "ownership timeout handoff should begin");
+        _ = ownershipTimeout.ReceiveResponse(
+            identity,
+            senderUid: 40L,
+            granted: true,
+            grantToken: 99L,
+            now: 1f,
+            ownershipDeadlineAt: 3f);
+        Assert.Equal(
+            InventoryActions.AreaOwnershipHandoffDecision.Timeout,
+            ownershipTimeout.Observe(
+                now: 3f,
+                loaded: true,
+                InventoryActions.AreaOwnershipObservedOwner.ExpectedResponder,
+                netViewIsOwner: false,
+                InventoryActions.AreaOwnershipGrantTokenStatus.Missing,
+                canExecute: false));
+    }
+
+    public static void AreaOwnershipHandoffDuplicateGrantDoesNotExtendDeadline()
+    {
+        InventoryActions.AreaOwnershipHandoffCore core = new();
+        InventoryActions.AreaOwnershipRequestIdentity identity =
+            AreaOwnershipIdentity();
+        Assert.True(
+            core.TryBegin(identity, expectedResponderUid: 40L, responseDeadlineAt: 2f),
+            "handoff should begin");
+        _ = core.ReceiveResponse(
+            identity,
+            senderUid: 40L,
+            granted: true,
+            grantToken: 99L,
+            now: 1f,
+            ownershipDeadlineAt: 3f);
+        Assert.Equal(
+            InventoryActions.AreaOwnershipHandoffDecision.None,
+            core.ReceiveResponse(
+                identity,
+                senderUid: 40L,
+                granted: true,
+                grantToken: 99L,
+                now: 2f,
+                ownershipDeadlineAt: 100f));
+        Assert.Equal(
+            InventoryActions.AreaOwnershipHandoffDecision.Timeout,
+            core.Observe(
+                now: 3f,
+                loaded: true,
+                InventoryActions.AreaOwnershipObservedOwner.ExpectedResponder,
+                netViewIsOwner: false,
+                InventoryActions.AreaOwnershipGrantTokenStatus.Missing,
+                canExecute: false));
+    }
+
+    public static void AreaOwnershipHandoffFailsClosedOnOwnerAndTokenRaces()
+    {
+        InventoryActions.AreaOwnershipRequestIdentity identity =
+            AreaOwnershipIdentity();
+        InventoryActions.AreaOwnershipHandoffCore ownerChanged =
+            GrantedAreaOwnershipCore(identity);
+        Assert.Equal(
+            InventoryActions.AreaOwnershipHandoffDecision.OwnerChanged,
+            ownerChanged.Observe(
+                now: 1.5f,
+                loaded: true,
+                InventoryActions.AreaOwnershipObservedOwner.Other,
+                netViewIsOwner: false,
+                InventoryActions.AreaOwnershipGrantTokenStatus.Missing,
+                canExecute: false));
+
+        InventoryActions.AreaOwnershipHandoffCore tokenChanged =
+            GrantedAreaOwnershipCore(identity);
+        Assert.Equal(
+            InventoryActions.AreaOwnershipHandoffDecision.GrantReplaced,
+            tokenChanged.Observe(
+                now: 1.5f,
+                loaded: true,
+                InventoryActions.AreaOwnershipObservedOwner.LocalRequester,
+                netViewIsOwner: true,
+                InventoryActions.AreaOwnershipGrantTokenStatus.Other,
+                canExecute: true));
+    }
+
+    public static void AreaOwnershipHandoffFailsClosedOnUnload()
+    {
+        InventoryActions.AreaOwnershipRequestIdentity identity =
+            AreaOwnershipIdentity();
+        InventoryActions.AreaOwnershipHandoffCore beforeResponse = new();
+        Assert.True(
+            beforeResponse.TryBegin(
+                identity,
+                expectedResponderUid: 40L,
+                responseDeadlineAt: 5f),
+            "handoff should begin");
+        Assert.Equal(
+            InventoryActions.AreaOwnershipHandoffDecision.Unloaded,
+            beforeResponse.Observe(
+                now: 1f,
+                loaded: false,
+                InventoryActions.AreaOwnershipObservedOwner.Unknown,
+                netViewIsOwner: false,
+                InventoryActions.AreaOwnershipGrantTokenStatus.Missing,
+                canExecute: false));
+
+        InventoryActions.AreaOwnershipHandoffCore afterGrant =
+            GrantedAreaOwnershipCore(identity);
+        Assert.Equal(
+            InventoryActions.AreaOwnershipHandoffDecision.Unloaded,
+            afterGrant.Observe(
+                now: 1.5f,
+                loaded: false,
+                InventoryActions.AreaOwnershipObservedOwner.Unknown,
+                netViewIsOwner: false,
+                InventoryActions.AreaOwnershipGrantTokenStatus.Missing,
+                canExecute: false));
+    }
+
+    public static void AreaOwnershipHandoffEnforcesSerialExecutionPreconditions()
+    {
+        InventoryActions.AreaOwnershipRequestIdentity identity =
+            AreaOwnershipIdentity();
+        InventoryActions.AreaOwnershipHandoffCore core =
+            GrantedAreaOwnershipCore(identity);
+        Assert.False(
+            core.TryBegin(
+                new InventoryActions.AreaOwnershipRequestIdentity(
+                    2,
+                    10L,
+                    21U,
+                    InventoryActions.AreaContainerActionKind.Restock),
+                expectedResponderUid: 41L,
+                responseDeadlineAt: 5f),
+            "a second target must not begin while a grant is active");
+        Assert.Equal(
+            InventoryActions.AreaOwnershipHandoffDecision.Unavailable,
+            core.Observe(
+                now: 1.5f,
+                loaded: true,
+                InventoryActions.AreaOwnershipObservedOwner.LocalRequester,
+                netViewIsOwner: true,
+                InventoryActions.AreaOwnershipGrantTokenStatus.Matching,
+                canExecute: false));
+        Assert.True(
+            core.TryBegin(
+                new InventoryActions.AreaOwnershipRequestIdentity(
+                    2,
+                    10L,
+                    21U,
+                    InventoryActions.AreaContainerActionKind.Restock),
+                expectedResponderUid: 41L,
+                responseDeadlineAt: 5f),
+            "the next target may begin only after the prior request terminates");
+    }
+
+    private static InventoryActions.AreaOwnershipRequestIdentity AreaOwnershipIdentity() =>
+        new(
+            requestId: 1,
+            containerUserId: 10L,
+            containerObjectId: 20U,
+            InventoryActions.AreaContainerActionKind.QuickStack);
+
+    private static InventoryActions.AreaOwnershipHandoffCore GrantedAreaOwnershipCore(
+        InventoryActions.AreaOwnershipRequestIdentity identity)
+    {
+        InventoryActions.AreaOwnershipHandoffCore core = new();
+        Assert.True(
+            core.TryBegin(
+                identity,
+                expectedResponderUid: 40L,
+                responseDeadlineAt: 2f),
+            "handoff should begin");
+        Assert.Equal(
+            InventoryActions.AreaOwnershipHandoffDecision.None,
+            core.ReceiveResponse(
+                identity,
+                senderUid: 40L,
+                granted: true,
+                grantToken: 99L,
+                now: 1f,
+                ownershipDeadlineAt: 3f));
+        return core;
     }
 
     public static void RestockTargetLimitsParseConfigEntries()

@@ -114,6 +114,45 @@ internal static class ContainerDestroyedInventoryActionsPatch
     }
 }
 
+[HarmonyPatch(typeof(Container), "RPC_RequestOpen")]
+internal static class ContainerOpenDuringAreaLeaseInventoryActionsPatch
+{
+    [HarmonyPriority(Priority.First)]
+    private static bool Prefix(Container __instance, long uid)
+    {
+        return !InventoryActionsPlugin.TryRejectContainerRequestDuringAreaLease(
+            __instance,
+            uid,
+            "OpenRespons");
+    }
+}
+
+[HarmonyPatch(typeof(Container), "RPC_RequestStack")]
+internal static class ContainerStackDuringAreaLeaseInventoryActionsPatch
+{
+    [HarmonyPriority(Priority.First)]
+    private static bool Prefix(Container __instance, long uid)
+    {
+        return !InventoryActionsPlugin.TryRejectContainerRequestDuringAreaLease(
+            __instance,
+            uid,
+            "RPC_StackResponse");
+    }
+}
+
+[HarmonyPatch(typeof(Container), "RPC_RequestTakeAll")]
+internal static class ContainerTakeAllDuringAreaLeaseInventoryActionsPatch
+{
+    [HarmonyPriority(Priority.First)]
+    private static bool Prefix(Container __instance, long uid)
+    {
+        return !InventoryActionsPlugin.TryRejectContainerRequestDuringAreaLease(
+            __instance,
+            uid,
+            "TakeAllRespons");
+    }
+}
+
 [HarmonyPatch(typeof(InventoryGrid), "OnLeftClick")]
 internal static class InventoryGridFavoriteLeftClickPatch
 {

@@ -27,6 +27,12 @@ Client restock limits can cap favorite restock targets per prefab, such as `Ston
 
 InventoryActions is incompatible with InventorySlots and Quick Stack Store to avoid duplicate buttons, hotkeys, and inventory mutations.
 
+## Multiplayer
+
+Install the same InventoryActions version on the dedicated server and every client. Area quick stack/restock processes eligible closed containers one at a time; when another peer owns a container, that owner validates access, range, and idle state before handing ownership to the requesting player.
+
+When MultiUserChest is detected, area quick stack/restock is disabled because MultiUserChest does not expose enough state to prove that a locally owned container has no secondary user or pending item request. With MultiUserChest 0.6.1 or newer, InventoryActions also leaves non-owner Take All to MultiUserChest.
+
 ## Github
 
 Quick stack, restock, and inventory favorite code from [QuickStackStore](https://github.com/Goldenrevolver/QuickStackStore). <br>

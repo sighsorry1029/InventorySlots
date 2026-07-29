@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.5
+
+- Fixed area quick stack/restock on dedicated servers so nearby players can use eligible closed containers even when another peer owns them, processing containers one at a time through validated ownership handoffs.
+- Added lease, revision, access, range, idle-state, timeout, and vanilla request guards to prevent stale or concurrent container mutations during ownership handoff.
+- Disabled area quick stack/restock while MultiUserChest is active and delegated non-owner Take All to MultiUserChest 0.6.1 or newer.
+- Required the same InventoryActions version on the dedicated server and clients for multiplayer container actions.
+- Made area action success effects local-only and short-lived so completed effects are not replayed to players entering the zone later.
+
 ## 1.0.4
 
 - Simplified container action success effects to one On/Off option and fixed the hover hold duration at 0.5 seconds.

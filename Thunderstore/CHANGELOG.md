@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.3
+
+- Fixed Area Quick Stack and Area Take Stacks success VFX being created as networked objects, which could replay a completed action's sound to players entering the area later. The effects are now local-only and cleaned up after playback.
+
 ## 1.3.2
 
 - Extended the built-in multi-user chest support to Area Quick Stack and Area Take Stacks when another player owns the loaded zone or target container. Remote targets run as sequential owner-authoritative item transactions while retaining access, eligibility, and distance checks.

@@ -24,6 +24,7 @@
     <Compile Include="..\InventoryActions\InventoryCellKind.cs" Link="InventoryActions\InventoryCellKind.cs" />
     <Compile Include="..\InventoryActions\ContainerActionCore.cs" Link="InventoryActions\ContainerActionCore.cs" />
     <Compile Include="..\InventoryActions\ContainerTransferCore.cs" Link="InventoryActions\ContainerTransferCore.cs" />
+    <Compile Include="..\InventoryActions\AreaOwnershipHandoffCore.cs" Link="InventoryActions\AreaOwnershipHandoffCore.cs" />
     <Compile Include="..\InventoryPlacementPolicyCore.cs" Link="InventoryPlacementPolicyCore.cs" />
     <Compile Include="..\InventorySlotSafetyCore.cs" Link="InventorySlotSafetyCore.cs" />
     <Compile Include="..\InventorySlotsYamlModels.cs" Link="InventorySlotsYamlModels.cs" />

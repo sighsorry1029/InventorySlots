@@ -386,7 +386,19 @@ public sealed partial class InventorySlotsPlugin
 
         Vector3 position = container.transform.position;
         Quaternion rotation = container.transform.rotation;
-        GameObject instance = UnityEngine.Object.Instantiate(prefab, position, rotation);
+        bool previousForceDisableInit = ZNetView.m_forceDisableInit;
+        GameObject instance;
+        try
+        {
+            ZNetView.m_forceDisableInit = true;
+            instance = UnityEngine.Object.Instantiate(prefab, position, rotation);
+        }
+        finally
+        {
+            ZNetView.m_forceDisableInit = previousForceDisableInit;
+        }
+
+        UnityEngine.Object.Destroy(instance, ContainerActionSuccessSfxLifetime);
         foreach (ZSFX sfx in instance.GetComponentsInChildren<ZSFX>(includeInactive: true))
         {
             if (sfx == null || IsUnityNull(sfx))
