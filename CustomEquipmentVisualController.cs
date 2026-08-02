@@ -267,7 +267,18 @@ public sealed partial class InventorySlotsPlugin
             }
 
             existing?.Destroy();
-            EquipmentVisuals.Visuals[key] = CreateCustomEquipmentVisual(visEquipment, state, key);
+            CustomEquipmentVisual visual = new(key, visEquipment, state.PrefabName, state.Variant);
+            EquipmentVisuals.Visuals[key] = visual;
+            if (!TryInitializeCustomEquipmentVisual(visEquipment, state, visual))
+            {
+                if (EquipmentVisuals.Visuals.TryGetValue(key, out CustomEquipmentVisual? registered) &&
+                    ReferenceEquals(registered, visual))
+                {
+                    EquipmentVisuals.Visuals.Remove(key);
+                }
+
+                visual.Destroy();
+            }
             visualsChanged = true;
         }
 
@@ -346,6 +357,16 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
+        if (ShouldSuppressInventorySlotsCircletVisual(item))
+        {
+            return false;
+        }
+
+        if (ShouldSuppressInventorySlotsHipLanternVisual(item))
+        {
+            return false;
+        }
+
         if (IsSmoothbrainBackpackItem(item))
         {
             return false;
@@ -374,9 +395,11 @@ public sealed partial class InventorySlotsPlugin
         return $"{visEquipment.GetInstanceID()}:{state.SlotId}:{state.ItemHash}";
     }
 
-    private static CustomEquipmentVisual CreateCustomEquipmentVisual(VisEquipment visEquipment, CustomEquipmentVisualState state, string key)
+    private static bool TryInitializeCustomEquipmentVisual(
+        VisEquipment visEquipment,
+        CustomEquipmentVisualState state,
+        CustomEquipmentVisual visual)
     {
-        CustomEquipmentVisual visual = new(key, visEquipment, state.PrefabName, state.Variant);
         try
         {
             switch (state.ItemType)
@@ -396,13 +419,14 @@ public sealed partial class InventorySlotsPlugin
                     visual.AddRange(instances);
                     break;
             }
+
+            return true;
         }
         catch (Exception ex)
         {
             Log.LogWarning($"Failed to attach custom equipment visual for {state.PrefabName}: {ex.Message}");
+            return false;
         }
-
-        return visual;
     }
 
     internal static bool TryGetCustomEquipmentVisualRootsForApi(VisEquipment visEquipment, ItemData item, List<GameObject> roots)

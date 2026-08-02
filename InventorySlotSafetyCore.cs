@@ -76,6 +76,61 @@ internal static class InventorySlotSafetyCore
         return string.Equals(marked, candidate, StringComparison.OrdinalIgnoreCase);
     }
 
+    public static bool ShouldDelegateCircletOwnership(
+        bool pluginActive,
+        bool compatReady,
+        bool putOnTopEnabled,
+        bool isCircletPrefab,
+        bool isCircletCustomType)
+    {
+        return pluginActive &&
+               compatReady &&
+               putOnTopEnabled &&
+               isCircletPrefab &&
+               isCircletCustomType;
+    }
+
+    public static bool CanUseCustomCircletSlot(
+        bool pluginActive,
+        bool isCircletPrefab,
+        bool delegatesOwnership,
+        bool helmetCompatible)
+    {
+        if (!pluginActive || !isCircletPrefab)
+        {
+            return true;
+        }
+
+        return delegatesOwnership && helmetCompatible;
+    }
+
+    public static bool ShouldDelegateHipLanternOwnership(
+        bool pluginActive,
+        bool compatReady,
+        bool useUtilitySlot,
+        bool isHipLanternPrefab,
+        bool isHipLanternItem)
+    {
+        return pluginActive &&
+               compatReady &&
+               !useUtilitySlot &&
+               isHipLanternPrefab &&
+               isHipLanternItem;
+    }
+
+    public static bool CanUseCustomHipLanternSlot(
+        bool pluginActive,
+        bool isHipLanternPrefab,
+        bool delegatesOwnership)
+    {
+        if (!pluginActive || !isHipLanternPrefab)
+        {
+            return true;
+        }
+
+        return delegatesOwnership;
+    }
+
     public static KeepOnDeathRestorePlan SelectKeepOnDeathRestorePlan(KeepOnDeathRestoreOptions options)
     {
         if (options.WasSpecialSlot)

@@ -656,6 +656,11 @@ public sealed partial class InventorySlotsPlugin
                 continue;
             }
 
+            if (TryAddHipLanternCompatSlot(slot, id))
+            {
+                continue;
+            }
+
             if (SlotDefinitions.Any(existing => existing.Id == id))
             {
                 continue;

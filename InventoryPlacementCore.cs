@@ -193,6 +193,8 @@ public sealed partial class InventorySlotsPlugin
                slot != null &&
                slot.Accepts(item) &&
                !IsJewelcraftingUtilityGemBlockedForSlot(item, slot) &&
+               CanUseCircletExtendedCustomSlot(player, item, slot) &&
+               CanUseHipLanternCustomSlot(item, slot) &&
                IsSpecialSlotUnlocked(player, inventory, slot);
     }
 

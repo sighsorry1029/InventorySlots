@@ -35,6 +35,8 @@ namespace InventorySlots;
 [BepInDependency(MyLittleUIGuid, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency(RecycleNReclaimGuid, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency(VeiledRecipesGuid, BepInDependency.DependencyFlags.SoftDependency)]
+[BepInDependency(CircletExtendedGuid, BepInDependency.DependencyFlags.SoftDependency)]
+[BepInDependency(HipLanternGuid, BepInDependency.DependencyFlags.SoftDependency)]
 public sealed partial class InventorySlotsPlugin : BaseUnityPlugin
 {
     private const int BaseRows = 4;
@@ -55,6 +57,7 @@ public sealed partial class InventorySlotsPlugin : BaseUnityPlugin
     private const string RustyQuiverSlotId = "rustybags.quiver";
     private const string MagicSupremacyBeltSlotId = "magicsupremacy.belt";
     private const string MagicSupremacyNativeBeltSlotId = "belt";
+    private const string HipLanternSlotId = "hiplantern.lantern";
     private const string MultiUserChestIgnoreZdoKey = "MUC_Ignore";
     private const string ConfigDirectoryName = "InventorySlots";
     private const string YamlFileName = "InventorySlots.yml";

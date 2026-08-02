@@ -7,7 +7,7 @@ public sealed partial class InventorySlotsPlugin
 {
     private static void ValidateAndProjectInventory(Player player, Inventory inventory)
     {
-        bool changed = false;
+        bool changed = ReconcileCircletExtendedLegacyHelmetState(player, inventory);
         List<ItemData> items = new(inventory.m_inventory.Count);
         foreach (ItemData item in inventory.m_inventory)
         {
@@ -339,10 +339,17 @@ public sealed partial class InventorySlotsPlugin
                 continue;
             }
 
-            if (!TryGetSlotById(item.m_customData[SlotIdKey], out SlotDefinition? slot) || !slot!.Accepts(item))
+            if (!TryGetSlotById(item.m_customData[SlotIdKey], out SlotDefinition? slot) ||
+                !slot!.Accepts(item) ||
+                !CanUseCircletExtendedCustomSlot(player, item, slot) ||
+                !CanUseHipLanternCustomSlot(item, slot))
             {
                 string slotId = item.m_customData.TryGetValue(SlotIdKey, out string id) ? id : "<missing>";
-                if (TryReleaseItemToRegularInventory(player, inventory, item, $"custom slot '{slotId}' no longer exists or no longer accepts it"))
+                if (TryReleaseItemToRegularInventory(
+                        player,
+                        inventory,
+                        item,
+                        $"custom slot '{slotId}' is no longer valid for this item"))
                 {
                     changed = true;
                 }

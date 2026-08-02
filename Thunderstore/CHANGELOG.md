@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.3.4
+
+- Added formal CircletExtended compatibility that synchronizes its native circlet state across equip, restore, unequip, death, and configuration changes while avoiding recursive custom visual attachment and duplicate weight or durability handling.
+- Added a conditional HipLantern equipment slot. It is available when HipLantern is installed with `Use utility slot = false`; HipLantern remains the single owner of its visual, weight, fuel drain, heat multiplier, and recharge behavior. Utility-slot mode continues to use HipLantern's native vanilla utility path.
+- Added the HipLantern slot to the default `BepInEx/config/InventorySlots/InventorySlots.yml`. Existing generated files are not overwritten. To add it manually, insert the following entry at the desired position under `Slots:`. The `name` value may be changed; keep the `id` and `HipLantern` prefab value unchanged.
+
+```yaml
+  - id: hiplantern.lantern
+    name: Hip Lantern
+    items:
+      - HipLantern
+```
+
 ## 1.3.3
 
 - Fixed Area Quick Stack and Area Take Stacks success VFX being created as networked objects, which could replay a completed action's sound to players entering the area later. The effects are now local-only and cleaned up after playback.

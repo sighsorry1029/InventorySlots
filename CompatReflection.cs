@@ -32,6 +32,8 @@ public sealed partial class InventorySlotsPlugin
         public readonly CompatApiRuntimeState<MagicSupremacyApi> MagicSupremacy = new();
         public readonly CompatApiRuntimeState<BetterArcheryQuiverApi> BetterArcheryQuiver = new();
         public readonly CompatApiRuntimeState<VeiledRecipesApi> VeiledRecipes = new();
+        public readonly CompatApiRuntimeState<CircletExtendedApi> CircletExtended = new();
+        public readonly CompatApiRuntimeState<HipLanternApi> HipLantern = new();
     }
 
     private static readonly CompatRuntimeState CompatRuntime = new();

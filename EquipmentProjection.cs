@@ -98,7 +98,22 @@ public sealed partial class InventorySlotsPlugin
 
     internal static float GetProjectedCustomEquipmentWeight(Player player)
     {
-        return player == null ? 0f : GetCachedCustomEquipmentWeight(player);
+        if (player == null)
+        {
+            return 0f;
+        }
+
+        float weight = GetCachedCustomEquipmentWeight(player);
+        foreach (ItemData item in GetCustomEquippedItems(player))
+        {
+            if (ShouldDelegateCircletExtendedWeight(player, item) ||
+                ShouldDelegateHipLanternWeight(player, item))
+            {
+                weight -= item.m_shared.m_weight;
+            }
+        }
+
+        return weight;
     }
 
     internal static float GetProjectedCustomEquipmentEitrRegenModifier(Player player)
@@ -136,7 +151,9 @@ public sealed partial class InventorySlotsPlugin
 
         foreach (ItemData item in GetCustomEquippedItems(player))
         {
-            if (item.m_shared.m_useDurability)
+            if (item.m_shared.m_useDurability &&
+                !ShouldDelegateCircletExtendedDurability(player, item) &&
+                !ShouldDelegateHipLanternDurability(player, item))
             {
                 humanoid.DrainEquipedItemDurability(item, dt);
             }
@@ -178,10 +195,16 @@ public sealed partial class InventorySlotsPlugin
         }
 
         bool changed = false;
+        bool externalCompatStateChanged = false;
         foreach (ItemData item in GetCustomEquippedItems(player).ToArray())
         {
-            ClearCustomEquipmentState(item);
+            externalCompatStateChanged |= ClearCustomEquipmentState(item);
             changed = true;
+        }
+
+        if (externalCompatStateChanged)
+        {
+            ((Humanoid)player).SetupEquipment();
         }
 
         return changed;

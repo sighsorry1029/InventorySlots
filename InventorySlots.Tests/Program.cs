@@ -43,6 +43,11 @@ TestRunner.Run(
     ("Client state normalize trims players and lists", Tests.ClientStateNormalizeTrimsPlayersAndLists),
     ("Custom equipped item keeps stable slot identity during auto-adopt", Tests.CustomEquippedItemKeepsStableSlotIdentityDuringAutoAdopt),
     ("Unmarked item can auto-adopt matching grid slot", Tests.UnmarkedItemCanAutoAdoptMatchingGridSlot),
+    ("CircletExtended custom slot ownership fails closed", Tests.CircletExtendedCustomSlotOwnershipFailsClosed),
+    ("HipLantern custom slot ownership fails closed", Tests.HipLanternCustomSlotOwnershipFailsClosed),
+    ("Custom equipment visual is registered before attachment", Tests.CustomEquipmentVisualIsRegisteredBeforeAttachment),
+    ("CircletExtended lifecycle guards stay ordered", Tests.CircletExtendedLifecycleGuardsStayOrdered),
+    ("HipLantern lifecycle and native ownership stay wired", Tests.HipLanternLifecycleAndNativeOwnershipStayWired),
     ("Quickslot reset policy clears highest rows first", Tests.QuickslotResetPolicyClearsHighestRowsFirst),
     ("Quickslot reset policy stops at first blocked row", Tests.QuickslotResetPolicyStopsAtFirstBlockedRow),
     ("Quickslot reset policy respects naturally unlocked rows", Tests.QuickslotResetPolicyRespectsNaturallyUnlockedRows),
@@ -124,6 +129,12 @@ internal static class Tests
         Assert.Contains(root.Slots.Select(slot => slot.Id), "helmet");
         Assert.Contains(root.Slots.Select(slot => slot.Id), "jewelcrafting.ring");
         Assert.Contains(root.Slots.Select(slot => slot.Id), "rustybags.quiver");
+        List<YamlSlot> hipLanternSlots = root.Slots
+            .Where(slot => string.Equals(slot.Id, "hiplantern.lantern", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        Assert.Equal(1, hipLanternSlots.Count);
+        YamlSlot hipLanternSlot = hipLanternSlots[0];
+        Assert.Contains(hipLanternSlot.Items, "HipLantern");
         Assert.Contains(root.QuickSlots, "Melee");
         Assert.False(root.QuickSlots.Contains("balancedfood", StringComparer.OrdinalIgnoreCase), "QuickSlots should not include the removed balancedfood group");
         Assert.Contains(root.QuickSlots, "mead");
@@ -687,6 +698,342 @@ internal static class Tests
                 markedSlotId: null,
                 candidateSlotId: "quick1"),
             "regular items can still be adopted by the grid slot they are placed into");
+    }
+
+    public static void CircletExtendedCustomSlotOwnershipFailsClosed()
+    {
+        Assert.False(
+            InventorySlotSafetyCore.ShouldDelegateCircletOwnership(
+                pluginActive: true,
+                compatReady: false,
+                putOnTopEnabled: true,
+                isCircletPrefab: true,
+                isCircletCustomType: true),
+            "an unknown CircletExtended API must not receive equipment ownership");
+        Assert.False(
+            InventorySlotSafetyCore.ShouldDelegateCircletOwnership(
+                pluginActive: true,
+                compatReady: true,
+                putOnTopEnabled: false,
+                isCircletPrefab: true,
+                isCircletCustomType: true),
+            "a disabled put-on-top option must not receive custom-slot ownership");
+        Assert.False(
+            InventorySlotSafetyCore.ShouldDelegateCircletOwnership(
+                pluginActive: true,
+                compatReady: true,
+                putOnTopEnabled: true,
+                isCircletPrefab: true,
+                isCircletCustomType: false),
+            "an upgrade-gated quality-one Circlet must stay on the built-in helmet path");
+        Assert.True(
+            InventorySlotSafetyCore.ShouldDelegateCircletOwnership(
+                pluginActive: true,
+                compatReady: true,
+                putOnTopEnabled: true,
+                isCircletPrefab: true,
+                isCircletCustomType: true),
+            "an upgraded Circlet should delegate ownership when the API is ready");
+
+        Assert.True(
+            InventorySlotSafetyCore.CanUseCustomCircletSlot(
+                pluginActive: false,
+                isCircletPrefab: true,
+                delegatesOwnership: false,
+                helmetCompatible: false),
+            "InventorySlots should retain its standalone Circlet slot behavior when CircletExtended is absent");
+        Assert.False(
+            InventorySlotSafetyCore.CanUseCustomCircletSlot(
+                pluginActive: true,
+                isCircletPrefab: true,
+                delegatesOwnership: false,
+                helmetCompatible: true),
+            "a detected CircletExtended with an unavailable owner API must fail closed");
+        Assert.True(
+            InventorySlotSafetyCore.CanUseCustomCircletSlot(
+                pluginActive: true,
+                isCircletPrefab: true,
+                delegatesOwnership: true,
+                helmetCompatible: true),
+            "a compatible upgraded Circlet should use the InventorySlots custom slot with delegated ownership");
+        Assert.False(
+            InventorySlotSafetyCore.CanUseCustomCircletSlot(
+                pluginActive: true,
+                isCircletPrefab: true,
+                delegatesOwnership: true,
+                helmetCompatible: false),
+            "InventorySlots must respect CircletExtended's helmet compatibility rule");
+        Assert.True(
+            InventorySlotSafetyCore.CanUseCustomCircletSlot(
+                pluginActive: true,
+                isCircletPrefab: false,
+                delegatesOwnership: false,
+                helmetCompatible: false),
+            "CircletExtended failures must not block unrelated custom equipment");
+    }
+
+    public static void HipLanternCustomSlotOwnershipFailsClosed()
+    {
+        Assert.False(
+            InventorySlotSafetyCore.ShouldDelegateHipLanternOwnership(
+                pluginActive: false,
+                compatReady: true,
+                useUtilitySlot: false,
+                isHipLanternPrefab: true,
+                isHipLanternItem: true),
+            "HipLantern ownership cannot be delegated when the plugin is absent");
+        Assert.False(
+            InventorySlotSafetyCore.ShouldDelegateHipLanternOwnership(
+                pluginActive: true,
+                compatReady: false,
+                useUtilitySlot: false,
+                isHipLanternPrefab: true,
+                isHipLanternItem: true),
+            "an unknown HipLantern API must not receive equipment ownership");
+        Assert.False(
+            InventorySlotSafetyCore.ShouldDelegateHipLanternOwnership(
+                pluginActive: true,
+                compatReady: true,
+                useUtilitySlot: true,
+                isHipLanternPrefab: true,
+                isHipLanternItem: true),
+            "HipLantern utility mode must stay on the native utility-slot path");
+        Assert.False(
+            InventorySlotSafetyCore.ShouldDelegateHipLanternOwnership(
+                pluginActive: true,
+                compatReady: true,
+                useUtilitySlot: false,
+                isHipLanternPrefab: false,
+                isHipLanternItem: true),
+            "an unrelated prefab must not receive HipLantern ownership");
+        Assert.False(
+            InventorySlotSafetyCore.ShouldDelegateHipLanternOwnership(
+                pluginActive: true,
+                compatReady: true,
+                useUtilitySlot: false,
+                isHipLanternPrefab: true,
+                isHipLanternItem: false),
+            "a prefab that HipLantern no longer recognizes must fail closed");
+        Assert.True(
+            InventorySlotSafetyCore.ShouldDelegateHipLanternOwnership(
+                pluginActive: true,
+                compatReady: true,
+                useUtilitySlot: false,
+                isHipLanternPrefab: true,
+                isHipLanternItem: true),
+            "HipLantern custom mode should delegate native ownership when the API is ready");
+
+        Assert.True(
+            InventorySlotSafetyCore.CanUseCustomHipLanternSlot(
+                pluginActive: false,
+                isHipLanternPrefab: true,
+                delegatesOwnership: false),
+            "HipLantern absence must not block an explicitly configured standalone item slot");
+        Assert.False(
+            InventorySlotSafetyCore.CanUseCustomHipLanternSlot(
+                pluginActive: true,
+                isHipLanternPrefab: true,
+                delegatesOwnership: false),
+            "a detected HipLantern with unavailable or utility-mode ownership must fail closed");
+        Assert.True(
+            InventorySlotSafetyCore.CanUseCustomHipLanternSlot(
+                pluginActive: true,
+                isHipLanternPrefab: true,
+                delegatesOwnership: true),
+            "a compatible HipLantern should use its conditional InventorySlots slot");
+        Assert.True(
+            InventorySlotSafetyCore.CanUseCustomHipLanternSlot(
+                pluginActive: true,
+                isHipLanternPrefab: false,
+                delegatesOwnership: false),
+            "HipLantern compatibility failures must not block unrelated custom equipment");
+    }
+
+    public static void CustomEquipmentVisualIsRegisteredBeforeAttachment()
+    {
+        string source = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "CustomEquipmentVisualController.cs"));
+        string applySource = ReadSourceSection(
+            source,
+            "private static void ApplyCustomEquipmentVisualStates",
+            "internal static void ClearCustomEquipmentVisuals()");
+        int reentryShortCircuit = applySource.IndexOf("existing.Matches(visEquipment, state.PrefabName, state.Variant)", StringComparison.Ordinal);
+        int registration = applySource.IndexOf("EquipmentVisuals.Visuals[key] = visual;", StringComparison.Ordinal);
+        int attachment = applySource.IndexOf("TryInitializeCustomEquipmentVisual(visEquipment, state, visual)", StringComparison.Ordinal);
+
+        Assert.True(reentryShortCircuit >= 0, "matching registered visuals should short-circuit nested updates");
+        Assert.True(registration >= 0, "custom visual placeholder registration should be present");
+        Assert.True(attachment >= 0, "custom visual attachment initialization should be present");
+        Assert.True(reentryShortCircuit < attachment, "the matching placeholder check must run before attachment");
+        Assert.True(registration < attachment, "the placeholder must be visible before AttachItem can re-enter visual updates");
+    }
+
+    public static void CircletExtendedLifecycleGuardsStayOrdered()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string routingSource = ReadSourceSection(
+            File.ReadAllText(Path.Combine(repositoryRoot, "SlotEquipController.cs")),
+            "internal static bool TryRouteHumanoidEquipToDedicatedSlot",
+            "private static bool CanRouteEquipToDedicatedSlot");
+        Assert.True(routingSource.Contains("TryEquipIntoDedicatedSlot(player, inventory, item, slot!)", StringComparison.Ordinal),
+            "Humanoid equip routing must use the guarded dedicated-slot transaction");
+
+        string dedicatedEquipSource = ReadSourceSection(
+            File.ReadAllText(Path.Combine(repositoryRoot, "SlotEquipController.cs")),
+            "private static bool TryEquipIntoDedicatedSlot",
+            "private static bool TryPlaceQuickItemIntoSlot");
+        int clearCurrent = dedicatedEquipSource.IndexOf("ClearCircletExtendedEquippedState(player, item)", StringComparison.Ordinal);
+        int routeItem = dedicatedEquipSource.IndexOf("TryEquipIntoSlot(player, inventory, item, slot)", StringComparison.Ordinal);
+        int restoreCurrent = dedicatedEquipSource.IndexOf("RestoreCircletExtendedEquippedState(player, item)", StringComparison.Ordinal);
+
+        Assert.True(clearCurrent >= 0 && routeItem >= 0 && clearCurrent < routeItem,
+            "an existing CircletExtended current item must be cleared before any dedicated-slot route can re-unequip it");
+        Assert.True(restoreCurrent > routeItem,
+            "a failed routed equip must restore the prior CircletExtended current item");
+
+        string validationSource = ReadSourceSection(
+            File.ReadAllText(Path.Combine(repositoryRoot, "InventoryIntegrityValidation.cs")),
+            "private static bool ClearMissingCustomEquipment",
+            "private static bool TryReleaseItemToRegularInventory");
+        Assert.True(validationSource.Contains("CanUseCircletExtendedCustomSlot(player, item, slot)", StringComparison.Ordinal),
+            "full validation must evict Circlets that CircletExtended can no longer own");
+        string validationEntrySource = ReadSourceSection(
+            File.ReadAllText(Path.Combine(repositoryRoot, "InventoryIntegrityValidation.cs")),
+            "private static void ValidateAndProjectInventory",
+            "private static bool TryGetCanonicalEquippedSlot");
+        Assert.True(validationEntrySource.Contains("ReconcileCircletExtendedLegacyHelmetState(player, inventory)", StringComparison.Ordinal),
+            "full validation must clear legacy CircletExtended vanilla-helmet ownership");
+
+        string deathKeepSource = ReadSourceSection(
+            File.ReadAllText(Path.Combine(repositoryRoot, "DeathKeep.cs")),
+            "private static bool CanUseKeepOnDeathSpecialSlot",
+            "private static bool ShouldKeepOnDeath");
+        Assert.True(deathKeepSource.Contains("CanUseCircletExtendedCustomSlot(player, item, slot)", StringComparison.Ordinal),
+            "keep-on-death fallback must not bypass CircletExtended slot eligibility");
+
+        string placementSource = ReadSourceSection(
+            File.ReadAllText(Path.Combine(repositoryRoot, "InventoryPlacementCore.cs")),
+            "private static bool CanUseSpecialSlot",
+            "private static bool CanUseEmptySpecialSlot");
+        Assert.True(placementSource.Contains("CanUseCircletExtendedCustomSlot(player, item, slot)", StringComparison.Ordinal),
+            "normal special-slot placement must enforce CircletExtended slot eligibility");
+
+        string equipSource = ReadSourceSection(
+            File.ReadAllText(Path.Combine(repositoryRoot, "SlotEquipController.cs")),
+            "internal static bool TryEquipIntoSlot",
+            "private sealed class SlotEquipItemSnapshot");
+        int clearVanillaReference = equipSource.IndexOf("ClearVanillaEquipmentReferences((Humanoid)player, item)", StringComparison.Ordinal);
+        int markCustomSlot = equipSource.IndexOf("MarkItemSlot(player, item, slot)", StringComparison.Ordinal);
+        Assert.True(clearVanillaReference >= 0 && markCustomSlot > clearVanillaReference,
+            "custom equipment must clear stale vanilla equipment ownership before marking the dedicated slot");
+
+        string restoreSource = ReadSourceSection(
+            File.ReadAllText(Path.Combine(repositoryRoot, "SlotEquipController.cs")),
+            "private static bool RestoreSlotEquipmentState",
+            "private static ItemData? FindCustomEquippedItemForSlot");
+        int clearRestoredVanillaReference = restoreSource.IndexOf("ClearVanillaEquipmentReferences((Humanoid)player, item)", StringComparison.Ordinal);
+        int synchronizeRestoredCirclet = restoreSource.IndexOf("SynchronizeCircletExtendedEquippedState(player, item)", StringComparison.Ordinal);
+        Assert.True(clearRestoredVanillaReference >= 0 && synchronizeRestoredCirclet > clearRestoredVanillaReference,
+            "restored custom equipment must clear stale vanilla ownership before synchronizing CircletExtended");
+
+        string compatSource = ReadSourceSection(
+            File.ReadAllText(Path.Combine(repositoryRoot, "CircletExtendedCompatAdapter.cs")),
+            "private static bool CanUseCircletExtendedCustomSlot",
+            "private static bool SynchronizeCircletExtendedEquippedState");
+        Assert.True(compatSource.Contains("TryIsCircletCustomType(helmet", StringComparison.Ordinal),
+            "a different legacy Circlet in the vanilla helmet reference must block custom Circlet routing");
+    }
+
+    public static void HipLanternLifecycleAndNativeOwnershipStayWired()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string dedicatedEquipSource = ReadSourceSection(
+            File.ReadAllText(Path.Combine(repositoryRoot, "SlotEquipController.cs")),
+            "private static bool TryEquipIntoDedicatedSlot",
+            "private static bool TryPlaceQuickItemIntoSlot");
+        int clearCurrent = dedicatedEquipSource.IndexOf("ClearHipLanternEquippedState(player, item)", StringComparison.Ordinal);
+        int routeItem = dedicatedEquipSource.IndexOf("TryEquipIntoSlot(player, inventory, item, slot)", StringComparison.Ordinal);
+        int restoreCurrent = dedicatedEquipSource.IndexOf("RestoreHipLanternEquippedState(player, item)", StringComparison.Ordinal);
+        Assert.True(clearCurrent >= 0 && routeItem >= 0 && clearCurrent < routeItem,
+            "the native HipLantern item must be cleared before its EquipItem postfix observes a routed custom-slot marker");
+        Assert.True(restoreCurrent > routeItem,
+            "a failed routed HipLantern equip must restore the previous native state");
+
+        string equipTransactionSource = ReadSourceSection(
+            File.ReadAllText(Path.Combine(repositoryRoot, "SlotEquipController.cs")),
+            "internal static bool TryEquipIntoSlot",
+            "private sealed class SlotEquipItemSnapshot");
+        int capturePreviousNative = equipTransactionSource.IndexOf("CaptureHipLanternEquippedState(player)", StringComparison.Ordinal);
+        int rollbackItems = equipTransactionSource.IndexOf("RestoreSlotEquipMutationSnapshots(player, inventory, itemSnapshots, equipmentSnapshot)", StringComparison.Ordinal);
+        int restorePreviousNative = equipTransactionSource.IndexOf("RestoreHipLanternEquippedState(player, hipLanternStateSnapshot)", StringComparison.Ordinal);
+        Assert.True(capturePreviousNative >= 0 && rollbackItems > capturePreviousNative && restorePreviousNative > rollbackItems,
+            "a failed slot replacement must restore both item snapshots and the previously equipped native HipLantern");
+
+        string restoreSource = ReadSourceSection(
+            File.ReadAllText(Path.Combine(repositoryRoot, "SlotEquipController.cs")),
+            "private static bool RestoreSlotEquipmentState",
+            "private static ItemData? FindCustomEquippedItemForSlot");
+        int syncRestoredNative = restoreSource.IndexOf("changed |= OnCustomEquipmentCompatEquipped(player, item)", StringComparison.Ordinal);
+        int setupRestoredEquipment = restoreSource.IndexOf("((Humanoid)player).SetupEquipment()", StringComparison.Ordinal);
+        Assert.True(syncRestoredNative >= 0 && setupRestoredEquipment > syncRestoredNative,
+            "a restored marker must synchronize native HipLantern state and refresh equipment even when no marker changed");
+
+        string compatHooksSource = File.ReadAllText(Path.Combine(repositoryRoot, "BackpackCompat.cs"));
+        Assert.True(compatHooksSource.Contains("OnHipLanternCustomEquipmentEquipped(player, item)", StringComparison.Ordinal),
+            "direct and restored custom equips must synchronize HipLantern's native state");
+        Assert.True(compatHooksSource.Contains("ClearHipLanternEquippedState(player, item)", StringComparison.Ordinal),
+            "custom unequip paths must clear HipLantern's native state");
+
+        string placementSource = ReadSourceSection(
+            File.ReadAllText(Path.Combine(repositoryRoot, "InventoryPlacementCore.cs")),
+            "private static bool CanUseSpecialSlot",
+            "private static bool CanUseEmptySpecialSlot");
+        Assert.True(placementSource.Contains("CanUseHipLanternCustomSlot(item, slot)", StringComparison.Ordinal),
+            "normal placement must reject HipLantern custom slots in utility mode or after API drift");
+        string validationSource = ReadSourceSection(
+            File.ReadAllText(Path.Combine(repositoryRoot, "InventoryIntegrityValidation.cs")),
+            "private static bool ClearMissingCustomEquipment",
+            "private static bool TryReleaseItemToRegularInventory");
+        Assert.True(validationSource.Contains("CanUseHipLanternCustomSlot(item, slot)", StringComparison.Ordinal),
+            "full validation must evict HipLantern items that can no longer use a custom slot");
+        string deathKeepSource = ReadSourceSection(
+            File.ReadAllText(Path.Combine(repositoryRoot, "DeathKeep.cs")),
+            "private static bool CanUseKeepOnDeathSpecialSlot",
+            "private static bool ShouldKeepOnDeath");
+        Assert.True(deathKeepSource.Contains("CanUseHipLanternCustomSlot(item, slot)", StringComparison.Ordinal),
+            "keep-on-death fallback must not bypass HipLantern slot eligibility");
+
+        string visualSource = ReadSourceSection(
+            File.ReadAllText(Path.Combine(repositoryRoot, "CustomEquipmentVisualController.cs")),
+            "private static bool ShouldAttachCustomEquipmentVisual",
+            "private static string GetCustomEquipmentVisualKey");
+        Assert.True(visualSource.Contains("ShouldSuppressInventorySlotsHipLanternVisual(item)", StringComparison.Ordinal),
+            "HipLantern must remain the single owner of its visual");
+        string projectionSource = File.ReadAllText(Path.Combine(repositoryRoot, "EquipmentProjection.cs"));
+        Assert.True(projectionSource.Contains("ShouldDelegateHipLanternWeight(player, item)", StringComparison.Ordinal),
+            "HipLantern's native weight projection must not be counted twice");
+        Assert.True(projectionSource.Contains("ShouldDelegateHipLanternDurability(player, item)", StringComparison.Ordinal),
+            "HipLantern's fuel and heat durability updates must not run twice");
+
+        string yamlSource = File.ReadAllText(Path.Combine(repositoryRoot, "YamlConfiguration.cs"));
+        int conditionalHipSlot = yamlSource.IndexOf("TryAddHipLanternCompatSlot(slot, id)", StringComparison.Ordinal);
+        int genericCustomSlot = conditionalHipSlot >= 0
+            ? yamlSource.IndexOf("GetSlotItems(slot)", conditionalHipSlot, StringComparison.Ordinal)
+            : -1;
+        Assert.True(conditionalHipSlot >= 0 && genericCustomSlot > conditionalHipSlot,
+            "the reserved HipLantern YAML entry must be consumed before generic custom-slot creation");
+        string adapterSlotSource = ReadSourceSection(
+            File.ReadAllText(Path.Combine(repositoryRoot, "HipLanternCompatAdapter.cs")),
+            "private static bool TryAddHipLanternCompatSlot",
+            "private static bool IsHipLanternCustomSlotEnabled");
+        int disabledSlotGuard = adapterSlotSource.IndexOf("if (!IsHipLanternCustomSlotEnabled(out _))", StringComparison.Ordinal);
+        int consumeDisabledSlot = disabledSlotGuard >= 0
+            ? adapterSlotSource.IndexOf("return true;", disabledSlotGuard, StringComparison.Ordinal)
+            : -1;
+        Assert.True(disabledSlotGuard >= 0 && consumeDisabledSlot > disabledSlotGuard,
+            "the reserved YAML id must not fall through to a generic slot when HipLantern custom mode is unavailable");
+        string lifecycleSource = File.ReadAllText(Path.Combine(repositoryRoot, "PluginLifecycle.cs"));
+        Assert.True(lifecycleSource.Contains("RefreshHipLanternCompatibilityState(player)", StringComparison.Ordinal),
+            "runtime utility-mode changes and stale native state must be reconciled");
     }
 
     public static void QuickslotResetPolicyClearsHighestRowsFirst()

@@ -24,6 +24,8 @@ public sealed partial class InventorySlotsPlugin
     private const string RecycleNReclaimGuid = "Azumatt.Recycle_N_Reclaim";
     private const string VeiledRecipesGuid = "sighsorry.VeiledRecipes";
     private const string ContentsWithinGuid = "com.maxsch.valheim.contentswithin";
+    private const string CircletExtendedGuid = "shudnal.CircletExtended";
+    private const string HipLanternGuid = "shudnal.HipLantern";
 
     private static bool HasServerCharactersActive => !ZNet.IsSinglePlayer && HasPlugin(ServerCharactersGuid);
     private static bool HasExternalMultiUserChestActive => HasPlugin(MultiUserChestGuid);
@@ -31,6 +33,8 @@ public sealed partial class InventorySlotsPlugin
         !HasExternalMultiUserChestActive &&
         _enableBuiltInMultiUserChest?.Value == Toggle.On;
     private static bool HasJewelcraftingActive => HasPlugin(JewelcraftingGuid);
+    private static bool HasCircletExtendedActive => HasPlugin(CircletExtendedGuid);
+    private static bool HasHipLanternActive => HasPlugin(HipLanternGuid);
 
     private static bool HasPlugin(string guid)
     {

@@ -124,12 +124,14 @@ public sealed partial class InventorySlotsPlugin
         SyncRustyBagsCompatState(player);
     }
 
-    private static void OnCustomEquipmentCompatEquipped(Player player, ItemData item)
+    private static bool OnCustomEquipmentCompatEquipped(Player player, ItemData item)
     {
         if (player == null || item == null)
         {
-            return;
+            return false;
         }
+
+        bool externalStateChanged = OnHipLanternCustomEquipmentEquipped(player, item);
 
         if (IsAdventureBackpackItem(item) &&
             TryGetAdventureBackpacksApi(out AdventureBackpacksApi? adventureApi) &&
@@ -166,15 +168,20 @@ public sealed partial class InventorySlotsPlugin
         }
 
         OnMagicSupremacyBeltEquipped(player, item);
+        return externalStateChanged;
     }
 
-    private static void OnCustomEquipmentCompatUnequipping(Player? player, ItemData item)
+    private static bool OnCustomEquipmentCompatUnequipping(Player? player, ItemData item)
     {
         player ??= Player.m_localPlayer;
         if (player == null || item == null)
         {
-            return;
+            return false;
         }
+
+        bool externalStateChanged =
+            ClearCircletExtendedEquippedState(player, item) |
+            ClearHipLanternEquippedState(player, item);
 
         if ((ReferenceEquals(_lastAdventureBackpackCompatItem, item) || IsAdventureBackpackItem(item)) &&
             TryGetAdventureBackpacksApi(out AdventureBackpacksApi? adventureApi) &&
@@ -220,6 +227,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         OnMagicSupremacyBeltUnequipping(player, item);
+        return externalStateChanged;
     }
 
     private static void SyncAdventureBackpackCompatState(Player player)

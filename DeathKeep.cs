@@ -356,6 +356,8 @@ public sealed partial class InventorySlotsPlugin
                slot.Kind != SlotKind.Quick &&
                slot.Accepts(item) &&
                !IsJewelcraftingUtilityGemBlockedForSlot(item, slot) &&
+               CanUseCircletExtendedCustomSlot(player, item, slot) &&
+               CanUseHipLanternCustomSlot(item, slot) &&
                IsEquipmentSlotProgressionEnabled();
     }
 

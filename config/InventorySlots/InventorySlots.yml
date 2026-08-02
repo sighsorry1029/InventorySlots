@@ -21,6 +21,10 @@ Slots:
     name: Circlet
     items:
       - HelmetDverger
+  - id: hiplantern.lantern
+    name: Hip Lantern
+    items:
+      - HipLantern
   - id: wishbone
     name: Wishbone
     items:

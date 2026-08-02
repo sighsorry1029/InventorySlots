@@ -17,6 +17,7 @@ public sealed partial class InventorySlotsPlugin
         InitializeJewelcraftingSlotCompatibility();
         InitializeBackpackCompatibility();
         InitializeMagicSupremacyCompatibility();
+        InitializeHipLanternCompatibility();
         InitializeYamlSync();
 
         _harmony.PatchAll();
@@ -79,6 +80,8 @@ public sealed partial class InventorySlotsPlugin
         RebuildStationInputTokens();
         RefreshJewelcraftingSlotDefinitionsIfNeeded(player);
         PrunePendingSlotActions(player);
+        RefreshHipLanternCompatibilityState(player);
+        RefreshCircletExtendedCompatibilityState(player);
 
         EnsureInventoryState(player, InventoryStateEnsureReason.PeriodicAudit, InventoryStateAuditLevel.HeightOnly);
 
