@@ -16,7 +16,6 @@
     <Compile Include="..\CraftingTabAdapterModels.cs" Link="CraftingTabAdapterModels.cs" />
     <Compile Include="..\CraftingUiStamps.cs" Link="CraftingUiStamps.cs" />
     <Compile Include="..\FoodStatCore.cs" Link="FoodStatCore.cs" />
-    <Compile Include="..\ColoredFork\FoodStatCore.cs" Link="ColoredFork\FoodStatCore.cs" />
     <Compile Include="..\InventorySlotsConfigCore.cs" Link="InventorySlotsConfigCore.cs" />
     <Compile Include="..\InventoryActionCellPolicyCore.cs" Link="InventoryActionCellPolicyCore.cs" />
     <Compile Include="..\InventoryCellKind.cs" Link="InventoryCellKind.cs" />
@@ -36,6 +35,7 @@
     <Compile Include="..\SimpleTooltipOwnershipCore.cs" Link="SimpleTooltipOwnershipCore.cs" />
     <Compile Include="..\SortKeyComparerCore.cs" Link="SortKeyComparerCore.cs" />
     <Compile Include="..\SortKeyModels.cs" Link="SortKeyModels.cs" />
+    <Compile Include="..\StackMetadataPolicy.cs" Link="StackMetadataPolicy.cs" />
     <Compile Include="..\TooltipSourceCacheCore.cs" Link="TooltipSourceCacheCore.cs" />
     <Compile Include="..\UpgradeFavoriteCore.cs" Link="UpgradeFavoriteCore.cs" />
     <Compile Include="..\YamlConfigurationDefaults.cs" Link="YamlConfigurationDefaults.cs" />

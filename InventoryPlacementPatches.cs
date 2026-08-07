@@ -53,33 +53,47 @@ internal static class InventoryCanAddItemPatch
 [HarmonyPatch(typeof(Inventory), "AddItem", typeof(ItemData))]
 internal static class InventoryAddItemDataPatch
 {
-    private static bool Prefix(Inventory __instance, ItemData item, ref bool __result, out bool __state)
+    private static bool Prefix(
+        Inventory __instance,
+        ItemData item,
+        ref bool __result,
+        out InventoryAddItemStackMetadataState? __state)
     {
-        __state = false;
+        __state = null;
         if (!InventorySlotsPlugin.TryValidatePlayerInventoryLimit(__instance, item, item.m_stack, ref __result))
         {
             return false;
         }
 
-        __state = InventorySlotsPlugin.BeginInventoryAddItemDataStackLookup(item);
+        __state = InventorySlotsPlugin.BeginAutomaticStackMetadataMerge(
+            __instance,
+            item);
         bool runOriginal = InventorySlotsPlugin.TryPreserveLoadedSlotTailItem(__instance, item, ref __result);
         if (!runOriginal)
         {
-            InventorySlotsPlugin.EndInventoryAddItemDataStackLookup(__state);
-            __state = false;
+            InventorySlotsPlugin.EndAutomaticStackMetadataMerge(__state);
         }
 
         return runOriginal;
     }
 
-    private static void Postfix(Inventory __instance, ItemData item, ref bool __result)
+    private static void Postfix(
+        Inventory __instance,
+        ItemData item,
+        ref bool __result,
+        InventoryAddItemStackMetadataState? __state)
     {
+        InventorySlotsPlugin.CompleteAutomaticStackMetadataMerge(
+            __instance,
+            __state);
         InventorySlotsPlugin.OnInventoryAddItemData(__instance, item, ref __result);
     }
 
-    private static Exception? Finalizer(bool __state, Exception __exception)
+    private static Exception? Finalizer(
+        InventoryAddItemStackMetadataState? __state,
+        Exception __exception)
     {
-        InventorySlotsPlugin.EndInventoryAddItemDataStackLookup(__state);
+        InventorySlotsPlugin.EndAutomaticStackMetadataMerge(__state);
         return __exception;
     }
 }
@@ -87,19 +101,53 @@ internal static class InventoryAddItemDataPatch
 [HarmonyPatch(typeof(Inventory), "AddItem", typeof(ItemData), typeof(int), typeof(int), typeof(int))]
 internal static class InventoryAddItemXyPatch
 {
-    private static bool Prefix(Inventory __instance, ref bool __result, ItemData item, int amount, ref int x, ref int y)
+    private static bool Prefix(
+        Inventory __instance,
+        ref bool __result,
+        ItemData item,
+        int amount,
+        ref int x,
+        ref int y,
+        out InventoryStackMetadataMergeState? __state)
     {
+        __state = null;
         int requestedAmount = Math.Min(Math.Max(0, amount), Math.Max(0, item.m_stack));
         if (!InventorySlotsPlugin.TryValidatePlayerInventoryLimit(__instance, item, requestedAmount, ref __result))
         {
             return false;
         }
 
-        return InventorySlotsPlugin.TryValidatePlayerInventoryInsert(__instance, item, ref x, ref y, ref __result);
+        if (!InventorySlotsPlugin.TryValidatePlayerInventoryInsert(
+                __instance,
+                item,
+                ref x,
+                ref y,
+                ref __result))
+        {
+            return false;
+        }
+
+        return InventorySlotsPlugin.TryPreparePositionalStackMetadataMerge(
+            __instance,
+            item,
+            requestedAmount,
+            x,
+            y,
+            ref __result,
+            out __state);
     }
 
-    private static void Postfix(Inventory __instance, ItemData item, int x, int y, bool __result)
+    private static void Postfix(
+        Inventory __instance,
+        ItemData item,
+        int x,
+        int y,
+        bool __result,
+        InventoryStackMetadataMergeState? __state)
     {
+        InventorySlotsPlugin.CompletePositionalStackMetadataMerge(
+            __instance,
+            __state);
         InventorySlotsPlugin.OnPlayerInventoryItemPlaced(__instance, item, new Vector2i(x, y), __result);
     }
 }
@@ -107,19 +155,54 @@ internal static class InventoryAddItemXyPatch
 [HarmonyPatch(typeof(Inventory), "AddItem", typeof(ItemData), typeof(Vector2i))]
 internal static class InventoryAddItemPosPatch
 {
-    private static bool Prefix(Inventory __instance, ref bool __result, ItemData item, ref Vector2i pos)
+    private static bool Prefix(
+        Inventory __instance,
+        ref bool __result,
+        ItemData item,
+        ref Vector2i pos,
+        out InventoryAddItemStackMetadataState? __state)
     {
+        __state = null;
         if (!InventorySlotsPlugin.TryValidatePlayerInventoryLimit(__instance, item, item.m_stack, ref __result))
         {
             return false;
         }
 
-        return InventorySlotsPlugin.TryValidatePlayerInventoryInsert(__instance, item, ref pos, ref __result);
+        __state = InventorySlotsPlugin.BeginAutomaticStackMetadataMerge(
+            __instance,
+            item);
+        bool runOriginal = InventorySlotsPlugin.TryValidatePlayerInventoryInsert(
+            __instance,
+            item,
+            ref pos,
+            ref __result);
+        if (!runOriginal)
+        {
+            InventorySlotsPlugin.EndAutomaticStackMetadataMerge(__state);
+        }
+
+        return runOriginal;
     }
 
-    private static void Postfix(Inventory __instance, ItemData item, Vector2i pos, bool __result)
+    private static void Postfix(
+        Inventory __instance,
+        ItemData item,
+        Vector2i pos,
+        bool __result,
+        InventoryAddItemStackMetadataState? __state)
     {
+        InventorySlotsPlugin.CompleteAutomaticStackMetadataMerge(
+            __instance,
+            __state);
         InventorySlotsPlugin.OnPlayerInventoryItemPlaced(__instance, item, pos, __result);
+    }
+
+    private static Exception? Finalizer(
+        InventoryAddItemStackMetadataState? __state,
+        Exception __exception)
+    {
+        InventorySlotsPlugin.EndAutomaticStackMetadataMerge(__state);
+        return __exception;
     }
 }
 

@@ -10,6 +10,22 @@ internal enum FoodStat
 
 internal static class FoodStatCore
 {
+    public static bool TryGetSlotForkDominant(
+        bool isConsumable,
+        float health,
+        float stamina,
+        float eitr,
+        out FoodStat stat)
+    {
+        if (!isConsumable)
+        {
+            stat = FoodStat.None;
+            return false;
+        }
+
+        return TryGetDominant(health, stamina, eitr, out stat);
+    }
+
     public static bool TryGetDominant(float health, float stamina, float eitr, out FoodStat stat)
     {
         stat = FoodStat.None;

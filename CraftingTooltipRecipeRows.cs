@@ -12,7 +12,7 @@ namespace InventorySlots;
 public sealed partial class InventorySlotsPlugin
 {
     private const float CraftingHoverTooltipScrollbarWidth = 3f;
-    private const float CraftingHoverTooltipScrollbarOutsideOffset = 2f;
+    private const float CraftingHoverTooltipScrollbarOutsideOffset = -5f;
     private const float CraftingHoverTooltipScrollSensitivity = 96f;
     private const float CraftingHoverTooltipMinBodyHeight = 80f;
     private const float CraftingHoverTooltipMaxPanelHeight = 720f;
@@ -139,7 +139,10 @@ public sealed partial class InventorySlotsPlugin
         RefreshCraftingHoverTooltipBackground();
     }
 
-    private static bool IsCraftingTooltipRecipeOverlayTargetValid()
+    private static bool IsCraftingTooltipRecipeOverlayTargetValid() =>
+        IsCraftingTooltipRecipeOverlayTargetValid(GetUiMousePosition());
+
+    private static bool IsCraftingTooltipRecipeOverlayTargetValid(Vector2 mouse)
     {
         RectTransform? grid = _craftingRecipeGrid;
         if (grid == null || IsUnityNull(grid) || !grid.gameObject.activeInHierarchy)
@@ -167,7 +170,7 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        return RectContainsScreenPoint(cell.Rect, GetUiMousePosition());
+        return RectContainsScreenPoint(cell.Rect, mouse);
     }
 
     private static CraftingHoverTooltipContent GetCraftingHoverTooltipContent(InventoryGui.RecipeDataPair pair, bool includeBody)
@@ -488,14 +491,8 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool HandleCraftingHoverTooltipWheel()
     {
-        if (CraftingUi.HoverTooltip == null ||
-            IsUnityNull(CraftingUi.HoverTooltip) ||
-            !CraftingUi.HoverTooltip.activeInHierarchy ||
-            CraftingUi.HoverTooltipPanel == null ||
-            IsUnityNull(CraftingUi.HoverTooltipPanel) ||
-            CraftingUi.HoverTooltipMaxScroll <= 1f ||
-            IsCraftingRecipeGridZoomModifierHeld() ||
-            !IsUiScrollTargetActive(CraftingUi.HoverTooltipPanel))
+        bool gamepadScroll = IsGamepadUiScrollActive();
+        if (!HasCraftingHoverTooltipWheelOwner(GetUiMousePosition(), gamepadScroll))
         {
             return false;
         }
@@ -506,12 +503,43 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
+        return TryScrollCraftingHoverTooltip(wheel);
+    }
+
+    private static bool TryScrollCraftingHoverTooltip(float wheel)
+    {
+        if (Mathf.Abs(wheel) < 0.01f)
+        {
+            return false;
+        }
+
+        ConsumeMouseUiScrollForCurrentFrame();
         CraftingUi.HoverTooltipScrollOffset = Mathf.Clamp(
             CraftingUi.HoverTooltipScrollOffset - wheel * CraftingHoverTooltipScrollSensitivity,
             0f,
             CraftingUi.HoverTooltipMaxScroll);
         ApplyCraftingHoverTooltipScrollPosition();
         return true;
+    }
+
+    private static bool HasCraftingHoverTooltipWheelOwner(Vector2 pointer, bool allowGamepad = false)
+    {
+        return CraftingUi.HoverTooltip != null &&
+               !IsUnityNull(CraftingUi.HoverTooltip) &&
+               CraftingUi.HoverTooltip.activeInHierarchy &&
+               CraftingUi.HoverTooltipPanel != null &&
+               !IsUnityNull(CraftingUi.HoverTooltipPanel) &&
+               CraftingUi.HoverTooltipMaxScroll > 1f &&
+               !IsCraftingRecipeGridZoomModifierHeld() &&
+               (allowGamepad || IsCraftingTooltipRecipeOverlayTargetValid(pointer));
+    }
+
+    private static void PrepareCraftingTooltipScrollInput(InventoryGui gui)
+    {
+        if (HasUnconsumedUiScrollInput())
+        {
+            UpdateCraftingTooltipRecipeOverlay(gui);
+        }
     }
 
     private static float GetCraftingHoverTooltipPreferredTextHeight(TMP_Text text, float textWidth)

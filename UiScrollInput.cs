@@ -1,5 +1,7 @@
 using System;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 namespace InventorySlots;
 
@@ -12,13 +14,14 @@ public sealed partial class InventorySlotsPlugin
     }
 
     private static float _nextGamepadUiScrollStepTime;
+    private static int _mouseUiScrollConsumedFrame = -1;
 
     private static float GetUiScrollDelta(UiScrollInputMode mode, bool allowGamepad = true)
     {
         float mouseDelta = Input.mouseScrollDelta.y * GetMouseUiScrollMultiplier();
         if (Mathf.Abs(mouseDelta) >= 0.01f)
         {
-            return mouseDelta;
+            return _mouseUiScrollConsumedFrame == Time.frameCount ? 0f : mouseDelta;
         }
 
         if (!allowGamepad || !IsGamepadUiScrollActive(out float gamepadDelta))
@@ -41,19 +44,75 @@ public sealed partial class InventorySlotsPlugin
         return Mathf.Sign(gamepadDelta);
     }
 
-    private static bool IsUiScrollTargetActive(RectTransform? rect, bool allowGamepad = true)
+    private static bool HasUnconsumedUiScrollInput()
     {
-        if (rect == null || IsUnityNull(rect))
-        {
-            return false;
-        }
-
-        if (RectContainsScreenPoint(rect, GetUiMousePosition()))
+        float mouseDelta = Input.mouseScrollDelta.y * GetMouseUiScrollMultiplier();
+        if (Mathf.Abs(mouseDelta) >= 0.01f && _mouseUiScrollConsumedFrame != Time.frameCount)
         {
             return true;
         }
 
-        return allowGamepad && IsGamepadUiScrollActive();
+        return IsGamepadUiScrollActive();
+    }
+
+    private static void ConsumeMouseUiScrollForCurrentFrame()
+    {
+        if (Mathf.Abs(Input.mouseScrollDelta.y) >= 0.01f)
+        {
+            _mouseUiScrollConsumedFrame = Time.frameCount;
+        }
+    }
+
+    private static bool IsMouseUiScrollConsumedForCurrentFrame() =>
+        _mouseUiScrollConsumedFrame == Time.frameCount;
+
+    internal static bool TryHandleCraftingPointerScroll(ScrollRect scrollRect, PointerEventData eventData)
+    {
+        InventoryGui? gui = InventoryGui.instance;
+        if (!_craftingRedesignApplied ||
+            gui == null ||
+            gui.m_crafting == null ||
+            scrollRect == null ||
+            IsUnityNull(scrollRect) ||
+            eventData == null ||
+            Mathf.Abs(eventData.scrollDelta.y) < 0.01f ||
+            !scrollRect.transform.IsChildOf(gui.m_crafting))
+        {
+            return false;
+        }
+
+        Vector2 pointer = eventData.position;
+        if (IsPointerOverActiveCraftingPinnedTooltip(pointer))
+        {
+            return false;
+        }
+
+        float wheel = eventData.scrollDelta.y * GetMouseUiScrollMultiplier();
+        UpdateCraftingTooltipRecipeOverlay(gui);
+
+        if (!HasCraftingHoverTooltipWheelOwner(pointer))
+        {
+            return false;
+        }
+
+        return IsMouseUiScrollConsumedForCurrentFrame() || TryScrollCraftingHoverTooltip(wheel);
+    }
+
+    private static bool IsPointerOverActiveCraftingPinnedTooltip(Vector2 pointer)
+    {
+        for (int i = 0; i < PinnedTooltips.Crafting.Panels.Length; i++)
+        {
+            RectTransform? panel = PinnedTooltips.Crafting.Panels[i];
+            if (panel != null &&
+                !IsUnityNull(panel) &&
+                panel.gameObject.activeInHierarchy &&
+                RectContainsScreenPoint(panel, pointer))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static Vector2 GetUiMousePosition()

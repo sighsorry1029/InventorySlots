@@ -82,6 +82,7 @@ public sealed partial class InventorySlotsPlugin
 
         bool viewChanged = UpdateCraftingRecipeView(gui);
         EnsureSelectedCraftingRecipeVisible(gui);
+        PrepareCraftingTooltipScrollInput(gui);
         bool recipeWheelHandled = HandleCraftingPinnedTooltipWheel() || HandleCraftingHoverTooltipWheel() || HandleCraftingRecipeGridZoomWheel(gui, grid) || HandleCraftingRecipeGridWheel(gui, grid);
         if (!recipeWheelHandled)
         {

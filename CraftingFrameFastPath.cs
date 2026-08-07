@@ -56,6 +56,7 @@ public sealed partial class InventorySlotsPlugin
             return true;
         }
 
+        PrepareCraftingTooltipScrollInput(gui);
         bool recipeWheelHandled =
             HandleCraftingPinnedTooltipWheel() ||
             HandleCraftingHoverTooltipWheel() ||

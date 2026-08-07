@@ -266,11 +266,24 @@ public sealed partial class InventorySlotsPlugin
     private static bool MergeSortableStacks(List<ItemData> toMerge, Inventory inventory)
     {
         bool changed = false;
-        List<List<ItemData>> grouped = toMerge
-            .Where(item => item?.m_shared != null && item.m_stack < item.m_shared.m_maxStackSize && CanUseContainerActionStacking(item))
-            .GroupBy(item => new { item.m_shared.m_name, item.m_quality, item.m_worldLevel })
-            .Select(grouping => grouping.ToList())
-            .ToList();
+        List<List<ItemData>> grouped = new();
+        foreach (ItemData item in toMerge.Where(item =>
+                     item?.m_shared != null &&
+                     item.m_stack > 0 &&
+                     item.m_stack < item.m_shared.m_maxStackSize &&
+                     CanUseContainerActionStacking(item)))
+        {
+            List<ItemData>? matchingGroup = grouped.FirstOrDefault(group =>
+                group.Count > 0 &&
+                CanShareInventoryStack(group[0], item));
+            if (matchingGroup == null)
+            {
+                matchingGroup = new List<ItemData>();
+                grouped.Add(matchingGroup);
+            }
+
+            matchingGroup.Add(item);
+        }
 
         foreach (List<ItemData> group in grouped)
         {
@@ -279,32 +292,41 @@ public sealed partial class InventorySlotsPlugin
                 continue;
             }
 
-            int total = group.Sum(item => item.m_stack);
-            int maxStack = group[0].m_shared.m_maxStackSize;
-            foreach (ItemData item in group)
+            for (int targetIndex = 0; targetIndex < group.Count; targetIndex++)
             {
-                if (total <= 0)
+                ItemData target = group[targetIndex];
+                if (target.m_stack <= 0)
                 {
-                    if (item.m_stack != 0)
-                    {
-                        item.m_stack = 0;
-                        changed = true;
-                    }
-
-                    inventory.RemoveItem(item);
-                    toMerge.Remove(item);
-                    changed = true;
                     continue;
                 }
 
-                int nextStack = Math.Min(maxStack, total);
-                if (item.m_stack != nextStack)
+                int free = Math.Max(
+                    0,
+                    target.m_shared.m_maxStackSize - target.m_stack);
+                for (int sourceIndex = targetIndex + 1;
+                     sourceIndex < group.Count && free > 0;
+                     sourceIndex++)
                 {
-                    item.m_stack = nextStack;
+                    ItemData source = group[sourceIndex];
+                    int amount = Math.Min(free, Math.Max(0, source.m_stack));
+                    if (amount <= 0)
+                    {
+                        continue;
+                    }
+
+                    MergeStackMetadata(target, source);
+                    target.m_stack += amount;
+                    source.m_stack -= amount;
+                    free -= amount;
                     changed = true;
                 }
+            }
 
-                total -= item.m_stack;
+            foreach (ItemData emptied in group.Where(item => item.m_stack <= 0).ToList())
+            {
+                inventory.RemoveItem(emptied);
+                toMerge.Remove(emptied);
+                changed = true;
             }
         }
 

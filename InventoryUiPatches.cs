@@ -24,7 +24,7 @@ internal static class InventoryGridDominantFoodIconColorPatch
 
         foreach (ItemData item in inventory.GetAllItems())
         {
-            if (item == null || !InventorySlotsPlugin.TryGetDominantFoodStat(item, out FoodStat stat))
+            if (item == null)
             {
                 continue;
             }
@@ -38,6 +38,12 @@ internal static class InventoryGridDominantFoodIconColorPatch
             InventoryGrid.Element element = __instance.m_elements[index];
             if (element?.m_food == null)
             {
+                continue;
+            }
+
+            if (!InventorySlotsPlugin.TryGetSlotForkDominantFoodStat(item, out FoodStat stat))
+            {
+                element.m_food.enabled = false;
                 continue;
             }
 

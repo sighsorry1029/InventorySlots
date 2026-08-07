@@ -626,6 +626,23 @@ public sealed partial class InventorySlotsPlugin
         return FoodStatCore.TryGetDominant(GetFoodHealth(item), GetFoodStamina(item), GetFoodEitr(item), out stat);
     }
 
+    internal static bool TryGetSlotForkDominantFoodStat(ItemData item, out FoodStat stat)
+    {
+        if (item?.m_shared == null)
+        {
+            stat = FoodStat.None;
+            return false;
+        }
+
+        ItemData.SharedData shared = item.m_shared;
+        return FoodStatCore.TryGetSlotForkDominant(
+            shared.m_itemType == ItemType.Consumable,
+            shared.m_food,
+            shared.m_foodStamina,
+            shared.m_foodEitr,
+            out stat);
+    }
+
     private static string GetAttackAnimation(ItemData item) => item.m_shared.m_attack.m_attackAnimation ?? "";
     private static string GetAmmoType(ItemData item) => item.m_shared.m_ammoType ?? "";
     private static string GetSharedName(ItemData item) => item.m_shared.m_name ?? "";

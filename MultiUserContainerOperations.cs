@@ -250,7 +250,7 @@ public sealed partial class InventorySlotsPlugin
                 occupied != item &&
                 (item.m_shared.m_maxStackSize <= 1 ||
                  occupied.m_shared.m_maxStackSize <= 1 ||
-                 !IsExactMultiUserContainerItemMatch(
+                 !CanStackMultiUserContainerItems(
                      item,
                      occupied,
                      requiredStack: 1));
@@ -1215,7 +1215,10 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        return IsExactMultiUserContainerItemMatch(incoming, target, requiredStack: 1);
+        return CanStackMultiUserContainerItems(
+            incoming,
+            target,
+            requiredStack: 1);
     }
 
     private static bool TryFindLocalMultiUserContainerDestination(
@@ -1764,7 +1767,7 @@ public sealed partial class InventorySlotsPlugin
             int expectedStack =
                 request.ExpectedTargetStack + request.Amount;
             return target != null &&
-                   IsExactMultiUserContainerItemMatch(
+                   CanStackMultiUserContainerItems(
                        request.Item,
                        target,
                        requiredStack: 1) &&
@@ -1850,7 +1853,7 @@ public sealed partial class InventorySlotsPlugin
         int movedTargetStack =
             request.ExpectedTargetStack + request.Amount;
         return movedTarget != null &&
-               IsExactMultiUserContainerItemMatch(
+               CanStackMultiUserContainerItems(
                    request.Item,
                    movedTarget,
                    requiredStack: 1) &&
@@ -2527,6 +2530,7 @@ public sealed partial class InventorySlotsPlugin
             }
 
             target.m_stack += amount;
+            MergeStackMetadata(target, item);
             NotifyMultiUserContainerInventoryChanged(inventory);
             securedItem = target;
             return true;

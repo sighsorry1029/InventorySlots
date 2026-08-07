@@ -99,24 +99,11 @@ internal static class MultiUserContainerTransferCore
         MultiUserContainerItemSnapshot? actual,
         int requiredStack)
     {
-        if (expected == null ||
-            actual == null ||
-            requiredStack <= 0 ||
-            expected.Stack < requiredStack ||
-            actual.Stack < requiredStack)
-        {
-            return false;
-        }
-
-        if (!string.Equals(expected.PrefabName, actual.PrefabName, StringComparison.Ordinal) ||
-            expected.Quality != actual.Quality ||
-            expected.Variant != actual.Variant ||
-            expected.WorldLevel != actual.WorldLevel ||
-            expected.CrafterId != actual.CrafterId ||
-            !string.Equals(expected.CrafterName, actual.CrafterName, StringComparison.Ordinal) ||
-            expected.DurabilityBits != actual.DurabilityBits ||
-            expected.PickedUp != actual.PickedUp ||
-            expected.CustomData.Count != actual.CustomData.Count)
+        if (!HasMatchingSerializedIdentity(
+                expected,
+                actual,
+                requiredStack) ||
+            expected!.CustomData.Count != actual!.CustomData.Count)
         {
             return false;
         }
@@ -133,5 +120,36 @@ internal static class MultiUserContainerTransferCore
         }
 
         return true;
+    }
+
+    public static bool CanStackTogether(
+        MultiUserContainerItemSnapshot? incoming,
+        MultiUserContainerItemSnapshot? target,
+        int requiredStack)
+    {
+        return HasMatchingSerializedIdentity(incoming, target, requiredStack) &&
+               StackMetadataPolicy.AreCompatible(
+                   incoming!.CustomData,
+                   target!.CustomData);
+    }
+
+    private static bool HasMatchingSerializedIdentity(
+        MultiUserContainerItemSnapshot? expected,
+        MultiUserContainerItemSnapshot? actual,
+        int requiredStack)
+    {
+        return expected != null &&
+               actual != null &&
+               requiredStack > 0 &&
+               expected.Stack >= requiredStack &&
+               actual.Stack >= requiredStack &&
+               string.Equals(expected.PrefabName, actual.PrefabName, StringComparison.Ordinal) &&
+               expected.Quality == actual.Quality &&
+               expected.Variant == actual.Variant &&
+               expected.WorldLevel == actual.WorldLevel &&
+               expected.CrafterId == actual.CrafterId &&
+               string.Equals(expected.CrafterName, actual.CrafterName, StringComparison.Ordinal) &&
+               expected.DurabilityBits == actual.DurabilityBits &&
+               expected.PickedUp == actual.PickedUp;
     }
 }

@@ -136,7 +136,7 @@ public sealed partial class InventorySlotsPlugin
                 return true;
             }
 
-            if (!HasNoCustomData(sourceItem))
+            if (!CanUseStackMetadataAutomaticStacking(sourceItem))
             {
                 return false;
             }
@@ -145,7 +145,12 @@ public sealed partial class InventorySlotsPlugin
         ItemData? best = null;
         foreach (ItemData item in inventory.m_inventory)
         {
-            if (!CanStackIntoItem(item, name, quality, worldLevel))
+            if (!CanStackIntoItem(
+                    item,
+                    sourceItem,
+                    name,
+                    quality,
+                    worldLevel))
             {
                 continue;
             }
@@ -213,10 +218,18 @@ public sealed partial class InventorySlotsPlugin
         return count;
     }
 
-    private static bool CanStackIntoItem(ItemData? item, string name, int quality, float worldLevel)
+    private static bool CanStackIntoItem(
+        ItemData? item,
+        ItemData? source,
+        string name,
+        int quality,
+        float worldLevel)
     {
         return item?.m_shared != null &&
-               HasNoCustomData(item) &&
+               (source == null
+                   ? HasNoCustomData(item)
+                   : CanUseStackMetadataAutomaticStacking(item) &&
+                     HasCompatibleStackMetadata(item, source)) &&
                item.m_shared.m_name == name &&
                item.m_quality == quality &&
                item.m_stack < item.m_shared.m_maxStackSize &&
@@ -571,7 +584,9 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool CanCacheCanAddItemFailure(ItemData item)
     {
-        return item?.m_shared != null && (HasNoCustomData(item) || IsTrustedCustomDataStackingItem(item));
+        return item?.m_shared != null &&
+               (CanUseStackMetadataAutomaticStacking(item) ||
+                IsTrustedCustomDataStackingItem(item));
     }
 
     private static int ComputeInventoryPlacementCacheContext(Player player, Inventory inventory)
@@ -657,7 +672,8 @@ public sealed partial class InventorySlotsPlugin
         }
 
         bool trustedCustomDataStacking = IsTrustedCustomDataStackingItem(item);
-        if (!trustedCustomDataStacking && !HasNoCustomData(item))
+        if (!trustedCustomDataStacking &&
+            !CanUseStackMetadataAutomaticStacking(item))
         {
             return 0;
         }
@@ -691,7 +707,10 @@ public sealed partial class InventorySlotsPlugin
         }
 
         bool trustedCustomDataStacking = IsTrustedCustomDataStackingItem(incoming);
-        return (trustedCustomDataStacking || HasNoCustomData(incoming) && HasNoCustomData(existing)) &&
+        return (trustedCustomDataStacking ||
+                CanUseStackMetadataAutomaticStacking(incoming) &&
+                CanUseStackMetadataAutomaticStacking(existing) &&
+                HasCompatibleStackMetadata(existing, incoming)) &&
                existing.m_shared.m_name == incoming.m_shared.m_name &&
                existing.m_quality == incoming.m_quality &&
                (float)existing.m_worldLevel == incoming.m_worldLevel;

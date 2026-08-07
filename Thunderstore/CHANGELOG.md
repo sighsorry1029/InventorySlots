@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.3.7
+
+- Fixed long crafting, upgrade, and socket-tab hover tooltips so their scrollbar stays inside the panel and the first wheel input scrolls immediately.
+- Prevented an overflowing hover tooltip and its underlying crafting tab from scrolling together, while preserving existing pinned-tooltip input behavior.
+
+## 1.3.6
+
+- Fixed inventory, container, and crafting-result fork icons so they appear only for actual `Consumable` items with direct health, stamina, or eitr food stats. Raw ingredients can still use `m_appendToolTip` for food grouping without being shown as edible.
+- Removed the obsolete standalone fork-icon subproject; direct-consumable fork coloring remains built into InventorySlots.
+- Updated BeingSpoiled stack merging for its signed clock format: positive values are running world deadlines and negative values are frozen remaining durations. Mixed states now compare effective remaining time on the shared ZNet clock and preserve the destination state.
+- Ensured an already-expired running BeingSpoiled clock cannot be rescued by merging into a Mountain-frozen stack; the result remains immediately due for spoilage.
+- Added a load-order-safe BeingSpoiled policy handoff. Its authoritative merge callback can replace InventorySlots' fallback once, while malformed clocks and mixed states without an available world clock remain conservatively unmerged.
+
+## 1.3.5
+
+- Added mergeable stack-metadata support for BeingSpoiled. Food stacks with different `sighsorry.BeingSpoiled.ExpiryWorldTicks` values can merge while the combined stack keeps the earlier expiry.
+- Applied the same metadata rule to automatic and positional adds, sorting, container actions, and owner-authoritative multi-user container transfers without weakening exact checks for unrelated custom item data.
+
 ## 1.3.4
 
 - Added formal CircletExtended compatibility that synchronizes its native circlet state across equip, restore, unequip, death, and configuration changes while avoiding recursive custom visual attachment and duplicate weight or durability handling.

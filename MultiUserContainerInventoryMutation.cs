@@ -134,6 +134,7 @@ public sealed partial class InventorySlotsPlugin
 
         target.m_stack += amount;
         target.m_equipped = false;
+        MergeStackMetadata(target, itemToAdd);
         NotifyMultiUserContainerInventoryChanged(inventory);
         return true;
     }
@@ -289,6 +290,7 @@ public sealed partial class InventorySlotsPlugin
 
         target.m_stack += amount;
         target.m_equipped = false;
+        MergeStackMetadata(target, source);
         source.m_stack -= amount;
         if (source.m_stack == 0)
         {
@@ -480,6 +482,21 @@ public sealed partial class InventorySlotsPlugin
             requiredStack);
     }
 
+    private static bool CanStackMultiUserContainerItems(
+        ItemData incoming,
+        ItemData target,
+        int requiredStack)
+    {
+        MultiUserContainerItemSnapshot? incomingSnapshot =
+            CreateMultiUserContainerItemSnapshot(incoming);
+        MultiUserContainerItemSnapshot? targetSnapshot =
+            CreateMultiUserContainerItemSnapshot(target);
+        return MultiUserContainerTransferCore.CanStackTogether(
+            incomingSnapshot,
+            targetSnapshot,
+            requiredStack);
+    }
+
     private static bool CanAcceptEntireMultiUserContainerStack(
         MultiUserContainerItemSnapshot incomingSnapshot,
         int incomingMaxStack,
@@ -497,7 +514,7 @@ public sealed partial class InventorySlotsPlugin
 
         MultiUserContainerItemSnapshot? targetSnapshot =
             CreateMultiUserContainerItemSnapshot(target);
-        return MultiUserContainerTransferCore.IsExactMatch(
+        return MultiUserContainerTransferCore.CanStackTogether(
             incomingSnapshot,
             targetSnapshot,
             requiredStack: 1);

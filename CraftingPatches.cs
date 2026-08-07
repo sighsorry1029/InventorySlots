@@ -1,7 +1,25 @@
 using System;
 using HarmonyLib;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 namespace InventorySlots;
+
+[HarmonyPatch(typeof(ScrollRect), nameof(ScrollRect.OnScroll))]
+[HarmonyPriority(Priority.First)]
+internal static class CraftingTooltipUnderlyingScrollRectGuardPatch
+{
+    private static bool Prefix(ScrollRect __instance, PointerEventData __0)
+    {
+        if (!InventorySlotsPlugin.TryHandleCraftingPointerScroll(__instance, __0))
+        {
+            return true;
+        }
+
+        __0.Use();
+        return false;
+    }
+}
 
 [HarmonyPatch(typeof(InventoryGui), "UpdateCraftingPanel")]
 [HarmonyPriority(Priority.First)]

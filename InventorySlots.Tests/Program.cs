@@ -21,7 +21,8 @@ TestRunner.Run(
     ("Built-in group section names normalize to ids", Tests.BuiltInGroupSectionNamesNormalizeToIds),
     ("Dominant food stat tie breaks are stable", Tests.DominantFoodStatTieBreaksAreStable),
     ("Dominant food stat ignores empty foods", Tests.DominantFoodStatIgnoresEmptyFoods),
-    ("ColoredFork food stat copy mirrors InventorySlots behavior", Tests.ColoredForkFoodStatCopyMirrorsInventorySlotsBehavior),
+    ("Slot food fork rejects appended-tooltip materials", Tests.SlotFoodForkRejectsAppendedTooltipMaterials),
+    ("Slot food fork accepts direct consumables", Tests.SlotFoodForkAcceptsDirectConsumables),
     ("Crafting frame fast-path stamp tracks relevant fields", Tests.CraftingFrameFastPathStampTracksRelevantFields),
     ("Crafting grid stamp tracks pinned tooltip changes", Tests.CraftingGridStampTracksPinnedTooltipChanges),
     ("Crafting scrollbar stamp ignores sub-pixel jitter", Tests.CraftingScrollbarStampIgnoresSubPixelJitter),
@@ -95,12 +96,20 @@ TestRunner.Run(
     ("Simple tooltip owner ignores stale hide", Tests.SimpleTooltipOwnerIgnoresStaleHide),
     ("Hover source VNEI uses owned renderer and crafting alpha", Tests.HoverSourceVneiUsesOwnedRendererAndCraftingAlpha),
     ("Hover source owned crafting only suppresses EpicLoot layout", Tests.HoverSourceOwnedCraftingOnlySuppressesEpicLootLayout),
+    ("Crafting hover wheel follows recipe-cell ownership", Tests.CraftingHoverWheelFollowsRecipeCellOwnership),
+    ("Crafting tooltip wheel blocks only underlying crafting scroll rects", Tests.CraftingTooltipWheelBlocksOnlyUnderlyingCraftingScrollRects),
     ("Tooltip source cache prunes matching entries", Tests.TooltipSourceCachePrunesMatchingEntries),
     ("Tooltip source cache trims oldest entries", Tests.TooltipSourceCacheTrimsOldestEntries),
     ("Container transfer sums moved amounts and callbacks", Tests.ContainerTransferSumsMovedAmountsAndCallbacks),
     ("Container transfer stays quiet when nothing moves", Tests.ContainerTransferStaysQuietWhenNothingMoves),
     ("Multi-user item snapshot ignores custom data order", Tests.MultiUserItemSnapshotIgnoresCustomDataOrder),
     ("Multi-user item snapshot rejects socket data changes", Tests.MultiUserItemSnapshotRejectsSocketDataChanges),
+    ("BeingSpoiled signed clocks remain stack compatible", Tests.BeingSpoiledSignedClocksRemainStackCompatible),
+    ("Stack metadata policy preserves other custom-data identity", Tests.StackMetadataPolicyPreservesOtherCustomDataIdentity),
+    ("BeingSpoiled signed clock merge preserves destination state", Tests.BeingSpoiledSignedClockMergePreservesDestinationState),
+    ("BeingSpoiled signed clock validates missing and malformed values", Tests.BeingSpoiledSignedClockValidatesMissingAndMalformedValues),
+    ("BeingSpoiled partial merge leaves source clock unchanged", Tests.BeingSpoiledPartialMergeLeavesSourceClockUnchanged),
+    ("BeingSpoiled registration replaces only the fallback", Tests.BeingSpoiledRegistrationReplacesOnlyTheFallback),
     ("Multi-user item snapshot rejects insufficient stack", Tests.MultiUserItemSnapshotRejectsInsufficientStack),
     ("Multi-user item snapshot rejects identity field changes", Tests.MultiUserItemSnapshotRejectsIdentityFieldChanges),
     ("Multi-user transfer requires exact pre-mutation stack state", Tests.MultiUserTransferRequiresExactPreMutationStackState),
@@ -388,29 +397,61 @@ internal static class Tests
         Assert.Equal(FoodStat.None, stat);
     }
 
-    public static void ColoredForkFoodStatCopyMirrorsInventorySlotsBehavior()
+    public static void SlotFoodForkRejectsAppendedTooltipMaterials()
     {
-        (float Health, float Stamina, float Eitr)[] cases =
-        {
-            (0f, 0f, 0f),
-            (22f, 22f, 0f),
-            (0f, 30f, 30f),
-            (50f, 50f, 50f),
-            (30f, 90f, 100f)
-        };
+        Assert.False(
+            FoodStatCore.TryGetSlotForkDominant(
+                isConsumable: false,
+                health: 35f,
+                stamina: 10f,
+                eitr: 0f,
+                out FoodStat stat),
+            "a material must not receive a fork even when an appended tooltip supplies food-like stats");
+        Assert.Equal(FoodStat.None, stat);
 
-        foreach ((float health, float stamina, float eitr) in cases)
-        {
-            bool inventorySlotsResult = FoodStatCore.TryGetDominant(health, stamina, eitr, out FoodStat inventorySlotsStat);
-            bool coloredForkResult = ColoredFork.FoodStatCore.TryGetDominant(
-                health,
-                stamina,
-                eitr,
-                out ColoredFork.FoodStat coloredForkStat);
+        string repositoryRoot = FindRepositoryRoot();
+        string classifierSource = File.ReadAllText(Path.Combine(repositoryRoot, "ItemClassifier.cs"));
+        int methodStart = classifierSource.IndexOf(
+            "internal static bool TryGetSlotForkDominantFoodStat",
+            StringComparison.Ordinal);
+        int methodEnd = methodStart >= 0
+            ? classifierSource.IndexOf(
+                "private static string GetAttackAnimation",
+                methodStart,
+                StringComparison.Ordinal)
+            : -1;
+        Assert.True(methodStart >= 0 && methodEnd > methodStart, "slot fork classifier should remain discoverable");
+        string slotForkMethod = classifierSource[methodStart..methodEnd];
+        Assert.True(
+            slotForkMethod.Contains("shared.m_itemType == ItemType.Consumable", StringComparison.Ordinal),
+            "slot fork classification must require the current item to be consumable");
+        Assert.False(
+            slotForkMethod.Contains("m_appendToolTip", StringComparison.Ordinal) ||
+            slotForkMethod.Contains("GetFoodSharedData", StringComparison.Ordinal),
+            "slot fork classification must not follow appended tooltip food data");
+    }
 
-            Assert.Equal(inventorySlotsResult, coloredForkResult);
-            Assert.Equal(inventorySlotsStat.ToString(), coloredForkStat.ToString());
-        }
+    public static void SlotFoodForkAcceptsDirectConsumables()
+    {
+        Assert.True(
+            FoodStatCore.TryGetSlotForkDominant(
+                isConsumable: true,
+                health: 20f,
+                stamina: 65f,
+                eitr: 10f,
+                out FoodStat stat),
+            "a direct consumable with food stats should receive a fork");
+        Assert.Equal(FoodStat.Stamina, stat);
+
+        Assert.False(
+            FoodStatCore.TryGetSlotForkDominant(
+                isConsumable: true,
+                health: 0f,
+                stamina: 0f,
+                eitr: 0f,
+                out FoodStat emptyStat),
+            "a consumable without direct food stats should not receive a fork");
+        Assert.Equal(FoodStat.None, emptyStat);
     }
 
     public static void CraftingFrameFastPathStampTracksRelevantFields()
@@ -1889,6 +1930,101 @@ internal static class Tests
         Assert.True(HoverTooltipSourceCore.SuppressesEpicLootTooltipLayout(kind), "owned crafting tooltips should still suppress EpicLoot layout artifacts");
     }
 
+    public static void CraftingHoverWheelFollowsRecipeCellOwnership()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string tooltipSource = File.ReadAllText(Path.Combine(repositoryRoot, "CraftingTooltipRecipeRows.cs"));
+        string wheelHandler = ReadSourceSection(
+            tooltipSource,
+            "private static bool HandleCraftingHoverTooltipWheel",
+            "private static bool HasCraftingHoverTooltipWheelOwner");
+        Assert.True(wheelHandler.Contains("HasCraftingHoverTooltipWheelOwner(GetUiMousePosition(), gamepadScroll)", StringComparison.Ordinal),
+            "crafting hover wheel must use the active recipe-cell ownership predicate");
+        Assert.False(wheelHandler.Contains("IsUiScrollTargetActive(CraftingUi.HoverTooltipPanel)", StringComparison.Ordinal),
+            "the cursor-aligned tooltip panel edge is not a valid hover ownership target");
+
+        string owner = ReadSourceSection(
+            tooltipSource,
+            "private static bool HasCraftingHoverTooltipWheelOwner",
+            "private static void PrepareCraftingTooltipScrollInput");
+        Assert.True(owner.Contains("IsCraftingTooltipRecipeOverlayTargetValid(pointer)", StringComparison.Ordinal),
+            "mouse ownership must remain tied to the hovered recipe cell");
+        Assert.False(owner.Contains("IsUiScrollTargetActive(CraftingUi.HoverTooltipPanel)", StringComparison.Ordinal),
+            "hover ownership must not reintroduce the cursor-aligned panel edge test");
+        Assert.True(owner.Contains("CraftingUi.HoverTooltipMaxScroll > 1f", StringComparison.Ordinal),
+            "short tooltips must not capture recipe-grid scrolling");
+        string scrollOperation = ReadSourceSection(
+            tooltipSource,
+            "private static bool TryScrollCraftingHoverTooltip",
+            "private static bool HasCraftingHoverTooltipWheelOwner");
+        Assert.True(scrollOperation.Contains("ConsumeMouseUiScrollForCurrentFrame();", StringComparison.Ordinal),
+            "a handled hover wheel must not be applied again by another crafting update hook in the same frame");
+
+        string fastPathSource = File.ReadAllText(Path.Combine(repositoryRoot, "CraftingFrameFastPath.cs"));
+        string redesignSource = File.ReadAllText(Path.Combine(repositoryRoot, "CraftingRedesign.cs"));
+        Assert.True(fastPathSource.Contains("PrepareCraftingTooltipScrollInput(gui);", StringComparison.Ordinal) &&
+                    redesignSource.Contains("PrepareCraftingTooltipScrollInput(gui);", StringComparison.Ordinal),
+            "both crafting frame paths must measure the current tooltip before routing wheel input");
+    }
+
+    public static void CraftingTooltipWheelBlocksOnlyUnderlyingCraftingScrollRects()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string patchSource = File.ReadAllText(Path.Combine(repositoryRoot, "CraftingPatches.cs"));
+        string guardPatch = ReadSourceSection(
+            patchSource,
+            "internal static class CraftingTooltipUnderlyingScrollRectGuardPatch",
+            "[HarmonyPatch(typeof(InventoryGui), \"UpdateCraftingPanel\")]");
+        Assert.True(patchSource.Contains("[HarmonyPatch(typeof(ScrollRect), nameof(ScrollRect.OnScroll))]", StringComparison.Ordinal),
+            "the event guard must remain attached to ScrollRect.OnScroll");
+        Assert.True(guardPatch.Contains("TryHandleCraftingPointerScroll(__instance, __0)", StringComparison.Ordinal) &&
+                    guardPatch.Contains("__0.Use();", StringComparison.Ordinal) &&
+                    guardPatch.Contains("return false;", StringComparison.Ordinal),
+            "an owned tooltip wheel event must be consumed before the underlying ScrollRect runs");
+
+        string inputSource = File.ReadAllText(Path.Combine(repositoryRoot, "UiScrollInput.cs"));
+        string ownershipGuard = ReadSourceSection(
+            inputSource,
+            "internal static bool TryHandleCraftingPointerScroll",
+            "private static Vector2 GetUiMousePosition");
+        Assert.True(ownershipGuard.Contains("scrollRect.transform.IsChildOf(gui.m_crafting)", StringComparison.Ordinal),
+            "the ScrollRect guard must stay inside the active crafting panel");
+        int pointerRead = ownershipGuard.IndexOf("Vector2 pointer = eventData.position;", StringComparison.Ordinal);
+        int pinnedPointerGuard = ownershipGuard.IndexOf("IsPointerOverActiveCraftingPinnedTooltip(pointer)", StringComparison.Ordinal);
+        int prepareTooltip = ownershipGuard.IndexOf("UpdateCraftingTooltipRecipeOverlay(gui);", StringComparison.Ordinal);
+        int checkOwner = ownershipGuard.IndexOf("HasCraftingHoverTooltipWheelOwner(pointer)", StringComparison.Ordinal);
+        int applyScroll = ownershipGuard.IndexOf("TryScrollCraftingHoverTooltip(wheel)", StringComparison.Ordinal);
+        Assert.False(ownershipGuard.Contains("HasActiveCraftingPinnedTooltip()", StringComparison.Ordinal),
+            "an open pinned tooltip must not disable hover scrolling over a different recipe cell");
+        Assert.True(pointerRead >= 0 && pinnedPointerGuard > pointerRead && prepareTooltip > pinnedPointerGuard,
+            "only a pointer actually over an active pinned panel should leave through the existing pinned path");
+        Assert.True(prepareTooltip >= 0 && checkOwner > prepareTooltip && applyScroll > checkOwner,
+            "the pointer event must measure and immediately scroll only the owned hover tooltip");
+        Assert.True(ownershipGuard.Contains("float wheel = eventData.scrollDelta.y * GetMouseUiScrollMultiplier();", StringComparison.Ordinal),
+            "the immediate hover scroll must use the pointer event delta with the configured mouse multiplier");
+
+        string deltaReader = ReadSourceSection(
+            inputSource,
+            "private static float GetUiScrollDelta",
+            "private static bool HasUnconsumedUiScrollInput");
+        string consumeHelper = ReadSourceSection(
+            inputSource,
+            "private static void ConsumeMouseUiScrollForCurrentFrame",
+            "internal static bool TryHandleCraftingPointerScroll");
+        Assert.True(deltaReader.Contains("_mouseUiScrollConsumedFrame == Time.frameCount", StringComparison.Ordinal) &&
+                    consumeHelper.Contains("_mouseUiScrollConsumedFrame = Time.frameCount", StringComparison.Ordinal),
+            "mouse wheel routing must remain idempotent across repeated crafting hooks in one frame");
+
+        string pinnedPointerHelper = ReadSourceSection(
+            inputSource,
+            "private static bool IsPointerOverActiveCraftingPinnedTooltip",
+            "private static Vector2 GetUiMousePosition");
+        Assert.True(pinnedPointerHelper.Contains("PinnedTooltips.Crafting.Panels", StringComparison.Ordinal) &&
+                    pinnedPointerHelper.Contains("panel.gameObject.activeInHierarchy", StringComparison.Ordinal) &&
+                    pinnedPointerHelper.Contains("RectContainsScreenPoint(panel, pointer)", StringComparison.Ordinal),
+            "hover isolation must yield only to a visible pinned panel under the current pointer");
+    }
+
     public static void TooltipSourceCachePrunesMatchingEntries()
     {
         TooltipSourceCacheCore<string, int> cache = new(maxEntries: 8, StringComparer.OrdinalIgnoreCase);
@@ -2000,6 +2136,274 @@ internal static class Tests
         Assert.False(
             MultiUserContainerTransferCore.IsExactMatch(expected, actual, requiredStack: 1),
             "socketed items with different custom data must not be treated as the same item");
+    }
+
+    public static void BeingSpoiledSignedClocksRemainStackCompatible()
+    {
+        StackMetadataPolicy.SetWorldTicksProvider(() => 1_000L);
+        MultiUserContainerItemSnapshot incoming = CreateMultiUserItemSnapshot(
+            stack: 3,
+            customData:
+            [
+                new KeyValuePair<string, string>(
+                    StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey,
+                    "1600")
+            ]);
+        MultiUserContainerItemSnapshot target = CreateMultiUserItemSnapshot(
+            stack: 5,
+            customData:
+            [
+                new KeyValuePair<string, string>(
+                    StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey,
+                    "-400")
+            ]);
+
+        Assert.True(
+            MultiUserContainerTransferCore.CanStackTogether(
+                incoming,
+                target,
+                requiredStack: 1),
+            "running and paused clocks must remain stack compatible when world time is available");
+        Assert.False(
+            MultiUserContainerTransferCore.IsExactMatch(
+                incoming,
+                target,
+                requiredStack: 1),
+            "optimistic concurrency snapshots must still compare the stored expiry exactly");
+
+        StackMetadataPolicy.SetWorldTicksProvider(() => null);
+        Assert.False(
+            MultiUserContainerTransferCore.CanStackTogether(
+                incoming,
+                target,
+                requiredStack: 1),
+            "cross-state clocks must not merge before a common server clock is available");
+
+        MultiUserContainerItemSnapshot anotherRunning = CreateMultiUserItemSnapshot(
+            stack: 1,
+            customData:
+            [
+                new KeyValuePair<string, string>(
+                    StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey,
+                    "1200")
+            ]);
+        Assert.True(
+            MultiUserContainerTransferCore.CanStackTogether(
+                incoming,
+                anotherRunning,
+                requiredStack: 1),
+            "two running clocks remain comparable without reading world time");
+    }
+
+    public static void StackMetadataPolicyPreservesOtherCustomDataIdentity()
+    {
+        Dictionary<string, string> ruby = new(StringComparer.Ordinal)
+        {
+            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "900",
+            ["Jewelcrafting.Sockets"] = "Ruby"
+        };
+        Dictionary<string, string> emerald = new(StringComparer.Ordinal)
+        {
+            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "400",
+            ["Jewelcrafting.Sockets"] = "Emerald"
+        };
+
+        Assert.False(
+            StackMetadataPolicy.AreCompatible(ruby, emerald),
+            "only the BeingSpoiled expiry key may differ");
+
+        MultiUserContainerItemSnapshot rubySnapshot = CreateMultiUserItemSnapshot(
+            customData: ruby);
+        MultiUserContainerItemSnapshot emeraldSnapshot = CreateMultiUserItemSnapshot(
+            customData: emerald);
+        Assert.False(
+            MultiUserContainerTransferCore.CanStackTogether(
+                rubySnapshot,
+                emeraldSnapshot,
+                requiredStack: 1),
+            "multi-user stacking must not weaken socket/custom-data identity");
+    }
+
+    public static void BeingSpoiledSignedClockMergePreservesDestinationState()
+    {
+        StackMetadataPolicy.SetWorldTicksProvider(() => 1_000L);
+
+        Dictionary<string, string> runningDestination = new(StringComparer.Ordinal)
+        {
+            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "1600"
+        };
+        Dictionary<string, string> pausedSource = new(StringComparer.Ordinal)
+        {
+            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "-400"
+        };
+
+        Assert.True(
+            StackMetadataPolicy.MergeInto(runningDestination, pausedSource),
+            "a shorter paused source must update a running destination");
+        Assert.Equal(
+            "1400",
+            runningDestination[StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey]);
+
+        Dictionary<string, string> pausedDestination = new(StringComparer.Ordinal)
+        {
+            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "-600"
+        };
+        Dictionary<string, string> runningSource = new(StringComparer.Ordinal)
+        {
+            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "1300"
+        };
+        StackMetadataPolicy.MergeInto(pausedDestination, runningSource);
+        Assert.Equal(
+            "-300",
+            pausedDestination[StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey]);
+
+        runningSource[StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "900";
+        StackMetadataPolicy.MergeInto(pausedDestination, runningSource);
+        Assert.Equal(
+            "1000",
+            pausedDestination[StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey]);
+
+        Dictionary<string, string> pausedPairDestination = new(StringComparer.Ordinal)
+        {
+            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "-900"
+        };
+        StackMetadataPolicy.MergeInto(pausedPairDestination, pausedSource);
+        Assert.Equal(
+            "-400",
+            pausedPairDestination[StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey]);
+
+        Dictionary<string, string> runningPairDestination = new(StringComparer.Ordinal)
+        {
+            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "1900"
+        };
+        Dictionary<string, string> runningPairSource = new(StringComparer.Ordinal)
+        {
+            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "1400"
+        };
+        StackMetadataPolicy.MergeInto(runningPairDestination, runningPairSource);
+        Assert.Equal(
+            "1400",
+            runningPairDestination[StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey]);
+    }
+
+    public static void BeingSpoiledSignedClockValidatesMissingAndMalformedValues()
+    {
+        StackMetadataPolicy.SetWorldTicksProvider(() => 1_000L);
+
+        Dictionary<string, string> cleanDestination = new(StringComparer.Ordinal);
+        Dictionary<string, string> pausedSource = new(StringComparer.Ordinal)
+        {
+            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "-400"
+        };
+        StackMetadataPolicy.MergeInto(cleanDestination, pausedSource);
+        Assert.Equal(
+            "-400",
+            cleanDestination[StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey]);
+
+        Dictionary<string, string> malformedDestination = new(StringComparer.Ordinal)
+        {
+            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "not-ticks"
+        };
+        Assert.False(
+            StackMetadataPolicy.AreCompatible(malformedDestination, pausedSource),
+            "a future or malformed destination format must not merge with a signed clock");
+        StackMetadataPolicy.MergeInto(malformedDestination, pausedSource);
+        Assert.Equal(
+            "not-ticks",
+            malformedDestination[StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey]);
+
+        Dictionary<string, string> malformedSource = new(StringComparer.Ordinal)
+        {
+            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "+400"
+        };
+        Dictionary<string, string> invalidSourceDestination = new(StringComparer.Ordinal);
+        StackMetadataPolicy.MergeInto(invalidSourceDestination, malformedSource);
+        Assert.False(
+            invalidSourceDestination.ContainsKey(
+                StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey),
+            "non-canonical Int64 strings must not propagate to another stack");
+
+        Dictionary<string, string> nonPositiveSource = new(StringComparer.Ordinal)
+        {
+            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "0"
+        };
+        StackMetadataPolicy.MergeInto(invalidSourceDestination, nonPositiveSource);
+        Assert.False(
+            invalidSourceDestination.ContainsKey(
+                StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey),
+            "zero is not a valid BeingSpoiled expiry and must not propagate");
+
+        nonPositiveSource[StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] =
+            long.MinValue.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        StackMetadataPolicy.MergeInto(invalidSourceDestination, nonPositiveSource);
+        Assert.False(
+            invalidSourceDestination.ContainsKey(
+                StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey),
+            "long.MinValue cannot be negated into paused remaining ticks");
+
+        Dictionary<string, string> validDestination = new(StringComparer.Ordinal)
+        {
+            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "-900"
+        };
+        StackMetadataPolicy.MergeInto(validDestination, nonPositiveSource);
+        Assert.Equal(
+            "-900",
+            validDestination[StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey]);
+
+        Assert.True(
+            StackMetadataPolicy.TryParseCanonicalBeingSpoiledClock("-1", out long parsed) && parsed == -1L,
+            "negative non-MinValue clocks are valid paused durations");
+    }
+
+    public static void BeingSpoiledPartialMergeLeavesSourceClockUnchanged()
+    {
+        StackMetadataPolicy.SetWorldTicksProvider(() => 1_000L);
+        Dictionary<string, string> destination = new(StringComparer.Ordinal)
+        {
+            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "1600"
+        };
+        Dictionary<string, string> partiallyConsumedSource = new(StringComparer.Ordinal)
+        {
+            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "-400"
+        };
+
+        StackMetadataPolicy.MergeInto(destination, partiallyConsumedSource);
+
+        Assert.Equal(
+            "1400",
+            destination[StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey]);
+        Assert.Equal(
+            "-400",
+            partiallyConsumedSource[StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey]);
+    }
+
+    public static void BeingSpoiledRegistrationReplacesOnlyTheFallback()
+    {
+        Assert.True(
+            StackMetadataPolicy.Register(
+                StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey,
+                (destinationValue, sourceValue) =>
+                    destinationValue == null && sourceValue == null ? null : "-77"),
+            "BeingSpoiled must be able to replace the built-in fallback regardless of load order");
+        Assert.False(
+            StackMetadataPolicy.Register(
+                StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey,
+                (destinationValue, sourceValue) =>
+                    destinationValue == null && sourceValue == null ? null : "-55"),
+            "the first authoritative registration must remain installed");
+
+        Dictionary<string, string> destination = new(StringComparer.Ordinal)
+        {
+            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "1200"
+        };
+        Dictionary<string, string> source = new(StringComparer.Ordinal)
+        {
+            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "-400"
+        };
+        StackMetadataPolicy.MergeInto(destination, source);
+        Assert.Equal(
+            "-77",
+            destination[StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey]);
     }
 
     public static void MultiUserItemSnapshotRejectsInsufficientStack()

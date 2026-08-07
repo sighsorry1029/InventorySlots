@@ -239,7 +239,9 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool CanUseContainerActionStacking(ItemData item)
     {
-        return item?.m_shared != null && (HasNoCustomData(item) || IsTrustedCustomDataStackingItem(item));
+        return item?.m_shared != null &&
+               (CanUseStackMetadataAutomaticStacking(item) ||
+                IsTrustedCustomDataStackingItem(item));
     }
 
     private static bool IsTrustedCustomDataStackingItem(ItemData? item)

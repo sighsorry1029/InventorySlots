@@ -706,7 +706,7 @@ public sealed partial class InventorySlotsPlugin
                        item != null &&
                        source != null &&
                        source.sprite != null &&
-                       TryGetDominantFoodStat(item, out stat);
+                       TryGetSlotForkDominantFoodStat(item, out stat);
         foodIcon.gameObject.SetActive(visible);
         if (!visible)
         {

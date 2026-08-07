@@ -7,6 +7,7 @@ public sealed partial class InventorySlotsPlugin
     private void Awake()
     {
         _instance = this;
+        StackMetadataPolicy.SetWorldTicksProvider(GetStackMetadataWorldTicks);
         LocalizationManager.Localizer.OnLocalizationComplete += HandleLocalizationComplete;
         LocalizationManager.Localizer.Load(this);
         bool saveOnSet = Config.SaveOnConfigSet;
