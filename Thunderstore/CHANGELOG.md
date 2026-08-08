@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.8
+
+- Shared hover-hold Area Quick Stack and Area Take Stacks success effects with currently loaded nearby players: VFX appears at up to 10 changed containers and the SFX plays once at the interacted container.
+- Kept the shared effects transient and local on each receiving client, with distance/configuration checks, bounded rendering, and five-second cleanup. The RPC is not persisted or retried, so players entering the area later do not replay completed actions.
+
 ## 1.3.7
 
 - Fixed long crafting, upgrade, and socket-tab hover tooltips so their scrollbar stays inside the panel and the first wheel input scrolls immediately.

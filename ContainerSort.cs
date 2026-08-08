@@ -120,10 +120,15 @@ public sealed partial class InventorySlotsPlugin
 
         container.m_nview.Unregister(RpcRequestSort);
         container.m_nview.Unregister(RpcSortResponse);
+        container.m_nview.Unregister(ContainerActionSuccessFxRpc);
         container.m_nview.Register<int, long>(RpcRequestSort, (sender, requestId, requesterPlayerId) =>
             RPC_RequestSort(container, sender, requestId, requesterPlayerId));
         container.m_nview.Register<int, bool>(RpcSortResponse, (sender, requestId, success) =>
             RPC_SortResponse(container, sender, requestId, success));
+        container.m_nview.Register<int>(
+            ContainerActionSuccessFxRpc,
+            (_, effectKind) =>
+                RPC_ContainerActionSuccessFx(container, effectKind));
     }
 
     private static void RPC_RequestSort(Container container, long sender, int requestId, long requesterPlayerId)

@@ -1109,7 +1109,7 @@ public sealed partial class InventorySlotsPlugin
         if (container != null)
         {
             batch.ChangedContainerVfxCount =
-                TryPlayChangedContainerActionSuccessVfx(
+                TryBroadcastChangedContainerActionSuccessVfx(
                     container,
                     vfxLimit,
                     batch.ChangedContainerVfxCount);
@@ -1444,7 +1444,9 @@ public sealed partial class InventorySlotsPlugin
                             batch.Containers[0]);
                     if (anchor != null)
                     {
-                        PlayContainerActionSuccessSfx(anchor);
+                        BroadcastContainerActionSuccessFx(
+                            anchor,
+                            ContainerActionSuccessSfxKind);
                     }
                 }
             }

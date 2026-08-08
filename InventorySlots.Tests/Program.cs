@@ -102,6 +102,9 @@ TestRunner.Run(
     ("Tooltip source cache trims oldest entries", Tests.TooltipSourceCacheTrimsOldestEntries),
     ("Container transfer sums moved amounts and callbacks", Tests.ContainerTransferSumsMovedAmountsAndCallbacks),
     ("Container transfer stays quiet when nothing moves", Tests.ContainerTransferStaysQuietWhenNothingMoves),
+    ("Container action success FX stays bounded and once per action", Tests.ContainerActionSuccessFxStaysBoundedAndOncePerAction),
+    ("Container action success FX uses transient Everybody RPC", Tests.ContainerActionSuccessFxUsesTransientEverybodyRpc),
+    ("Container action success FX stays local guarded and self cleaning", Tests.ContainerActionSuccessFxStaysLocalGuardedAndSelfCleaning),
     ("Multi-user item snapshot ignores custom data order", Tests.MultiUserItemSnapshotIgnoresCustomDataOrder),
     ("Multi-user item snapshot rejects socket data changes", Tests.MultiUserItemSnapshotRejectsSocketDataChanges),
     ("BeingSpoiled signed clocks remain stack compatible", Tests.BeingSpoiledSignedClocksRemainStackCompatible),
@@ -2098,6 +2101,187 @@ internal static class Tests
         Assert.Equal(0, anyMovedCount);
     }
 
+    public static void ContainerActionSuccessFxStaysBoundedAndOncePerAction()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string actionSource = File.ReadAllText(Path.Combine(repositoryRoot, "ContainerActions.cs"));
+        Assert.True(
+            actionSource.Contains("private const int ContainerActionSuccessVfxLimit = 10;", StringComparison.Ordinal),
+            "area success VFX must stay bounded to ten changed containers");
+
+        string directRun = ReadSourceSection(
+            actionSource,
+            "private static int RunContainerTransferAcrossContainers",
+            "private static void ShowContainerActionResult");
+        Assert.True(
+            directRun.Contains("TryBroadcastChangedContainerActionSuccessVfx", StringComparison.Ordinal),
+            "each directly changed container must use the bounded VFX broadcaster");
+        Assert.Equal(1, CountSourceOccurrences(directRun, "ContainerActionSuccessSfxKind"));
+
+        string limiter = ReadSourceSection(
+            actionSource,
+            "private static int TryBroadcastChangedContainerActionSuccessVfx",
+            "private static void BroadcastContainerActionSuccessFx");
+        Assert.True(
+            limiter.Contains("played >= limit", StringComparison.Ordinal) &&
+            limiter.Contains("ContainerActionSuccessVfxKind", StringComparison.Ordinal) &&
+            limiter.Contains("return played + 1;", StringComparison.Ordinal),
+            "the VFX broadcaster must stop at the limit and count only emitted targets");
+
+        string batchSource = File.ReadAllText(
+                Path.Combine(repositoryRoot, "MultiUserContainerBatchOperations.cs"))
+            .Replace("\r\n", "\n", StringComparison.Ordinal);
+        string movedTarget = ReadSourceSection(
+            batchSource,
+            "private static void MarkMultiUserContainerAreaBatchTargetMoved(\n        MultiUserContainerBatchState batch,\n        MultiUserContainerBatchTarget target)",
+            "private static bool TryGetMultiUserContainerBatchContext");
+        int alreadyMovedGuard = movedTarget.IndexOf("if (target.MovedAny)", StringComparison.Ordinal);
+        int remoteVfx = movedTarget.IndexOf("TryBroadcastChangedContainerActionSuccessVfx", StringComparison.Ordinal);
+        Assert.True(
+            alreadyMovedGuard >= 0 && remoteVfx > alreadyMovedGuard,
+            "remote retries must not emit a second VFX for an already changed target");
+
+        int finishStart = batchSource.IndexOf("private static void FinishMultiUserContainerBatch", StringComparison.Ordinal);
+        Assert.True(finishStart >= 0, "multi-user batch completion source must exist");
+        string finish = batchSource.Substring(finishStart);
+        int clearBatch = finish.IndexOf("_multiUserContainerBatch = null;", StringComparison.Ordinal);
+        int remoteSfx = finish.IndexOf("ContainerActionSuccessSfxKind", StringComparison.Ordinal);
+        Assert.True(
+            clearBatch >= 0 && remoteSfx > clearBatch &&
+            CountSourceOccurrences(finish, "ContainerActionSuccessSfxKind") == 1,
+            "a completed remote area action must emit the anchor SFX exactly once after clearing batch state");
+    }
+
+    public static void ContainerActionSuccessFxUsesTransientEverybodyRpc()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string actionSource = File.ReadAllText(Path.Combine(repositoryRoot, "ContainerActions.cs"));
+        string broadcaster = ReadSourceSection(
+            actionSource,
+            "private static void BroadcastContainerActionSuccessFx",
+            "private static void RPC_ContainerActionSuccessFx");
+        int localFallback = broadcaster.IndexOf(
+            "RenderContainerActionSuccessFxLocal(container, effectKind);",
+            StringComparison.Ordinal);
+        int invokeEverybody = broadcaster.IndexOf("nview.InvokeRPC(", StringComparison.Ordinal);
+        Assert.True(
+            localFallback >= 0 && invokeEverybody > localFallback &&
+            broadcaster.Contains("ZNetView.Everybody", StringComparison.Ordinal) &&
+            broadcaster.Contains("ContainerActionSuccessFxRpc", StringComparison.Ordinal),
+            "network containers must emit one transient event while local-only containers retain a fallback");
+        Assert.Equal(
+            1,
+            CountSourceOccurrences(
+                broadcaster,
+                "RenderContainerActionSuccessFxLocal(container, effectKind);"));
+        Assert.False(
+            broadcaster.Contains("Object.Instantiate", StringComparison.Ordinal) ||
+            broadcaster.Contains("GetZDO", StringComparison.Ordinal) ||
+            broadcaster.Contains(".Set(", StringComparison.Ordinal),
+            "the network sender must not instantiate or persist an effect object");
+
+        string sortSource = File.ReadAllText(Path.Combine(repositoryRoot, "ContainerSort.cs"));
+        string registration = ReadSourceSection(
+            sortSource,
+            "private static void RegisterContainerRpcs",
+            "private static void RPC_RequestSort");
+        Assert.True(
+            registration.Contains("Unregister(ContainerActionSuccessFxRpc)", StringComparison.Ordinal) &&
+            registration.Contains("Register<int>(", StringComparison.Ordinal) &&
+            registration.Contains("RPC_ContainerActionSuccessFx(container, effectKind)", StringComparison.Ordinal),
+            "every loaded container must replace and register the transient receive handler exactly once");
+
+        string receiver = ReadSourceSection(
+            actionSource,
+            "private static void RPC_ContainerActionSuccessFx",
+            "private static void RenderContainerActionSuccessFxLocal");
+        Assert.True(
+            receiver.Contains("RenderContainerActionSuccessFxLocal(container, effectKind)", StringComparison.Ordinal),
+            "the RPC receiver must dispatch only to the local renderer");
+        Assert.False(
+            receiver.Contains("InvokeRPC", StringComparison.Ordinal) ||
+            receiver.Contains("BroadcastContainerActionSuccessFx(", StringComparison.Ordinal),
+            "the receive path must never rebroadcast recursively");
+    }
+
+    public static void ContainerActionSuccessFxStaysLocalGuardedAndSelfCleaning()
+    {
+        string source = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "ContainerActions.cs"));
+        Assert.True(
+            source.Contains("private const float ContainerActionSuccessFxLifetime = 5f;", StringComparison.Ordinal),
+            "transient local effects must retain their five-second cleanup lifetime");
+
+        string dispatch = ReadSourceSection(
+            source,
+            "private static void RenderContainerActionSuccessFxLocal",
+            "private static bool CanRenderContainerActionSuccessFx");
+        int guard = dispatch.IndexOf("CanRenderContainerActionSuccessFx", StringComparison.Ordinal);
+        int receiveBudget = dispatch.IndexOf("TryConsumeContainerActionSuccessFxReceiveBudget", StringComparison.Ordinal);
+        int renderVfx = dispatch.IndexOf("RenderContainerActionSuccessVfxLocal", StringComparison.Ordinal);
+        int renderSfx = dispatch.IndexOf("RenderContainerActionSuccessSfxLocal", StringComparison.Ordinal);
+        Assert.True(
+            guard >= 0 && receiveBudget > guard &&
+            renderVfx > receiveBudget && renderSfx > receiveBudget,
+            "all local rendering must pass the shared receiver guard and bounded budget first");
+
+        string receiverGuard = ReadSourceSection(
+            source,
+            "private static bool CanRenderContainerActionSuccessFx",
+            "private static void RenderContainerActionSuccessVfxLocal");
+        Assert.True(
+            receiverGuard.Contains("ContainerActionSuccessVfxKind", StringComparison.Ordinal) &&
+            receiverGuard.Contains("ContainerActionSuccessSfxKind", StringComparison.Ordinal) &&
+            receiverGuard.Contains("IsDedicatedServer", StringComparison.Ordinal) &&
+            receiverGuard.Contains("IsContainerActionSuccessFxEnabled()", StringComparison.Ordinal) &&
+            receiverGuard.Contains("Player.m_localPlayer", StringComparison.Ordinal) &&
+            receiverGuard.Contains("offset.sqrMagnitude", StringComparison.Ordinal) &&
+            receiverGuard.Contains("ContainerActionSuccessFxReceiveRange", StringComparison.Ordinal),
+            "receivers must validate effect kind, client role, local preference and distance");
+
+        string receiveBudgetSource = ReadSourceSection(
+            source,
+            "private static bool TryConsumeContainerActionSuccessFxReceiveBudget",
+            "private static void RenderContainerActionSuccessVfxLocal");
+        Assert.True(
+            source.Contains("private const int ContainerActionSuccessFxReceiveLimit = 32;", StringComparison.Ordinal) &&
+            source.Contains("private const float ContainerActionSuccessFxReceiveWindow = 1f;", StringComparison.Ordinal) &&
+            receiveBudgetSource.Contains("_containerActionSuccessFxReceivedInWindow >=", StringComparison.Ordinal) &&
+            receiveBudgetSource.Contains("_containerActionSuccessFxReceivedInWindow++;", StringComparison.Ordinal),
+            "a malformed peer must not create an unbounded number of local effect objects");
+
+        string localVfx = ReadSourceSection(
+            source,
+            "private static void RenderContainerActionSuccessVfxLocal",
+            "private static void RenderContainerActionSuccessSfxLocal");
+        int disableNetworkInit = localVfx.IndexOf("ZNetView.m_forceDisableInit = true;", StringComparison.Ordinal);
+        int instantiate = localVfx.IndexOf("UnityEngine.Object.Instantiate", StringComparison.Ordinal);
+        int restoreNetworkInit = localVfx.IndexOf(
+            "ZNetView.m_forceDisableInit = previousForceDisableInit;",
+            StringComparison.Ordinal);
+        int destroyVfx = localVfx.IndexOf(
+            "UnityEngine.Object.Destroy(instance, ContainerActionSuccessFxLifetime);",
+            StringComparison.Ordinal);
+        Assert.True(
+            disableNetworkInit >= 0 && instantiate > disableNetworkInit &&
+            restoreNetworkInit > instantiate && destroyVfx > restoreNetworkInit,
+            "VFX must remain a non-networked local object that is always cleaned up");
+        Assert.True(
+            localVfx.Contains("sfx.Stop();", StringComparison.Ordinal) &&
+            localVfx.Contains("sfx.gameObject.SetActive(false);", StringComparison.Ordinal) &&
+            !localVfx.Contains("InvokeRPC", StringComparison.Ordinal),
+            "per-container VFX must stay silent and must not initiate network traffic");
+
+        int localSfxStart = source.IndexOf("private static void RenderContainerActionSuccessSfxLocal", StringComparison.Ordinal);
+        Assert.True(localSfxStart >= 0, "local SFX renderer source must exist");
+        string localSfx = source.Substring(localSfxStart);
+        Assert.True(
+            localSfx.Contains(
+                "UnityEngine.Object.Destroy(instance, ContainerActionSuccessFxLifetime);",
+                StringComparison.Ordinal) &&
+            !localSfx.Contains("InvokeRPC", StringComparison.Ordinal),
+            "the one-shot SFX must stay local and self-cleaning");
+    }
+
     public static void MultiUserItemSnapshotIgnoresCustomDataOrder()
     {
         MultiUserContainerItemSnapshot expected = CreateMultiUserItemSnapshot(
@@ -3055,6 +3239,25 @@ internal static class Tests
         }
 
         return source.Substring(start, end - start);
+    }
+
+    private static int CountSourceOccurrences(string source, string token)
+    {
+        int count = 0;
+        int offset = 0;
+        while (offset < source.Length)
+        {
+            int index = source.IndexOf(token, offset, StringComparison.Ordinal);
+            if (index < 0)
+            {
+                break;
+            }
+
+            count++;
+            offset = index + token.Length;
+        }
+
+        return count;
     }
 
     private static string NormalizeCopiedSource(string path) =>

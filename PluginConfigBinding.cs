@@ -129,7 +129,7 @@ public sealed partial class InventorySlotsPlugin
             ClientConfigSection,
             "Container Action Success FX",
             Toggle.On,
-            "Enables chest-unlock success effects for hover hold area quick stack/restock. Shows VFX at up to 10 changed containers and plays the SFX once at the interacted container. Opened-container buttons do not spawn effects. Not synced with server.",
+            "Enables transient chest-unlock success effects for hover hold area quick stack/restock. Shows VFX at up to 10 changed containers and plays the SFX once at the interacted container. Nearby players who also enable this setting see the current action, but effects are not saved or replayed for later arrivals. Opened-container buttons do not spawn effects. Not synced with server.",
             order: 870,
             synchronizedSetting: false);
         _containerPreviewCloseDelay = OrderedConfigEntry(ClientConfigSection, "Container Preview Close Delay", 0.3f, new ConfigDescription("Client-only container preview control. 0 disables the preview. Values above 0 enable it and set how many seconds, up to 1 second, the last valid container remains visible after looking away. A zero-sized placeholder inventory is never used.", new AcceptableValueRange<float>(0f, 1f)), order: 860, synchronizedSetting: false);
