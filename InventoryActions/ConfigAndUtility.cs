@@ -67,7 +67,7 @@ public sealed partial class InventoryActionsPlugin
             "Container Action Success FX",
             Toggle.On,
             new ConfigDescription(
-                "Enables chest-unlock success effects for hover hold area quick stack/restock. Shows VFX at up to 10 changed containers and plays the SFX once at the interacted container. Opened-container buttons do not spawn effects. Not synced with server.",
+                "Enables transient chest-unlock success effects for hover hold area quick stack/restock. Shows VFX at up to 10 changed containers and plays the SFX once at the interacted container. Nearby players who also enable this setting see the current action, but effects are not saved or replayed for later arrivals. Opened-container buttons do not spawn effects. Not synced with server.",
                 null,
                 new ConfigurationManagerAttributes { Order = 870 }),
             synchronizedSetting: false);

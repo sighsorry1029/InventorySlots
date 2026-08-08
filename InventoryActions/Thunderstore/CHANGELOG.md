@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.6
+
+- Shared hover hold area quick stack/restock success effects with nearby players who also enable the client setting, while retaining VFX at up to 10 changed containers and one SFX at the interacted container.
+- Kept shared effects transient and locally rendered with dedicated-server, distance, and receive-rate guards so completed actions are not replayed to players entering the zone later.
+
 ## 1.0.5
 
 - Fixed area quick stack/restock on dedicated servers so nearby players can use eligible closed containers even when another peer owns them, processing containers one at a time through validated ownership handoffs.

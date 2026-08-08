@@ -13,7 +13,7 @@ namespace InventoryActions;
 public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
 {
     internal const string ModName = "InventoryActions";
-    internal const string ModVersion = "1.0.5";
+    internal const string ModVersion = "1.0.6";
     internal const string Author = "sighsorry";
     internal const string ModGUID = $"{Author}.{ModName}";
     private const string ExternalMultiUserChestGuid = "com.maxsch.valheim.MultiUserChest";
@@ -27,8 +27,15 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
     private const string GeneralConfigSection = "1 - General";
     private const float ContainerHoverHoldDuration = 0.5f;
     private const string ContainerActionSuccessFxPrefabName = "fx_HildirChest_Unlock";
+    private const string ContainerActionSuccessFxRpc =
+        "InventoryActions_ContainerActionTransientFxV1";
+    private const int ContainerActionSuccessVfxKind = 1;
+    private const int ContainerActionSuccessSfxKind = 2;
     private const int ContainerActionSuccessVfxLimit = 10;
-    private const float ContainerActionSuccessSfxLifetime = 5f;
+    private const float ContainerActionSuccessFxLifetime = 5f;
+    private const float ContainerActionSuccessFxReceiveRange = 64f;
+    private const int ContainerActionSuccessFxReceiveLimit = 32;
+    private const float ContainerActionSuccessFxReceiveWindow = 1f;
 
     internal static readonly ManualLogSource Log = BepInEx.Logging.Logger.CreateLogSource(ModName);
 
@@ -36,6 +43,8 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
     private static InventoryActionsPlugin _instance = null!;
     private static readonly InventoryActionRuntimeState Runtime = new();
     private static readonly System.Version MinimumSupportedExternalMultiUserChestVersion = new(0, 6, 1);
+    private static float _containerActionSuccessFxReceiveWindowStartedAt = -1f;
+    private static int _containerActionSuccessFxReceivedInWindow;
 
     internal static bool IsDedicatedServer => SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null ||
                                              (Application.isBatchMode && string.Equals(Paths.ProcessName, "valheim_server", System.StringComparison.OrdinalIgnoreCase));

@@ -1197,18 +1197,124 @@ public sealed partial class InventoryActionsPlugin
     private static bool IsContainerActionSuccessFxEnabled() =>
         _containerActionSuccessFx == null || _containerActionSuccessFx.Value == Toggle.On;
 
-    private static int TryPlayChangedContainerActionSuccessVfx(Container container, int limit, int played)
+    private static int TryBroadcastChangedContainerActionSuccessVfx(
+        Container container,
+        int limit,
+        int played)
     {
         if (limit <= 0 || played >= limit)
         {
             return played;
         }
 
-        PlayContainerActionSuccessVfx(container);
+        BroadcastContainerActionSuccessFx(
+            container,
+            ContainerActionSuccessVfxKind);
         return played + 1;
     }
 
-    private static void PlayContainerActionSuccessVfx(Container container)
+    private static void BroadcastContainerActionSuccessFx(
+        Container container,
+        int effectKind)
+    {
+        if (container == null || IsUnityNull(container))
+        {
+            return;
+        }
+
+        ZNetView? nview = container.m_nview;
+        if (nview == null ||
+            IsUnityNull(nview) ||
+            !nview.IsValid() ||
+            ZRoutedRpc.instance == null)
+        {
+            RenderContainerActionSuccessFxLocal(container, effectKind);
+            return;
+        }
+
+        nview.InvokeRPC(
+            ZNetView.Everybody,
+            ContainerActionSuccessFxRpc,
+            effectKind);
+    }
+
+    private static void RPC_ContainerActionSuccessFx(
+        Container container,
+        int effectKind) =>
+        RenderContainerActionSuccessFxLocal(container, effectKind);
+
+    private static void RenderContainerActionSuccessFxLocal(
+        Container container,
+        int effectKind)
+    {
+        if (!CanRenderContainerActionSuccessFx(container, effectKind) ||
+            !TryConsumeContainerActionSuccessFxReceiveBudget())
+        {
+            return;
+        }
+
+        if (effectKind == ContainerActionSuccessVfxKind)
+        {
+            RenderContainerActionSuccessVfxLocal(container);
+        }
+        else
+        {
+            RenderContainerActionSuccessSfxLocal(container);
+        }
+    }
+
+    private static bool CanRenderContainerActionSuccessFx(
+        Container container,
+        int effectKind)
+    {
+        if ((effectKind != ContainerActionSuccessVfxKind &&
+             effectKind != ContainerActionSuccessSfxKind) ||
+            IsDedicatedServer ||
+            !IsContainerActionSuccessFxEnabled() ||
+            container == null ||
+            IsUnityNull(container))
+        {
+            return false;
+        }
+
+        Player? localPlayer = Player.m_localPlayer;
+        if (localPlayer == null ||
+            IsUnityNull(localPlayer) ||
+            localPlayer.m_isLoading)
+        {
+            return false;
+        }
+
+        Vector3 offset =
+            localPlayer.transform.position - container.transform.position;
+        return offset.sqrMagnitude <=
+               ContainerActionSuccessFxReceiveRange *
+               ContainerActionSuccessFxReceiveRange;
+    }
+
+    private static bool TryConsumeContainerActionSuccessFxReceiveBudget()
+    {
+        float now = Time.unscaledTime;
+        if (_containerActionSuccessFxReceiveWindowStartedAt < 0f ||
+            now < _containerActionSuccessFxReceiveWindowStartedAt ||
+            now - _containerActionSuccessFxReceiveWindowStartedAt >=
+            ContainerActionSuccessFxReceiveWindow)
+        {
+            _containerActionSuccessFxReceiveWindowStartedAt = now;
+            _containerActionSuccessFxReceivedInWindow = 0;
+        }
+
+        if (_containerActionSuccessFxReceivedInWindow >=
+            ContainerActionSuccessFxReceiveLimit)
+        {
+            return false;
+        }
+
+        _containerActionSuccessFxReceivedInWindow++;
+        return true;
+    }
+
+    private static void RenderContainerActionSuccessVfxLocal(Container container)
     {
         if (container == null ||
             IsUnityNull(container) ||
@@ -1238,7 +1344,7 @@ public sealed partial class InventoryActionsPlugin
             ZNetView.m_forceDisableInit = previousForceDisableInit;
         }
 
-        UnityEngine.Object.Destroy(instance, ContainerActionSuccessSfxLifetime);
+        UnityEngine.Object.Destroy(instance, ContainerActionSuccessFxLifetime);
         foreach (ZSFX sfx in instance.GetComponentsInChildren<ZSFX>(includeInactive: true))
         {
             if (sfx == null || IsUnityNull(sfx))
@@ -1251,7 +1357,7 @@ public sealed partial class InventoryActionsPlugin
         }
     }
 
-    private static void PlayContainerActionSuccessSfx(Container container)
+    private static void RenderContainerActionSuccessSfxLocal(Container container)
     {
         if (container == null || IsUnityNull(container) || ZNetScene.instance == null)
         {
@@ -1274,7 +1380,7 @@ public sealed partial class InventoryActionsPlugin
             sfxRoot.gameObject,
             container.transform.position,
             container.transform.rotation);
-        UnityEngine.Object.Destroy(instance, ContainerActionSuccessSfxLifetime);
+        UnityEngine.Object.Destroy(instance, ContainerActionSuccessFxLifetime);
     }
 
     private static int MoveItemToInventoryTopFirst(

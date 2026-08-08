@@ -466,7 +466,7 @@ public sealed partial class InventoryActionsPlugin
 
         session.TotalMoved += moved;
         session.PlayerInventoryChanged = true;
-        session.ChangedContainerVfxCount = TryPlayChangedContainerActionSuccessVfx(
+        session.ChangedContainerVfxCount = TryBroadcastChangedContainerActionSuccessVfx(
             target,
             session.VfxLimit,
             session.ChangedContainerVfxCount);
@@ -506,7 +506,9 @@ public sealed partial class InventoryActionsPlugin
             session.PlayerInventory.Changed();
             if (session.VfxLimit > 0)
             {
-                PlayContainerActionSuccessSfx(session.Anchor);
+                BroadcastContainerActionSuccessFx(
+                    session.Anchor,
+                    ContainerActionSuccessSfxKind);
             }
         }
 
@@ -594,12 +596,17 @@ public sealed partial class InventoryActionsPlugin
 
         container.m_nview.Unregister(AreaOwnershipRequestRpc);
         container.m_nview.Unregister(AreaOwnershipResponseRpc);
+        container.m_nview.Unregister(ContainerActionSuccessFxRpc);
         container.m_nview.Register<ZPackage>(
             AreaOwnershipRequestRpc,
             (sender, package) => RPC_RequestAreaOwnership(container, sender, package));
         container.m_nview.Register<ZPackage>(
             AreaOwnershipResponseRpc,
             (sender, package) => RPC_AreaOwnershipResponse(container, sender, package));
+        container.m_nview.Register<int>(
+            ContainerActionSuccessFxRpc,
+            (_, effectKind) =>
+                RPC_ContainerActionSuccessFx(container, effectKind));
     }
 
     internal static void UnregisterAreaOwnershipRpcs(Container container)
@@ -613,6 +620,7 @@ public sealed partial class InventoryActionsPlugin
         {
             container.m_nview.Unregister(AreaOwnershipRequestRpc);
             container.m_nview.Unregister(AreaOwnershipResponseRpc);
+            container.m_nview.Unregister(ContainerActionSuccessFxRpc);
         }
 
         if (_areaContainerTransfer?.PendingTarget == container)
