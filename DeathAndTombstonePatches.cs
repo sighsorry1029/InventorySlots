@@ -26,12 +26,12 @@ internal static class PlayerCreateTombStoneKeepOnDeathPatch
 
     private static void Postfix(Player __instance, InventorySlotsPlugin.TombStonePreparationState __state)
     {
-        InventorySlotsPlugin.CompleteCreateTombStone(__instance, __state);
+        InventorySlotsPlugin.CompleteCreateTombStone(__instance, __state, finalAttempt: false);
     }
 
     private static void Finalizer(Player __instance, InventorySlotsPlugin.TombStonePreparationState __state)
     {
-        InventorySlotsPlugin.CompleteCreateTombStone(__instance, __state);
+        InventorySlotsPlugin.CompleteCreateTombStone(__instance, __state, finalAttempt: true);
     }
 }
 

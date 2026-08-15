@@ -206,8 +206,7 @@ public sealed partial class InventorySlotsPlugin
                 ? ShouldQuickStackItem(
                     player,
                     playerInventory,
-                    item,
-                    includeHotbar: false)
+                    item)
                 : ShouldRestockItem(player, playerInventory, item))
             .ToList();
         candidates.Sort((left, right) =>
@@ -280,8 +279,7 @@ public sealed partial class InventorySlotsPlugin
             .Where(item => ShouldQuickStackItem(
                 player,
                 playerInventory,
-                item,
-                includeHotbar: false))
+                item))
             .ToList();
         candidates.Sort((left, right) =>
             -CompareGridOrder(left.m_gridPos, right.m_gridPos));
@@ -387,8 +385,7 @@ public sealed partial class InventorySlotsPlugin
                 if (!ShouldQuickStackItem(
                         player,
                         playerInventory,
-                        current,
-                        includeHotbar: false) ||
+                        current) ||
                     !DoesMultiUserContainerAcceptPlaceStacksItem(
                         containerInventory,
                         current))
@@ -817,8 +814,7 @@ public sealed partial class InventorySlotsPlugin
                 if (!ShouldQuickStackItem(
                         player,
                         playerInventory,
-                        current,
-                        includeHotbar: false))
+                        current))
                 {
                     batchItem.RemainingAmount = 0;
                     batch.ItemIndex++;
@@ -826,6 +822,7 @@ public sealed partial class InventorySlotsPlugin
                 }
 
                 _ = QuickStackItemsIntoContainer(
+                    player,
                     playerInventory,
                     containerInventory,
                     new List<ItemData> { current });
@@ -956,8 +953,7 @@ public sealed partial class InventorySlotsPlugin
                     !ShouldQuickStackItem(
                         player,
                         playerInventory,
-                        current,
-                        includeHotbar: false))
+                        current))
                 {
                     batchItem.RemainingAmount = 0;
                     batch.ItemIndex++;

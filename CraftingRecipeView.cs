@@ -17,6 +17,7 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
+        TryRefreshSelectedJewelcraftingSocketRecipePair(gui);
         string signature = GetCraftingRecipeListChangeSignature(gui);
         if (!CraftingController.TryStoreRecipeListChangeSignature(signature))
         {
@@ -24,6 +25,50 @@ public sealed partial class InventorySlotsPlugin
         }
 
         UpdateCraftingPanelRedesign(gui, CraftingPanelUpdateReason.RecipeListChanged);
+    }
+
+    private static bool TryRefreshSelectedJewelcraftingSocketRecipePair(InventoryGui? gui)
+    {
+        if (gui == null ||
+            !IsJewelcraftingSocketTabActive(gui) ||
+            !TryFindLatestJewelcraftingSocketRecipePair(
+                gui,
+                gui.m_selectedRecipe.Recipe,
+                gui.m_selectedRecipe.ItemData,
+                out InventoryGui.RecipeDataPair pair))
+        {
+            return false;
+        }
+
+        gui.m_selectedRecipe = pair;
+        return true;
+    }
+
+    private static bool TryFindLatestJewelcraftingSocketRecipePair(
+        InventoryGui? gui,
+        Recipe? recipe,
+        ItemData? item,
+        out InventoryGui.RecipeDataPair pair)
+    {
+        pair = default;
+        if (gui?.m_availableRecipes == null || recipe == null || item == null)
+        {
+            return false;
+        }
+
+        foreach (InventoryGui.RecipeDataPair candidate in gui.m_availableRecipes)
+        {
+            if (!ReferenceEquals(candidate.Recipe, recipe) ||
+                !ReferenceEquals(candidate.ItemData, item))
+            {
+                continue;
+            }
+
+            pair = candidate;
+            return true;
+        }
+
+        return false;
     }
 
     private static string GetCraftingRecipeListChangeSignature(InventoryGui gui)
@@ -301,11 +346,6 @@ public sealed partial class InventorySlotsPlugin
         return order;
     }
 
-    private static int GetCraftingRecipeBigGroupRank(InventoryGui.RecipeDataPair pair)
-    {
-        return GetCraftingRecipeBigGroupRank(GetCraftingRecipeBigGroupId(pair));
-    }
-
     private static string GetCraftingRecipeBigGroupId(InventoryGui.RecipeDataPair pair)
     {
         for (int i = 0; i < CraftingRecipeGroupFilters.Count; i++)
@@ -318,11 +358,6 @@ public sealed partial class InventorySlotsPlugin
         }
 
         return "";
-    }
-
-    private static int GetCraftingRecipeBigGroupRank(string bigGroupId)
-    {
-        return GetItemBigGroupRank(bigGroupId);
     }
 
     private static int GetItemBigGroupRank(string bigGroupId)
@@ -421,11 +456,6 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool IsArmorLikeItemType(ItemType itemType) =>
         itemType is ItemType.Helmet or ItemType.Chest or ItemType.Legs or ItemType.Shoulder or ItemType.Utility or ItemType.Trinket;
-
-    private static string StripLocalizationToken(string value)
-    {
-        return InventorySlotsConfigCore.StripLocalizationToken(value);
-    }
 
     private static void EnsureSelectedCraftingRecipeVisible(InventoryGui gui)
     {

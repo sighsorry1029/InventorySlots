@@ -224,7 +224,6 @@ internal readonly struct CraftingGroupRailStamp : IEquatable<CraftingGroupRailSt
         float gridY,
         string selectedGroupId,
         int favoritesVersion,
-        float iconBackgroundAlpha,
         string availabilitySignature,
         string selectableGroupIdsSignature)
     {
@@ -235,7 +234,6 @@ internal readonly struct CraftingGroupRailStamp : IEquatable<CraftingGroupRailSt
         GridY = Quantize(gridY);
         SelectedGroupId = selectedGroupId ?? "";
         FavoritesVersion = favoritesVersion;
-        IconBackgroundAlpha = Quantize(iconBackgroundAlpha);
         AvailabilitySignature = availabilitySignature ?? "";
         SelectableGroupIdsSignature = selectableGroupIdsSignature ?? "";
     }
@@ -247,7 +245,6 @@ internal readonly struct CraftingGroupRailStamp : IEquatable<CraftingGroupRailSt
     private int GridY { get; }
     private string SelectedGroupId { get; }
     private int FavoritesVersion { get; }
-    private int IconBackgroundAlpha { get; }
     private string AvailabilitySignature { get; }
     private string SelectableGroupIdsSignature { get; }
 
@@ -259,7 +256,6 @@ internal readonly struct CraftingGroupRailStamp : IEquatable<CraftingGroupRailSt
         GridY == other.GridY &&
         string.Equals(SelectedGroupId, other.SelectedGroupId, StringComparison.Ordinal) &&
         FavoritesVersion == other.FavoritesVersion &&
-        IconBackgroundAlpha == other.IconBackgroundAlpha &&
         string.Equals(AvailabilitySignature, other.AvailabilitySignature, StringComparison.Ordinal) &&
         string.Equals(SelectableGroupIdsSignature, other.SelectableGroupIdsSignature, StringComparison.Ordinal);
 
@@ -277,7 +273,6 @@ internal readonly struct CraftingGroupRailStamp : IEquatable<CraftingGroupRailSt
             hash = hash * 397 ^ GridY;
             hash = hash * 397 ^ StringComparer.Ordinal.GetHashCode(SelectedGroupId ?? "");
             hash = hash * 397 ^ FavoritesVersion;
-            hash = hash * 397 ^ IconBackgroundAlpha;
             hash = hash * 397 ^ StringComparer.Ordinal.GetHashCode(AvailabilitySignature ?? "");
             hash = hash * 397 ^ StringComparer.Ordinal.GetHashCode(SelectableGroupIdsSignature ?? "");
             return hash;

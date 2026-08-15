@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -169,7 +170,7 @@ public sealed partial class InventorySlotsPlugin
     private static void QuickStackIntoContainers(Player localPlayer, Inventory playerInventory, Container container, bool includeArea)
     {
         List<ItemData> candidates = playerInventory.m_inventory
-            .Where(item => ShouldQuickStackItem(localPlayer, playerInventory, item, includeHotbar: false))
+            .Where(item => ShouldQuickStackItem(localPlayer, playerInventory, item))
             .ToList();
         candidates.Sort((a, b) => -CompareGridOrder(a.m_gridPos, b.m_gridPos));
 
@@ -179,7 +180,7 @@ public sealed partial class InventorySlotsPlugin
             container,
             includeArea,
             areaForQuickStack: true,
-            targetContainer => QuickStackItemsIntoContainer(playerInventory, targetContainer.m_inventory, candidates),
+            targetContainer => QuickStackItemsIntoContainer(localPlayer, playerInventory, targetContainer.m_inventory, candidates),
             () =>
             {
                 playerInventory.Changed();
@@ -189,16 +190,17 @@ public sealed partial class InventorySlotsPlugin
         ShowContainerActionResult(localPlayer, "$inventoryslots_action_stack", "Stack", moved);
     }
 
-    private static bool ShouldQuickStackItem(Player player, Inventory inventory, ItemData item, bool includeHotbar)
+    private static bool ShouldQuickStackItem(Player player, Inventory inventory, ItemData item)
     {
         return item?.m_shared != null &&
                item.m_shared.m_maxStackSize > 1 &&
-               IsRegularActionItem(player, inventory, item, includeHotbar) &&
+               IsRegularActionItem(player, inventory, item) &&
+               !IsEquippedContainerMoveSource(player, item) &&
                !IsFavoriteProtected(player, inventory, item) &&
                CanUseContainerActionStacking(item);
     }
 
-    private static int QuickStackItemsIntoContainer(Inventory playerInventory, Inventory containerInventory, List<ItemData> candidates)
+    private static int QuickStackItemsIntoContainer(Player player, Inventory playerInventory, Inventory containerInventory, List<ItemData> candidates)
     {
         if (containerInventory == null || candidates.Count == 0)
         {
@@ -221,9 +223,8 @@ public sealed partial class InventorySlotsPlugin
                 continue;
             }
 
-            if (containerInventory.AddItem(item))
+            if (MoveItemToContainerTopFirst(player, playerInventory, containerInventory, item) > 0)
             {
-                RemoveItemIfStillOwned(playerInventory, item);
                 moved++;
             }
         }
@@ -244,7 +245,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         List<ItemData> candidates = playerInventory.m_inventory
-            .Where(item => ShouldStoreAllItem(localPlayer, playerInventory, item, includeHotbar: false, includeEquipped: false))
+            .Where(item => ShouldStoreAllItem(localPlayer, playerInventory, item))
             .ToList();
         candidates.Sort((a, b) => CompareGridOrder(a.m_gridPos, b.m_gridPos));
 
@@ -257,9 +258,8 @@ public sealed partial class InventorySlotsPlugin
                 continue;
             }
 
-            if (containerInventory.AddItem(item))
+            if (MoveItemToContainerTopFirst(localPlayer, playerInventory, containerInventory, item) > 0)
             {
-                RemoveItemIfStillOwned(playerInventory, item);
                 moved++;
                 if (item.m_equipped)
                 {
@@ -278,11 +278,153 @@ public sealed partial class InventorySlotsPlugin
 
     }
 
-    private static bool ShouldStoreAllItem(Player player, Inventory inventory, ItemData item, bool includeHotbar, bool includeEquipped)
+    private static int MoveItemToContainerTopFirst(
+        Player player,
+        Inventory sourceInventory,
+        Inventory targetInventory,
+        ItemData source)
+    {
+        if (sourceInventory == null ||
+            targetInventory == null ||
+            ReferenceEquals(sourceInventory, targetInventory) ||
+            source?.m_shared == null ||
+            !sourceInventory.m_inventory.Contains(source) ||
+            IsEquippedContainerMoveSource(player, source))
+        {
+            return 0;
+        }
+
+        int movedAmount = 0;
+        if (source.m_shared.m_maxStackSize > 1 &&
+            CanUseContainerActionStacking(source))
+        {
+            IEnumerable<ItemData> compatibleTargets = targetInventory.m_inventory
+                .Where(target =>
+                    target?.m_shared != null &&
+                    target.m_stack < target.m_shared.m_maxStackSize &&
+                    CanShareInventoryStack(target, source));
+            if (!IsTrustedCustomDataStackingItem(source))
+            {
+                compatibleTargets = compatibleTargets
+                    .OrderBy(target => target.m_gridPos.y)
+                    .ThenBy(target => target.m_gridPos.x);
+            }
+
+            // Trusted custom-data mods patch the vanilla stack search and use
+            // inventory insertion order to choose and merge their stack data.
+            List<ItemData> stackTargets = compatibleTargets.ToList();
+
+            foreach (ItemData target in stackTargets)
+            {
+                if (!sourceInventory.m_inventory.Contains(source) ||
+                    source.m_stack <= 0 ||
+                    IsEquippedContainerMoveSource(player, source))
+                {
+                    break;
+                }
+
+                if (!targetInventory.m_inventory.Contains(target) ||
+                    target?.m_shared == null ||
+                    !CanShareInventoryStack(target, source))
+                {
+                    continue;
+                }
+
+                int amount = Math.Min(
+                    target.m_shared.m_maxStackSize - target.m_stack,
+                    source.m_stack);
+                if (amount <= 0)
+                {
+                    continue;
+                }
+
+                int before = source.m_stack;
+                bool movedOk = targetInventory.MoveItemToThis(
+                    sourceInventory,
+                    source,
+                    amount,
+                    target.m_gridPos.x,
+                    target.m_gridPos.y);
+                movedAmount += CountMovedFromContainerSource(
+                    sourceInventory,
+                    source,
+                    before,
+                    amount,
+                    movedOk);
+            }
+        }
+
+        for (int y = 0;
+             y < targetInventory.GetHeight() &&
+             sourceInventory.m_inventory.Contains(source) &&
+             source.m_stack > 0;
+             y++)
+        {
+            for (int x = 0; x < targetInventory.GetWidth(); x++)
+            {
+                if (targetInventory.GetItemAt(x, y) != null)
+                {
+                    continue;
+                }
+
+                if (IsEquippedContainerMoveSource(player, source))
+                {
+                    return movedAmount;
+                }
+
+                int before = source.m_stack;
+                int requestedAmount = source.m_stack;
+                bool movedOk = targetInventory.MoveItemToThis(
+                    sourceInventory,
+                    source,
+                    requestedAmount,
+                    x,
+                    y);
+                int moved = CountMovedFromContainerSource(
+                    sourceInventory,
+                    source,
+                    before,
+                    requestedAmount,
+                    movedOk);
+                movedAmount += moved;
+                if (moved == 0)
+                {
+                    return movedAmount;
+                }
+
+                if (!sourceInventory.m_inventory.Contains(source) ||
+                    source.m_stack <= 0)
+                {
+                    return movedAmount;
+                }
+            }
+        }
+
+        return movedAmount;
+    }
+
+    private static bool ShouldStoreAllItem(Player player, Inventory inventory, ItemData item)
     {
         return item?.m_shared != null &&
-               IsRegularActionItem(player, inventory, item, includeHotbar) &&
+               IsRegularActionItem(player, inventory, item) &&
                !IsFavoriteProtected(player, inventory, item) &&
-               (includeEquipped || !item.m_equipped);
+               !IsEquippedContainerMoveSource(player, item);
+    }
+
+    private static bool IsEquippedContainerMoveSource(Player player, ItemData item)
+    {
+        if (player == null || item == null || item.m_equipped)
+        {
+            return true;
+        }
+
+        try
+        {
+            return player.IsItemEquiped(item);
+        }
+        catch
+        {
+            return true;
+        }
     }
 }

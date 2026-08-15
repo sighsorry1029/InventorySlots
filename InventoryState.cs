@@ -139,7 +139,8 @@ public sealed partial class InventorySlotsPlugin
         public string LastInventoryLimitMessageKey = "";
         public float LastInventoryLimitMessageTime = -1f;
         public bool SlotUnequipInProgress;
-        public bool SuppressSlotAutoEquip;
+        public int SlotAutoEquipSuppressionDepth;
+        public bool SuppressSlotAutoEquip => SlotAutoEquipSuppressionDepth > 0;
         public bool SuppressKnownItemRediscovery;
         public bool HandlingSlotDropOutside;
     }

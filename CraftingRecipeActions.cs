@@ -196,6 +196,32 @@ public sealed partial class InventorySlotsPlugin
                CanAffordJewelcraftingSocketAttempt(pair);
     }
 
+    internal static bool CanStartCraftingAction(InventoryGui gui)
+    {
+        if (!IsJewelcraftingSocketTabActive(gui))
+        {
+            return true;
+        }
+
+        return TryRefreshSelectedJewelcraftingSocketRecipePair(gui) &&
+               CanAttemptJewelcraftingSocket(gui.m_selectedRecipe);
+    }
+
+    internal static bool CanCompleteCraftingAction(InventoryGui gui)
+    {
+        if (!IsJewelcraftingSocketTabActive(gui))
+        {
+            return true;
+        }
+
+        return TryFindLatestJewelcraftingSocketRecipePair(
+                   gui,
+                   gui.m_craftRecipe,
+                   gui.m_craftUpgradeItem,
+                   out InventoryGui.RecipeDataPair pair) &&
+               CanAttemptJewelcraftingSocket(pair);
+    }
+
     private static bool CanAffordJewelcraftingSocketAttempt(InventoryGui.RecipeDataPair pair)
     {
         Player? player = Player.m_localPlayer;

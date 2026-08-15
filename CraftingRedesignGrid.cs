@@ -144,7 +144,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         go.SetActive(true);
-        return new CraftingRecipeGridCell(go, slotIndex);
+        return new CraftingRecipeGridCell(go);
     }
 
     private static GameObject CreateCleanCraftingRecipeCell(RectTransform parent)

@@ -601,39 +601,6 @@ public sealed partial class InventorySlotsPlugin
         return Localization.instance != null ? Localization.instance.Localize(sharedName) : sharedName;
     }
 
-    private static string StripRichText(string text)
-    {
-        if (string.IsNullOrEmpty(text))
-        {
-            return "";
-        }
-
-        int depth = 0;
-        char[] buffer = new char[text.Length];
-        int count = 0;
-        foreach (char c in text)
-        {
-            if (c == '<')
-            {
-                depth++;
-                continue;
-            }
-
-            if (c == '>' && depth > 0)
-            {
-                depth--;
-                continue;
-            }
-
-            if (depth == 0)
-            {
-                buffer[count++] = c;
-            }
-        }
-
-        return new string(buffer, 0, count);
-    }
-
     private static void ConfigureCraftingRecipeCellOverlays(CraftingRecipeGridCell cell, float cellSize)
     {
         foreach (Transform child in cell.Rect)
@@ -1186,10 +1153,10 @@ public sealed partial class InventorySlotsPlugin
         border.offsetMax = Vector2.zero;
         border.localScale = Vector3.one;
         border.localRotation = Quaternion.identity;
-        CreateFavoriteBorderSide(border, "Top", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, FavoriteBorderThickness), Vector2.zero);
-        CreateFavoriteBorderSide(border, "Bottom", new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, FavoriteBorderThickness), Vector2.zero);
-        CreateFavoriteBorderSide(border, "Left", new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), new Vector2(FavoriteBorderThickness, 0f), Vector2.zero);
-        CreateFavoriteBorderSide(border, "Right", new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), new Vector2(FavoriteBorderThickness, 0f), Vector2.zero);
+        CreateFavoriteBorderSide(border, "Top", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, FavoriteBorderThickness));
+        CreateFavoriteBorderSide(border, "Bottom", new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, FavoriteBorderThickness));
+        CreateFavoriteBorderSide(border, "Left", new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), new Vector2(FavoriteBorderThickness, 0f));
+        CreateFavoriteBorderSide(border, "Right", new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), new Vector2(FavoriteBorderThickness, 0f));
         go.SetActive(false);
         return border;
     }

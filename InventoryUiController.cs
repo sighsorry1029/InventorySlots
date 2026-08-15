@@ -83,8 +83,8 @@ public sealed partial class InventorySlotsPlugin
             {
                 element!.m_go.SetActive(false);
                 element.m_used = true;
-                SetFavoriteBorderActive(element, false);
-                SetInventoryPinnedTooltipBorderActive(element, false);
+                HideFavoriteBorder(element);
+                HideInventoryPinnedTooltipBorder(element);
                 continue;
             }
 
@@ -96,8 +96,8 @@ public sealed partial class InventorySlotsPlugin
                     element!.m_go.SetActive(false);
                     element.m_used = true;
                     UpdateSlotBindingLabel(element, null);
-                    SetFavoriteBorderActive(element, false);
-                    SetInventoryPinnedTooltipBorderActive(element, false);
+                    HideFavoriteBorder(element);
+                    HideInventoryPinnedTooltipBorder(element);
                     continue;
                 }
 
@@ -111,8 +111,8 @@ public sealed partial class InventorySlotsPlugin
                     element!.m_go.SetActive(false);
                     element.m_used = true;
                     UpdateSlotBindingLabel(element, null);
-                    SetFavoriteBorderActive(element, false);
-                    SetInventoryPinnedTooltipBorderActive(element, false);
+                    HideFavoriteBorder(element);
+                    HideInventoryPinnedTooltipBorder(element);
                     continue;
                 }
 
@@ -145,8 +145,8 @@ public sealed partial class InventorySlotsPlugin
                 {
                     element.m_go.SetActive(false);
                     element.m_used = true;
-                    SetFavoriteBorderActive(element, false);
-                    SetInventoryPinnedTooltipBorderActive(element, false);
+                    HideFavoriteBorder(element);
+                    HideInventoryPinnedTooltipBorder(element);
                     continue;
                 }
 

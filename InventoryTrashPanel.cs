@@ -95,7 +95,7 @@ public sealed partial class InventorySlotsPlugin
             InventoryTrashButtonName,
             "",
             TryClickInventoryTrashPanel);
-        RectTransform? trashRect = LayoutActionButton(trashButton, 0, buttonSize, buttonSize, 0f);
+        RectTransform? trashRect = LayoutActionButton(trashButton, buttonSize, buttonSize);
         if (trashButton != null && trashRect != null)
         {
             ConfigureInventoryTrashButton(trashButton, buttonSize);
@@ -382,6 +382,16 @@ public sealed partial class InventorySlotsPlugin
             if (showMessage)
             {
                 ShowInventoryTrashMessage(player, "$inventoryslots_trash_favorite_item", "Favorite items cannot be trashed.");
+            }
+
+            return false;
+        }
+
+        if (item.m_shared.m_questItem)
+        {
+            if (showMessage)
+            {
+                ShowInventoryTrashMessage(player, "$inventoryslots_trash_quest_item", "Quest items cannot be trashed.");
             }
 
             return false;

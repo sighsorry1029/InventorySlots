@@ -53,10 +53,9 @@ public sealed partial class InventorySlotsPlugin
 
         TombStone? tombstone = container.GetComponent<TombStone>();
         bool isTombstone = tombstone != null;
-        const bool includeHotbar = false;
 
         gui.SetupDragItem(null, null, 0);
-        int movedStacks = SafeTakeAllItems(player, playerInventory, containerInventory, includeHotbar);
+        int movedStacks = SafeTakeAllItems(player, playerInventory, containerInventory);
         if (movedStacks > 0)
         {
             playerInventory.Changed();
@@ -72,9 +71,9 @@ public sealed partial class InventorySlotsPlugin
         return true;
     }
 
-    private static int SafeTakeAllItems(Player player, Inventory playerInventory, Inventory containerInventory, bool includeHotbar)
+    private static int SafeTakeAllItems(Player player, Inventory playerInventory, Inventory containerInventory)
     {
-        List<Vector2i> actionSlots = GetPlayerActionSlots(player, playerInventory, includeHotbar, blockFavorites: true);
+        List<Vector2i> actionSlots = GetPlayerActionSlots(player, playerInventory, includeHotbar: false, blockFavorites: true);
         HashSet<Vector2i> allowedSlots = new(actionSlots);
         List<Vector2i> emptySlots = GetSafeTakeAllEmptySlots(playerInventory, actionSlots);
         List<ItemData> sourceItems = containerInventory.m_inventory

@@ -48,7 +48,7 @@ public sealed partial class InventorySlotsPlugin
         if (cachedRoot != null && !IsUnityNull(cachedRoot) && cachedRoot.IsChildOf(panel))
         {
             JewelcraftingTooltipLayoutCache cachedLayout = GetJewelcraftingTooltipLayoutCache(cachedRoot);
-            if (TryReuseJewelcraftingNativeTooltipCache(cachedRoot, cachedLayout, item, signature, out bool cachedVisible))
+            if (TryReuseJewelcraftingNativeTooltipCache(cachedRoot, cachedLayout, signature, out bool cachedVisible))
             {
                 return cachedVisible;
             }
@@ -68,19 +68,12 @@ public sealed partial class InventorySlotsPlugin
 
         JewelcraftingTooltipLayoutCache cache = GetJewelcraftingTooltipLayoutCache(root);
         root.gameObject.SetActive(true);
-        if (TryReuseJewelcraftingNativeTooltipCache(root, cache, item, signature, out bool reusedVisible))
+        if (TryReuseJewelcraftingNativeTooltipCache(root, cache, signature, out bool reusedVisible))
         {
             return reusedVisible;
         }
 
-        return RebuildJewelcraftingNativeTooltip(root, tooltipItem, item, showInteract, signature, cache);
-    }
-
-    private static void UpdateJewelcraftingTooltipCacheItemIdentity(JewelcraftingTooltipLayoutCache cache, ItemData item)
-    {
-        cache.ItemPrefabName = GetItemPrefabName(item);
-        cache.ItemSharedName = item.m_shared?.m_name ?? "";
-        cache.ItemVariant = item.m_variant;
+        return RebuildJewelcraftingNativeTooltip(root, tooltipItem, showInteract, signature, cache);
     }
 
     private static JewelcraftingTooltipLayoutCache GetJewelcraftingTooltipLayoutCache(RectTransform root) =>

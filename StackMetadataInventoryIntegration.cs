@@ -176,6 +176,7 @@ public sealed partial class InventorySlotsPlugin
 
         ItemData? destination = inventory.GetItemAt(x, y);
         if (destination == null ||
+            IsTrustedCustomDataStackingItem(item) ||
             StackMetadataPolicy.AreCompatible(
                 destination.m_customData,
                 item.m_customData))

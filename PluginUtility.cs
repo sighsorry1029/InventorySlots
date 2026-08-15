@@ -23,6 +23,38 @@ public sealed partial class InventorySlotsPlugin
         return InventorySlotsConfigCore.NormalizeResourceToken(token);
     }
 
+    private static string CleanPrefabName(string name)
+    {
+        return InventorySlotsConfigCore.CleanPrefabName(name);
+    }
+
+    private static string StripLocalizationToken(string value)
+    {
+        return InventorySlotsConfigCore.StripLocalizationToken(value);
+    }
+
+    private static string GetItemPrefabName(ItemDrop.ItemData item) =>
+        CleanPrefabName(item.m_dropPrefab != null ? item.m_dropPrefab.name : "");
+
+    private static string StripRichText(string? text) =>
+        JewelcraftingTooltipCore.StripRichText(text);
+
+    private static string LocalizeUi(string token, string fallback)
+    {
+        string localized = Localization.instance != null ? Localization.instance.Localize(token) : token;
+        return string.IsNullOrWhiteSpace(localized) || localized == token ? fallback : localized;
+    }
+
+    private static string JoinShortcutDisplayTexts(string first, string second)
+    {
+        if (string.IsNullOrWhiteSpace(first))
+        {
+            return second;
+        }
+
+        return string.IsNullOrWhiteSpace(second) ? first : $"{first}/{second}";
+    }
+
     private static string GetPlayerId(Player player)
     {
         PlayerProfile? profile = Game.instance?.GetPlayerProfile();
@@ -38,6 +70,9 @@ public sealed partial class InventorySlotsPlugin
     {
         return obj == null;
     }
+
+    private static int GetUnityObjectId(UnityEngine.Object? obj) =>
+        obj != null && !IsUnityNull(obj) ? obj.GetInstanceID() : 0;
 
     private static string SafeReadBool(System.Func<bool> read)
     {

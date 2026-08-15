@@ -35,6 +35,7 @@ inventoryslots_trash_player_inventory_only: Only player inventory items can be t
 inventoryslots_trash_item_missing: That item is no longer available.
 inventoryslots_trash_hotbar_item: Only regular inventory items can be trashed.
 inventoryslots_trash_favorite_item: Favorite items cannot be trashed.
+inventoryslots_trash_quest_item: Quest items cannot be trashed.
 inventoryslots_craft_button_count_format: "{label} x{count}"
 inventoryslots_crafting_progress_count_format: "{label} x{count}"
 inventoryslots_action_stack: Stack

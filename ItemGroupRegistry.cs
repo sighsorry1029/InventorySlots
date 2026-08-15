@@ -6,11 +6,10 @@ namespace InventorySlots;
 
 internal sealed class BuiltInItemGroupSection
 {
-    public BuiltInItemGroupSection(string yamlName, string id, string tab, string label, string iconPrefab, params string[] subgroups)
+    public BuiltInItemGroupSection(string yamlName, string id, string label, string iconPrefab, params string[] subgroups)
     {
         YamlName = yamlName;
         Id = id;
-        Tab = tab;
         Label = label;
         IconPrefab = iconPrefab;
         Subgroups = subgroups;
@@ -18,7 +17,6 @@ internal sealed class BuiltInItemGroupSection
 
     public string YamlName { get; }
     public string Id { get; }
-    public string Tab { get; }
     public string Label { get; }
     public string IconPrefab { get; }
     public IReadOnlyList<string> Subgroups { get; }
@@ -28,14 +26,14 @@ internal static class ItemGroupRegistry
 {
     public static readonly IReadOnlyList<BuiltInItemGroupSection> Sections = new List<BuiltInItemGroupSection>
     {
-        new("Melee", "melee", "Combat", "Melee", "AxeStone", "sword", "axe", "club", "knife", "spear", "polearm", "fists", "shield", "pickaxe", "tool"),
-        new("Ranged", "ranged", "Combat", "Range", "Bow", "bow", "arrow", "crossbow", "bolt", "ammo", "bomb"),
-        new("Magic", "magic", "Combat", "Magic", "Eitr", "elementalmagic", "bloodmagic"),
-        new("Equipment", "armor", "Equipment", "Equipment", "HelmetLeather", "helmet", "chest", "legs", "cape", "utility", "trinket"),
-        new("Food", "food", "Equipment", "Food", "CookedMeat", "healthfood", "staminafood", "eitrfood", "feast"),
-        new("Consumable", "consumable", "Equipment", "Consumable", "MeadHealthMinor", "mead", "potion"),
-        new("Meadbase", "meadbase", "Crafting", "Base", "MeadBaseHealthMinor", "meadbase"),
-        new("Misc", "misc", "Crafting", "Misc", "Dandelion", "trophy", "valuable")
+        new("Melee", "melee", "Melee", "AxeStone", "sword", "axe", "club", "knife", "spear", "polearm", "fists", "shield", "pickaxe", "tool"),
+        new("Ranged", "ranged", "Range", "Bow", "bow", "arrow", "crossbow", "bolt", "ammo", "bomb"),
+        new("Magic", "magic", "Magic", "Eitr", "elementalmagic", "bloodmagic"),
+        new("Equipment", "armor", "Equipment", "HelmetLeather", "helmet", "chest", "legs", "cape", "utility", "trinket"),
+        new("Food", "food", "Food", "CookedMeat", "healthfood", "staminafood", "eitrfood", "feast"),
+        new("Consumable", "consumable", "Consumable", "MeadHealthMinor", "mead", "potion"),
+        new("Meadbase", "meadbase", "Base", "MeadBaseHealthMinor", "meadbase"),
+        new("Misc", "misc", "Misc", "Dandelion", "trophy", "valuable")
     };
 
     private static readonly HashSet<string> BuiltInGroupIds = new(

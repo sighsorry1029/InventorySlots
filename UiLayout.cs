@@ -67,7 +67,7 @@ public sealed partial class InventorySlotsPlugin
         return SetRectLayout(rect, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), anchoredPosition, size);
     }
 
-    private static bool SetTopLeftRectLayout(RectTransform parent, RectTransform rect, Vector2 anchoredPosition, Vector2 size, bool setAsLastSibling = true)
+    private static bool SetTopLeftRectLayout(RectTransform parent, RectTransform rect, Vector2 anchoredPosition, Vector2 size)
     {
         bool changed = false;
         if (rect.parent != parent)
@@ -77,7 +77,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         changed |= SetTopLeftRectLayout(rect, anchoredPosition, size);
-        if (setAsLastSibling && changed && rect.parent != null && rect.GetSiblingIndex() != rect.parent.childCount - 1)
+        if (changed && rect.parent != null && rect.GetSiblingIndex() != rect.parent.childCount - 1)
         {
             rect.SetAsLastSibling();
         }
@@ -101,6 +101,26 @@ public sealed partial class InventorySlotsPlugin
         }
 
         return changed;
+    }
+
+    private static bool RectContainsScreenPoint(RectTransform rectTransform, Vector2 screenPoint)
+    {
+        Vector2 localPoint = rectTransform.InverseTransformPoint(screenPoint);
+        return rectTransform.rect.Contains(localPoint);
+    }
+
+    internal static Sprite GetSolidUiSprite()
+    {
+        if (TooltipUi.SolidUiSprite != null)
+        {
+            return TooltipUi.SolidUiSprite;
+        }
+
+        Texture2D texture = new(1, 1, TextureFormat.RGBA32, false);
+        texture.SetPixel(0, 0, Color.white);
+        texture.Apply();
+        TooltipUi.SolidUiSprite = Sprite.Create(texture, new Rect(0f, 0f, 1f, 1f), new Vector2(0.5f, 0.5f));
+        return TooltipUi.SolidUiSprite;
     }
 
 }

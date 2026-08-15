@@ -119,7 +119,6 @@ public sealed partial class InventorySlotsPlugin
             grid.anchoredPosition.y,
             _selectedCraftingGroupId,
             _craftingFavoritesVersion,
-            GetCraftingGroupIconBackgroundAlpha(),
             _craftingGroupAvailabilitySignature,
             _craftingSelectableGroupFilterIdsSignature);
     }
@@ -266,13 +265,12 @@ public sealed partial class InventorySlotsPlugin
         bool selected = string.Equals(_selectedCraftingGroupId, filter.Id, StringComparison.Ordinal);
         bool isFavorite = string.Equals(filter.Id, "favorite", StringComparison.OrdinalIgnoreCase);
         bool visuallyAvailable = hasRecipes || isFavorite;
-        float backgroundAlpha = GetCraftingGroupIconBackgroundAlpha();
         if (button.Background != null)
         {
             button.Background.sprite = GetSolidUiSprite();
             button.Background.color = selected
                 ? new Color(1f, 0.55f, 0.04f, visuallyAvailable ? 0.92f : 0.62f)
-                : new Color(0.08f, 0.05f, 0.03f, visuallyAvailable ? backgroundAlpha : backgroundAlpha * 0.5f);
+                : new Color(0.08f, 0.05f, 0.03f, 0f);
             button.Background.raycastTarget = true;
         }
 
@@ -405,8 +403,6 @@ public sealed partial class InventorySlotsPlugin
             _ => GetCraftingGroupTooltipToken(id)
         };
 
-    private static float GetCraftingGroupIconBackgroundAlpha() => 0f;
-
     private static void HandleCraftingGroupFavoriteClearShortcut()
     {
         if (!IsCraftingClearFavoritesHotkeyDown() ||
@@ -431,16 +427,6 @@ public sealed partial class InventorySlotsPlugin
             _craftingClearFavoritesKey.Value.MainKey != KeyCode.None &&
             IsShortcutDownAllowingAltPair(_craftingClearFavoritesKey.Value);
         return keyboard || IsControllerHotkeyDown(_controllerClearCraftingFavoritesButton);
-    }
-
-    private static string JoinShortcutDisplayTexts(string first, string second)
-    {
-        if (string.IsNullOrWhiteSpace(first))
-        {
-            return second;
-        }
-
-        return string.IsNullOrWhiteSpace(second) ? first : $"{first}/{second}";
     }
 
     private static bool TryGetHoveredCraftingGroupButton(out CraftingRecipeGroupButton? button)
@@ -606,6 +592,38 @@ public sealed partial class InventorySlotsPlugin
         CraftingRecipes.GroupHasRecipesCache.Clear();
     }
 
+    internal static Sprite? GetItemPrefabIcon(string prefabName)
+    {
+        if (string.IsNullOrWhiteSpace(prefabName))
+        {
+            return null;
+        }
+
+        GameObject? prefab = ObjectDB.instance != null ? ObjectDB.instance.GetItemPrefab(prefabName) : null;
+        if (prefab != null && prefab.TryGetComponent(out ItemDrop itemDrop))
+        {
+            return itemDrop.m_itemData.GetIcon();
+        }
+
+        prefab = ZNetScene.instance != null ? ZNetScene.instance.GetPrefab(prefabName) : null;
+        if (prefab == null)
+        {
+            return null;
+        }
+
+        if (prefab.TryGetComponent(out ItemDrop sceneItemDrop))
+        {
+            return sceneItemDrop.m_itemData.GetIcon();
+        }
+
+        if (prefab.TryGetComponent(out Piece piece))
+        {
+            return piece.m_icon;
+        }
+
+        return null;
+    }
+
     private static Sprite? GetCraftingGroupIcon(InventoryGui gui, CraftingRecipeGroupFilter filter)
     {
         if (string.Equals(filter.Id, "favorite", StringComparison.OrdinalIgnoreCase))
@@ -613,7 +631,7 @@ public sealed partial class InventorySlotsPlugin
             return GetFavoriteCraftingGroupIcon();
         }
 
-        Sprite? icon = filter.GetIcon(gui);
+        Sprite? icon = filter.GetIcon();
         if (icon != null)
         {
             return icon;

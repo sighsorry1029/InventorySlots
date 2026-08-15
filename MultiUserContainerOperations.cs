@@ -908,63 +908,92 @@ public sealed partial class InventorySlotsPlugin
         MultiUserContainerRecoveryMode recoveryMode =
             MultiUserContainerRecoveryMode.InventoryFirst)
     {
-        if (_pendingMultiUserContainerTransfer != null ||
-            !TryGetMultiUserContainerOwner(container, out long owner) ||
-            !TryWriteMultiUserContainerRequest(request, out ZPackage? package))
+        bool pendingPublished = false;
+        try
         {
-            if (localEscrow != null && localInventory != null)
+            if (_pendingMultiUserContainerTransfer != null ||
+                !TryGetMultiUserContainerOwner(container, out long owner) ||
+                !TryWriteMultiUserContainerRequest(request, out ZPackage? package))
             {
-                RestoreMultiUserContainerLocalEscrow(
-                    localInventory,
-                    localEscrow,
-                    preferredLocalPosition,
-                    GetMultiUserContainerLocalPlacementPolicy(
-                        recoveryMode));
+                return false;
             }
 
-            return false;
-        }
-
-        byte[] requestBytes = package!.GetArray();
-        if (!TryComputeMultiUserContainerDigest(
-                requestBytes,
-                out byte[]? requestDigest) ||
-            requestDigest == null)
-        {
-            if (localEscrow != null && localInventory != null)
+            byte[] requestBytes = package!.GetArray();
+            if (!TryComputeMultiUserContainerDigest(
+                    requestBytes,
+                    out byte[]? requestDigest) ||
+                requestDigest == null)
             {
-                RestoreMultiUserContainerLocalEscrow(
-                    localInventory,
-                    localEscrow,
-                    preferredLocalPosition,
-                    GetMultiUserContainerLocalPlacementPolicy(
-                        recoveryMode));
+                return false;
             }
 
+            float now = Time.unscaledTime;
+            PendingMultiUserContainerTransfer pending = new()
+            {
+                Container = container,
+                ContainerId = container.m_nview.GetZDO().m_uid,
+                RequesterPeerId = ZNet.GetUID(),
+                Owner = owner,
+                RequestOwners = new HashSet<long> { owner },
+                Request = request,
+                RequestBytes = requestBytes,
+                RequestDigest = requestDigest,
+                LocalInventory = localInventory,
+                LocalEscrow = localEscrow,
+                PreferredLocalPosition = preferredLocalPosition,
+                RecoveryMode = recoveryMode,
+                StartedAt = now,
+                LastSentAt = now,
+                SendAttempts = 1
+            };
+            _pendingMultiUserContainerTransfer = pending;
+            pendingPublished = true;
+
+            try
+            {
+                container.m_nview.InvokeRPC(
+                    MultiUserContainerRequestRpc,
+                    package);
+            }
+            catch (Exception exception)
+            {
+                // The request may already have reached the owner. Keep the
+                // published pending state and escrow so the normal receipt poll
+                // and bounded resend path can resolve it without duplication.
+                Log.LogWarning(
+                    $"Built-in multi-user chest initial request send failed; retrying: {exception.Message}");
+            }
+
+            return true;
+        }
+        catch (Exception exception)
+        {
+            Log.LogWarning(
+                $"Built-in multi-user chest request preparation failed: {exception.Message}");
             return false;
         }
-
-        PendingMultiUserContainerTransfer pending = new()
+        finally
         {
-            Container = container,
-            ContainerId = container.m_nview.GetZDO().m_uid,
-            RequesterPeerId = ZNet.GetUID(),
-            Owner = owner,
-            RequestOwners = new HashSet<long> { owner },
-            Request = request,
-            RequestBytes = requestBytes,
-            RequestDigest = requestDigest,
-            LocalInventory = localInventory,
-            LocalEscrow = localEscrow,
-            PreferredLocalPosition = preferredLocalPosition,
-            RecoveryMode = recoveryMode,
-            StartedAt = Time.unscaledTime,
-            LastSentAt = Time.unscaledTime,
-            SendAttempts = 1
-        };
-        _pendingMultiUserContainerTransfer = pending;
-        container.m_nview.InvokeRPC(MultiUserContainerRequestRpc, package);
-        return true;
+            if (!pendingPublished &&
+                localEscrow != null &&
+                localInventory != null)
+            {
+                try
+                {
+                    RestoreMultiUserContainerLocalEscrow(
+                        localInventory,
+                        localEscrow,
+                        preferredLocalPosition,
+                        GetMultiUserContainerLocalPlacementPolicy(
+                            recoveryMode));
+                }
+                catch (Exception exception)
+                {
+                    Log.LogWarning(
+                        $"Built-in multi-user chest request rollback failed: {exception.Message}");
+                }
+            }
+        }
     }
 
     private static MultiUserContainerRequest CreateMultiUserContainerRequest(
@@ -1636,9 +1665,20 @@ public sealed partial class InventorySlotsPlugin
         pending.SendAttempts = Math.Min(
             MultiUserContainerMaximumSendAttempts,
             pending.SendAttempts + 1);
-        container.m_nview.InvokeRPC(
-            MultiUserContainerRequestRpc,
-            new ZPackage(pending.RequestBytes));
+        try
+        {
+            container.m_nview.InvokeRPC(
+                MultiUserContainerRequestRpc,
+                new ZPackage(pending.RequestBytes));
+        }
+        catch (Exception exception)
+        {
+            // Preserve the pending request and escrow. The same request id and
+            // digest can be retried safely, while a transient send failure must
+            // not abort the rest of the plugin's Update cycle.
+            Log.LogWarning(
+                $"Built-in multi-user chest request resend failed; retrying: {exception.Message}");
+        }
     }
 
     internal static void ShutdownMultiUserContainerRuntime()

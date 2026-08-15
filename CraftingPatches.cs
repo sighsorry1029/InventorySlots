@@ -86,12 +86,20 @@ internal static class InventoryGuiCraftingRecipeListRedesignPatch
 }
 
 [HarmonyPatch(typeof(InventoryGui), "OnCraftPressed")]
+[HarmonyPriority(Priority.First)]
+[HarmonyBefore(new[] { "org.bepinex.plugins.jewelcrafting" })]
 internal static class InventoryGuiCraftingQueueStartPatch
 {
-    private static void Prefix(InventoryGui __instance)
+    private static bool Prefix(InventoryGui __instance)
     {
+        if (!InventorySlotsPlugin.CanStartCraftingAction(__instance))
+        {
+            return false;
+        }
+
         InventorySlotsPlugin.BeginCraftingInventoryLimitNotice();
         InventorySlotsPlugin.PrepareCraftingQueue(__instance);
+        return true;
     }
 
     private static void Postfix(InventoryGui __instance)
@@ -121,16 +129,31 @@ internal static class InventoryGuiCraftingQueueCancelPatch
 }
 
 [HarmonyPatch(typeof(InventoryGui), "DoCrafting")]
+[HarmonyPriority(Priority.First)]
+[HarmonyBefore(new[] { "org.bepinex.plugins.jewelcrafting" })]
 internal static class InventoryGuiUpgradeFavoriteCraftingPatch
 {
-    private static void Prefix(InventoryGui __instance)
+    private static bool Prefix(InventoryGui __instance, out bool __state)
     {
+        __state = false;
+        if (!InventorySlotsPlugin.CanCompleteCraftingAction(__instance))
+        {
+            return false;
+        }
+
+        __state = true;
         InventorySlotsPlugin.BeginCraftingInventoryLimitNotice();
         InventorySlotsPlugin.CaptureUpgradeFavoriteBeforeCrafting(__instance);
+        return true;
     }
 
-    private static void Postfix(InventoryGui __instance, Player player)
+    private static void Postfix(InventoryGui __instance, Player player, bool __state)
     {
+        if (!__state)
+        {
+            return;
+        }
+
         InventorySlotsPlugin.RestoreUpgradeFavoriteAfterCrafting(__instance, player);
         if (InventorySlotsPlugin.EndCraftingInventoryLimitNotice(showMessage: true))
         {
@@ -138,9 +161,13 @@ internal static class InventoryGuiUpgradeFavoriteCraftingPatch
         }
     }
 
-    private static Exception? Finalizer(Exception? __exception)
+    private static Exception? Finalizer(Exception? __exception, bool __state)
     {
-        InventorySlotsPlugin.EndCraftingInventoryLimitNotice(showMessage: false);
+        if (__state)
+        {
+            InventorySlotsPlugin.EndCraftingInventoryLimitNotice(showMessage: false);
+        }
+
         return __exception;
     }
 }

@@ -1166,12 +1166,6 @@ public sealed partial class InventorySlotsPlugin
         return suffix.Length > 1 && (suffix[0] == 'x' || suffix[0] == 'X') && int.TryParse(suffix.Substring(1), out _);
     }
 
-    private static string LocalizeUi(string token, string fallback)
-    {
-        string localized = Localization.instance != null ? Localization.instance.Localize(token) : token;
-        return string.IsNullOrWhiteSpace(localized) || localized == token ? fallback : localized;
-    }
-
     private static string GetRequirementDisplayName(Requirement requirement)
     {
         if (requirement.m_resItem == null)
@@ -1271,9 +1265,6 @@ public sealed partial class InventorySlotsPlugin
     {
         return CraftingQueue.QueueRemaining > 0 || (gui != null && gui.m_craftTimer >= 0f);
     }
-
-    private static int GetUnityObjectId(UnityEngine.Object? obj) =>
-        obj != null && !IsUnityNull(obj) ? obj.GetInstanceID() : 0;
 
     private static void SetCraftingTopLeftRect(RectTransform parent, RectTransform rect, Vector2 anchoredPosition, Vector2 size)
     {

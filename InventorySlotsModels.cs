@@ -123,9 +123,6 @@ internal sealed class JewelcraftingTooltipLayoutCache : MonoBehaviour
 {
     public string Signature { get; set; } = "";
     public string NativeComponentSignature { get; set; } = "";
-    public string ItemPrefabName { get; set; } = "";
-    public string ItemSharedName { get; set; } = "";
-    public int ItemVariant { get; set; } = -1;
     public bool Visible { get; set; }
     public bool HasResolvedSocketGems { get; set; }
     public int RowlessRefreshAttempts { get; set; }
@@ -273,13 +270,11 @@ internal sealed class MovedPlayerStatPanel
 
 internal sealed class CraftingRecipeGridCell
 {
-    public CraftingRecipeGridCell(GameObject go, int slotIndex)
+    public CraftingRecipeGridCell(GameObject go)
     {
         Go = go;
-        SlotIndex = slotIndex;
         Rect = (RectTransform)go.transform;
         Background = go.GetComponent<Image>();
-        OriginalBackgroundColor = Background != null ? Background.color : Color.white;
         Icon = go.transform.Find("icon")?.GetComponent<Image>();
         Amount = go.transform.Find("amount")?.GetComponent<TMP_Text>();
         Quality = go.transform.Find("quality")?.GetComponent<TMP_Text>();
@@ -295,10 +290,8 @@ internal sealed class CraftingRecipeGridCell
     }
 
     public GameObject Go { get; }
-    public int SlotIndex { get; }
     public RectTransform Rect { get; }
     public Image? Background { get; }
-    public Color OriginalBackgroundColor { get; }
     public Image? Icon { get; }
     public TMP_Text? Amount { get; }
     public TMP_Text? Quality { get; }
@@ -447,30 +440,21 @@ internal readonly struct CraftingTabRowBounds
 internal sealed class CraftingRecipeGroupFilter
 {
     private readonly Func<ItemData, bool> _matches;
-    private readonly Func<InventoryGui, Sprite?>? _iconGetter;
     private readonly string _iconPrefab;
-    private readonly int _skillIcon;
 
     public CraftingRecipeGroupFilter(
         string id,
-        string category,
         string tooltip,
         Func<ItemData, bool> matches,
-        string iconPrefab = "",
-        int skillIcon = -1,
-        Func<InventoryGui, Sprite?>? iconGetter = null)
+        string iconPrefab = "")
     {
         Id = id;
-        Category = category;
         Tooltip = tooltip;
         _matches = matches;
         _iconPrefab = iconPrefab;
-        _skillIcon = skillIcon;
-        _iconGetter = iconGetter;
     }
 
     public string Id { get; }
-    public string Category { get; }
     public string Tooltip { get; }
     public string Label => Id switch
     {
@@ -488,25 +472,7 @@ internal sealed class CraftingRecipeGroupFilter
     };
     public bool Matches(ItemData item) => _matches(item);
 
-    public Sprite? GetIcon(InventoryGui gui)
-    {
-        Sprite? icon = _iconGetter?.Invoke(gui);
-        if (icon != null)
-        {
-            return icon;
-        }
-
-        if (_skillIcon >= 0)
-        {
-            icon = InventorySlotsPlugin.GetSkillIcon(_skillIcon);
-            if (icon != null)
-            {
-                return icon;
-            }
-        }
-
-        return InventorySlotsPlugin.GetItemPrefabIcon(_iconPrefab);
-    }
+    public Sprite? GetIcon() => InventorySlotsPlugin.GetItemPrefabIcon(_iconPrefab);
 }
 
 internal sealed class CraftingRecipeGroupPanel

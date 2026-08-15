@@ -122,8 +122,7 @@ public sealed partial class InventorySlotsPlugin
 
         if (ClearAllCustomEquipmentState(player))
         {
-            bool wasSlotAutoEquipSuppressed = InventorySafety.SuppressSlotAutoEquip;
-            SetSlotAutoEquipSuppressed(true);
+            BeginSlotAutoEquipSuppression();
             try
             {
                 humanoid.UpdateEquipmentStatusEffects();
@@ -131,7 +130,7 @@ public sealed partial class InventorySlotsPlugin
             }
             finally
             {
-                SetSlotAutoEquipSuppressed(wasSlotAutoEquipSuppressed);
+                CompleteSlotAutoEquipSuppression();
             }
         }
     }
@@ -142,8 +141,16 @@ public sealed partial class InventorySlotsPlugin
         if (isLocalPlayer)
         {
             ClearPendingSlotActions();
-            SetSlotAutoEquipSuppressed(true);
-            UnequipCustomEquipmentForDeathDrop(player);
+            BeginSlotAutoEquipSuppression();
+            try
+            {
+                UnequipCustomEquipmentForDeathDrop(player);
+            }
+            catch
+            {
+                CompleteSlotAutoEquipSuppression();
+                throw;
+            }
         }
 
         return isLocalPlayer;
@@ -153,7 +160,7 @@ public sealed partial class InventorySlotsPlugin
     {
         if (isLocalPlayer)
         {
-            SetSlotAutoEquipSuppressed(false);
+            CompleteSlotAutoEquipSuppression();
         }
     }
 }

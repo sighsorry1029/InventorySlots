@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.9
+
+- Fixed Jewelcrafting socket limits becoming stale while the Socket tab remained open. Socket recipes now adopt the rebuilt state after each attempt and revalidate the exact recipe and item both when crafting starts and immediately before completion, preventing table-level and maximum-socket limits from being bypassed.
+- Hardened keep-on-death and tombstone restoration so preparation failures roll back removed items, escrow is released only after exact inventory ownership is confirmed, and a final non-overwriting path preserves items that normal restoration could not return.
+- Hardened direct Quick Stack and Store All transfers with ownership-safe positional moves, mutation-time equipped-item checks, and trusted custom stack-metadata handling, removing the temporary shared-item-reference path that could risk duplication or loss.
+- Hardened built-in multi-user chest requests against transient RPC failures by publishing pending state before uncertain sends, restoring pre-publication escrow exactly once, and retaining the same request and escrow for safe receipt polling and retries.
+- Prevented quest items from being trashed, including a final policy check when the confirmation is accepted.
+- Removed unused crafting, inventory UI, tooltip-cache, classification, and layout paths while preserving existing behavior and compatibility boundaries.
+
 ## 1.3.8
 
 - Shared hover-hold Area Quick Stack and Area Take Stacks success effects with currently loaded nearby players: VFX appears at up to 10 changed containers and the SFX plays once at the interacted container.

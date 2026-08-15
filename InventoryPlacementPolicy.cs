@@ -227,7 +227,7 @@ public sealed partial class InventorySlotsPlugin
     {
         return item?.m_shared != null &&
                (source == null
-                   ? HasNoCustomData(item)
+                   ? (item.m_customData == null || item.m_customData.Count == 0)
                    : CanUseStackMetadataAutomaticStacking(item) &&
                      HasCompatibleStackMetadata(item, source)) &&
                item.m_shared.m_name == name &&

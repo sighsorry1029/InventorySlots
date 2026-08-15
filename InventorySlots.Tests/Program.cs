@@ -40,6 +40,7 @@ TestRunner.Run(
     ("Crafting view favorites sort before craftable", Tests.CraftingViewFavoritesSortBeforeCraftable),
     ("Crafting view craftable sort before original order", Tests.CraftingViewCraftableSortBeforeOriginalOrder),
     ("Crafting view sort key falls back to original order", Tests.CraftingViewSortKeyFallsBackToOriginalOrder),
+    ("Jewelcrafting socket actions refresh and guard the selected recipe pair", Tests.JewelcraftingSocketActionsRefreshAndGuardSelectedRecipePair),
     ("Client state normalize creates missing roots", Tests.ClientStateNormalizeCreatesMissingRoots),
     ("Client state normalize trims players and lists", Tests.ClientStateNormalizeTrimsPlayersAndLists),
     ("Custom equipped item keeps stable slot identity during auto-adopt", Tests.CustomEquippedItemKeepsStableSlotIdentityDuringAutoAdopt),
@@ -55,6 +56,9 @@ TestRunner.Run(
     ("Quickslot reset policy skips rows that cannot be reduced", Tests.QuickslotResetPolicySkipsRowsThatCannotBeReduced),
     ("Quickslot load preservation does not authorize reset", Tests.QuickslotLoadPreservationDoesNotAuthorizeReset),
     ("Progressive inventory row recovery waits for item lookup", Tests.ProgressiveInventoryRowRecoveryWaitsForItemLookup),
+    ("Keep-on-death preparation and restoration retain every unconfirmed item", Tests.KeepOnDeathPreparationAndRestorationRetainEveryUnconfirmedItem),
+    ("Keep-on-death finalizer directly preserves every remaining item", Tests.KeepOnDeathFinalizerDirectlyPreservesEveryRemainingItem),
+    ("Slot auto-equip suppression remains balanced when scopes nest", Tests.SlotAutoEquipSuppressionRemainsBalancedWhenScopesNest),
     ("Keep-on-death quickslot rows prefer their original slot", Tests.KeepOnDeathQuickslotRowsPreferOriginalSlot),
     ("Keep-on-death quickslot falls back to empty quickslot before inventory", Tests.KeepOnDeathQuickslotFallsBackToEmptyQuickslotBeforeInventory),
     ("Keep-on-death quickslot uses regular cell only after quickslots fail", Tests.KeepOnDeathQuickslotUsesRegularCellOnlyAfterQuickslotsFail),
@@ -82,6 +86,7 @@ TestRunner.Run(
     ("Action cell policy keeps quickslots out of container action sources", Tests.ActionCellPolicyKeepsQuickslotsOutOfContainerActionSources),
     ("Action cell policy restock targets include hotbar and quickslots", Tests.ActionCellPolicyRestockTargetsIncludeHotbarAndQuickslots),
     ("Action cell policy trash allows regular inventory only", Tests.ActionCellPolicyTrashAllowsRegularInventoryOnly),
+    ("Inventory trash rejects quest items through final confirmation", Tests.InventoryTrashRejectsQuestItemsThroughFinalConfirmation),
     ("InventoryActions action cell policy copy mirrors InventorySlots behavior", Tests.InventoryActionsActionCellPolicyCopyMirrorsInventorySlotsBehavior),
     ("Keep-on-death equipment prefers regular cell before unrelated special slot", Tests.KeepOnDeathEquipmentPrefersRegularCellBeforeUnrelatedSpecialSlot),
     ("Keep-on-death quickslot avoids unrelated special slot when packed", Tests.KeepOnDeathQuickslotAvoidsUnrelatedSpecialSlotWhenPacked),
@@ -102,6 +107,7 @@ TestRunner.Run(
     ("Tooltip source cache trims oldest entries", Tests.TooltipSourceCacheTrimsOldestEntries),
     ("Container transfer sums moved amounts and callbacks", Tests.ContainerTransferSumsMovedAmountsAndCallbacks),
     ("Container transfer stays quiet when nothing moves", Tests.ContainerTransferStaysQuietWhenNothingMoves),
+    ("Direct container actions use positional ownership-safe moves", Tests.DirectContainerActionsUsePositionalOwnershipSafeMoves),
     ("Container action success FX stays bounded and once per action", Tests.ContainerActionSuccessFxStaysBoundedAndOncePerAction),
     ("Container action success FX uses transient Everybody RPC", Tests.ContainerActionSuccessFxUsesTransientEverybodyRpc),
     ("Container action success FX stays local guarded and self cleaning", Tests.ContainerActionSuccessFxStaysLocalGuardedAndSelfCleaning),
@@ -119,6 +125,7 @@ TestRunner.Run(
     ("Multi-user item snapshot rejects insufficient stack", Tests.MultiUserItemSnapshotRejectsInsufficientStack),
     ("Multi-user item snapshot rejects identity field changes", Tests.MultiUserItemSnapshotRejectsIdentityFieldChanges),
     ("Multi-user transfer requires exact pre-mutation stack state", Tests.MultiUserTransferRequiresExactPreMutationStackState),
+    ("Multi-user request preparation keeps escrow behind a published pending", Tests.MultiUserRequestPreparationKeepsEscrowBehindPublishedPending),
     ("InventoryActions container transfer core copy mirrors InventorySlots behavior", Tests.InventoryActionsContainerTransferCoreCopyMirrorsInventorySlotsBehavior),
     ("InventoryActions container action core copy mirrors InventorySlots behavior", Tests.InventoryActionsContainerActionCoreCopyMirrorsInventorySlotsBehavior),
     ("Area ownership handoff executes a matching grant once", Tests.AreaOwnershipHandoffExecutesMatchingGrantOnce),
@@ -494,9 +501,9 @@ internal static class Tests
 
     public static void CraftingGroupRailStampTracksSelectedGroup()
     {
-        CraftingGroupRailStamp baseline = new(1, 2, 10f, -20f, "food", 3, 0.85f, "available", "food,melee");
-        CraftingGroupRailStamp same = new(1, 2, 10.0001f, -20.0001f, "food", 3, 0.8501f, "available", "food,melee");
-        CraftingGroupRailStamp changedGroup = new(1, 2, 10.0001f, -20.0001f, "melee", 3, 0.8501f, "available", "food,melee");
+        CraftingGroupRailStamp baseline = new(1, 2, 10f, -20f, "food", 3, "available", "food,melee");
+        CraftingGroupRailStamp same = new(1, 2, 10.0001f, -20.0001f, "food", 3, "available", "food,melee");
+        CraftingGroupRailStamp changedGroup = new(1, 2, 10.0001f, -20.0001f, "melee", 3, "available", "food,melee");
 
         Assert.True(baseline.Equals(same), "tiny layout jitter should not invalidate the group rail stamp");
         Assert.False(baseline.Equals(changedGroup), "selected group changes must invalidate the group rail stamp");
@@ -654,6 +661,112 @@ internal static class Tests
             CraftingRecipeSortMode.TierThenGroup);
 
         Assert.GreaterThan(0, comparison);
+    }
+
+    public static void JewelcraftingSocketActionsRefreshAndGuardSelectedRecipePair()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string viewSource = File.ReadAllText(Path.Combine(repositoryRoot, "CraftingRecipeView.cs"));
+        string listUpdate = ReadSourceSection(
+            viewSource,
+            "internal static void OnCraftingRecipeListUpdated",
+            "private static bool TryRefreshSelectedJewelcraftingSocketRecipePair");
+        string refresh = ReadSourceSection(
+            viewSource,
+            "private static bool TryRefreshSelectedJewelcraftingSocketRecipePair",
+            "private static bool TryFindLatestJewelcraftingSocketRecipePair");
+        string latestPair = ReadSourceSection(
+            viewSource,
+            "private static bool TryFindLatestJewelcraftingSocketRecipePair",
+            "private static string GetCraftingRecipeListChangeSignature");
+
+        int refreshCall = listUpdate.IndexOf(
+            "TryRefreshSelectedJewelcraftingSocketRecipePair(gui);",
+            StringComparison.Ordinal);
+        int signatureRead = listUpdate.IndexOf(
+            "GetCraftingRecipeListChangeSignature(gui)",
+            StringComparison.Ordinal);
+        int signatureStore = listUpdate.IndexOf(
+            "TryStoreRecipeListChangeSignature(signature)",
+            StringComparison.Ordinal);
+        Assert.True(
+            refreshCall >= 0 && signatureRead > refreshCall && signatureStore > signatureRead,
+            "Jewelcrafting's rebuilt pair must replace the stale selection before cache signatures and UI state are read");
+        int latestPairCall = refresh.IndexOf("TryFindLatestJewelcraftingSocketRecipePair(", StringComparison.Ordinal);
+        int pairAssignment = refresh.IndexOf("gui.m_selectedRecipe = pair;", StringComparison.Ordinal);
+        Assert.True(
+            refresh.Contains("IsJewelcraftingSocketTabActive(gui)", StringComparison.Ordinal) &&
+            latestPairCall >= 0 && pairAssignment > latestPairCall,
+            "only a fresh Jewelcrafting socket pair may replace the selected recipe");
+        int recipeMatch = latestPair.IndexOf("ReferenceEquals(candidate.Recipe, recipe)", StringComparison.Ordinal);
+        int itemMatch = latestPair.IndexOf("ReferenceEquals(candidate.ItemData, item)", StringComparison.Ordinal);
+        int candidateAssignment = latestPair.IndexOf("pair = candidate;", StringComparison.Ordinal);
+        Assert.True(
+            latestPair.Contains("foreach (InventoryGui.RecipeDataPair candidate in gui.m_availableRecipes)", StringComparison.Ordinal) &&
+            recipeMatch >= 0 && itemMatch > recipeMatch && candidateAssignment > itemMatch,
+            "the latest pair must match both the exact Recipe and ItemData references before its CanCraft state is trusted");
+
+        string actionSource = File.ReadAllText(Path.Combine(repositoryRoot, "CraftingRecipeActions.cs"));
+        string guard = ReadSourceSection(
+            actionSource,
+            "internal static bool CanStartCraftingAction",
+            "internal static bool CanCompleteCraftingAction");
+        string completionGuard = ReadSourceSection(
+            actionSource,
+            "internal static bool CanCompleteCraftingAction",
+            "private static bool CanAffordJewelcraftingSocketAttempt");
+        int guardRefresh = guard.IndexOf("TryRefreshSelectedJewelcraftingSocketRecipePair(gui)", StringComparison.Ordinal);
+        int canAttempt = guard.IndexOf("CanAttemptJewelcraftingSocket(gui.m_selectedRecipe)", StringComparison.Ordinal);
+        Assert.True(
+            guard.Contains("if (!IsJewelcraftingSocketTabActive(gui))", StringComparison.Ordinal) &&
+            guard.Contains("return true;", StringComparison.Ordinal) &&
+            guard.Contains("return TryRefreshSelectedJewelcraftingSocketRecipePair(gui)", StringComparison.Ordinal) &&
+            guardRefresh >= 0 && canAttempt > guardRefresh,
+            "normal crafting must remain unchanged while socket attempts fail closed against the latest pair");
+        int completionRefresh = completionGuard.IndexOf("TryFindLatestJewelcraftingSocketRecipePair(", StringComparison.Ordinal);
+        int completionAttempt = completionGuard.IndexOf("CanAttemptJewelcraftingSocket(pair)", StringComparison.Ordinal);
+        Assert.True(
+            completionGuard.Contains("if (!IsJewelcraftingSocketTabActive(gui))", StringComparison.Ordinal) &&
+            completionGuard.Contains("gui.m_craftRecipe", StringComparison.Ordinal) &&
+            completionGuard.Contains("gui.m_craftUpgradeItem", StringComparison.Ordinal) &&
+            completionGuard.Contains("return TryFindLatestJewelcraftingSocketRecipePair(", StringComparison.Ordinal) &&
+            completionRefresh >= 0 && completionAttempt > completionRefresh,
+            "the delayed socket mutation must fail closed against the exact recipe and item captured when crafting started");
+
+        string patches = File.ReadAllText(Path.Combine(repositoryRoot, "CraftingPatches.cs"));
+        string startPatch = ReadSourceSection(
+            patches,
+            "[HarmonyPatch(typeof(InventoryGui), \"OnCraftPressed\")]",
+            "internal static class InventoryGuiCraftingQueueCancelPatch");
+        int actionGuard = startPatch.IndexOf("CanStartCraftingAction(__instance)", StringComparison.Ordinal);
+        int noticeStart = startPatch.IndexOf("BeginCraftingInventoryLimitNotice()", StringComparison.Ordinal);
+        int prepareQueue = startPatch.IndexOf("PrepareCraftingQueue(__instance)", StringComparison.Ordinal);
+        Assert.True(
+            startPatch.Contains("[HarmonyPriority(Priority.First)]", StringComparison.Ordinal) &&
+            startPatch.Contains("[HarmonyBefore(new[] { \"org.bepinex.plugins.jewelcrafting\" })]", StringComparison.Ordinal) &&
+            startPatch.Contains("private static bool Prefix", StringComparison.Ordinal) &&
+            actionGuard >= 0 && noticeStart > actionGuard && prepareQueue > noticeStart &&
+            startPatch.Contains("return false;", StringComparison.Ordinal),
+            "the latest socket cap must block OnCraftPressed before Jewelcrafting or crafting queue side effects run");
+
+        int completionPatchStart = patches.IndexOf(
+            "[HarmonyPatch(typeof(InventoryGui), \"DoCrafting\")]",
+            StringComparison.Ordinal);
+        Assert.True(completionPatchStart >= 0, "DoCrafting must retain a final socket-cap guard");
+        string completionPatch = patches[completionPatchStart..];
+        int completionActionGuard = completionPatch.IndexOf("CanCompleteCraftingAction(__instance)", StringComparison.Ordinal);
+        int stateStarted = completionPatch.IndexOf("__state = true;", StringComparison.Ordinal);
+        int completionNoticeStart = completionPatch.IndexOf("BeginCraftingInventoryLimitNotice()", StringComparison.Ordinal);
+        int captureFavorite = completionPatch.IndexOf("CaptureUpgradeFavoriteBeforeCrafting(__instance)", StringComparison.Ordinal);
+        Assert.True(
+            completionPatch.Contains("[HarmonyPriority(Priority.First)]", StringComparison.Ordinal) &&
+            completionPatch.Contains("[HarmonyBefore(new[] { \"org.bepinex.plugins.jewelcrafting\" })]", StringComparison.Ordinal) &&
+            completionPatch.Contains("private static bool Prefix(InventoryGui __instance, out bool __state)", StringComparison.Ordinal) &&
+            completionActionGuard >= 0 && stateStarted > completionActionGuard &&
+            completionNoticeStart > stateStarted && captureFavorite > completionNoticeStart &&
+            completionPatch.Contains("if (!__state)", StringComparison.Ordinal) &&
+            completionPatch.Contains("if (__state)", StringComparison.Ordinal),
+            "DoCrafting must block Jewelcrafting before mutation and skip favorite/notice cleanup when no side effects started");
     }
 
     public static void ClientStateNormalizeCreatesMissingRoots()
@@ -1251,6 +1364,132 @@ internal static class Tests
             "lookup readiness must gate only RegularLocked recovery, not out-of-grid or legacy item recovery");
     }
 
+    public static void KeepOnDeathPreparationAndRestorationRetainEveryUnconfirmedItem()
+    {
+        string source = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "DeathKeep.cs"));
+        string createPreparation = ReadSourceSection(
+            source,
+            "internal static TombStonePreparationState PrepareCreateTombStone",
+            "internal static void CompleteCreateTombStone");
+        string itemPreparation = ReadSourceSection(
+            source,
+            "internal static List<KeepOnDeathItemState> PrepareKeepOnDeathItems(Player player, out Inventory? sourceInventory)",
+            "internal static void RestoreKeepOnDeathItems");
+        string completion = ReadSourceSection(
+            source,
+            "internal static void CompleteCreateTombStone",
+            "internal static List<KeepOnDeathItemState> PrepareKeepOnDeathItems(Player player, out Inventory? sourceInventory)");
+        string restoration = ReadSourceSection(
+            source,
+            "internal static void RestoreKeepOnDeathItems",
+            "private static void RollbackPreparedKeepOnDeathItems");
+        string rollback = ReadSourceSection(
+            source,
+            "private static void RollbackPreparedKeepOnDeathItems",
+            "private static bool RestoreKeepOnDeathItem");
+
+        Assert.True(
+            createPreparation.Contains("RollbackPreparedKeepOnDeathItems(player, sourceInventory, keptItems)", StringComparison.Ordinal) &&
+            itemPreparation.Contains("RollbackPreparedKeepOnDeathItems(player, inventory, keptItems)", StringComparison.Ordinal),
+            "both item collection and later death-drop preparation must roll back items already removed from the inventory");
+        Assert.True(
+            createPreparation.Contains("PrepareKeepOnDeathItems(player, out Inventory? sourceInventory)", StringComparison.Ordinal) &&
+            itemPreparation.Contains("sourceInventory = inventory;", StringComparison.Ordinal),
+            "collection, rollback, and final preservation must retain one exact source inventory reference");
+        Assert.True(
+            rollback.Contains("inventory.m_inventory.Add(item)", StringComparison.Ordinal) &&
+            rollback.Contains("OriginalCustomData", StringComparison.Ordinal),
+            "preparation rollback must restore both item ownership and the item state captured before unequip callbacks");
+        Assert.True(
+            restoration.Contains("keptItems.RemoveAt(index)", StringComparison.Ordinal) &&
+            restoration.Contains("if (!safelyInInventory)", StringComparison.Ordinal) &&
+            !restoration.Contains("keptItems.Clear()", StringComparison.Ordinal),
+            "restoration must remove only items confirmed safe in the inventory and retain failed entries for retry");
+        int restoreCall = restoration.IndexOf("_ = RestoreKeepOnDeathItem", StringComparison.Ordinal);
+        int ownershipCheck = restoration.IndexOf("safelyInInventory = inventory.ContainsItem(item);", restoreCall, StringComparison.Ordinal);
+        int stateRemoval = restoration.IndexOf("keptItems.RemoveAt(index);", StringComparison.Ordinal);
+        Assert.True(
+            restoreCall >= 0 && ownershipCheck > restoreCall && stateRemoval > ownershipCheck,
+            "a callback success result must not discard escrow until the exact item reference is still owned by the source inventory");
+        Assert.True(
+            completion.Contains("state.KeptItems.Count == 0", StringComparison.Ordinal) &&
+            !completion.Contains("state.Completed = true", StringComparison.Ordinal),
+            "tombstone preparation state must complete only after every kept item is safe");
+    }
+
+    public static void KeepOnDeathFinalizerDirectlyPreservesEveryRemainingItem()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string source = File.ReadAllText(Path.Combine(repositoryRoot, "DeathKeep.cs"));
+        string completion = ReadSourceSection(
+            source,
+            "internal static void CompleteCreateTombStone",
+            "internal static List<KeepOnDeathItemState> PrepareKeepOnDeathItems(Player player, out Inventory? sourceInventory)");
+        string fallback = ReadSourceSection(
+            source,
+            "private static void EmergencyPreserveKeepOnDeathItems",
+            "private static bool RestoreKeepOnDeathItem");
+        string normalOverflow = ReadSourceSection(
+            source,
+            "private static bool PreserveKeepOnDeathItemWithoutOverwriting",
+            "private static bool CanRestoreKeepOnDeathItemAtCell");
+        string patches = File.ReadAllText(
+            Path.Combine(repositoryRoot, "DeathAndTombstonePatches.cs"));
+
+        Assert.True(
+            source.Contains("public Inventory? SourceInventory { get; }", StringComparison.Ordinal) &&
+            completion.Contains("EmergencyPreserveKeepOnDeathItems(state.SourceInventory, state.KeptItems)", StringComparison.Ordinal),
+            "the finalizer fallback must retain the exact readonly inventory that owned the items before tombstone creation");
+        Assert.True(
+            patches.Contains("finalAttempt: false", StringComparison.Ordinal) &&
+            patches.Contains("finalAttempt: true", StringComparison.Ordinal),
+            "only the synchronous Harmony finalizer may invoke the raw last-chance preservation path");
+
+        int rawAdd = fallback.IndexOf("inventory.m_inventory.Add(item);", StringComparison.Ordinal);
+        int confirmed = fallback.IndexOf("if (!inventory.m_inventory.Contains(item))", rawAdd + 1, StringComparison.Ordinal);
+        int removeState = fallback.IndexOf("keptItems.RemoveAt(index);", StringComparison.Ordinal);
+        Assert.True(
+            fallback.Contains("SelectNonOverlappingPreservationCell", StringComparison.Ordinal) &&
+            rawAdd >= 0 && confirmed > rawAdd && removeState > confirmed,
+            "the fallback must keep failed items out of unusable cells and forget escrow only after raw ownership is confirmed");
+        Assert.False(
+            fallback.Contains("MoveItemToThis", StringComparison.Ordinal) ||
+            fallback.Contains("TryFindFreeRegularCell", StringComparison.Ordinal),
+            "the final fallback must not re-enter placement or equipment callbacks that caused normal restoration to fail");
+        Assert.True(
+            normalOverflow.Contains("item.m_equipped = false;", StringComparison.Ordinal) &&
+            normalOverflow.Contains("ClearItemSlot(item);", StringComparison.Ordinal),
+            "normal overflow preservation must not leave stale equipped or dedicated-slot markers outside a usable slot");
+    }
+
+    public static void SlotAutoEquipSuppressionRemainsBalancedWhenScopesNest()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string stateSource = File.ReadAllText(Path.Combine(repositoryRoot, "InventoryState.cs"));
+        string controllerSource = File.ReadAllText(Path.Combine(repositoryRoot, "SlotEquipController.cs"));
+        string handlersSource = File.ReadAllText(Path.Combine(repositoryRoot, "SlotEquipPatchHandlers.cs"));
+        string suppressionMethods = ReadSourceSection(
+            controllerSource,
+            "internal static void BeginSlotAutoEquipSuppression",
+            "internal static bool TryRouteHumanoidEquipToDedicatedSlot");
+
+        Assert.True(
+            stateSource.Contains("int SlotAutoEquipSuppressionDepth", StringComparison.Ordinal) &&
+            stateSource.Contains("SuppressSlotAutoEquip => SlotAutoEquipSuppressionDepth > 0", StringComparison.Ordinal),
+            "slot auto-equip suppression must be derived from a nesting depth instead of a mutable boolean");
+        Assert.True(
+            suppressionMethods.Contains("SlotAutoEquipSuppressionDepth++", StringComparison.Ordinal) &&
+            suppressionMethods.Contains("SlotAutoEquipSuppressionDepth--", StringComparison.Ordinal),
+            "suppression entry and completion must balance one nested scope at a time");
+        Assert.False(
+            (controllerSource + handlersSource).Contains("SuppressSlotAutoEquip =", StringComparison.Ordinal),
+            "nested suppression scopes must not overwrite the outer scope with direct boolean assignment");
+        Assert.True(
+            handlersSource.Contains("BeginSlotAutoEquipSuppression();", StringComparison.Ordinal) &&
+            handlersSource.Contains("CompleteSlotAutoEquipSuppression();", StringComparison.Ordinal),
+            "death-drop and unequip callback scopes must use the balanced suppression operations");
+    }
+
     public static void KeepOnDeathQuickslotRowsPreferOriginalSlot()
     {
         for (int row = 1; row <= 3; row++)
@@ -1673,6 +1912,34 @@ internal static class Tests
         Assert.False(InventoryActionCellPolicyCore.CanTrashSlot(InventoryCellKind.QuickLocked), "locked quickslots should not be trashable");
         Assert.False(InventoryActionCellPolicyCore.CanTrashSlot(InventoryCellKind.Outside), "outside cells should not be trashable");
         Assert.False(InventoryActionCellPolicyCore.CanTrashSlot(InventoryCellKind.ExternalReserved), "external reserved cells should not be trashable");
+    }
+
+    public static void InventoryTrashRejectsQuestItemsThroughFinalConfirmation()
+    {
+        string source = File.ReadAllText(
+            Path.Combine(FindRepositoryRoot(), "InventoryTrashPanel.cs"));
+        string policy = ReadSourceSection(
+            source,
+            "private static bool CanTrashInventoryItem",
+            "private static bool CanTrashInventoryCell");
+        Assert.True(
+            policy.Contains("item.m_shared.m_questItem", StringComparison.Ordinal) &&
+            policy.Contains("$inventoryslots_trash_quest_item", StringComparison.Ordinal),
+            "the shared trash policy must reject quest items with a dedicated message");
+
+        string confirmation = ReadSourceSection(
+            source,
+            "private static void ConfirmInventoryTrashDelete",
+            "private static void ShowInventoryTrashMessage");
+        int policyCheck = confirmation.IndexOf(
+            "CanTrashInventoryItem(player, inventory, item, showMessage: true)",
+            StringComparison.Ordinal);
+        int fullStackRemoval = confirmation.IndexOf(
+            "bool fullStack = amount >= item.m_stack;",
+            StringComparison.Ordinal);
+        Assert.True(
+            policyCheck >= 0 && fullStackRemoval > policyCheck,
+            "confirmation must rerun the quest-aware policy before deleting any amount");
     }
 
     public static void InventoryActionsActionCellPolicyCopyMirrorsInventorySlotsBehavior()
@@ -2102,6 +2369,69 @@ internal static class Tests
         Assert.Equal(0, moved);
         Assert.Equal(0, changedCount);
         Assert.Equal(0, anyMovedCount);
+    }
+
+    public static void DirectContainerActionsUsePositionalOwnershipSafeMoves()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string source = File.ReadAllText(Path.Combine(repositoryRoot, "ContainerQuickStack.cs"));
+        string quickStack = ReadSourceSection(
+            source,
+            "private static int QuickStackItemsIntoContainer",
+            "private static void StoreAllToCurrentContainer");
+        string storeAll = ReadSourceSection(
+            source,
+            "private static void StoreAllToCurrentContainer",
+            "private static int MoveItemToContainerTopFirst");
+        string move = ReadSourceSection(
+            source,
+            "private static int MoveItemToContainerTopFirst",
+            "private static bool ShouldStoreAllItem");
+        string quickStackPolicy = ReadSourceSection(
+            source,
+            "private static bool ShouldQuickStackItem",
+            "private static int QuickStackItemsIntoContainer");
+        string storeAllPolicy = source.Substring(
+            source.IndexOf("private static bool ShouldStoreAllItem", StringComparison.Ordinal));
+
+        foreach (string action in new[] { quickStack, storeAll })
+        {
+            Assert.True(
+                action.Contains("MoveItemToContainerTopFirst(", StringComparison.Ordinal),
+                "direct quick-stack and store-all actions must use the ownership-safe positional move path");
+            Assert.False(
+                action.Contains(".AddItem(item)", StringComparison.Ordinal) ||
+                action.Contains("RemoveItemIfStillOwned", StringComparison.Ordinal),
+                "direct actions must not temporarily share one ItemData reference between inventories");
+        }
+
+        Assert.True(
+            move.Contains("MoveItemToThis(", StringComparison.Ordinal) &&
+            move.Contains("CountMovedFromContainerSource(", StringComparison.Ordinal),
+            "the positional path must measure actual source-stack reduction, including partial moves");
+        Assert.True(
+            CountSourceOccurrences(move, "IsEquippedContainerMoveSource(player, source)") >= 3,
+            "the positional path must recheck equipped state at mutation time after earlier Changed callbacks");
+        Assert.True(
+            move.Contains("OrderBy(target => target.m_gridPos.y)", StringComparison.Ordinal) &&
+            move.Contains("for (int y = 0;", StringComparison.Ordinal),
+            "normal stacking and empty-cell placement must retain top-first container ordering");
+
+        string metadata = File.ReadAllText(
+            Path.Combine(repositoryRoot, "StackMetadataInventoryIntegration.cs"));
+        string positionalMerge = ReadSourceSection(
+            metadata,
+            "internal static bool TryPreparePositionalStackMetadataMerge",
+            "internal static void CompletePositionalStackMetadataMerge");
+        Assert.True(
+            positionalMerge.Contains("IsTrustedCustomDataStackingItem(item)", StringComparison.Ordinal),
+            "trusted custom-data mods must still receive the positional move so their Harmony validation can decide stack compatibility");
+        foreach (string policy in new[] { quickStackPolicy, storeAllPolicy })
+        {
+            Assert.True(
+                policy.Contains("!IsEquippedContainerMoveSource(player, item)", StringComparison.Ordinal),
+                "container actions must never clone or remove an actively equipped item");
+        }
     }
 
     public static void ContainerActionSuccessFxStaysBoundedAndOncePerAction()
@@ -2889,6 +3219,51 @@ internal static class Tests
         Assert.False(
             MultiUserContainerTransferCore.MatchesExpectedStackState(-1, null),
             "negative sentinels are not valid mutation preconditions");
+    }
+
+    public static void MultiUserRequestPreparationKeepsEscrowBehindPublishedPending()
+    {
+        string source = File.ReadAllText(
+            Path.Combine(FindRepositoryRoot(), "MultiUserContainerOperations.cs"));
+        string preparation = ReadSourceSection(
+            source,
+            "private static bool TryStartPreparedMultiUserContainerRequest",
+            "private static MultiUserContainerRequest CreateMultiUserContainerRequest");
+
+        int publishPending = preparation.IndexOf(
+            "_pendingMultiUserContainerTransfer = pending;",
+            StringComparison.Ordinal);
+        int markPublished = preparation.IndexOf(
+            "pendingPublished = true;",
+            StringComparison.Ordinal);
+        int send = preparation.IndexOf(
+            "container.m_nview.InvokeRPC(",
+            StringComparison.Ordinal);
+        Assert.True(
+            publishPending >= 0 && markPublished > publishPending && send > markPublished,
+            "escrow must be represented by a published pending before the uncertain network send begins");
+
+        Assert.True(
+            preparation.Contains("if (!pendingPublished", StringComparison.Ordinal) &&
+            CountSourceOccurrences(
+                preparation,
+                "RestoreMultiUserContainerLocalEscrow(") == 1,
+            "all preparation failures must converge on one pre-publication escrow rollback");
+        Assert.True(
+            preparation.Contains(
+                "initial request send failed; retrying",
+                StringComparison.Ordinal) &&
+            preparation.Contains("return true;", StringComparison.Ordinal),
+            "an uncertain initial send must retain the pending for receipt polling and retry instead of restoring escrow");
+
+        string runtime = ReadSourceSection(
+            source,
+            "internal static void UpdateMultiUserContainerRuntime",
+            "internal static void ShutdownMultiUserContainerRuntime");
+        Assert.True(
+            runtime.Contains("request resend failed; retrying", StringComparison.Ordinal) &&
+            runtime.Contains("new ZPackage(pending.RequestBytes)", StringComparison.Ordinal),
+            "bounded resend failures must preserve the serialized pending request without aborting the Update cycle");
     }
 
     public static void InventoryActionsContainerTransferCoreCopyMirrorsInventorySlotsBehavior()

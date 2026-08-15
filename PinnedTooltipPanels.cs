@@ -53,11 +53,6 @@ public sealed partial class InventorySlotsPlugin
         return signature;
     }
 
-    private static Vector2 GetPinnedTooltipPosition(int slot, Vector2 size, Vector2 groupOffset)
-    {
-        return GetPinnedTooltipPosition(null, slot, size, groupOffset);
-    }
-
     private static Vector2 GetPinnedTooltipPosition(RectTransform? parent, int slot, Vector2 size, Vector2 groupOffset)
     {
         float step = size.x + PinnedTooltipFixedPanelGap;
@@ -241,24 +236,6 @@ public sealed partial class InventorySlotsPlugin
         }
 
         return size;
-    }
-
-    private static Vector2 GetPinnedTooltipPanelSize(float height)
-    {
-        Vector2 maxSize = GetPinnedTooltipPanelSize();
-        return new Vector2(maxSize.x, Mathf.Clamp(height, 180f, maxSize.y));
-    }
-
-    private static Vector2 GetPinnedTooltipPanelSize(RectTransform? parent, float height)
-    {
-        Vector2 maxSize = GetPinnedTooltipPanelSize(parent);
-        return new Vector2(maxSize.x, Mathf.Clamp(height, 180f, maxSize.y));
-    }
-
-    private static Vector2 GetPinnedTooltipPanelSize(float height, float minHeight)
-    {
-        Vector2 maxSize = GetPinnedTooltipPanelSize();
-        return new Vector2(maxSize.x, Mathf.Clamp(height, Mathf.Clamp(minHeight, 180f, maxSize.y), maxSize.y));
     }
 
     private static Vector2 GetPinnedTooltipPanelSize(RectTransform? parent, float height, float minHeight)

@@ -200,6 +200,12 @@ public sealed partial class InventorySlotsPlugin
         return blocked;
     }
 
+    private static Container? GetHoveredContainer(Player player)
+    {
+        GameObject? hoverObject = player != null ? player.GetHoverObject() : null;
+        return IsUnityNull(hoverObject) ? null : hoverObject!.GetComponentInParent<Container>();
+    }
+
     private static bool TryGetActionContext(Player? player, out Player localPlayer, out Inventory playerInventory, out Container container, out Inventory containerInventory)
     {
         localPlayer = null!;
@@ -241,11 +247,6 @@ public sealed partial class InventorySlotsPlugin
         container = currentContainer;
         containerInventory = currentContainer.m_inventory;
         return true;
-    }
-
-    private static bool HasNoCustomData(ItemData item)
-    {
-        return item.m_customData == null || item.m_customData.Count == 0;
     }
 
     private static bool CanUseContainerActionStacking(ItemData item)
@@ -312,14 +313,6 @@ public sealed partial class InventorySlotsPlugin
     {
         int after = sourceInventory.m_inventory.Contains(sourceItem) ? sourceItem.m_stack : 0;
         return ContainerActionCore.CountMovedAmount(before, after, requestedAmount, moveSucceeded, useMoveSucceededFallback: false);
-    }
-
-    private static void RemoveItemIfStillOwned(Inventory inventory, ItemData item)
-    {
-        if (inventory != null && item != null && inventory.m_inventory.Contains(item))
-        {
-            inventory.RemoveItem(item);
-        }
     }
 
     private static int CompareGridOrder(Vector2i a, Vector2i b)

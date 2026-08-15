@@ -487,9 +487,21 @@ public sealed partial class InventorySlotsPlugin
         InventorySafety.SlotUnequipInProgress = inProgress;
     }
 
-    internal static void SetSlotAutoEquipSuppressed(bool suppressed)
+    internal static void BeginSlotAutoEquipSuppression()
     {
-        InventorySafety.SuppressSlotAutoEquip = suppressed;
+        InventorySafety.SlotAutoEquipSuppressionDepth++;
+    }
+
+    internal static void CompleteSlotAutoEquipSuppression()
+    {
+        if (InventorySafety.SlotAutoEquipSuppressionDepth <= 0)
+        {
+            InventorySafety.SlotAutoEquipSuppressionDepth = 0;
+            Log.LogWarning("Ignored an unbalanced slot auto-equip suppression completion.");
+            return;
+        }
+
+        InventorySafety.SlotAutoEquipSuppressionDepth--;
     }
 
     internal static bool TryRouteHumanoidEquipToDedicatedSlot(Humanoid humanoid, ItemData item)
@@ -1072,8 +1084,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         bool completed;
-        bool wasSlotAutoEquipSuppressed = InventorySafety.SuppressSlotAutoEquip;
-        InventorySafety.SuppressSlotAutoEquip = true;
+        BeginSlotAutoEquipSuppression();
         try
         {
             bool externalCompatStateChanged = OnCustomEquipmentCompatUnequipping(player, item);
@@ -1096,7 +1107,7 @@ public sealed partial class InventorySlotsPlugin
         }
         finally
         {
-            InventorySafety.SuppressSlotAutoEquip = wasSlotAutoEquipSuppressed;
+            CompleteSlotAutoEquipSuppression();
         }
 
         if (!completed)

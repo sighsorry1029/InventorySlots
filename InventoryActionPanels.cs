@@ -123,10 +123,7 @@ public sealed partial class InventorySlotsPlugin
 
         float buttonHeight = GetContainerSortButtonSize(gui);
         float buttonWidth = buttonHeight;
-        const float gap = 6f;
-        int buttonCount = 1;
-        float totalWidth = buttonCount * buttonWidth + Mathf.Max(0, buttonCount - 1) * gap;
-        InventoryPanels.InventorySortPanel.sizeDelta = new Vector2(totalWidth, buttonHeight);
+        InventoryPanels.InventorySortPanel.sizeDelta = new Vector2(buttonWidth, buttonHeight);
         if (InventoryPanels.InventorySortPanel.localScale != Vector3.one)
         {
             InventoryPanels.InventorySortPanel.localScale = Vector3.one;
@@ -146,9 +143,8 @@ public sealed partial class InventorySlotsPlugin
 
         DisableActionPanelChildren(InventoryPanels.InventorySortPanel);
 
-        int index = 0;
         Button? sortButton = EnsureActionButton(InventoryPanels.InventorySortPanel, gui.m_takeAllButton, "InventorySlots_PlayerSortButton", "S", () => SortPlayerInventory(Player.m_localPlayer));
-        LayoutActionButton(sortButton, index, buttonWidth, buttonHeight, gap);
+        LayoutActionButton(sortButton, buttonWidth, buttonHeight);
 
         SetActionPanelActive(InventoryPanels.InventorySortPanel, true);
     }
@@ -230,7 +226,7 @@ public sealed partial class InventorySlotsPlugin
         return child != null && !IsUnityNull(child) ? child.GetComponent<RectTransform>() : null;
     }
 
-    private static RectTransform? LayoutActionButton(Button? button, int index, float buttonWidth, float buttonHeight, float gap)
+    private static RectTransform? LayoutActionButton(Button? button, float buttonWidth, float buttonHeight)
     {
         if (button == null)
         {
@@ -242,7 +238,7 @@ public sealed partial class InventorySlotsPlugin
         rect.anchorMax = new Vector2(0f, 1f);
         rect.pivot = new Vector2(0f, 1f);
         rect.sizeDelta = new Vector2(buttonWidth, buttonHeight);
-        rect.anchoredPosition = new Vector2(index * (buttonWidth + gap), 0f);
+        rect.anchoredPosition = Vector2.zero;
         rect.localScale = Vector3.one;
         rect.localRotation = Quaternion.identity;
         button.gameObject.SetActive(true);
@@ -462,121 +458,6 @@ public sealed partial class InventorySlotsPlugin
         HideInventorySideHints();
         RestoreContainerActionButtonLayout();
         HideContainerActionButtons();
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    private static string CleanPrefabName(string name)
-    {
-        return InventorySlotsConfigCore.CleanPrefabName(name);
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    internal static Sprite? GetItemPrefabIcon(string prefabName)
-    {
-        if (string.IsNullOrWhiteSpace(prefabName))
-        {
-            return null;
-        }
-
-        GameObject? prefab = ObjectDB.instance != null ? ObjectDB.instance.GetItemPrefab(prefabName) : null;
-        if (prefab != null && prefab.TryGetComponent(out ItemDrop itemDrop))
-        {
-            return itemDrop.m_itemData.GetIcon();
-        }
-
-        prefab = ZNetScene.instance != null ? ZNetScene.instance.GetPrefab(prefabName) : null;
-        if (prefab == null)
-        {
-            return null;
-        }
-
-        if (prefab.TryGetComponent(out ItemDrop sceneItemDrop))
-        {
-            return sceneItemDrop.m_itemData.GetIcon();
-        }
-
-        if (prefab.TryGetComponent(out Piece piece))
-        {
-            return piece.m_icon;
-        }
-
-        return null;
-    }
-
-    internal static Sprite? GetSkillIcon(int skillType)
-    {
-        Player? player = Player.m_localPlayer;
-        if (player == null)
-        {
-            return null;
-        }
-
-        try
-        {
-            Skills.SkillDef skillDef = player.GetSkills().GetSkillDef((Skills.SkillType)skillType);
-            return skillDef != null ? skillDef.m_icon : null;
-        }
-        catch
-        {
-            return null;
-        }
     }
 
     private static void CaptureRectTransformSnapshot(ref RectTransformSnapshot? snapshot, RectTransform rect)

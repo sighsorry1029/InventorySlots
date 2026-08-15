@@ -228,10 +228,10 @@ public sealed partial class InventorySlotsPlugin
         return inventory.GetItemAt(pos.x, pos.y) == null;
     }
 
-    private static bool IsRegularActionItem(Player player, Inventory inventory, ItemData item, bool includeHotbar)
+    private static bool IsRegularActionItem(Player player, Inventory inventory, ItemData item)
     {
         InventoryCellKind kind = GetInventoryCellKind(player, inventory, item.m_gridPos);
-        return InventoryActionCellPolicyCore.CanUseContainerActionSource(kind, includeHotbar);
+        return InventoryActionCellPolicyCore.CanUseContainerActionSource(kind, includeHotbar: false);
     }
 
     private static bool IsFavoriteProtected(Player player, Inventory inventory, ItemData item)

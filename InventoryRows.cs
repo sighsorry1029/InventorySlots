@@ -148,10 +148,4 @@ public sealed partial class InventorySlotsPlugin
         return InventoryGui.instance != null && InventoryGui.instance.m_player != null && RectContainsScreenPoint(InventoryGui.instance.m_player, mouse);
     }
 
-    private static bool RectContainsScreenPoint(RectTransform rectTransform, Vector2 screenPoint)
-    {
-        Vector2 localPoint = rectTransform.InverseTransformPoint(screenPoint);
-        return rectTransform.rect.Contains(localPoint);
-    }
-
 }

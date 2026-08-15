@@ -9,7 +9,6 @@ public sealed partial class InventorySlotsPlugin
     private static bool TryReuseJewelcraftingNativeTooltipCache(
         RectTransform root,
         JewelcraftingTooltipLayoutCache cache,
-        ItemData item,
         string signature,
         out bool visible)
     {
@@ -24,7 +23,6 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        UpdateJewelcraftingTooltipCacheItemIdentity(cache, item);
         RestoreCachedJewelcraftingNativeTooltip(root, cache);
         visible = cache.Visible;
         root.gameObject.SetActive(visible);
@@ -34,7 +32,6 @@ public sealed partial class InventorySlotsPlugin
     private static bool RebuildJewelcraftingNativeTooltip(
         RectTransform root,
         ItemData tooltipItem,
-        ItemData identityItem,
         bool showInteract,
         string signature,
         JewelcraftingTooltipLayoutCache cache)
@@ -43,7 +40,7 @@ public sealed partial class InventorySlotsPlugin
         {
             if (!TryGetJewelcraftingTooltipApi(out JewelcraftingTooltipApi? api) || api == null)
             {
-                SetJewelcraftingNativeTooltipCacheState(root, cache, signature, identityItem, visible: false, hasSocketRows: false);
+                SetJewelcraftingNativeTooltipCacheState(root, cache, signature, visible: false, hasSocketRows: false);
                 return false;
             }
 
@@ -55,12 +52,12 @@ public sealed partial class InventorySlotsPlugin
 
             bool visible = HasVisibleNativeJewelcraftingTooltipContent(root);
             bool hasSocketRows = HasVisibleNativeJewelcraftingSocketRows(root);
-            SetJewelcraftingNativeTooltipCacheState(root, cache, signature, identityItem, visible, hasSocketRows);
+            SetJewelcraftingNativeTooltipCacheState(root, cache, signature, visible, hasSocketRows);
             return visible;
         }
         catch (Exception)
         {
-            SetJewelcraftingNativeTooltipCacheState(root, cache, signature, identityItem, visible: false, hasSocketRows: false);
+            SetJewelcraftingNativeTooltipCacheState(root, cache, signature, visible: false, hasSocketRows: false);
             return false;
         }
     }
@@ -69,7 +66,6 @@ public sealed partial class InventorySlotsPlugin
         RectTransform root,
         JewelcraftingTooltipLayoutCache cache,
         string signature,
-        ItemData item,
         bool visible,
         bool hasSocketRows)
     {
@@ -82,7 +78,6 @@ public sealed partial class InventorySlotsPlugin
                 ? Math.Min(cache.RowlessRefreshAttempts + 1, JewelcraftingTooltipCore.MaxRowlessRefreshAttempts)
                 : 1
             : 0;
-        UpdateJewelcraftingTooltipCacheItemIdentity(cache, item);
         root.gameObject.SetActive(visible);
     }
 }

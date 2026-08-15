@@ -143,7 +143,7 @@ public sealed partial class InventorySlotsPlugin
 
         bool includeArea = mode == ContainerTakeStacksMode.AreaFavoriteRestock;
         List<ItemData> targets = playerInventory.m_inventory
-            .Where(item => ShouldTakeStacksTarget(localPlayer, playerInventory, item, includeHotbar: false, mode))
+            .Where(item => ShouldTakeStacksTarget(localPlayer, playerInventory, item, mode))
             .ToList();
         targets.Sort((a, b) => -CompareGridOrder(a.m_gridPos, b.m_gridPos));
 
@@ -163,12 +163,6 @@ public sealed partial class InventorySlotsPlugin
         ShowContainerActionResult(localPlayer, "$inventoryslots_action_take_stacks", "Take stacks", movedAmount);
     }
 
-    private static Container? GetHoveredContainer(Player player)
-    {
-        GameObject? hoverObject = player != null ? player.GetHoverObject() : null;
-        return IsUnityNull(hoverObject) ? null : hoverObject!.GetComponentInParent<Container>();
-    }
-
     private static bool IsContainerRestockKeyConfigured() =>
         _containerRestockKey != null && _containerRestockKey.Value.MainKey != KeyCode.None ||
         IsControllerHotkeyConfigured(_controllerContainerRestockButton);
@@ -184,11 +178,11 @@ public sealed partial class InventorySlotsPlugin
             _containerRestockKey != null ? _containerRestockKey.Value.GetCompactDisplayText() : "",
             GetControllerHotkeyDisplayText(_controllerContainerRestockButton));
 
-    private static bool ShouldTakeStacksTarget(Player player, Inventory inventory, ItemData item, bool includeHotbar, ContainerTakeStacksMode mode)
+    private static bool ShouldTakeStacksTarget(Player player, Inventory inventory, ItemData item, ContainerTakeStacksMode mode)
     {
         return mode == ContainerTakeStacksMode.AreaFavoriteRestock
             ? ShouldRestockItem(player, inventory, item)
-            : ShouldTakeMatchingStackItem(player, inventory, item, includeHotbar);
+            : ShouldTakeMatchingStackItem(player, inventory, item);
     }
 
     private static bool ShouldRestockItem(Player player, Inventory inventory, ItemData item)
@@ -203,10 +197,10 @@ public sealed partial class InventorySlotsPlugin
         return itemMaxStack > 1 && item.m_stack < targetStack;
     }
 
-    private static bool ShouldTakeMatchingStackItem(Player player, Inventory inventory, ItemData item, bool includeHotbar)
+    private static bool ShouldTakeMatchingStackItem(Player player, Inventory inventory, ItemData item)
     {
         return item?.m_shared != null &&
-               IsRegularActionItem(player, inventory, item, includeHotbar) &&
+               IsRegularActionItem(player, inventory, item) &&
                !IsFavoriteRestockTarget(player, item) &&
                CanUseContainerActionStacking(item) &&
                item.m_shared.m_maxStackSize > 1 &&
@@ -242,14 +236,8 @@ public sealed partial class InventorySlotsPlugin
         }
 
         yield return GetItemPrefabName(item);
-        if (!IsUnityNull(item.m_dropPrefab))
-        {
-            yield return item.m_dropPrefab.name;
-        }
-
         string sharedName = item.m_shared?.m_name ?? "";
         yield return sharedName;
-        yield return StripLocalizationToken(sharedName);
         if (Localization.instance != null && !string.IsNullOrWhiteSpace(sharedName))
         {
             yield return Localization.instance.Localize(sharedName);

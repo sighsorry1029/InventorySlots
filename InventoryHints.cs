@@ -245,20 +245,6 @@ public sealed partial class InventorySlotsPlugin
         return rect;
     }
 
-    internal static Sprite GetSolidUiSprite()
-    {
-        if (TooltipUi.SolidUiSprite != null)
-        {
-            return TooltipUi.SolidUiSprite;
-        }
-
-        Texture2D texture = new(1, 1, TextureFormat.RGBA32, false);
-        texture.SetPixel(0, 0, Color.white);
-        texture.Apply();
-        TooltipUi.SolidUiSprite = Sprite.Create(texture, new Rect(0f, 0f, 1f, 1f), new Vector2(0.5f, 0.5f));
-        return TooltipUi.SolidUiSprite;
-    }
-
     private static RectTransform? EnsureInventoryHintLabel(RectTransform parent, string name, ref TMP_Text? text, bool configureCenteredLayout = true)
     {
         Transform? existing = parent.Find(name);

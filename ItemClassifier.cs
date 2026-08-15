@@ -646,7 +646,6 @@ public sealed partial class InventorySlotsPlugin
     private static string GetAttackAnimation(ItemData item) => item.m_shared.m_attack.m_attackAnimation ?? "";
     private static string GetAmmoType(ItemData item) => item.m_shared.m_ammoType ?? "";
     private static string GetSharedName(ItemData item) => item.m_shared.m_name ?? "";
-    private static string GetItemPrefabName(ItemData item) => CleanPrefabName(item.m_dropPrefab != null ? item.m_dropPrefab.name : "");
     private static bool HasAttackAnimation(ItemData item) => !string.IsNullOrEmpty(GetAttackAnimation(item));
     private static float GetTotalDamage(ItemData item) => item.m_shared.m_damages.GetTotalDamage();
 }

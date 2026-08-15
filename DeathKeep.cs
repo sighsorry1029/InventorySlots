@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using ItemData = ItemDrop.ItemData;
@@ -14,56 +15,124 @@ public sealed partial class InventorySlotsPlugin
             OriginalGridPos = originalGridPos;
             OriginalSlotId = originalSlotId;
             OriginalSlotKind = originalSlotKind;
+            OriginalEquipped = item.m_equipped;
+            OriginalCustomData = item.m_customData == null
+                ? new Dictionary<string, string>()
+                : new Dictionary<string, string>(item.m_customData);
         }
 
         public ItemData Item { get; }
         public Vector2i OriginalGridPos { get; }
         public string OriginalSlotId { get; }
         public SlotKind? OriginalSlotKind { get; }
+        public bool OriginalEquipped { get; }
+        public Dictionary<string, string> OriginalCustomData { get; }
         public bool WasQuickSlot => OriginalSlotKind == SlotKind.Quick;
         public bool WasSpecialSlot => OriginalSlotKind != null;
     }
 
     internal sealed class TombStonePreparationState
     {
-        public TombStonePreparationState(List<KeepOnDeathItemState> keptItems, bool deathDropUnequipPrepared)
+        public TombStonePreparationState(Inventory? sourceInventory, List<KeepOnDeathItemState> keptItems, bool deathDropUnequipPrepared)
         {
+            SourceInventory = sourceInventory;
             KeptItems = keptItems;
             DeathDropUnequipPrepared = deathDropUnequipPrepared;
+            DeathDropUnequipCompleted = !deathDropUnequipPrepared;
         }
 
+        public Inventory? SourceInventory { get; }
         public List<KeepOnDeathItemState> KeptItems { get; }
         public bool DeathDropUnequipPrepared { get; }
+        public bool DeathDropUnequipCompleted { get; set; }
         public bool Completed { get; set; }
     }
 
     internal static TombStonePreparationState PrepareCreateTombStone(Player player)
     {
-        List<KeepOnDeathItemState> keptItems = PrepareKeepOnDeathItems(player);
-        bool deathDropUnequipPrepared = PreparePlayerDeathDropUnequip(player);
-        return new TombStonePreparationState(keptItems, deathDropUnequipPrepared);
+        List<KeepOnDeathItemState> keptItems = PrepareKeepOnDeathItems(player, out Inventory? sourceInventory);
+        try
+        {
+            bool deathDropUnequipPrepared = PreparePlayerDeathDropUnequip(player);
+            return new TombStonePreparationState(sourceInventory, keptItems, deathDropUnequipPrepared);
+        }
+        catch (Exception preparationException)
+        {
+            try
+            {
+                RollbackPreparedKeepOnDeathItems(player, sourceInventory, keptItems);
+            }
+            catch (Exception rollbackException)
+            {
+                throw new AggregateException(
+                    "Keep-on-death preparation failed and its removed items could not all be rolled back.",
+                    preparationException,
+                    rollbackException);
+            }
+
+            throw;
+        }
     }
 
-    internal static void CompleteCreateTombStone(Player player, TombStonePreparationState? state)
+    internal static void CompleteCreateTombStone(Player player, TombStonePreparationState? state, bool finalAttempt)
     {
         if (state == null || state.Completed)
         {
             return;
         }
 
+        bool temporarySuppression = state.DeathDropUnequipPrepared &&
+                                    state.DeathDropUnequipCompleted &&
+                                    state.KeptItems.Count > 0;
+        if (temporarySuppression)
+        {
+            BeginSlotAutoEquipSuppression();
+        }
+
         try
         {
             RestoreKeepOnDeathItems(player, state.KeptItems);
         }
+        catch (Exception ex)
+        {
+            Log.LogWarning($"Keep-on-death restoration will retry after an unexpected failure: {ex.GetBaseException().Message}");
+        }
         finally
         {
-            CompletePlayerDeathDropUnequip(state.DeathDropUnequipPrepared);
-            state.Completed = true;
+            try
+            {
+                if (finalAttempt && state.KeptItems.Count > 0)
+                {
+                    try
+                    {
+                        EmergencyPreserveKeepOnDeathItems(state.SourceInventory, state.KeptItems);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.LogError($"Final keep-on-death preservation encountered an unexpected failure: {ex.GetBaseException().Message}");
+                    }
+                }
+            }
+            finally
+            {
+                if (temporarySuppression)
+                {
+                    CompleteSlotAutoEquipSuppression();
+                }
+                else if (!state.DeathDropUnequipCompleted)
+                {
+                    CompletePlayerDeathDropUnequip(state.DeathDropUnequipPrepared);
+                    state.DeathDropUnequipCompleted = true;
+                }
+
+                state.Completed = state.DeathDropUnequipCompleted && state.KeptItems.Count == 0;
+            }
         }
     }
 
-    internal static List<KeepOnDeathItemState> PrepareKeepOnDeathItems(Player player)
+    internal static List<KeepOnDeathItemState> PrepareKeepOnDeathItems(Player player, out Inventory? sourceInventory)
     {
+        sourceInventory = null;
         List<KeepOnDeathItemState> keptItems = new();
         if (!DeathKeepRulesEnabled() || player == null || player.m_isLoading || _yamlConfig.KeepOnDeath == null || _yamlConfig.KeepOnDeath.Count == 0)
         {
@@ -71,32 +140,52 @@ public sealed partial class InventorySlotsPlugin
         }
 
         Inventory inventory = ((Humanoid)player).GetInventory();
+        sourceInventory = inventory;
         if (inventory == null)
         {
             return keptItems;
         }
 
-        foreach (ItemData item in inventory.m_inventory.ToArray())
+        try
         {
-            if (item?.m_shared == null || !ShouldKeepOnDeath(item))
+            foreach (ItemData item in inventory.m_inventory.ToArray())
             {
-                continue;
-            }
+                if (item?.m_shared == null || !ShouldKeepOnDeath(item))
+                {
+                    continue;
+                }
 
-            Vector2i originalGridPos = item.m_gridPos;
-            string originalSlotId = "";
-            SlotKind? originalSlotKind = null;
-            if (TryGetSlotAtGridPos(inventory, originalGridPos, out SlotDefinition? slot) && slot != null)
-            {
-                originalSlotId = slot.Id;
-                originalSlotKind = slot.Kind;
-            }
+                Vector2i originalGridPos = item.m_gridPos;
+                string originalSlotId = "";
+                SlotKind? originalSlotKind = null;
+                if (TryGetSlotAtGridPos(inventory, originalGridPos, out SlotDefinition? slot) && slot != null)
+                {
+                    originalSlotId = slot.Id;
+                    originalSlotKind = slot.Kind;
+                }
 
-            if (inventory.m_inventory.Remove(item))
-            {
                 KeepOnDeathItemState state = new(item, originalGridPos, originalSlotId, originalSlotKind);
-                keptItems.Add(state);
+                if (inventory.m_inventory.Remove(item))
+                {
+                    keptItems.Add(state);
+                }
             }
+        }
+        catch (Exception preparationException)
+        {
+            try
+            {
+                RollbackPreparedKeepOnDeathItems(player, inventory, keptItems);
+            }
+            catch (Exception rollbackException)
+            {
+                throw new AggregateException(
+                    "Keep-on-death item collection failed and its removed items could not all be rolled back.",
+                    preparationException,
+                    rollbackException);
+            }
+
+            throw;
         }
 
         return keptItems;
@@ -112,27 +201,51 @@ public sealed partial class InventorySlotsPlugin
         Inventory inventory = ((Humanoid)player).GetInventory();
         if (inventory == null)
         {
-            keptItems.Clear();
             return;
         }
 
         bool changed = false;
         EnsureInventoryHeightForLoad(inventory);
-        foreach (KeepOnDeathItemState state in keptItems)
+        int index = 0;
+        while (index < keptItems.Count)
         {
+            KeepOnDeathItemState state = keptItems[index];
             ItemData item = state.Item;
-            bool invalidItem = item?.m_shared == null;
-            bool alreadyInInventory = !invalidItem && inventory.ContainsItem(item);
-            if (invalidItem || alreadyInInventory)
+            if (item == null || item.m_shared == null)
             {
+                Log.LogWarning("Deferred restoration of an invalid keep-on-death item so its reference is not discarded.");
+                index++;
                 continue;
             }
 
-            bool restored = RestoreKeepOnDeathItem(player, inventory, state);
-            changed |= restored;
+            bool safelyInInventory = inventory.ContainsItem(item);
+            try
+            {
+                if (!safelyInInventory)
+                {
+                    _ = RestoreKeepOnDeathItem(player, inventory, state);
+                    safelyInInventory = inventory.ContainsItem(item);
+                }
+            }
+            catch (Exception ex)
+            {
+                safelyInInventory = inventory.ContainsItem(item);
+                Log.LogWarning(
+                    safelyInInventory
+                        ? $"Keep-on-death item {item.m_shared?.m_name ?? "<unknown>"} reached the inventory despite a restore callback failure: {ex.GetBaseException().Message}"
+                        : $"Deferred keep-on-death item {item.m_shared?.m_name ?? "<unknown>"} after a restore failure: {ex.GetBaseException().Message}");
+            }
+
+            if (!safelyInInventory)
+            {
+                index++;
+                continue;
+            }
+
+            changed = true;
+            keptItems.RemoveAt(index);
         }
 
-        keptItems.Clear();
         if (changed)
         {
             inventory.Changed();
@@ -143,6 +256,144 @@ public sealed partial class InventorySlotsPlugin
 
             ReloadEpicLootRuntimeItemData(player);
             RefreshExternalEquipmentEffects(player);
+        }
+    }
+
+    private static void RollbackPreparedKeepOnDeathItems(
+        Player player,
+        Inventory? inventory,
+        List<KeepOnDeathItemState> keptItems)
+    {
+        if (keptItems.Count == 0)
+        {
+            return;
+        }
+
+        if (inventory == null)
+        {
+            throw new InvalidOperationException("The player inventory was unavailable while rolling back keep-on-death preparation.");
+        }
+
+        List<Exception> failures = new();
+        foreach (KeepOnDeathItemState state in keptItems)
+        {
+            try
+            {
+                ItemData item = state.Item;
+                if (!inventory.ContainsItem(item))
+                {
+                    inventory.m_inventory.Add(item);
+                }
+
+                if (!inventory.ContainsItem(item))
+                {
+                    throw new InvalidOperationException("The removed keep-on-death item was not restored to the player inventory.");
+                }
+
+                item.m_gridPos = state.OriginalGridPos;
+                item.m_equipped = state.OriginalEquipped;
+                item.m_customData ??= new Dictionary<string, string>();
+                item.m_customData.Clear();
+                foreach (KeyValuePair<string, string> entry in state.OriginalCustomData)
+                {
+                    item.m_customData[entry.Key] = entry.Value;
+                }
+
+            }
+            catch (Exception ex)
+            {
+                failures.Add(ex);
+            }
+        }
+
+        try
+        {
+            inventory.Changed();
+            ((Humanoid)player).SetupEquipment();
+            UpdateCustomEquipmentVisuals(player);
+            RefreshExternalEquipmentEffects(player);
+        }
+        catch (Exception ex)
+        {
+            Log.LogWarning($"Keep-on-death items were rolled back, but equipment refresh failed: {ex.GetBaseException().Message}");
+        }
+
+        if (failures.Count > 0)
+        {
+            throw new AggregateException("One or more removed keep-on-death items could not be rolled back.", failures);
+        }
+
+        keptItems.Clear();
+    }
+
+    private static void EmergencyPreserveKeepOnDeathItems(
+        Inventory? inventory,
+        List<KeepOnDeathItemState> keptItems)
+    {
+        if (inventory == null || keptItems.Count == 0)
+        {
+            return;
+        }
+
+        bool changed = false;
+        int index = 0;
+        while (index < keptItems.Count)
+        {
+            KeepOnDeathItemState state = keptItems[index];
+            ItemData item = state.Item;
+            if (item == null)
+            {
+                index++;
+                continue;
+            }
+
+            try
+            {
+                if (!inventory.m_inventory.Contains(item))
+                {
+                    InventorySlotSafetyCore.GridCell cell = InventorySlotSafetyCore.SelectNonOverlappingPreservationCell(
+                        inventory.GetWidth(),
+                        inventory.GetHeight(),
+                        new InventorySlotSafetyCore.GridCell(-1, -1),
+                        (x, y) => inventory.m_inventory.Any(other =>
+                            other != null &&
+                            other != item &&
+                            other.m_gridPos.x == x &&
+                            other.m_gridPos.y == y));
+                    item.m_gridPos = new Vector2i(cell.X, cell.Y);
+                    item.m_equipped = false;
+                    ClearItemSlot(item);
+                    inventory.m_inventory.Add(item);
+                }
+
+                if (!inventory.m_inventory.Contains(item))
+                {
+                    index++;
+                    continue;
+                }
+
+                changed = true;
+                keptItems.RemoveAt(index);
+            }
+            catch (Exception ex)
+            {
+                Log.LogError($"Final keep-on-death fallback could not preserve {item.m_shared?.m_name ?? "<unknown>"}: {ex.GetBaseException().Message}");
+                index++;
+            }
+        }
+
+        if (!changed)
+        {
+            return;
+        }
+
+        try
+        {
+            inventory.Changed();
+        }
+        catch (Exception ex)
+        {
+            Log.LogWarning($"Final keep-on-death items are safe in the inventory, but its change callback failed: {ex.GetBaseException().Message}");
         }
     }
 
@@ -197,7 +448,7 @@ public sealed partial class InventorySlotsPlugin
                 return emptyNonQuickSpecialSlot != null && TryRestoreKeepOnDeathItemToSlot(player, inventory, item, emptyNonQuickSpecialSlot);
         }
 
-        return PreserveKeepOnDeathItemWithoutOverwriting(inventory, item, originalGridPos);
+        return PreserveKeepOnDeathItemWithoutOverwriting(inventory, item);
     }
 
     private static bool TryRestoreKeepOnDeathItemAtCell(Player player, Inventory inventory, ItemData item, Vector2i target, KeepOnDeathItemState state)
@@ -302,15 +553,17 @@ public sealed partial class InventorySlotsPlugin
         return false;
     }
 
-    private static bool PreserveKeepOnDeathItemWithoutOverwriting(Inventory inventory, ItemData item, Vector2i originalGridPos)
+    private static bool PreserveKeepOnDeathItemWithoutOverwriting(Inventory inventory, ItemData item)
     {
         EnsureInventoryHeightForLoad(inventory);
         InventorySlotSafetyCore.GridCell cell = InventorySlotSafetyCore.SelectNonOverlappingPreservationCell(
             inventory.GetWidth(),
             inventory.GetHeight(),
-            new InventorySlotSafetyCore.GridCell(originalGridPos.x, originalGridPos.y),
+            new InventorySlotSafetyCore.GridCell(-1, -1),
             (x, y) => inventory.m_inventory.Any(other => other != null && other.m_gridPos.x == x && other.m_gridPos.y == y));
         item.m_gridPos = new Vector2i(cell.X, cell.Y);
+        item.m_equipped = false;
+        ClearItemSlot(item);
 
         inventory.m_inventory.Add(item);
         Log.LogWarning($"Preserved keep-on-death item {item.m_shared?.m_name ?? "<unknown>"} at {FormatGridPos(item.m_gridPos)} because no regular inventory cell was free. No item was overwritten.");
