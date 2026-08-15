@@ -260,7 +260,6 @@ public sealed partial class InventoryActionsPlugin
     private sealed class ConfigurationManagerAttributes
     {
         public int? Order { get; set; }
-        public bool? Browsable { get; set; }
         public Action<ConfigEntryBase>? CustomDrawer { get; set; }
     }
 
@@ -284,43 +283,30 @@ public sealed partial class InventoryActionsPlugin
         return player != null && inventory != null && inventory == GetPlayerInventory(player);
     }
 
-    private static bool IsPlayerActionCell(Inventory inventory, Vector2i pos, bool includeHotbar)
-    {
-        InventoryCellKind kind = GetInventoryCellKind(inventory, pos);
-        return InventoryActionCellPolicyCore.CanUseContainerActionSource(kind, includeHotbar);
-    }
-
     private static bool CanFavoriteCell(Inventory inventory, Vector2i pos)
     {
-        InventoryCellKind kind = GetInventoryCellKind(inventory, pos);
-        return InventoryActionCellPolicyCore.CanFavoriteSlot(kind);
-    }
-
-    private static bool CanUseFavoriteRestockTargetCell(Inventory inventory, Vector2i pos)
-    {
-        InventoryCellKind kind = GetInventoryCellKind(inventory, pos);
-        return InventoryActionCellPolicyCore.CanUseFavoriteRestockTarget(kind);
+        return IsSupportedPlayerCell(inventory, pos);
     }
 
     private static bool CanTrashCell(Inventory inventory, Vector2i pos)
     {
-        InventoryCellKind kind = GetInventoryCellKind(inventory, pos);
-        return InventoryActionCellPolicyCore.CanTrashSlot(kind);
+        return IsRegularPlayerCell(inventory, pos);
     }
 
-    private static InventoryCellKind GetInventoryCellKind(Inventory inventory, Vector2i pos)
+    private static bool IsSupportedPlayerCell(Inventory inventory, Vector2i pos)
     {
-        if (IsOutOfBounds(inventory, pos) || pos.y >= Math.Min(VanillaPlayerRows, inventory.GetHeight()))
-        {
-            return InventoryCellKind.Outside;
-        }
-
-        return pos.y == 0 ? InventoryCellKind.Hotbar : InventoryCellKind.RegularUnlocked;
+        return !IsOutOfBounds(inventory, pos) &&
+               pos.y < Math.Min(VanillaPlayerRows, inventory.GetHeight());
     }
 
-    private static bool IsRegularActionItem(Player player, Inventory inventory, ItemData item, bool includeHotbar)
+    private static bool IsRegularPlayerCell(Inventory inventory, Vector2i pos)
     {
-        return item?.m_shared != null && IsPlayerActionCell(inventory, item.m_gridPos, includeHotbar);
+        return IsSupportedPlayerCell(inventory, pos) && pos.y > 0;
+    }
+
+    private static bool IsRegularActionItem(Inventory inventory, ItemData item)
+    {
+        return item?.m_shared != null && IsRegularPlayerCell(inventory, item.m_gridPos);
     }
 
     private static bool HasNoCustomData(ItemData item)
@@ -497,9 +483,4 @@ public sealed partial class InventoryActionsPlugin
             _ => text
         };
     }
-}
-
-internal static class ToggleExtensions
-{
-    public static bool IsOn(this InventoryActionsPlugin.Toggle value) => value == InventoryActionsPlugin.Toggle.On;
 }

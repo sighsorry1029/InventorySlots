@@ -87,7 +87,8 @@ TestRunner.Run(
     ("Action cell policy restock targets include hotbar and quickslots", Tests.ActionCellPolicyRestockTargetsIncludeHotbarAndQuickslots),
     ("Action cell policy trash allows regular inventory only", Tests.ActionCellPolicyTrashAllowsRegularInventoryOnly),
     ("Inventory trash rejects quest items through final confirmation", Tests.InventoryTrashRejectsQuestItemsThroughFinalConfirmation),
-    ("InventoryActions action cell policy copy mirrors InventorySlots behavior", Tests.InventoryActionsActionCellPolicyCopyMirrorsInventorySlotsBehavior),
+    ("InventoryActions uses its fixed vanilla cell policy directly", Tests.InventoryActionsUsesFixedVanillaCellPolicyDirectly),
+    ("InventoryActions tooltip guard owns only its buttons", Tests.InventoryActionsTooltipGuardOwnsOnlyItsButtons),
     ("Keep-on-death equipment prefers regular cell before unrelated special slot", Tests.KeepOnDeathEquipmentPrefersRegularCellBeforeUnrelatedSpecialSlot),
     ("Keep-on-death quickslot avoids unrelated special slot when packed", Tests.KeepOnDeathQuickslotAvoidsUnrelatedSpecialSlotWhenPacked),
     ("Keep-on-death equipment prefers same-kind special slot", Tests.KeepOnDeathEquipmentPrefersSameKindSpecialSlot),
@@ -126,7 +127,7 @@ TestRunner.Run(
     ("Multi-user item snapshot rejects identity field changes", Tests.MultiUserItemSnapshotRejectsIdentityFieldChanges),
     ("Multi-user transfer requires exact pre-mutation stack state", Tests.MultiUserTransferRequiresExactPreMutationStackState),
     ("Multi-user request preparation keeps escrow behind a published pending", Tests.MultiUserRequestPreparationKeepsEscrowBehindPublishedPending),
-    ("InventoryActions container transfer core copy mirrors InventorySlots behavior", Tests.InventoryActionsContainerTransferCoreCopyMirrorsInventorySlotsBehavior),
+    ("InventoryActions current-container transfers notify only after movement", Tests.InventoryActionsCurrentContainerTransfersNotifyOnlyAfterMovement),
     ("InventoryActions container action core copy mirrors InventorySlots behavior", Tests.InventoryActionsContainerActionCoreCopyMirrorsInventorySlotsBehavior),
     ("Area ownership handoff executes a matching grant once", Tests.AreaOwnershipHandoffExecutesMatchingGrantOnce),
     ("Area ownership handoff ignores mismatched responses", Tests.AreaOwnershipHandoffIgnoresMismatchedResponses),
@@ -135,7 +136,9 @@ TestRunner.Run(
     ("Area ownership handoff fails closed on owner and token races", Tests.AreaOwnershipHandoffFailsClosedOnOwnerAndTokenRaces),
     ("Area ownership handoff fails closed on unload", Tests.AreaOwnershipHandoffFailsClosedOnUnload),
     ("Area ownership handoff enforces serial execution preconditions", Tests.AreaOwnershipHandoffEnforcesSerialExecutionPreconditions),
+    ("InventoryActions area cleanup commits state before callbacks", Tests.InventoryActionsAreaCleanupCommitsStateBeforeCallbacks),
     ("Restock target limits parse config entries", Tests.RestockTargetLimitsParseConfigEntries),
+    ("Restock target limit editor normalization preserves runtime meaning", Tests.RestockTargetLimitEditorNormalizationPreservesRuntimeMeaning),
     ("Restock target limit resolves aliases and clamps to max stack", Tests.RestockTargetLimitResolvesAliasesAndClampsToMaxStack),
     ("Restock target limit resolves localized item names", Tests.RestockTargetLimitResolvesLocalizedItemNames),
     ("InventoryActions restock target limit copy mirrors InventorySlots behavior", Tests.InventoryActionsRestockTargetLimitCopyMirrorsInventorySlotsBehavior),
@@ -1942,34 +1945,66 @@ internal static class Tests
             "confirmation must rerun the quest-aware policy before deleting any amount");
     }
 
-    public static void InventoryActionsActionCellPolicyCopyMirrorsInventorySlotsBehavior()
+    public static void InventoryActionsUsesFixedVanillaCellPolicyDirectly()
     {
-        string[] slotsKindNames = Enum.GetNames(typeof(InventoryCellKind));
-        string[] actionsKindNames = Enum.GetNames(typeof(InventoryActions.InventoryCellKind));
-        Assert.Equal(string.Join(",", slotsKindNames), string.Join(",", actionsKindNames));
+        string repositoryRoot = FindRepositoryRoot();
+        string source = File.ReadAllText(
+            Path.Combine(repositoryRoot, "InventoryActions", "ConfigAndUtility.cs"));
+        string policy = ReadSourceSection(
+            source,
+            "private static bool CanFavoriteCell",
+            "private static bool HasNoCustomData");
 
-        foreach (string name in slotsKindNames)
-        {
-            InventoryCellKind slotsKind = Enum.Parse<InventoryCellKind>(name);
-            InventoryActions.InventoryCellKind actionsKind = Enum.Parse<InventoryActions.InventoryCellKind>(name);
+        Assert.True(
+            CountSourceOccurrences(policy, "return IsSupportedPlayerCell(inventory, pos);") == 1,
+            "favorites and favorite restock must share one supported vanilla-cell predicate");
+        Assert.True(
+            policy.Contains("return IsRegularPlayerCell(inventory, pos);", StringComparison.Ordinal) &&
+            policy.Contains("IsSupportedPlayerCell(inventory, pos) && pos.y > 0", StringComparison.Ordinal),
+            "trash and regular container actions must exclude the hotbar");
+        Assert.True(
+            policy.Contains("!IsOutOfBounds(inventory, pos)", StringComparison.Ordinal) &&
+            policy.Contains("pos.y < Math.Min(VanillaPlayerRows, inventory.GetHeight())", StringComparison.Ordinal),
+            "InventoryActions must limit its standalone policy to loaded vanilla player rows");
+        Assert.False(
+            policy.Contains("InventoryCellKind", StringComparison.Ordinal) ||
+            policy.Contains("InventoryActionCellPolicyCore", StringComparison.Ordinal),
+            "the standalone mod must not retain unreachable InventorySlots cell kinds");
 
-            Assert.Equal((int)slotsKind, (int)actionsKind);
-            Assert.Equal(
-                InventoryActionCellPolicyCore.CanFavoriteSlot(slotsKind),
-                InventoryActions.InventoryActionCellPolicyCore.CanFavoriteSlot(actionsKind));
-            Assert.Equal(
-                InventoryActionCellPolicyCore.CanUseFavoriteRestockTarget(slotsKind),
-                InventoryActions.InventoryActionCellPolicyCore.CanUseFavoriteRestockTarget(actionsKind));
-            Assert.Equal(
-                InventoryActionCellPolicyCore.CanTrashSlot(slotsKind),
-                InventoryActions.InventoryActionCellPolicyCore.CanTrashSlot(actionsKind));
-            Assert.Equal(
-                InventoryActionCellPolicyCore.CanUseContainerActionSource(slotsKind, includeHotbar: false),
-                InventoryActions.InventoryActionCellPolicyCore.CanUseContainerActionSource(actionsKind, includeHotbar: false));
-            Assert.Equal(
-                InventoryActionCellPolicyCore.CanUseContainerActionSource(slotsKind, includeHotbar: true),
-                InventoryActions.InventoryActionCellPolicyCore.CanUseContainerActionSource(actionsKind, includeHotbar: true));
-        }
+        string actions = File.ReadAllText(
+            Path.Combine(repositoryRoot, "InventoryActions", "Actions.cs"));
+        string favoriteRestock = ReadSourceSection(
+            actions,
+            "private static bool ShouldRestockFavoriteItem",
+            "private static bool ShouldTakeMatchingStackItem");
+        Assert.True(
+            favoriteRestock.Contains("CanFavoriteCell(inventory, item.m_gridPos)", StringComparison.Ordinal),
+            "favorite restock must reuse the favorite-cell policy instead of defining another predicate");
+    }
+
+    public static void InventoryActionsTooltipGuardOwnsOnlyItsButtons()
+    {
+        string source = File.ReadAllText(
+            Path.Combine(FindRepositoryRoot(), "InventoryActions", "Ui.cs"));
+        string guard = ReadSourceSection(
+            source,
+            "internal static bool ShouldAllowTooltipHoverStart",
+            "private static void CaptureRectTransformSnapshot");
+        int nameCheck = guard.IndexOf(
+            "name.StartsWith(\"InventoryActions_\"",
+            StringComparison.Ordinal);
+        int markerCheck = guard.IndexOf(
+            "GetComponent<InventoryActionButtonMarker>() == null",
+            StringComparison.Ordinal);
+        int clearTopic = guard.IndexOf("tooltip.m_topic = \"\";", StringComparison.Ordinal);
+
+        Assert.True(
+            nameCheck >= 0 && markerCheck > nameCheck && clearTopic > markerCheck,
+            "the null-prefab fallback must prove both InventoryActions identity markers before suppressing hover");
+        Assert.False(
+            source.Contains("SetActionButtonLabel(gui.m_takeAllButton", StringComparison.Ordinal) ||
+            source.Contains("SetActionButtonLabel(gui.m_stackAllButton", StringComparison.Ordinal),
+            "InventoryActions must not relabel or mark vanilla container buttons");
     }
 
     public static void KeepOnDeathEquipmentPrefersRegularCellBeforeUnrelatedSpecialSlot()
@@ -3266,37 +3301,90 @@ internal static class Tests
             "bounded resend failures must preserve the serialized pending request without aborting the Update cycle");
     }
 
-    public static void InventoryActionsContainerTransferCoreCopyMirrorsInventorySlotsBehavior()
+    public static void InventoryActionsCurrentContainerTransfersNotifyOnlyAfterMovement()
     {
-        FakeTransferContainer?[] containers =
+        string source = File.ReadAllText(
+            Path.Combine(FindRepositoryRoot(), "InventoryActions", "Actions.cs"));
+        string quickStack = ReadSourceSection(
+            source,
+            "private static void QuickStackIntoContainers",
+            "private static bool ShouldQuickStackItem");
+        string restock = ReadSourceSection(
+            source,
+            "private static void RestockFromContainer",
+            "private static bool ShouldTakeStacksTarget");
+
+        foreach (string transfer in new[] { quickStack, restock })
         {
-            new("anchor", valid: true, moved: 2),
-            null,
-            new("invalid", valid: false, moved: 7),
-            new("empty", valid: true, moved: 0),
-            new("nearby", valid: true, moved: 3)
-        };
-        List<string> slotsChanged = new();
-        List<string> actionsChanged = new();
-        int slotsAnyMoved = 0;
-        int actionsAnyMoved = 0;
+            int movedGuard = transfer.IndexOf("if (moved", StringComparison.Ordinal);
+            int changed = transfer.IndexOf("playerInventory.Changed();", StringComparison.Ordinal);
+            Assert.True(
+                movedGuard >= 0 && changed > movedGuard,
+                "current-container transfers must notify the player inventory only after a positive move");
+            Assert.False(
+                transfer.Contains("ContainerTransferCore", StringComparison.Ordinal),
+                "a one-container action must not route through the multi-container delegate wrapper");
+        }
 
-        int slotsMoved = ContainerTransferCore.Run(
-            containers,
-            container => container.Valid,
-            container => container.Moved,
-            (container, amount) => slotsChanged.Add($"{container.Name}:{amount}"),
-            () => slotsAnyMoved++);
-        int actionsMoved = InventoryActions.ContainerTransferCore.Run(
-            containers,
-            container => container.Valid,
-            container => container.Moved,
-            (container, amount) => actionsChanged.Add($"{container.Name}:{amount}"),
-            () => actionsAnyMoved++);
+        string quickStackSelection = ReadSourceSection(
+            source,
+            "private static List<ItemData> GetQuickStackCandidates",
+            "private static int QuickStackItemsIntoContainer");
+        string restockSelection = ReadSourceSection(
+            source,
+            "private static List<ItemData> GetRestockTargets",
+            "private static int RestockTargetsFromContainer");
+        Assert.True(
+            quickStackSelection.Contains("ShouldQuickStackItem", StringComparison.Ordinal) &&
+            restockSelection.Contains("ShouldTakeStacksTarget", StringComparison.Ordinal),
+            "current and area transfers must build candidates in shared selectors");
 
-        Assert.Equal(slotsMoved, actionsMoved);
-        Assert.Equal(string.Join(",", slotsChanged), string.Join(",", actionsChanged));
-        Assert.Equal(slotsAnyMoved, actionsAnyMoved);
+        string ownershipSource = File.ReadAllText(
+            Path.Combine(FindRepositoryRoot(), "InventoryActions", "AreaContainerOwnership.cs"));
+        string areaMutation = ReadSourceSection(
+            ownershipSource,
+            "private static int ExecuteAreaContainerTransfer",
+            "private static void RecordAreaContainerTransfer");
+        Assert.False(
+            areaMutation.Contains(".Where(", StringComparison.Ordinal) ||
+            areaMutation.Contains(".Sort(", StringComparison.Ordinal),
+            "the area path must not duplicate candidate eligibility or ordering");
+    }
+
+    public static void InventoryActionsAreaCleanupCommitsStateBeforeCallbacks()
+    {
+        string source = File.ReadAllText(
+            Path.Combine(FindRepositoryRoot(), "InventoryActions", "AreaContainerOwnership.cs"));
+        string execute = ReadSourceSection(
+            source,
+            "private static void ExecuteGrantedAreaContainer",
+            "private static bool CanExecuteGrantedAreaContainer");
+        Assert.True(
+            execute.IndexOf("AreaOwnershipHandoff.CompleteExecution();", StringComparison.Ordinal) <
+            execute.IndexOf("ClearAreaOwnershipLeaseIfMatching(", StringComparison.Ordinal),
+            "an executed handoff must become terminal before best-effort lease cleanup");
+
+        string skipped = ReadSourceSection(
+            source,
+            "private static void FinishPendingAreaContainerWithoutMutation",
+            "private static void CancelAreaContainerTransfer");
+        Assert.True(
+            skipped.IndexOf("AreaOwnershipHandoff.Cancel();", StringComparison.Ordinal) <
+            skipped.IndexOf("ClearAreaOwnershipLeaseIfMatching(", StringComparison.Ordinal) &&
+            skipped.IndexOf("session.NextTargetIndex++;", StringComparison.Ordinal) <
+            skipped.IndexOf("ClearAreaOwnershipLeaseIfMatching(", StringComparison.Ordinal),
+            "a skipped target must advance and clear pending state before external cleanup");
+
+        string cancel = ReadSourceSection(
+            source,
+            "private static void CancelAreaContainerTransfer",
+            "internal static void RegisterAreaOwnershipRpcs");
+        int clearSession = cancel.IndexOf("_areaContainerTransfer = null;", StringComparison.Ordinal);
+        int clearLease = cancel.IndexOf("ClearAreaOwnershipLeaseIfMatching(", StringComparison.Ordinal);
+        int notifyInventory = cancel.IndexOf("changedInventory.Changed();", StringComparison.Ordinal);
+        Assert.True(
+            clearSession >= 0 && clearLease > clearSession && notifyInventory > clearSession,
+            "cancellation must clear the session before lease or inventory callbacks can throw");
     }
 
     public static void InventoryActionsContainerActionCoreCopyMirrorsInventorySlotsBehavior()
@@ -3686,6 +3774,25 @@ internal static class Tests
         Assert.Equal(0, limits["wood"]);
     }
 
+    public static void RestockTargetLimitEditorNormalizationPreservesRuntimeMeaning()
+    {
+        string slotsAmount = RestockTargetLimitCore.NormalizeAmountForEditor(" -5 ");
+        string actionsAmount = InventoryActions.RestockTargetLimitCore.NormalizeAmountForEditor(" -5 ");
+
+        Assert.Equal("0", slotsAmount);
+        Assert.Equal(slotsAmount, actionsAmount);
+        Assert.Equal("7", RestockTargetLimitCore.NormalizeAmountForEditor(" +7 "));
+        Assert.Equal("", RestockTargetLimitCore.NormalizeAmountForEditor("invalid"));
+        Assert.Equal("", RestockTargetLimitCore.NormalizeAmountForEditor("2147483648"));
+
+        Assert.Equal(
+            RestockTargetLimitCore.Parse("Wood: -5")["wood"],
+            RestockTargetLimitCore.Parse($"Wood: {slotsAmount}")["wood"]);
+        Assert.Equal(
+            InventoryActions.RestockTargetLimitCore.Parse("Wood: -5")["wood"],
+            InventoryActions.RestockTargetLimitCore.Parse($"Wood: {actionsAmount}")["wood"]);
+    }
+
     public static void RestockTargetLimitResolvesAliasesAndClampsToMaxStack()
     {
         Dictionary<string, int> limits = RestockTargetLimitCore.Parse("Stone: 250, Coins: 500");
@@ -3740,9 +3847,6 @@ internal static class Tests
         Assert.Equal(
             RestockTargetLimitCore.ResolveTargetStackLimit(slotsLimits, new[] { "Unknown" }, itemMaxStack: 50),
             InventoryActions.RestockTargetLimitCore.ResolveTargetStackLimit(actionsLimits, new[] { "Unknown" }, itemMaxStack: 50));
-        Assert.Equal(
-            InventorySlotsConfigCore.StripLocalizationToken("$item_resin"),
-            InventoryActions.RestockTargetLimitCore.StripLocalizationToken("$item_resin"));
     }
 
     public static void IntentionalInventoryActionsSourceCopiesStaySynchronized()
@@ -3750,10 +3854,7 @@ internal static class Tests
         string repositoryRoot = FindRepositoryRoot();
         (string Main, string Copy)[] copiedSources =
         {
-            ("InventoryCellKind.cs", "InventoryActions/InventoryCellKind.cs"),
-            ("InventoryActionCellPolicyCore.cs", "InventoryActions/InventoryActionCellPolicyCore.cs"),
             ("ContainerActionCore.cs", "InventoryActions/ContainerActionCore.cs"),
-            ("ContainerTransferCore.cs", "InventoryActions/ContainerTransferCore.cs"),
             ("RestockTargetLimitConfigDrawer.cs", "InventoryActions/RestockTargetLimitConfigDrawer.cs")
         };
 

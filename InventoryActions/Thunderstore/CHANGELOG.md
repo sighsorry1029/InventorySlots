@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.7
+
+- Hardened area quick stack/restock completion and cancellation by finalizing handoff state before ownership-lease cleanup and inventory callbacks, preventing callback failures from leaving an action stuck or eligible for duplicate continuation.
+- Fixed the tooltip fallback so it handles only InventoryActions-owned buttons, leaving vanilla and other-mod tooltips untouched, and stopped relabeling or tagging Valheim's built-in Take All and Place Stacks buttons.
+- Fixed the Restock Target Limits editor changing negative values such as `-5` into `5`; comments, separators, and negative amounts now use the same parsing rules as runtime, where negative limits normalize to `0`.
+- Ignored stale favorite coordinates outside the supported vanilla player rows so they no longer remain protected or display favorite borders.
+- Unified current-container and area candidate selection and removed unused cell-policy, single-container transfer, hold-action, localization-cache, and UI paths without intended feature changes.
+
 ## 1.0.6
 
 - Shared hover hold area quick stack/restock success effects with nearby players who also enable the client setting, while retaining VFX at up to 10 changed containers and one SFX at the interacted container.

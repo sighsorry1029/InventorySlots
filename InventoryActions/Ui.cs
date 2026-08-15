@@ -45,9 +45,7 @@ public sealed partial class InventoryActionsPlugin
         SetActionPanelActive(Runtime.PlayerActionPanel, false);
         SetActionPanelActive(Runtime.TrashPanel, false);
         ReleaseContainerActionButtonLayout();
-        SetButtonActive(Runtime.ContainerStoreAllButton, false);
-        SetButtonActive(Runtime.ContainerRestockButton, false);
-        SetButtonActive(Runtime.ContainerSortButton, false);
+        HideContainerActionButtons();
         CloseInventoryTrashConfirmDialog();
     }
 
@@ -77,8 +75,6 @@ public sealed partial class InventoryActionsPlugin
         CaptureRectTransformSnapshot(ref Runtime.TakeAllButtonOriginal, takeAllRect);
         CaptureRectTransformSnapshot(ref Runtime.StackAllButtonOriginal, stackRect);
         RestoreContainerActionButtonLayout();
-        SetActionButtonLabel(gui.m_takeAllButton, LocalizeUi("$inventoryactions_button_take_all", "Take all"));
-        SetActionButtonLabel(gui.m_stackAllButton, LocalizeUi("$inventoryactions_button_place_stacks", "Place stacks"));
 
         if (!CanMutateContainerDirectly(currentContainer, allowLocalWithoutZNetView: true))
         {
@@ -137,7 +133,6 @@ public sealed partial class InventoryActionsPlugin
         }
 
         float buttonSize = GetContainerSortButtonSize(gui);
-        const float gap = 6f;
         int rows = GetDisplayedPlayerRows(playerGrid);
         Runtime.PlayerActionPanel.sizeDelta = new Vector2(buttonSize, buttonSize);
         Runtime.PlayerActionPanel.localScale = Vector3.one;
@@ -148,14 +143,14 @@ public sealed partial class InventoryActionsPlugin
         DisableActionPanelChildren(Runtime.PlayerActionPanel);
 
         Button? sortButton = EnsureActionButton(Runtime.PlayerActionPanel, gui.m_takeAllButton, "InventoryActions_PlayerSortButton", "S", () => SortPlayerInventory(Player.m_localPlayer));
-        LayoutActionButton(sortButton, 0, buttonSize, buttonSize, gap);
+        LayoutActionButton(sortButton, buttonSize, buttonSize);
         SetTooltip(sortButton, "Sort inventory", "Sort non-favorited player inventory slots outside the hotbar.");
         SetActionPanelActive(Runtime.PlayerActionPanel, true);
     }
 
     private static void UpdateTrashPanel(InventoryGui gui, InventoryGrid playerGrid, Player player)
     {
-        if (!_enableInventoryTrashPanel.Value.IsOn() ||
+        if (_enableInventoryTrashPanel.Value != Toggle.On ||
             gui == null ||
             playerGrid == null ||
             playerGrid.m_gridRoot == null ||
@@ -190,7 +185,7 @@ public sealed partial class InventoryActionsPlugin
         DisableActionPanelChildren(Runtime.TrashPanel);
 
         Button? trashButton = EnsureActionButton(Runtime.TrashPanel, gui.m_takeAllButton, TrashButtonName, "", TryClickInventoryTrashPanel);
-        RectTransform? trashRect = LayoutActionButton(trashButton, 0, buttonSize, buttonSize, 0f);
+        RectTransform? trashRect = LayoutActionButton(trashButton, buttonSize, buttonSize);
         if (trashButton != null && trashRect != null)
         {
             ConfigureInventoryTrashButton(trashButton, buttonSize);
@@ -289,7 +284,7 @@ public sealed partial class InventoryActionsPlugin
         rect.localRotation = Quaternion.identity;
     }
 
-    private static RectTransform? LayoutActionButton(Button? button, int index, float buttonWidth, float buttonHeight, float gap)
+    private static RectTransform? LayoutActionButton(Button? button, float buttonWidth, float buttonHeight)
     {
         if (button == null)
         {
@@ -301,7 +296,7 @@ public sealed partial class InventoryActionsPlugin
         rect.anchorMax = new Vector2(0f, 1f);
         rect.pivot = new Vector2(0f, 1f);
         rect.sizeDelta = new Vector2(buttonWidth, buttonHeight);
-        rect.anchoredPosition = new Vector2(index * (buttonWidth + gap), 0f);
+        rect.anchoredPosition = Vector2.zero;
         rect.localScale = Vector3.one;
         rect.localRotation = Quaternion.identity;
         button.gameObject.SetActive(true);
@@ -316,8 +311,6 @@ public sealed partial class InventoryActionsPlugin
         {
             button = Object.Instantiate(template, panel, false);
             button.name = name;
-            InventoryActionButtonMarker marker = button.gameObject.GetComponent<InventoryActionButtonMarker>() ?? button.gameObject.AddComponent<InventoryActionButtonMarker>();
-            marker.Initialized = false;
         }
 
         InventoryActionButtonMarker buttonMarker = button.gameObject.GetComponent<InventoryActionButtonMarker>() ?? button.gameObject.AddComponent<InventoryActionButtonMarker>();
@@ -364,7 +357,7 @@ public sealed partial class InventoryActionsPlugin
     private static void SetActionButtonLabel(Button button, string label)
     {
         InventoryActionButtonMarker marker = button.gameObject.GetComponent<InventoryActionButtonMarker>() ?? button.gameObject.AddComponent<InventoryActionButtonMarker>();
-        string signature = $"{label}|{Runtime.UiLocalizationVersion}";
+        string signature = label;
         if (marker.AutoSizeInitialized && string.Equals(marker.LabelSignature, signature, StringComparison.Ordinal))
         {
             return;
@@ -443,6 +436,14 @@ public sealed partial class InventoryActionsPlugin
     internal static bool ShouldAllowTooltipHoverStart(UITooltip tooltip)
     {
         if (tooltip == null || IsUnityNull(tooltip) || tooltip.m_tooltipPrefab != null)
+        {
+            return true;
+        }
+
+        GameObject tooltipObject = tooltip.gameObject;
+        if (tooltipObject == null ||
+            !tooltipObject.name.StartsWith("InventoryActions_", StringComparison.Ordinal) ||
+            tooltipObject.GetComponent<InventoryActionButtonMarker>() == null)
         {
             return true;
         }
@@ -615,7 +616,8 @@ public sealed partial class InventoryActionsPlugin
 
         Sprite sprite = GetInventoryTrashIconSprite();
         float iconSize = Mathf.Max(18f, buttonSize * 0.58f);
-        string signature = $"{buttonSize:0.###}|{iconSize:0.###}|{sprite.GetInstanceID()}|{Runtime.UiLocalizationVersion}";
+        SetTooltip(button, LocalizeUi("$inventoryactions_trash_title", "Trash"), LocalizeUi("$inventoryactions_trash_tooltip", "Drop a held inventory item here to delete it after confirmation."));
+        string signature = $"{buttonSize:0.###}|{iconSize:0.###}|{sprite.GetInstanceID()}";
         if (string.Equals(marker.LayoutSignature, signature, StringComparison.Ordinal))
         {
             return;
@@ -633,7 +635,6 @@ public sealed partial class InventoryActionsPlugin
         marker.Icon.preserveAspect = true;
         marker.Icon.raycastTarget = false;
 
-        SetTooltip(button, LocalizeUi("$inventoryactions_trash_title", "Trash"), LocalizeUi("$inventoryactions_trash_tooltip", "Drop a held inventory item here to delete it after confirmation."));
         marker.LayoutSignature = signature;
     }
 
@@ -753,7 +754,7 @@ public sealed partial class InventoryActionsPlugin
 
     private static bool CanStartInventoryTrash(InventoryGui? gui, Player? player, bool showMessage)
     {
-        if (!_enableInventoryTrashPanel.Value.IsOn())
+        if (_enableInventoryTrashPanel.Value != Toggle.On)
         {
             return false;
         }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace InventorySlots;
 
@@ -29,12 +30,12 @@ internal static class RestockTargetLimitCore
 
             string token = InventorySlotsConfigCore.NormalizeResourceToken(trimmed.Substring(0, separator));
             string amountText = trimmed.Substring(separator + 1).Trim();
-            if (token.Length == 0 || !int.TryParse(amountText, out int amount))
+            if (token.Length == 0 || !TryParseAmount(amountText, out int amount))
             {
                 continue;
             }
 
-            result[token] = Math.Max(0, amount);
+            result[token] = amount;
         }
 
         return result;
@@ -60,18 +61,25 @@ internal static class RestockTargetLimitCore
         return fallback;
     }
 
-    private static IEnumerable<string> SplitEntries(string raw)
+    internal static string NormalizeAmountForEditor(string? value)
+    {
+        return TryParseAmount(value, out int amount)
+            ? amount.ToString(CultureInfo.InvariantCulture)
+            : "";
+    }
+
+    internal static IEnumerable<string> SplitEntries(string raw)
     {
         return raw.Replace("\r", "\n").Split(new[] { '\n', ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
     }
 
-    private static string StripInlineComment(string entry)
+    internal static string StripInlineComment(string entry)
     {
         int commentIndex = entry.IndexOf('#');
         return commentIndex >= 0 ? entry.Substring(0, commentIndex) : entry;
     }
 
-    private static int FindSeparator(string entry)
+    internal static int FindSeparator(string entry)
     {
         int colon = entry.IndexOf(':');
         int equals = entry.IndexOf('=');
@@ -86,5 +94,17 @@ internal static class RestockTargetLimitCore
         }
 
         return Math.Min(colon, equals);
+    }
+
+    private static bool TryParseAmount(string? value, out int amount)
+    {
+        if (int.TryParse(value?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed))
+        {
+            amount = Math.Max(0, parsed);
+            return true;
+        }
+
+        amount = 0;
+        return false;
     }
 }

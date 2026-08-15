@@ -73,13 +73,15 @@ public sealed partial class InventoryActionsPlugin
 
     private static bool IsFavoriteProtected(Player player, Inventory inventory, ItemDrop.ItemData item)
     {
-        return item?.m_shared != null && IsPlayerInventory(player, inventory) && IsFavoriteSlot(player, item.m_gridPos);
+        return item?.m_shared != null &&
+               IsPlayerInventory(player, inventory) &&
+               IsFavoriteSlot(player, inventory, item.m_gridPos);
     }
 
-    private static bool IsFavoriteSlot(Player player, Vector2i pos)
+    private static bool IsFavoriteSlot(Player player, Inventory inventory, Vector2i pos)
     {
         EnsureFavoritesLoaded(player);
-        return Runtime.FavoriteSlots.Contains(pos);
+        return CanFavoriteCell(inventory, pos) && Runtime.FavoriteSlots.Contains(pos);
     }
 
     private static void EnsureFavoritesLoaded(Player player)
@@ -186,14 +188,14 @@ public sealed partial class InventoryActionsPlugin
 
             if (!element.m_go.activeSelf)
             {
-                SetFavoriteBorderActive(element, false);
+                HideFavoriteBorder(element);
                 continue;
             }
 
             Vector2i pos = grid.GetButtonPos(element.m_go);
-            if (IsOutOfBounds(inventory, pos) || !Runtime.FavoriteSlots.Contains(pos))
+            if (!IsFavoriteSlot(player, inventory, pos))
             {
-                SetFavoriteBorderActive(element, false);
+                HideFavoriteBorder(element);
                 continue;
             }
 
@@ -246,10 +248,10 @@ public sealed partial class InventoryActionsPlugin
             GameObject go = new(FavoriteBorderName, typeof(RectTransform));
             border = (RectTransform)go.transform;
             border.SetParent(root.transform, false);
-            CreateFavoriteBorderSide(border, "Top", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, FavoriteBorderThickness), Vector2.zero);
-            CreateFavoriteBorderSide(border, "Bottom", new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, FavoriteBorderThickness), Vector2.zero);
-            CreateFavoriteBorderSide(border, "Left", new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), new Vector2(FavoriteBorderThickness, 0f), Vector2.zero);
-            CreateFavoriteBorderSide(border, "Right", new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), new Vector2(FavoriteBorderThickness, 0f), Vector2.zero);
+            CreateFavoriteBorderSide(border, "Top", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, FavoriteBorderThickness));
+            CreateFavoriteBorderSide(border, "Bottom", new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, FavoriteBorderThickness));
+            CreateFavoriteBorderSide(border, "Left", new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), new Vector2(FavoriteBorderThickness, 0f));
+            CreateFavoriteBorderSide(border, "Right", new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), new Vector2(FavoriteBorderThickness, 0f));
         }
 
         border.anchorMin = Vector2.zero;
@@ -267,7 +269,7 @@ public sealed partial class InventoryActionsPlugin
         return border;
     }
 
-    private static void CreateFavoriteBorderSide(RectTransform parent, string name, Vector2 anchorMin, Vector2 anchorMax, Vector2 pivot, Vector2 sizeDelta, Vector2 anchoredPosition)
+    private static void CreateFavoriteBorderSide(RectTransform parent, string name, Vector2 anchorMin, Vector2 anchorMax, Vector2 pivot, Vector2 sizeDelta)
     {
         GameObject side = new(name, typeof(RectTransform), typeof(Image));
         RectTransform rect = (RectTransform)side.transform;
@@ -276,14 +278,14 @@ public sealed partial class InventoryActionsPlugin
         rect.anchorMax = anchorMax;
         rect.pivot = pivot;
         rect.sizeDelta = sizeDelta;
-        rect.anchoredPosition = anchoredPosition;
+        rect.anchoredPosition = Vector2.zero;
         rect.localScale = Vector3.one;
         rect.localRotation = Quaternion.identity;
         Image image = side.GetComponent<Image>();
         image.raycastTarget = false;
     }
 
-    private static void SetFavoriteBorderActive(InventoryGrid.Element element, bool active)
+    private static void HideFavoriteBorder(InventoryGrid.Element element)
     {
         if (element?.m_go == null || IsUnityNull(element.m_go))
         {
@@ -294,9 +296,9 @@ public sealed partial class InventoryActionsPlugin
         Transform? existing = marker?.FavoriteBorder != null && !IsUnityNull(marker.FavoriteBorder)
             ? marker.FavoriteBorder
             : element.m_go.transform.Find(FavoriteBorderName);
-        if (existing != null && existing.gameObject.activeSelf != active)
+        if (existing != null && existing.gameObject.activeSelf)
         {
-            existing.gameObject.SetActive(active);
+            existing.gameObject.SetActive(false);
         }
     }
 }

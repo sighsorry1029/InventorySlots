@@ -64,26 +64,15 @@ public sealed partial class InventoryActionsPlugin
     private static List<RestockTargetLimitEditorRow> ParseRestockTargetLimitEditorRows(string raw)
     {
         List<RestockTargetLimitEditorRow> rows = new();
-        foreach (string entry in raw.Replace("\r", "\n").Split(new[] { '\n', ',', ';' }, StringSplitOptions.RemoveEmptyEntries))
+        foreach (string entry in RestockTargetLimitCore.SplitEntries(raw))
         {
-            string trimmed = entry.Trim();
+            string trimmed = RestockTargetLimitCore.StripInlineComment(entry).Trim();
             if (trimmed.Length == 0)
             {
                 continue;
             }
 
-            int commentIndex = trimmed.IndexOf('#');
-            if (commentIndex >= 0)
-            {
-                trimmed = trimmed.Substring(0, commentIndex).Trim();
-            }
-
-            if (trimmed.Length == 0)
-            {
-                continue;
-            }
-
-            int separator = FindRestockTargetLimitEditorSeparator(trimmed);
+            int separator = RestockTargetLimitCore.FindSeparator(trimmed);
             if (separator <= 0)
             {
                 rows.Add(new RestockTargetLimitEditorRow(trimmed, ""));
@@ -92,27 +81,10 @@ public sealed partial class InventoryActionsPlugin
 
             rows.Add(new RestockTargetLimitEditorRow(
                 trimmed.Substring(0, separator).Trim(),
-                FilterUnsignedIntText(trimmed.Substring(separator + 1).Trim())));
+                RestockTargetLimitCore.NormalizeAmountForEditor(trimmed.Substring(separator + 1))));
         }
 
         return rows;
-    }
-
-    private static int FindRestockTargetLimitEditorSeparator(string entry)
-    {
-        int colon = entry.IndexOf(':');
-        int equals = entry.IndexOf('=');
-        if (colon < 0)
-        {
-            return equals;
-        }
-
-        if (equals < 0)
-        {
-            return colon;
-        }
-
-        return Math.Min(colon, equals);
     }
 
     private static string FilterUnsignedIntText(string value)

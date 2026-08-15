@@ -13,7 +13,7 @@ namespace InventoryActions;
 public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
 {
     internal const string ModName = "InventoryActions";
-    internal const string ModVersion = "1.0.6";
+    internal const string ModVersion = "1.0.7";
     internal const string Author = "sighsorry";
     internal const string ModGUID = $"{Author}.{ModName}";
     private const string ExternalMultiUserChestGuid = "com.maxsch.valheim.MultiUserChest";
@@ -67,7 +67,6 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
     private void Awake()
     {
         _instance = this;
-        LocalizationManager.Localizer.OnLocalizationComplete += HandleLocalizationComplete;
         LocalizationManager.Localizer.Load(this);
         BindConfigs();
         _harmony.PatchAll();
@@ -96,17 +95,9 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
 
     private void OnDestroy()
     {
-        LocalizationManager.Localizer.OnLocalizationComplete -= HandleLocalizationComplete;
         CancelAreaContainerTransfer();
         // Keep inventory action patches installed during runtime teardown to avoid item-move logic changing mid-session.
         Config.Save();
     }
 
-    private static void HandleLocalizationComplete()
-    {
-        unchecked
-        {
-            Runtime.UiLocalizationVersion++;
-        }
-    }
 }

@@ -27,7 +27,6 @@ internal sealed class InventoryActionRuntimeState
     public Inventory? TrashPendingInventory;
     public ItemData? TrashPendingItem;
     public int TrashPendingAmount;
-    public int UiLocalizationVersion;
 }
 
 internal sealed class ContainerHoldActionState

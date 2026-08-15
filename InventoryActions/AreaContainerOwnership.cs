@@ -77,8 +77,7 @@ public sealed partial class InventoryActionsPlugin
             return false;
         }
 
-        bool forQuickStack = action == AreaContainerActionKind.QuickStack;
-        List<Container> targets = GetActionContainers(player, anchor, forQuickStack);
+        List<Container> targets = GetActionContainers(player, anchor, action);
         InventoryGui.instance?.SetupDragItem(null, null, 0);
         _areaContainerTransfer = new AreaContainerTransferSession
         {
@@ -370,14 +369,15 @@ public sealed partial class InventoryActionsPlugin
         }
         finally
         {
+            AreaOwnershipHandoff.CompleteExecution();
+            session.PendingIdentity = default;
+            session.PendingGrantToken = 0L;
+
             ClearAreaOwnershipLeaseIfMatching(
                 target,
                 identity,
                 grantToken,
-                ZNet.GetUID());
-            AreaOwnershipHandoff.CompleteExecution();
-            session.PendingIdentity = default;
-            session.PendingGrantToken = 0L;
+                ZNet.instance != null ? ZNet.GetUID() : 0L);
         }
 
         RecordAreaContainerTransfer(session, target, moved);
@@ -424,29 +424,19 @@ public sealed partial class InventoryActionsPlugin
     {
         if (session.Action == AreaContainerActionKind.QuickStack)
         {
-            List<ItemData> candidates = session.PlayerInventory.m_inventory
-                .Where(item => ShouldQuickStackItem(
-                    session.Player,
-                    session.PlayerInventory,
-                    item,
-                    includeHotbar: false))
-                .ToList();
-            candidates.Sort((a, b) => -CompareGridOrder(a.m_gridPos, b.m_gridPos));
+            List<ItemData> candidates = GetQuickStackCandidates(
+                session.Player,
+                session.PlayerInventory);
             return QuickStackItemsIntoContainer(
                 session.PlayerInventory,
                 target.m_inventory,
                 candidates);
         }
 
-        List<ItemData> targets = session.PlayerInventory.m_inventory
-            .Where(item => ShouldTakeStacksTarget(
-                session.Player,
-                session.PlayerInventory,
-                item,
-                includeHotbar: false,
-                RestockMode.AreaFavoriteRestock))
-            .ToList();
-        targets.Sort((a, b) => -CompareGridOrder(a.m_gridPos, b.m_gridPos));
+        List<ItemData> targets = GetRestockTargets(
+            session.Player,
+            session.PlayerInventory,
+            RestockMode.AreaFavoriteRestock);
         return RestockTargetsFromContainer(
             session.PlayerInventory,
             target.m_inventory,
@@ -536,43 +526,64 @@ public sealed partial class InventoryActionsPlugin
         Container? target = session.PendingTarget;
         AreaOwnershipRequestIdentity identity = session.PendingIdentity;
         long grantToken = session.PendingGrantToken;
-        if (target != null && !IsUnityNull(target))
-        {
-            ClearAreaOwnershipLeaseIfMatching(
-                target,
-                identity,
-                grantToken,
-                ZNet.GetUID());
-        }
-
         AreaOwnershipHandoff.Cancel();
         session.PendingTarget = null;
         session.PendingIdentity = default;
         session.PendingGrantToken = 0L;
         session.PendingDecision = AreaOwnershipHandoffDecision.None;
         session.NextTargetIndex++;
+
+        if (target != null && !IsUnityNull(target))
+        {
+            ClearAreaOwnershipLeaseIfMatching(
+                target,
+                identity,
+                grantToken,
+                ZNet.instance != null ? ZNet.GetUID() : 0L);
+        }
     }
 
     private static void CancelAreaContainerTransfer()
     {
         AreaContainerTransferSession? session = _areaContainerTransfer;
-        if (session?.PendingTarget != null)
+        Container? target = session?.PendingTarget;
+        AreaOwnershipRequestIdentity identity = session?.PendingIdentity ?? default;
+        long grantToken = session?.PendingGrantToken ?? 0L;
+        Inventory? changedInventory = session?.PlayerInventoryChanged == true
+            ? session.PlayerInventory
+            : null;
+
+        _areaContainerTransfer = null;
+        AreaOwnershipHandoff.Cancel();
+        if (session != null)
+        {
+            session.PendingTarget = null;
+            session.PendingIdentity = default;
+            session.PendingGrantToken = 0L;
+            session.PendingDecision = AreaOwnershipHandoffDecision.None;
+        }
+
+        if (target != null && !IsUnityNull(target))
         {
             ClearAreaOwnershipLeaseIfMatching(
-                session.PendingTarget,
-                session.PendingIdentity,
-                session.PendingGrantToken,
+                target,
+                identity,
+                grantToken,
                 ZNet.instance != null ? ZNet.GetUID() : 0L);
         }
 
-        AreaOwnershipHandoff.Cancel();
-        if (session?.PlayerInventoryChanged == true &&
-            session.PlayerInventory != null)
+        if (changedInventory != null)
         {
-            session.PlayerInventory.Changed();
+            try
+            {
+                changedInventory.Changed();
+            }
+            catch (Exception exception)
+            {
+                Log.LogWarning(
+                    $"Failed to flush player inventory after cancelling an area transfer: {exception.Message}");
+            }
         }
-
-        _areaContainerTransfer = null;
     }
 
     internal static void RegisterAreaOwnershipRpcs(Container container)
@@ -965,8 +976,8 @@ public sealed partial class InventoryActionsPlugin
             !IsAreaContainerEligible(anchor) ||
             IsContainerInUse(container) ||
             IsContainerInUse(anchor) ||
-            !HasContainerPlayerAccess(player, container, flashGuardStone: false) ||
-            !HasContainerPlayerAccess(player, anchor, flashGuardStone: false))
+            !HasContainerPlayerAccess(player, container) ||
+            !HasContainerPlayerAccess(player, anchor))
         {
             return false;
         }
@@ -1077,36 +1088,44 @@ public sealed partial class InventoryActionsPlugin
         long grantToken,
         long leaseRequesterUid)
     {
-        if (container == null ||
-            IsUnityNull(container) ||
-            leaseRequesterUid == 0L ||
-            container.m_nview == null ||
-            !container.m_nview.IsValid() ||
-            !container.m_nview.IsOwner())
+        try
         {
-            return;
-        }
+            if (container == null ||
+                IsUnityNull(container) ||
+                leaseRequesterUid == 0L ||
+                container.m_nview == null ||
+                !container.m_nview.IsValid() ||
+                !container.m_nview.IsOwner())
+            {
+                return;
+            }
 
-        ZDO? zdo = container.m_nview.GetZDO();
-        if (zdo == null)
-        {
-            return;
-        }
+            ZDO? zdo = container.m_nview.GetZDO();
+            if (zdo == null)
+            {
+                return;
+            }
 
-        long observedToken = zdo.GetLong(AreaOwnershipLeaseTokenKey, 0L);
-        bool identityMatches = identity.RequestId > 0 &&
-                               zdo.m_uid.UserID == identity.ContainerUserId &&
-                               zdo.m_uid.ID == identity.ContainerObjectId &&
-                               zdo.GetLong(
-                                   AreaOwnershipLeaseRequesterKey,
-                                   0L) == leaseRequesterUid &&
-                               zdo.GetInt(AreaOwnershipLeaseRequestIdKey, 0) == identity.RequestId &&
-                               zdo.GetInt(AreaOwnershipLeaseActionKey, 0) == (int)identity.Action;
-        if (observedToken != 0L &&
-            identityMatches &&
-            (grantToken == 0L || observedToken == grantToken))
+            long observedToken = zdo.GetLong(AreaOwnershipLeaseTokenKey, 0L);
+            bool identityMatches = identity.RequestId > 0 &&
+                                   zdo.m_uid.UserID == identity.ContainerUserId &&
+                                   zdo.m_uid.ID == identity.ContainerObjectId &&
+                                   zdo.GetLong(
+                                       AreaOwnershipLeaseRequesterKey,
+                                       0L) == leaseRequesterUid &&
+                                   zdo.GetInt(AreaOwnershipLeaseRequestIdKey, 0) == identity.RequestId &&
+                                   zdo.GetInt(AreaOwnershipLeaseActionKey, 0) == (int)identity.Action;
+            if (observedToken != 0L &&
+                identityMatches &&
+                (grantToken == 0L || observedToken == grantToken))
+            {
+                zdo.Set(AreaOwnershipLeaseTokenKey, 0L);
+            }
+        }
+        catch (Exception exception)
         {
-            zdo.Set(AreaOwnershipLeaseTokenKey, 0L);
+            Log.LogWarning(
+                $"Failed to clear an area ownership lease safely: {exception.Message}");
         }
     }
 

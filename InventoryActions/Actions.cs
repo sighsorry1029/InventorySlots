@@ -167,7 +167,7 @@ public sealed partial class InventoryActionsPlugin
 
     private static int SafeTakeAllItems(Player player, Inventory playerInventory, Inventory containerInventory)
     {
-        List<Vector2i> actionSlots = GetPlayerActionSlots(player, playerInventory, includeHotbar: false, blockFavorites: true);
+        List<Vector2i> actionSlots = GetPlayerActionSlots(player, playerInventory);
         HashSet<Vector2i> allowedSlots = new(actionSlots);
 
         List<ItemData> sourceItems = containerInventory.m_inventory
@@ -217,32 +217,45 @@ public sealed partial class InventoryActionsPlugin
             return;
         }
 
-        List<ItemData> candidates = playerInventory.m_inventory
-            .Where(item => ShouldQuickStackItem(localPlayer, playerInventory, item, includeHotbar: false))
-            .ToList();
-        candidates.Sort((a, b) => -CompareGridOrder(a.m_gridPos, b.m_gridPos));
-
+        List<ItemData> candidates = GetQuickStackCandidates(localPlayer, playerInventory);
         InventoryGui.instance?.SetupDragItem(null, null, 0);
-        int moved = RunCurrentContainerTransfer(
-            container,
-            targetContainer => QuickStackItemsIntoContainer(playerInventory, targetContainer.m_inventory, candidates),
-            () => playerInventory.Changed());
+        int moved = !IsUnityNull(container) && container.m_inventory != null
+            ? QuickStackItemsIntoContainer(playerInventory, container.m_inventory, candidates)
+            : 0;
+        if (moved > 0)
+        {
+            playerInventory.Changed();
+        }
 
         ShowContainerActionResult(localPlayer, "$inventoryactions_action_stack", "Stack", moved);
     }
 
-    private static bool ShouldQuickStackItem(Player player, Inventory inventory, ItemData item, bool includeHotbar)
+    private static bool ShouldQuickStackItem(Player player, Inventory inventory, ItemData item)
     {
         return item?.m_shared != null &&
                item.m_shared.m_maxStackSize > 1 &&
-               IsRegularActionItem(player, inventory, item, includeHotbar) &&
+               IsRegularActionItem(inventory, item) &&
                !IsFavoriteProtected(player, inventory, item) &&
                CanUseContainerActionStacking(item);
     }
 
+    private static List<ItemData> GetQuickStackCandidates(Player player, Inventory playerInventory)
+    {
+        if (player == null || playerInventory == null)
+        {
+            return new List<ItemData>();
+        }
+
+        List<ItemData> candidates = playerInventory.m_inventory
+            .Where(item => ShouldQuickStackItem(player, playerInventory, item))
+            .ToList();
+        candidates.Sort((a, b) => -CompareGridOrder(a.m_gridPos, b.m_gridPos));
+        return candidates;
+    }
+
     private static int QuickStackItemsIntoContainer(Inventory playerInventory, Inventory containerInventory, List<ItemData> candidates)
     {
-        if (containerInventory == null || candidates.Count == 0)
+        if (playerInventory == null || containerInventory == null || candidates.Count == 0)
         {
             return 0;
         }
@@ -285,7 +298,7 @@ public sealed partial class InventoryActionsPlugin
         }
 
         List<ItemData> candidates = playerInventory.m_inventory
-            .Where(item => ShouldStoreAllItem(localPlayer, playerInventory, item, includeHotbar: false, includeEquipped: false))
+            .Where(item => ShouldStoreAllItem(localPlayer, playerInventory, item))
             .ToList();
         candidates.Sort((a, b) => CompareGridOrder(a.m_gridPos, b.m_gridPos));
 
@@ -312,12 +325,12 @@ public sealed partial class InventoryActionsPlugin
 
     }
 
-    private static bool ShouldStoreAllItem(Player player, Inventory inventory, ItemData item, bool includeHotbar, bool includeEquipped)
+    private static bool ShouldStoreAllItem(Player player, Inventory inventory, ItemData item)
     {
         return item?.m_shared != null &&
-               IsRegularActionItem(player, inventory, item, includeHotbar) &&
+               IsRegularActionItem(inventory, item) &&
                !IsFavoriteProtected(player, inventory, item) &&
-               (includeEquipped || !item.m_equipped);
+               !item.m_equipped;
     }
 
     private static void RestockFromCurrentContainer(Player? player)
@@ -353,32 +366,31 @@ public sealed partial class InventoryActionsPlugin
             return;
         }
 
-        List<ItemData> targets = playerInventory.m_inventory
-            .Where(item => ShouldTakeStacksTarget(localPlayer, playerInventory, item, includeHotbar: false, mode))
-            .ToList();
-        targets.Sort((a, b) => -CompareGridOrder(a.m_gridPos, b.m_gridPos));
-
+        List<ItemData> targets = GetRestockTargets(localPlayer, playerInventory, mode);
         InventoryGui.instance?.SetupDragItem(null, null, 0);
-        int movedAmount = RunCurrentContainerTransfer(
-            container,
-            sourceContainer => RestockTargetsFromContainer(playerInventory, sourceContainer.m_inventory, targets, mode),
-            () => playerInventory.Changed());
+        int movedAmount = !IsUnityNull(container) && container.m_inventory != null
+            ? RestockTargetsFromContainer(playerInventory, container.m_inventory, targets, mode)
+            : 0;
+        if (movedAmount > 0)
+        {
+            playerInventory.Changed();
+        }
 
         ShowContainerActionResult(localPlayer, "$inventoryactions_action_take_stacks", "Take stacks", movedAmount);
     }
 
-    private static bool ShouldTakeStacksTarget(Player player, Inventory inventory, ItemData item, bool includeHotbar, RestockMode mode)
+    private static bool ShouldTakeStacksTarget(Player player, Inventory inventory, ItemData item, RestockMode mode)
     {
         return mode == RestockMode.AreaFavoriteRestock
             ? ShouldRestockFavoriteItem(player, inventory, item)
-            : ShouldTakeMatchingStackItem(player, inventory, item, includeHotbar);
+            : ShouldTakeMatchingStackItem(player, inventory, item);
     }
 
     private static bool ShouldRestockFavoriteItem(Player player, Inventory inventory, ItemData item)
     {
         if (item?.m_shared == null ||
-            !CanUseFavoriteRestockTargetCell(inventory, item.m_gridPos) ||
-            !IsFavoriteSlot(player, item.m_gridPos) ||
+            !CanFavoriteCell(inventory, item.m_gridPos) ||
+            !IsFavoriteSlot(player, inventory, item.m_gridPos) ||
             !CanUseContainerActionStacking(item))
         {
             return false;
@@ -388,11 +400,11 @@ public sealed partial class InventoryActionsPlugin
         return item.m_shared.m_maxStackSize > 1 && item.m_stack < targetStack;
     }
 
-    private static bool ShouldTakeMatchingStackItem(Player player, Inventory inventory, ItemData item, bool includeHotbar)
+    private static bool ShouldTakeMatchingStackItem(Player player, Inventory inventory, ItemData item)
     {
         return item?.m_shared != null &&
-               IsRegularActionItem(player, inventory, item, includeHotbar) &&
-               !IsFavoriteSlot(player, item.m_gridPos) &&
+               IsRegularActionItem(inventory, item) &&
+               !IsFavoriteSlot(player, inventory, item.m_gridPos) &&
                CanUseContainerActionStacking(item) &&
                item.m_shared.m_maxStackSize > 1 &&
                item.m_stack < item.m_shared.m_maxStackSize;
@@ -415,7 +427,6 @@ public sealed partial class InventoryActionsPlugin
             yield break;
         }
 
-        yield return GetItemPrefabName(item);
         if (!IsUnityNull(item.m_dropPrefab))
         {
             yield return item.m_dropPrefab.name;
@@ -423,16 +434,29 @@ public sealed partial class InventoryActionsPlugin
 
         string sharedName = item.m_shared?.m_name ?? "";
         yield return sharedName;
-        yield return RestockTargetLimitCore.StripLocalizationToken(sharedName);
         if (Localization.instance != null && !string.IsNullOrWhiteSpace(sharedName))
         {
             yield return Localization.instance.Localize(sharedName);
         }
     }
 
+    private static List<ItemData> GetRestockTargets(Player player, Inventory playerInventory, RestockMode mode)
+    {
+        if (player == null || playerInventory == null)
+        {
+            return new List<ItemData>();
+        }
+
+        List<ItemData> targets = playerInventory.m_inventory
+            .Where(item => ShouldTakeStacksTarget(player, playerInventory, item, mode))
+            .ToList();
+        targets.Sort((a, b) => -CompareGridOrder(a.m_gridPos, b.m_gridPos));
+        return targets;
+    }
+
     private static int RestockTargetsFromContainer(Inventory playerInventory, Inventory containerInventory, List<ItemData> targets, RestockMode mode)
     {
-        if (containerInventory == null || targets.Count == 0)
+        if (playerInventory == null || containerInventory == null || targets.Count == 0)
         {
             return 0;
         }
@@ -517,7 +541,7 @@ public sealed partial class InventoryActionsPlugin
             return 0;
         }
 
-        List<Vector2i> allowedSlots = GetAllInventorySlots(container.m_inventory);
+        List<Vector2i> allowedSlots = GetInventorySlotsTopFirst(container.m_inventory).ToList();
         return SortInventoryInternal(container.m_inventory, allowedSlots, item => item?.m_shared != null);
     }
 
@@ -534,7 +558,7 @@ public sealed partial class InventoryActionsPlugin
             return;
         }
 
-        List<Vector2i> allowedSlots = GetPlayerActionSlots(player, inventory, includeHotbar: false, blockFavorites: true);
+        List<Vector2i> allowedSlots = GetPlayerActionSlots(player, inventory);
         HashSet<Vector2i> allowedSet = new(allowedSlots);
         InventoryGui.instance?.SetupDragItem(null, null, 0);
         SortInventoryInternal(inventory, allowedSlots, item => item?.m_shared != null && allowedSet.Contains(item.m_gridPos) && !IsFavoriteProtected(player, inventory, item));
@@ -665,39 +689,21 @@ public sealed partial class InventoryActionsPlugin
         };
     }
 
-    private static List<Vector2i> GetPlayerActionSlots(Player player, Inventory inventory, bool includeHotbar, bool blockFavorites = false)
+    private static List<Vector2i> GetPlayerActionSlots(Player player, Inventory inventory)
     {
         List<Vector2i> slots = new();
         int rows = Math.Min(VanillaPlayerRows, inventory.GetHeight());
-        EnsureFavoritesLoaded(player);
-        for (int y = 0; y < rows; y++)
+        for (int y = 1; y < rows; y++)
         {
             for (int x = 0; x < inventory.GetWidth(); x++)
             {
                 Vector2i pos = new(x, y);
-                if (blockFavorites && Runtime.FavoriteSlots.Contains(pos))
+                if (IsFavoriteSlot(player, inventory, pos))
                 {
                     continue;
                 }
 
-                if (IsPlayerActionCell(inventory, pos, includeHotbar))
-                {
-                    slots.Add(pos);
-                }
-            }
-        }
-
-        return slots;
-    }
-
-    private static List<Vector2i> GetAllInventorySlots(Inventory inventory)
-    {
-        List<Vector2i> slots = new();
-        for (int y = 0; y < inventory.GetHeight(); y++)
-        {
-            for (int x = 0; x < inventory.GetWidth(); x++)
-            {
-                slots.Add(new Vector2i(x, y));
+                slots.Add(pos);
             }
         }
 
@@ -754,26 +760,23 @@ public sealed partial class InventoryActionsPlugin
             player,
             Runtime.AreaQuickStackHold,
             IsContainerQuickStackShortcutHeld() && !IsContainerRestockShortcutHeld(),
-            TryGetHoverQuickStackContext,
-            TryQuickStackFromHoveredContainer);
+            AreaContainerActionKind.QuickStack);
 
         HandleContainerHoldHotkey(
             player,
             Runtime.AreaRestockHold,
             IsContainerRestockShortcutHeld(),
-            TryGetHoverRestockContext,
-            TryRestockFromHoveredContainer);
+            AreaContainerActionKind.Restock);
     }
 
     private static void HandleContainerHoldHotkey(
         Player player,
         ContainerHoldActionState hold,
         bool shortcutHeld,
-        Func<Player, Container?> getContext,
-        Func<Player, Container, bool> executeAction)
+        AreaContainerActionKind action)
     {
-        Container? container = shortcutHeld ? getContext(player) : null;
-        if (container == null)
+        Container? container = shortcutHeld ? GetHoveredContainer(player) : null;
+        if (container == null || !CanHandleContainerAction(player, container, action))
         {
             ResetContainerHold(hold);
             return;
@@ -791,14 +794,23 @@ public sealed partial class InventoryActionsPlugin
             return;
         }
 
-        if (executeAction(player, container))
+        Inventory? playerInventory = GetPlayerInventory(player);
+        if (playerInventory == null || !CanHandleContainerAction(player, container, action))
         {
-            hold.Triggered = true;
+            ResetContainerHold(hold);
+            return;
+        }
+
+        if (action == AreaContainerActionKind.QuickStack)
+        {
+            QuickStackIntoContainers(player, playerInventory, container, includeArea: true);
         }
         else
         {
-            ResetContainerHold(hold);
+            RestockFromContainer(player, playerInventory, container, RestockMode.AreaFavoriteRestock);
         }
+
+        hold.Triggered = true;
     }
 
     private static void ResetContainerHold(ContainerHoldActionState hold)
@@ -806,70 +818,6 @@ public sealed partial class InventoryActionsPlugin
         hold.Container = null;
         hold.StartTime = -1f;
         hold.Triggered = false;
-    }
-
-    private static Container? TryGetHoverQuickStackContext(Player player)
-    {
-        Container? hovered = GetHoveredContainer(player);
-        if (hovered == null ||
-            player.m_isLoading ||
-            hovered.m_inventory == null ||
-            !CanHandleContainerAction(
-                player,
-                hovered,
-                AreaContainerActionKind.QuickStack))
-        {
-            return null;
-        }
-
-        return hovered;
-    }
-
-    private static Container? TryGetHoverRestockContext(Player player)
-    {
-        Container? hovered = GetHoveredContainer(player);
-        if (hovered == null ||
-            !CanHandleContainerAction(
-                player,
-                hovered,
-                AreaContainerActionKind.Restock))
-        {
-            return null;
-        }
-
-        return hovered;
-    }
-
-    private static bool TryQuickStackFromHoveredContainer(Player player, Container container)
-    {
-        Inventory? playerInventory = GetPlayerInventory(player);
-        if (playerInventory == null ||
-            !CanHandleContainerAction(
-                player,
-                container,
-                AreaContainerActionKind.QuickStack))
-        {
-            return false;
-        }
-
-        QuickStackIntoContainers(player, playerInventory, container, includeArea: true);
-        return true;
-    }
-
-    private static bool TryRestockFromHoveredContainer(Player player, Container container)
-    {
-        Inventory? playerInventory = GetPlayerInventory(player);
-        if (playerInventory == null ||
-            !CanHandleContainerAction(
-                player,
-                container,
-                AreaContainerActionKind.Restock))
-        {
-            return false;
-        }
-
-        RestockFromContainer(player, playerInventory, container, RestockMode.AreaFavoriteRestock);
-        return true;
     }
 
     private static Container? GetHoveredContainer(Player player)
@@ -942,24 +890,6 @@ public sealed partial class InventoryActionsPlugin
         }
     }
 
-    private static int RunCurrentContainerTransfer(
-        Container container,
-        Func<Container, int> transfer,
-        Action onMoved)
-    {
-        if (container == null || transfer == null)
-        {
-            return 0;
-        }
-
-        return ContainerTransferCore.Run(
-            new[] { container },
-            target => !IsUnityNull(target) && target.m_inventory != null,
-            transfer,
-            onContainerMoved: null,
-            onAnyMoved: onMoved);
-    }
-
     private static bool IsContainerQuickStackShortcutHeld() =>
         ZInput.GetButton("Use") || ZInput.GetButton("JoyUse");
 
@@ -971,13 +901,10 @@ public sealed partial class InventoryActionsPlugin
     private static string GetContainerRestockKeyDisplayText() =>
         _containerRestockKey != null ? GetShortcutDisplayText(_containerRestockKey.Value) : "";
 
-    private static List<Container> GetActionContainers(Player player, Container currentContainer, bool areaForQuickStack)
+    private static List<Container> GetActionContainers(Player player, Container currentContainer, AreaContainerActionKind action)
     {
         List<Container> containers = new();
         HashSet<Container> seen = new();
-        AreaContainerActionKind action = areaForQuickStack
-            ? AreaContainerActionKind.QuickStack
-            : AreaContainerActionKind.Restock;
         if (currentContainer != null &&
             CanUseAreaContainerNow(
                 player,
@@ -990,7 +917,7 @@ public sealed partial class InventoryActionsPlugin
             containers.Add(currentContainer);
         }
 
-        float range = areaForQuickStack ? _areaQuickStackRange.Value : _areaRestockRange.Value;
+        float range = GetAreaContainerRange(action);
         if (range <= 0f || currentContainer == null || IsUnityNull(currentContainer))
         {
             return containers;
@@ -1117,7 +1044,7 @@ public sealed partial class InventoryActionsPlugin
             !container.m_nview.IsValid() ||
             !container.m_nview.HasOwner() ||
             container.m_nview.IsOwner() ||
-            !HasContainerPlayerAccess(player, container, flashGuardStone: false) ||
+            !HasContainerPlayerAccess(player, container) ||
             !IsExternalMultiUserChestTransferContainer(container))
         {
             return false;
@@ -1148,14 +1075,14 @@ public sealed partial class InventoryActionsPlugin
                     StringComparison.Ordinal));
     }
 
-    private static bool HasContainerPlayerAccess(Player player, Container container, bool flashGuardStone)
+    private static bool HasContainerPlayerAccess(Player player, Container container)
     {
         if (player == null || container == null)
         {
             return false;
         }
 
-        if (container.m_checkGuardStone && !PrivateArea.CheckAccess(container.transform.position, 0f, flashGuardStone, false))
+        if (container.m_checkGuardStone && !PrivateArea.CheckAccess(container.transform.position, 0f, false, false))
         {
             return false;
         }
@@ -1505,11 +1432,6 @@ public sealed partial class InventoryActionsPlugin
                string.Equals(left.m_shared.m_name, right.m_shared.m_name, StringComparison.OrdinalIgnoreCase) &&
                left.m_quality == right.m_quality &&
                (float)left.m_worldLevel == (float)right.m_worldLevel;
-    }
-
-    private static string GetItemPrefabName(ItemData item)
-    {
-        return RestockTargetLimitCore.CleanPrefabNameForLookup(item?.m_dropPrefab != null ? item.m_dropPrefab.name : "");
     }
 
     private static int CountMovedFromContainerSource(Inventory sourceInventory, ItemData sourceItem, int before, int requestedAmount, bool moveSucceeded)

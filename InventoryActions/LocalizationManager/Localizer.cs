@@ -18,8 +18,6 @@ internal static class Localizer
     private static BaseUnityPlugin? _plugin;
     private static bool _loaded;
 
-    public static event Action? OnLocalizationComplete;
-
     public static void Load(BaseUnityPlugin plugin)
     {
         _plugin = plugin;
@@ -88,7 +86,6 @@ internal static class Localizer
             localization.AddWord(translation.Key, translation.Value);
         }
 
-        OnLocalizationComplete?.Invoke();
     }
 
     private static Dictionary<string, string> LoadLanguageDictionary(string language)
