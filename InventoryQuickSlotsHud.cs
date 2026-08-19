@@ -251,6 +251,7 @@ public sealed partial class InventorySlotsPlugin
         element.m_selection?.SetActive(false);
         element.m_equiped?.SetActive(false);
         element.m_queued?.SetActive(false);
+        TryApplyEpicLootMagicItemBackground(element.m_go, element.m_equiped, item, inventoryGrid: false);
 
         if (item == null)
         {

@@ -19,6 +19,7 @@ public sealed partial class InventorySlotsPlugin
         InitializeBackpackCompatibility();
         InitializeMagicSupremacyCompatibility();
         InitializeHipLanternCompatibility();
+        InitializeEpicLootCompatibility();
         InitializeYamlSync();
 
         _harmony.PatchAll();
@@ -117,6 +118,7 @@ public sealed partial class InventorySlotsPlugin
 
     private void OnDestroy()
     {
+        ShutdownEpicLootCompatibility();
         ShutdownMultiUserContainerRuntime();
         ShutdownContainerPreview();
         LocalizationManager.Localizer.OnLocalizationComplete -= HandleLocalizationComplete;

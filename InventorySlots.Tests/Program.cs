@@ -102,6 +102,9 @@ TestRunner.Run(
     ("Simple tooltip owner ignores stale hide", Tests.SimpleTooltipOwnerIgnoresStaleHide),
     ("Hover source VNEI uses owned renderer and crafting alpha", Tests.HoverSourceVneiUsesOwnedRendererAndCraftingAlpha),
     ("Hover source owned crafting only suppresses EpicLoot layout", Tests.HoverSourceOwnedCraftingOnlySuppressesEpicLootLayout),
+    ("EpicLoot public API lifecycle uses exact v1 contracts", Tests.EpicLootPublicApiLifecycleUsesExactV1Contracts),
+    ("EpicLoot sacrifice and effect refresh fail safely", Tests.EpicLootSacrificeAndEffectRefreshFailSafely),
+    ("EpicLoot query and HUD fallback stay authoritative", Tests.EpicLootQueryAndHudFallbackStayAuthoritative),
     ("Crafting hover wheel follows recipe-cell ownership", Tests.CraftingHoverWheelFollowsRecipeCellOwnership),
     ("Crafting tooltip wheel blocks only underlying crafting scroll rects", Tests.CraftingTooltipWheelBlocksOnlyUnderlyingCraftingScrollRects),
     ("Tooltip source cache prunes matching entries", Tests.TooltipSourceCachePrunesMatchingEntries),
@@ -2236,6 +2239,202 @@ internal static class Tests
         Assert.False(HoverTooltipSourceCore.SuppressesVanillaHoverStart(kind), "owned crafting HUD tooltips should keep vanilla hover-start rendering");
         Assert.False(HoverTooltipSourceCore.SuppressesVanillaLateUpdate(kind), "owned crafting HUD tooltips should keep vanilla late-update rendering");
         Assert.True(HoverTooltipSourceCore.SuppressesEpicLootTooltipLayout(kind), "owned crafting tooltips should still suppress EpicLoot layout artifacts");
+    }
+
+    public static void EpicLootPublicApiLifecycleUsesExactV1Contracts()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string compatSource = File.ReadAllText(Path.Combine(repositoryRoot, "EpicLootCompat.cs"));
+        string lifecycleSource = File.ReadAllText(Path.Combine(repositoryRoot, "PluginLifecycle.cs"));
+        string resolution = ReadSourceSection(
+            compatSource,
+            "private static bool TryGetEpicLootPublicApi",
+            "private sealed class EpicLootPublicApi");
+        string apiContract = ReadSourceSection(
+            compatSource,
+            "private sealed class EpicLootPublicApi",
+            "private static void ScheduleEpicLootRespawnRuntimeReload");
+
+        Assert.True(
+            resolution.Contains("pluginInfo.Instance.GetType().Assembly.GetType(\"EpicLoot.API\")", StringComparison.Ordinal) &&
+            resolution.Contains("\"GetApiVersion\"", StringComparison.Ordinal) &&
+            resolution.Contains("BindingFlags.Public | BindingFlags.Static", StringComparison.Ordinal) &&
+            resolution.Contains("Type.EmptyTypes", StringComparison.Ordinal) &&
+            resolution.Contains("getApiVersion.ReturnType != typeof(int)", StringComparison.Ordinal) &&
+            resolution.Contains("apiVersion < 1", StringComparison.Ordinal),
+            "the public bridge must resolve API v1 from the installed EpicLoot plugin assembly with the exact GetApiVersion contract");
+        Assert.False(
+            compatSource.Contains("RegisterEquipmentProvider", StringComparison.Ordinal) ||
+            compatSource.Contains("EpicLoot.PlayerExtensions:GetEquipment", StringComparison.Ordinal),
+            "InventorySlots must not add an equipment provider or revive EpicLoot's deprecated GetEquipment patch path");
+
+        string[] exactDelegateContracts =
+        [
+            "Func<string, Func<ItemData, bool>, bool>? RegisterSacrificeFilter",
+            "Func<string, bool>? UnregisterSacrificeFilter",
+            "Action<Player>? InvalidatePlayerEffectCache",
+            "Func<GameObject, GameObject, ItemData?, bool, bool>? ApplyMagicItemBackground",
+            "Func<ItemData, bool>? IsShardStone",
+            "Func<ItemData, bool>? IsMagicCraftingMaterial"
+        ];
+        foreach (string contract in exactDelegateContracts)
+        {
+            Assert.True(apiContract.Contains(contract, StringComparison.Ordinal), $"missing exact EpicLoot API delegate contract: {contract}");
+        }
+
+        Assert.True(
+            apiContract.Contains("apiType.GetMethod(", StringComparison.Ordinal) &&
+            apiContract.Contains("BindingFlags.Public | BindingFlags.Static", StringComparison.Ordinal) &&
+            apiContract.Contains("parameterTypes", StringComparison.Ordinal) &&
+            apiContract.Contains("method?.ReturnType == returnType", StringComparison.Ordinal) &&
+            apiContract.Contains("Delegate.CreateDelegate(delegateType, method)", StringComparison.Ordinal),
+            "every optional endpoint must bind by exact parameter and return types rather than method name alone");
+
+        string initialize = ReadSourceSection(
+            compatSource,
+            "private static void InitializeEpicLootCompatibility",
+            "private static void ShutdownEpicLootCompatibility");
+        int rootCallback = initialize.IndexOf("_epicLootSacrificeFilter ??= CanSacrificeEpicLootItem;", StringComparison.Ordinal);
+        int register = initialize.IndexOf("api.RegisterSacrificeFilter(ModGUID, _epicLootSacrificeFilter)", StringComparison.Ordinal);
+        Assert.True(
+            compatSource.Contains("private static Func<ItemData, bool>? _epicLootSacrificeFilter;", StringComparison.Ordinal) &&
+            rootCallback >= 0 && register > rootCallback,
+            "the callback must remain strongly rooted for the complete registration lifetime");
+
+        string shutdown = ReadSourceSection(
+            compatSource,
+            "private static void ShutdownEpicLootCompatibility",
+            "private static bool CanSacrificeEpicLootItem");
+        int deactivate = shutdown.IndexOf("_epicLootSacrificeFilterRegistered = false;", StringComparison.Ordinal);
+        int unregister = shutdown.IndexOf("api.UnregisterSacrificeFilter(ModGUID)", StringComparison.Ordinal);
+        Assert.True(
+            deactivate >= 0 && unregister > deactivate,
+            "shutdown must make the callback inactive before the best-effort external unregistration call");
+        Assert.True(
+            lifecycleSource.Contains("InitializeEpicLootCompatibility();", StringComparison.Ordinal) &&
+            lifecycleSource.Contains("ShutdownEpicLootCompatibility();", StringComparison.Ordinal),
+            "plugin startup and destruction must own the EpicLoot registration lifecycle");
+    }
+
+    public static void EpicLootSacrificeAndEffectRefreshFailSafely()
+    {
+        string source = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "EpicLootCompat.cs"));
+        string callback = ReadSourceSection(
+            source,
+            "private static bool CanSacrificeEpicLootItem",
+            "private static void ResetEpicLootEquipmentEffectCache");
+        int inactiveGuard = callback.IndexOf("if (!_epicLootSacrificeFilterRegistered)", StringComparison.Ordinal);
+        int disabledGuard = callback.IndexOf("if (_epicLootSacrificeFilterCallbackDisabled)", StringComparison.Ordinal);
+        int inspectItem = callback.IndexOf("Player? player = Player.m_localPlayer;", StringComparison.Ordinal);
+        Assert.True(
+            inactiveGuard >= 0 && disabledGuard > inactiveGuard && inspectItem > disabledGuard &&
+            callback.Contains("return true;", StringComparison.Ordinal),
+            "a callback retained after shutdown must be an inactive no-op, while a faulted active callback remains fail-closed");
+        Assert.True(
+            callback.Contains("slot?.Kind != SlotKind.Quick", StringComparison.Ordinal) &&
+            callback.Contains("ReferenceEquals(inventory.GetItemAt(item.m_gridPos.x, item.m_gridPos.y), item)", StringComparison.Ordinal),
+            "only the exact live item reference in a quick slot may be vetoed; repeated grid coordinates from other inventories must remain eligible");
+
+        int catchStart = callback.LastIndexOf("catch (Exception ex)", StringComparison.Ordinal);
+        Assert.True(catchStart >= 0, "the EpicLoot sacrifice callback must contain a bounded failure path");
+        string callbackFailure = callback.Substring(catchStart);
+        Assert.True(
+            callbackFailure.Contains("_epicLootSacrificeFilterCallbackDisabled = true;", StringComparison.Ordinal) &&
+            callbackFailure.Contains("failed closed", StringComparison.Ordinal) &&
+            callbackFailure.Contains("return false;", StringComparison.Ordinal),
+            "an unexpected active callback failure must veto the item and disable later unsafe evaluations");
+
+        string refresh = ReadSourceSection(
+            source,
+            "private static void ResetEpicLootEquipmentEffectCache",
+            "private static void TryApplyEpicLootMagicItemBackground");
+        int publicInvalidate = refresh.IndexOf("api.InvalidatePlayerEffectCache(player);", StringComparison.Ordinal);
+        int legacyResolve = refresh.IndexOf("ResolveEpicLootEquipmentEffectCacheResetMethod();", StringComparison.Ordinal);
+        Assert.True(
+            publicInvalidate >= 0 && legacyResolve > publicInvalidate &&
+            refresh.Contains("_epicLootPublicCacheInvalidationDisabled", StringComparison.Ordinal) &&
+            refresh.Contains("_epicLootEquipmentEffectCacheResetMethod.Invoke", StringComparison.Ordinal),
+            "effect refresh must prefer EpicLoot API v1, then retain the existing legacy cache reset only as a bounded fallback");
+        string publicRefreshPath = refresh.Substring(publicInvalidate, legacyResolve - publicInvalidate);
+        Assert.True(
+            publicRefreshPath.Contains("return;", StringComparison.Ordinal) &&
+            publicRefreshPath.Contains("_epicLootPublicCacheInvalidationDisabled = true;", StringComparison.Ordinal),
+            "a successful public refresh must not double-reset, while a thrown endpoint must be disabled before the legacy fallback");
+    }
+
+    public static void EpicLootQueryAndHudFallbackStayAuthoritative()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string compatSource = File.ReadAllText(Path.Combine(repositoryRoot, "EpicLootCompat.cs"));
+        string query = ReadSourceSection(
+            compatSource,
+            "private static bool TryIsEpicLootStackableMaterialByApi",
+            "private static bool TryGetEpicLootPublicApi");
+        Assert.True(
+            query.Contains("api.IsShardStone(item)", StringComparison.Ordinal) &&
+            query.Contains("api.IsMagicCraftingMaterial(item)", StringComparison.Ordinal) &&
+            query.Contains("result = shardStone || craftingMaterial;", StringComparison.Ordinal) &&
+            query.Contains("return true;", StringComparison.Ordinal),
+            "an available API result, including false, must be authoritative for EpicLoot shard stones and crafting materials");
+        Assert.False(
+            query.Contains("IsRunestone", StringComparison.Ordinal),
+            "effect-bearing runestones must not be opted into automatic stacking through a classification-only API");
+        int queryCatch = query.LastIndexOf("catch (Exception ex)", StringComparison.Ordinal);
+        string queryFailure = queryCatch < 0 ? "" : query.Substring(queryCatch);
+        Assert.True(
+            queryFailure.Contains("_epicLootStackableMaterialQueryDisabled = true;", StringComparison.Ordinal) &&
+            queryFailure.Contains("result = false;", StringComparison.Ordinal) &&
+            queryFailure.Contains("return false;", StringComparison.Ordinal),
+            "only an unavailable or failed API query may hand control to the name/ammo-type fallback");
+
+        string containerSource = File.ReadAllText(Path.Combine(repositoryRoot, "ContainerActions.cs"));
+        string materialPolicy = ReadSourceSection(
+            containerSource,
+            "private static bool IsEpicLootStackableMaterial",
+            "private static bool IsEpicLootStackableMaterialToken");
+        int apiQuery = materialPolicy.IndexOf("TryIsEpicLootStackableMaterialByApi(item, out bool isStackableMaterial)", StringComparison.Ordinal);
+        int legacyToken = materialPolicy.IndexOf("string prefabName = GetItemPrefabName(item);", StringComparison.Ordinal);
+        Assert.True(
+            apiQuery >= 0 && legacyToken > apiQuery &&
+            materialPolicy.Contains("return isStackableMaterial;", StringComparison.Ordinal) &&
+            materialPolicy.Contains("m_ammoType", StringComparison.Ordinal) &&
+            materialPolicy.Contains("EndsWith(\"ShardStone\", StringComparison.Ordinal)", StringComparison.Ordinal),
+            "the caller must respect API false and reach the shard ammo-type fallback only when the API helper reports no answer");
+
+        string hudSource = File.ReadAllText(Path.Combine(repositoryRoot, "InventoryQuickSlotsHud.cs"));
+        string updateElement = ReadSourceSection(
+            hudSource,
+            "private static void UpdateQuickSlotsHotkeyBarElement",
+            "private static void ConfigureQuickHudElementLayout");
+        int applyBackground = updateElement.IndexOf("TryApplyEpicLootMagicItemBackground", StringComparison.Ordinal);
+        int emptyBranch = updateElement.IndexOf("if (item == null)", StringComparison.Ordinal);
+        Assert.True(
+            applyBackground >= 0 && emptyBranch > applyBackground &&
+            CountSourceOccurrences(updateElement, "TryApplyEpicLootMagicItemBackground") == 1 &&
+            updateElement.Contains("element.m_go, element.m_equiped, item, inventoryGrid: false", StringComparison.Ordinal),
+            "the custom quick HUD must use one common item/null API call before branching so empty slots clear stale EpicLoot backgrounds");
+
+        string backgroundHelper = ReadSourceSection(
+            compatSource,
+            "private static void TryApplyEpicLootMagicItemBackground",
+            "private static bool TryIsEpicLootStackableMaterialByApi");
+        Assert.True(
+            backgroundHelper.Contains("ItemData? item", StringComparison.Ordinal) &&
+            backgroundHelper.Contains("api.ApplyMagicItemBackground(slotRoot, equippedOverlay, item, inventoryGrid)", StringComparison.Ordinal) &&
+            backgroundHelper.Contains("_epicLootMagicItemBackgroundDisabled = true;", StringComparison.Ordinal),
+            "the HUD bridge must forward nullable items and permanently bound repeated exceptions");
+
+        string sortSource = File.ReadAllText(Path.Combine(repositoryRoot, "ContainerSort.cs"));
+        string manualMerge = ReadSourceSection(
+            sortSource,
+            "private static bool MergeSortableStacks",
+            "private static List<Vector2i> GetAllInventorySlots");
+        Assert.True(
+            manualMerge.Contains("CanUseStackMetadataAutomaticStacking(item)", StringComparison.Ordinal) &&
+            !manualMerge.Contains("CanUseContainerActionStacking(item)", StringComparison.Ordinal) &&
+            manualMerge.Contains("HasCompatibleStackMetadata(group[0], item)", StringComparison.Ordinal) &&
+            manualMerge.Contains("MergeStackMetadata(target, source);", StringComparison.Ordinal),
+            "manual Sort merging must be limited to metadata owned by InventorySlots; external custom-data items remain sortable but defer all stack merging to their own mod");
     }
 
     public static void CraftingHoverWheelFollowsRecipeCellOwnership()

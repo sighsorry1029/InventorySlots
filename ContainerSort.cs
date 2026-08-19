@@ -272,15 +272,18 @@ public sealed partial class InventorySlotsPlugin
     {
         bool changed = false;
         List<List<ItemData>> grouped = new();
+        // Sort merges stacks directly, so it may only merge metadata governed by InventorySlots.
+        // External custom-data mods must keep authority over their own stack compatibility and merge.
         foreach (ItemData item in toMerge.Where(item =>
                      item?.m_shared != null &&
                      item.m_stack > 0 &&
                      item.m_stack < item.m_shared.m_maxStackSize &&
-                     CanUseContainerActionStacking(item)))
+                     CanUseStackMetadataAutomaticStacking(item)))
         {
             List<ItemData>? matchingGroup = grouped.FirstOrDefault(group =>
                 group.Count > 0 &&
-                CanShareInventoryStack(group[0], item));
+                CanShareInventoryStack(group[0], item) &&
+                HasCompatibleStackMetadata(group[0], item));
             if (matchingGroup == null)
             {
                 matchingGroup = new List<ItemData>();

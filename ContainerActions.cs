@@ -287,6 +287,11 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
+        if (TryIsEpicLootStackableMaterialByApi(item, out bool isStackableMaterial))
+        {
+            return isStackableMaterial;
+        }
+
         string prefabName = GetItemPrefabName(item);
         if (IsEpicLootStackableMaterialToken(prefabName))
         {
@@ -298,7 +303,8 @@ public sealed partial class InventorySlotsPlugin
             return true;
         }
 
-        return IsEpicLootStackableMaterialToken(item.m_shared.m_name ?? "");
+        return IsEpicLootStackableMaterialToken(item.m_shared.m_name ?? "") ||
+               (item.m_shared.m_ammoType ?? "").EndsWith("ShardStone", StringComparison.Ordinal);
     }
 
     private static bool IsEpicLootStackableMaterialToken(string token)

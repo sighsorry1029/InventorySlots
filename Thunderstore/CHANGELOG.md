@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.10
+
+- Added EpicLoot 0.13 public-API compatibility. Items in InventorySlots quick slots are excluded from EpicLoot's Sacrifice tab, custom quick-slot HUD cells show and clear EpicLoot rarity backgrounds, and custom-equipment changes refresh EpicLoot effects and worn visuals through its supported cache endpoint. EpicLoot remains optional, with the existing compatibility paths retained for older versions.
+- Updated Quick Stack, Restock, Take All, and related container actions to recognize EpicLoot ShardStones and magic crafting materials through the public API. Effect-bearing Runestones remain excluded from automatic stacking.
+- Hardened Sort so it combines only stacks whose metadata InventorySlots governs and has confirmed compatible. Items with unregistered third-party custom data are still repositioned but remain separate, preventing per-item effects or other metadata from being collapsed.
+- Fixed the Restock Target Limits editor so negative amounts retain their runtime meaning and normalize to `0` instead of being rewritten as positive values; runtime parsing and editor normalization now share the same entry rules.
+
 ## 1.3.9
 
 - Fixed Jewelcrafting socket limits becoming stale while the Socket tab remained open. Socket recipes now adopt the rebuilt state after each attempt and revalidate the exact recipe and item both when crafting starts and immediately before completion, preventing table-level and maximum-socket limits from being bypassed.
