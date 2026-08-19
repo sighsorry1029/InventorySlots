@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.3.10
+## 1.4.0
 
 - Added EpicLoot 0.13 public-API compatibility. Items in InventorySlots quick slots are excluded from EpicLoot's Sacrifice tab, custom quick-slot HUD cells show and clear EpicLoot rarity backgrounds, and custom-equipment changes refresh EpicLoot effects and worn visuals through its supported cache endpoint. EpicLoot remains optional, with the existing compatibility paths retained for older versions.
 - Updated Quick Stack, Restock, Take All, and related container actions to recognize EpicLoot ShardStones and magic crafting materials through the public API. Effect-bearing Runestones remain excluded from automatic stacking.
