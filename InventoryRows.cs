@@ -25,6 +25,46 @@ public sealed partial class InventorySlotsPlugin
         return slotCount <= 0 ? 0 : Mathf.CeilToInt(slotCount / (float)QuickSlotPanelColumns);
     }
 
+    internal static int CaptureRegularRowsBeforeKnownItem(Player player, ItemDrop.ItemData? item)
+    {
+        if (IsUnityNull(player) ||
+            player != Player.m_localPlayer ||
+            player.m_isLoading ||
+            !UseExpandableInventoryRows() ||
+            item?.m_shared == null)
+        {
+            return -1;
+        }
+
+        string sharedName = item.m_shared.m_name;
+        if (string.IsNullOrWhiteSpace(sharedName) || player.m_knownMaterial.Contains(sharedName))
+        {
+            return -1;
+        }
+
+        return GetUsableRegularRows(player);
+    }
+
+    internal static void RevealRegularRowsAfterKnownItem(Player player, int previousRows)
+    {
+        if (previousRows < BaseRows ||
+            IsUnityNull(player) ||
+            player != Player.m_localPlayer ||
+            player.m_isLoading ||
+            !UseExpandableInventoryRows())
+        {
+            return;
+        }
+
+        int currentRows = GetUsableRegularRows(player);
+        if (currentRows <= previousRows || GetInventoryViewportRows(currentRows) >= currentRows)
+        {
+            return;
+        }
+
+        SetExpandableInventoryRows(currentRows, currentRows);
+    }
+
     private static int GetInventoryViewportRows(int totalRegularRows)
     {
         int unlockedRows = Mathf.Clamp(totalRegularRows, BaseRows, BaseRows + MaxSupportedExtraRows);

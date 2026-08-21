@@ -56,6 +56,7 @@ TestRunner.Run(
     ("Quickslot reset policy skips rows that cannot be reduced", Tests.QuickslotResetPolicySkipsRowsThatCannotBeReduced),
     ("Quickslot load preservation does not authorize reset", Tests.QuickslotLoadPreservationDoesNotAuthorizeReset),
     ("Progressive inventory row recovery waits for item lookup", Tests.ProgressiveInventoryRowRecoveryWaitsForItemLookup),
+    ("Newly unlocked inventory rows reveal once", Tests.NewlyUnlockedInventoryRowsRevealOnce),
     ("Keep-on-death preparation and restoration retain every unconfirmed item", Tests.KeepOnDeathPreparationAndRestorationRetainEveryUnconfirmedItem),
     ("Keep-on-death finalizer directly preserves every remaining item", Tests.KeepOnDeathFinalizerDirectlyPreservesEveryRemainingItem),
     ("Slot auto-equip suppression remains balanced when scopes nest", Tests.SlotAutoEquipSuppressionRemainsBalancedWhenScopesNest),
@@ -1368,6 +1369,48 @@ internal static class Tests
             recoveryPolicy.IndexOf("IsLegacyExtraSlotsItem", StringComparison.Ordinal) <
             recoveryPolicy.IndexOf("IsRegularRowProgressionLookupReady", StringComparison.Ordinal),
             "lookup readiness must gate only RegularLocked recovery, not out-of-grid or legacy item recovery");
+    }
+
+    public static void NewlyUnlockedInventoryRowsRevealOnce()
+    {
+        string lifecycleSource = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "InventoryLifecyclePatches.cs"));
+        string rowsSource = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "InventoryRows.cs"));
+        string addKnownItemPatch = ReadSourceSection(
+            lifecycleSource,
+            "internal static class PlayerAddKnownItemInventorySlotsPatch",
+            "internal static class HumanoidSetupEquipmentValidateInventoryPatch");
+        string capture = ReadSourceSection(
+            rowsSource,
+            "internal static int CaptureRegularRowsBeforeKnownItem",
+            "internal static void RevealRegularRowsAfterKnownItem");
+        string reveal = ReadSourceSection(
+            rowsSource,
+            "internal static void RevealRegularRowsAfterKnownItem",
+            "private static int GetInventoryViewportRows");
+
+        Assert.True(
+            addKnownItemPatch.Contains("out int __state", StringComparison.Ordinal) &&
+            addKnownItemPatch.Contains("CaptureRegularRowsBeforeKnownItem(__instance, item)", StringComparison.Ordinal) &&
+            addKnownItemPatch.Contains("[HarmonyPriority(Priority.Last)]", StringComparison.Ordinal) &&
+            addKnownItemPatch.Contains("RevealRegularRowsAfterKnownItem(__instance, __state)", StringComparison.Ordinal),
+            "AddKnownItem must carry the pre-discovery row count into a final post-discovery reveal check");
+        Assert.True(
+            addKnownItemPatch.Contains("ShouldSuppressKnownItemRediscovery", StringComparison.Ordinal) &&
+            addKnownItemPatch.IndexOf("ShouldSuppressKnownItemRediscovery", StringComparison.Ordinal) <
+            addKnownItemPatch.IndexOf("CaptureRegularRowsBeforeKnownItem", StringComparison.Ordinal),
+            "suppressed rediscovery must not capture or reveal inventory rows");
+        Assert.True(
+            capture.Contains("player != Player.m_localPlayer", StringComparison.Ordinal) &&
+            capture.Contains("player.m_isLoading", StringComparison.Ordinal) &&
+            capture.Contains("!UseExpandableInventoryRows()", StringComparison.Ordinal) &&
+            capture.Contains("player.m_knownMaterial.Contains(sharedName)", StringComparison.Ordinal),
+            "row reveal capture must be limited to a new local known item outside loading in expandable mode");
+        Assert.True(
+            reveal.Contains("previousRows < BaseRows", StringComparison.Ordinal) &&
+            reveal.Contains("currentRows <= previousRows", StringComparison.Ordinal) &&
+            reveal.Contains("GetInventoryViewportRows(currentRows) >= currentRows", StringComparison.Ordinal) &&
+            reveal.Contains("SetExpandableInventoryRows(currentRows, currentRows)", StringComparison.Ordinal),
+            "row reveal must require a real unlock, preserve an already larger remembered viewport, and expand only to the new total");
     }
 
     public static void KeepOnDeathPreparationAndRestorationRetainEveryUnconfirmedItem()

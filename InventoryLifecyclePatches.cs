@@ -94,9 +94,19 @@ internal static class PlayerInventoryChangedPatch
 internal static class PlayerAddKnownItemInventorySlotsPatch
 {
     [HarmonyPriority(Priority.First)]
-    private static bool Prefix(Player __instance)
+    private static bool Prefix(Player __instance, ItemData item, out int __state)
     {
-        return !InventorySlotsPlugin.ShouldSuppressKnownItemRediscovery(__instance);
+        bool allow = !InventorySlotsPlugin.ShouldSuppressKnownItemRediscovery(__instance);
+        __state = allow
+            ? InventorySlotsPlugin.CaptureRegularRowsBeforeKnownItem(__instance, item)
+            : -1;
+        return allow;
+    }
+
+    [HarmonyPriority(Priority.Last)]
+    private static void Postfix(Player __instance, int __state)
+    {
+        InventorySlotsPlugin.RevealRegularRowsAfterKnownItem(__instance, __state);
     }
 }
 
