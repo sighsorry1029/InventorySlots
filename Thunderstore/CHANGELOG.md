@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.1
+
+- Updated Expandable inventory rows to reveal newly unlocked progressive rows once when the local player first discovers a configured unlock item. The added space becomes immediately visible, while character loading and later rediscovery leave the locally remembered row count unchanged.
+
 ## 1.4.0
 
 - Added EpicLoot 0.13 public-API compatibility. Items in InventorySlots quick slots are excluded from EpicLoot's Sacrifice tab, custom quick-slot HUD cells show and clear EpicLoot rarity backgrounds, and custom-equipment changes refresh EpicLoot effects and worn visuals through its supported cache endpoint. EpicLoot remains optional, with the existing compatibility paths retained for older versions.
