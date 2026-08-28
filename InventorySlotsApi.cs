@@ -7,9 +7,6 @@ namespace InventorySlots;
 
 public static class InventorySlotsApi
 {
-    public const string BeingSpoiledExpiryWorldTicksKey =
-        StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey;
-
     /// <summary>
     /// Registers a custom-data field whose differing values do not prevent two
     /// otherwise identical stacks from merging. The callback receives the current
@@ -19,14 +16,26 @@ public static class InventorySlotsApi
     /// side-effect free. It must also preserve any state encoded by the destination
     /// value and use a shared clock when comparing time-based formats, except when
     /// the owning format requires an already-final state to take precedence.
-    /// Registrations are first-wins and keys remain case-sensitive. The built-in
-    /// BeingSpoiled fallback is replaceable once by BeingSpoiled's authoritative
-    /// callback, making either plugin load order safe.
+    /// Registrations are first-wins and keys remain case-sensitive.
     /// </summary>
     public static bool RegisterStackMetadataPolicy(
         string key,
         Func<string?, string?, string?> mergeValues) =>
         StackMetadataPolicy.Register(key, mergeValues);
+
+    /// <summary>
+    /// Registers a custom-data merge policy with an additional compatibility
+    /// check. <paramref name="canMerge"/> receives the raw values from the two
+    /// candidate stacks (either may be null). InventorySlots checks it in both
+    /// argument orders and treats an exception or either false result as
+    /// incompatible. The callback must therefore be side-effect free.
+    /// Registrations are first-wins and keys remain case-sensitive.
+    /// </summary>
+    public static bool RegisterStackMetadataPolicy(
+        string key,
+        Func<string?, string?, string?> mergeValues,
+        Func<string?, string?, bool> canMerge) =>
+        StackMetadataPolicy.Register(key, mergeValues, canMerge);
 
     public static bool TryGetCustomEquippedItem(Player player, Func<ItemData?, bool> predicate, out ItemData? item) =>
         InventorySlotsPlugin.TryGetCustomEquippedItemForApi(player, predicate, out item);

@@ -56,56 +56,11 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        bool applied;
-        switch (pending.Request.Operation)
-        {
-            case MultiUserContainerOperation.Add:
-                applied = TryApplyMultiUserContainerAdd(
-                    projected,
-                    pending.Request.Item,
-                    pending.Request.Amount,
-                    pending.Request.TargetPosition,
-                    pending.Request.ExpectedTargetStack);
-                break;
-            case MultiUserContainerOperation.Remove:
-                applied = TryApplyMultiUserContainerRemove(
-                    projected,
-                    pending.Request.Item,
-                    pending.Request.Amount,
-                    pending.Request.SourcePosition,
-                    out _);
-                break;
-            case MultiUserContainerOperation.Move:
-                applied = TryApplyMultiUserContainerMove(
-                    projected,
-                    pending.Request.Item,
-                    pending.Request.Amount,
-                    pending.Request.SourcePosition,
-                    pending.Request.TargetPosition,
-                    pending.Request.ExpectedTargetStack);
-                break;
-            case MultiUserContainerOperation.Exchange:
-                applied = TryApplyMultiUserContainerExchange(
-                    projected,
-                    pending.Request.Item,
-                    pending.Request.CounterpartItem!,
-                    pending.Request.SourcePosition,
-                    out _);
-                break;
-            case MultiUserContainerOperation.Swap:
-                applied = TryApplyMultiUserContainerSwap(
-                    projected,
-                    pending.Request.Item,
-                    pending.Request.CounterpartItem!,
-                    pending.Request.SourcePosition,
-                    pending.Request.TargetPosition);
-                break;
-            default:
-                applied = false;
-                break;
-        }
-
-        if (!applied)
+        if (!TryApplyMultiUserContainerRequestToInventory(
+                projected,
+                pending.Request,
+                out _,
+                out _))
         {
             return false;
         }

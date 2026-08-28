@@ -210,61 +210,29 @@ internal sealed class RectTransformSnapshot
 
 internal sealed class MovedPlayerStatPanel
 {
-    private readonly Transform _parent;
-    private readonly int _siblingIndex;
-    private readonly Vector2 _anchorMin;
-    private readonly Vector2 _anchorMax;
-    private readonly Vector2 _pivot;
-    private readonly Vector2 _sizeDelta;
-    private readonly Vector2 _anchoredPosition;
-    private readonly Vector2 _offsetMin;
-    private readonly Vector2 _offsetMax;
-    private readonly Vector3 _localPosition;
-    private readonly Quaternion _localRotation;
-    private readonly Vector3 _localScale;
+    private readonly Transform _originalParent;
+    private readonly RectTransformSnapshot _snapshot;
 
     public MovedPlayerStatPanel(PlayerStatPanelKind kind, RectTransform rect, int sortOrder)
     {
         Kind = kind;
         SortOrder = sortOrder;
-        Rect = rect;
-        _parent = rect.parent;
-        _siblingIndex = rect.GetSiblingIndex();
-        _anchorMin = rect.anchorMin;
-        _anchorMax = rect.anchorMax;
-        _pivot = rect.pivot;
-        _sizeDelta = rect.sizeDelta;
-        _anchoredPosition = rect.anchoredPosition;
-        _offsetMin = rect.offsetMin;
-        _offsetMax = rect.offsetMax;
-        _localPosition = rect.localPosition;
-        _localRotation = rect.localRotation;
-        _localScale = rect.localScale;
+        _originalParent = rect.parent;
+        _snapshot = new RectTransformSnapshot(rect);
     }
 
     public PlayerStatPanelKind Kind { get; set; }
     public int SortOrder { get; set; }
-    public RectTransform Rect { get; }
+    public RectTransform Rect => _snapshot.Rect;
 
     public void Restore()
     {
-        if (Rect == null || _parent == null)
+        if (_originalParent == null)
         {
             return;
         }
 
-        Rect.SetParent(_parent, false);
-        Rect.SetSiblingIndex(Mathf.Clamp(_siblingIndex, 0, _parent.childCount - 1));
-        Rect.anchorMin = _anchorMin;
-        Rect.anchorMax = _anchorMax;
-        Rect.pivot = _pivot;
-        Rect.sizeDelta = _sizeDelta;
-        Rect.anchoredPosition = _anchoredPosition;
-        Rect.offsetMin = _offsetMin;
-        Rect.offsetMax = _offsetMax;
-        Rect.localPosition = _localPosition;
-        Rect.localRotation = _localRotation;
-        Rect.localScale = _localScale;
+        _snapshot.Restore();
     }
 }
 

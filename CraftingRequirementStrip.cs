@@ -119,6 +119,96 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
+    private static void ConfigureCompactCraftingRequirement(InventoryGui gui, RectTransform rect, Requirement requirement, int quality, int craftMultiplier)
+    {
+        CraftingRequirementUiMarker marker = GetCraftingRequirementUiMarker(rect);
+        HideCraftingRequirementSlotBackground(marker);
+        string layoutSignature = $"{CraftingRecipeGridCellSize:0.###}";
+        bool updateLayout = !string.Equals(marker.LayoutSignature, layoutSignature, StringComparison.Ordinal);
+        bool veiledMasked = IsVeiledRecipeMasked(gui.m_selectedRecipe);
+        bool requirementKnown = !veiledMasked || IsVeiledRecipeRequirementKnown(requirement);
+
+        if (marker.Name != null && !IsUnityNull(marker.Name))
+        {
+            marker.Name.gameObject.SetActive(false);
+        }
+
+        if (marker.Icon != null && !IsUnityNull(marker.Icon))
+        {
+            RectTransform icon = marker.Icon;
+            icon.gameObject.SetActive(true);
+            if (updateLayout)
+            {
+                icon.anchorMin = new Vector2(0f, 1f);
+                icon.anchorMax = new Vector2(0f, 1f);
+                icon.pivot = new Vector2(0f, 1f);
+                const float iconSize = 44f;
+                icon.anchoredPosition = new Vector2((CraftingRecipeGridCellSize - iconSize) * 0.5f, -(CraftingRecipeGridCellSize - iconSize) * 0.5f);
+                icon.sizeDelta = new Vector2(iconSize, iconSize);
+                icon.localScale = Vector3.one;
+            }
+
+            if (marker.IconImage != null && !IsUnityNull(marker.IconImage))
+            {
+                marker.IconImage.sprite = requirement.m_resItem.m_itemData.GetIcon();
+                marker.IconImage.color = requirementKnown ? Color.white : Color.black;
+                marker.IconImage.raycastTarget = false;
+            }
+
+            ConfigureSimpleTooltip(icon.gameObject, "", enabled: false);
+        }
+
+        if (marker.Amount != null && !IsUnityNull(marker.Amount))
+        {
+            RectTransform amount = marker.Amount;
+            amount.gameObject.SetActive(true);
+            if (updateLayout)
+            {
+                amount.anchorMin = new Vector2(0.5f, 0f);
+                amount.anchorMax = new Vector2(0.5f, 0f);
+                amount.pivot = new Vector2(0.5f, 0f);
+                amount.anchoredPosition = new Vector2(0f, 4f);
+                amount.sizeDelta = new Vector2(CraftingRecipeGridCellSize - 4f, 20f);
+                amount.localScale = Vector3.one;
+            }
+
+            if (marker.AmountText != null && !IsUnityNull(marker.AmountText))
+            {
+                TMP_Text text = marker.AmountText;
+                int required = Mathf.Max(0, requirement.GetAmount(quality) * Mathf.Max(1, craftMultiplier));
+                int available = requirementKnown ? GetAvailableCraftingRequirementAmount(requirement) : 0;
+                bool noCost = HasNoCraftCost();
+                bool availableEnough = requirementKnown && (noCost || available >= required);
+                string label = requirementKnown ? FormatCompactRequirementAmount(available, required) : GetVeiledRecipeUnknownRequirementText();
+                Color color = requirementKnown ? GetCompactRequirementAmountColor(availableEnough) : Color.white;
+                string amountSignature = $"{label}|{color}";
+                if (!string.Equals(marker.AmountSignature, amountSignature, StringComparison.Ordinal) ||
+                    !RequirementAmountTextMatches(text, label, color))
+                {
+                    ApplyDefaultFontAsset(text);
+                    text.text = label;
+                    text.color = color;
+                    marker.AmountSignature = amountSignature;
+                }
+
+                if (updateLayout)
+                {
+                    text.alignment = TextAlignmentOptions.Bottom;
+                    text.enableAutoSizing = true;
+                    text.fontSizeMin = 10f;
+                    text.fontSizeMax = 16f;
+                    text.textWrappingMode = TextWrappingModes.NoWrap;
+                    text.overflowMode = TextOverflowModes.Overflow;
+                }
+            }
+        }
+
+        RectTransform hitbox = EnsureCraftingRequirementHitbox(rect, marker);
+        DisableCompetingCraftingRequirementTooltips(rect, hitbox, marker);
+        ConfigureCraftingRequirementTooltip(gui, hitbox.gameObject, requirement, quality, craftMultiplier);
+        marker.LayoutSignature = layoutSignature;
+    }
+
     private static string FormatCompactRequirementAmount(int available, int required)
     {
         return $"{available}/{required}";

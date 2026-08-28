@@ -11,18 +11,23 @@ internal sealed class InventorySlotsFavoriteSlot
 
 internal sealed class InventorySlotsClientState
 {
-    public int Version { get; set; } = 1;
     public InventorySlotsClientInventoryState Inventory { get; set; } = new();
     public Dictionary<string, InventorySlotsClientPlayerState> Players { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 internal sealed class InventorySlotsClientInventoryState
 {
-    public int LastExpandableRows { get; set; } = 4;
-    public InventorySlotsClientPanelPosition EquipmentSlotsPanelPosition { get; set; } = new(-80f, 0f);
-    public InventorySlotsClientPanelPosition QuickSlotsPanelPosition { get; set; } = new(-80f, -552f);
-    public InventorySlotsClientPanelPosition QuickSlotsHudPosition { get; set; } = new(64f, -520f);
-    public float QuickSlotsHudElementSpace { get; set; } = 70f;
+    public int LastExpandableRows { get; set; } = ClientStateCore.DefaultLastExpandableRows;
+    public InventorySlotsClientPanelPosition EquipmentSlotsPanelPosition { get; set; } = new(
+        ClientStateCore.DefaultEquipmentSlotsPanelX,
+        ClientStateCore.DefaultEquipmentSlotsPanelY);
+    public InventorySlotsClientPanelPosition QuickSlotsPanelPosition { get; set; } = new(
+        ClientStateCore.DefaultQuickSlotsPanelX,
+        ClientStateCore.DefaultQuickSlotsPanelY);
+    public InventorySlotsClientPanelPosition QuickSlotsHudPosition { get; set; } = new(
+        ClientStateCore.DefaultQuickSlotsHudX,
+        ClientStateCore.DefaultQuickSlotsHudY);
+    public float QuickSlotsHudElementSpace { get; set; } = ClientStateCore.DefaultQuickSlotsHudElementSpace;
 }
 
 internal sealed class InventorySlotsClientPanelPosition

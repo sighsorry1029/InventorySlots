@@ -72,7 +72,9 @@ public sealed partial class InventorySlotsPlugin
                 result = FindTopFirstEmptySlot(inventory);
                 return false;
             case InventoryPlacementScope.LoadPreservation:
-                result = FindTopFirstRegularLoadPreservationSlot(inventory);
+                result = TryFindFreeRegularLoadPreservationCell(inventory, out Vector2i preservationPos)
+                    ? preservationPos
+                    : new Vector2i(-1, -1);
                 return false;
             case InventoryPlacementScope.LocalPlayer:
                 result = TryFindFreeAutomaticPlacementCell(
@@ -131,20 +133,23 @@ public sealed partial class InventorySlotsPlugin
         ItemData? sourceItem = GetCurrentInventoryAddItemDataStackLookupItem();
         if (sourceItem != null)
         {
-            if (IsTrustedCustomDataStackingItem(sourceItem))
-            {
-                return true;
-            }
-
-            if (!CanUseStackMetadataAutomaticStacking(sourceItem))
+            if (!IsTrustedCustomDataStackingItem(sourceItem) &&
+                !CanUseStackMetadataAutomaticStacking(sourceItem))
             {
                 return false;
             }
         }
 
+        bool trustedSource =
+            sourceItem != null && IsTrustedCustomDataStackingItem(sourceItem);
         ItemData? best = null;
         foreach (ItemData item in inventory.m_inventory)
         {
+            if (!CanUseAutomaticStackDestination(inventory, item, sourceItem))
+            {
+                continue;
+            }
+
             if (!CanStackIntoItem(
                     item,
                     sourceItem,
@@ -153,6 +158,15 @@ public sealed partial class InventorySlotsPlugin
                     worldLevel))
             {
                 continue;
+            }
+
+            if (trustedSource)
+            {
+                // Jewelcrafting/EpicLoot use inventory insertion order when
+                // selecting their trusted merge target. Preserve that order
+                // while still excluding locked or removed player cells.
+                best = item;
+                break;
             }
 
             if (best == null ||
@@ -167,14 +181,22 @@ public sealed partial class InventorySlotsPlugin
         return false;
     }
 
-    private static Vector2i FindTopFirstRegularLoadPreservationSlot(Inventory inventory)
+    private static bool CanUseAutomaticStackDestination(
+        Inventory inventory,
+        ItemData? existing,
+        ItemData? incoming)
     {
-        if (TryFindFreeRegularLoadPreservationCell(inventory, out Vector2i pos))
+        if (existing == null ||
+            !TryGetLocalPlayerInventory(inventory, out Player? player))
         {
-            return pos;
+            return existing != null;
         }
 
-        return new Vector2i(-1, -1);
+        return CanUseCell(
+            player!,
+            inventory,
+            incoming ?? existing,
+            existing.m_gridPos);
     }
 
     private static bool TryFindFreeRegularLoadPreservationCell(Inventory inventory, out Vector2i pos)
@@ -228,8 +250,7 @@ public sealed partial class InventorySlotsPlugin
         return item?.m_shared != null &&
                (source == null
                    ? (item.m_customData == null || item.m_customData.Count == 0)
-                   : CanUseStackMetadataAutomaticStacking(item) &&
-                     HasCompatibleStackMetadata(item, source)) &&
+                   : CanShareInventoryStack(item, source)) &&
                item.m_shared.m_name == name &&
                item.m_quality == quality &&
                item.m_stack < item.m_shared.m_maxStackSize &&
@@ -256,7 +277,7 @@ public sealed partial class InventorySlotsPlugin
         switch (scope)
         {
             case InventoryPlacementScope.Container:
-                result = CountAllEmptyCells(inventory);
+                result = CountAllEmptyCells(inventory, BuildOccupiedCellSet(inventory));
                 return false;
             case InventoryPlacementScope.LoadPreservation:
                 result = CountRegularLoadPreservationEmptyCells(inventory);
@@ -268,9 +289,6 @@ public sealed partial class InventorySlotsPlugin
                 return true;
         }
     }
-
-    private static int CountAllEmptyCells(Inventory inventory) =>
-        CountAllEmptyCells(inventory, BuildOccupiedCellSet(inventory));
 
     private static int CountAllEmptyCells(Inventory inventory, HashSet<Vector2i> occupied) =>
         InventoryPlacementPolicyCore.CountTopFirstPolicyEmptyCells(
@@ -384,13 +402,17 @@ public sealed partial class InventorySlotsPlugin
             return true;
         }
 
-        if (CanAutoPlaceItemInSpecialSlot(player, inventory, item))
+        bool emptySpecialSlotAvailable =
+            CanAutoPlaceItemInSpecialSlot(player, inventory, item);
+        bool craftingNonStackItem =
+            maxStack <= 1 && IsCraftingInventoryLimitNoticeActive();
+        if (emptySpecialSlotAvailable && !craftingNonStackItem)
         {
             capacity += maxStack;
         }
 
         bool canAdd = capacity >= requestedStack;
-        if (!canAdd)
+        if (!canAdd && !(craftingNonStackItem && emptySpecialSlotAvailable))
         {
             CacheCanAddItemFailure(player, inventory, item, requestedStack);
         }
@@ -618,7 +640,10 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
-    private static HashSet<Vector2i> BuildOccupiedCellSet(Inventory inventory)
+    private static HashSet<Vector2i> BuildOccupiedCellSet(Inventory inventory) =>
+        BuildOccupiedCellSet(inventory, excluded: null);
+
+    private static HashSet<Vector2i> BuildOccupiedCellSet(Inventory inventory, ItemData? excluded)
     {
         HashSet<Vector2i> occupied = new();
         if (inventory?.m_inventory == null)
@@ -628,7 +653,7 @@ public sealed partial class InventorySlotsPlugin
 
         foreach (ItemData item in inventory.m_inventory)
         {
-            if (item != null)
+            if (item != null && item != excluded)
             {
                 occupied.Add(item.m_gridPos);
             }
@@ -681,6 +706,11 @@ public sealed partial class InventorySlotsPlugin
         int capacity = 0;
         foreach (ItemData existing in inventory.m_inventory)
         {
+            if (!CanUseAutomaticStackDestination(inventory, existing, item))
+            {
+                continue;
+            }
+
             if (!CanStackIncomingItemInto(existing, item))
             {
                 continue;
@@ -752,18 +782,13 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        EnsureInventoryHeightForLoad(inventory);
-        if (target.y >= inventory.GetHeight())
-        {
-            inventory.m_height = target.y + 1;
-        }
-
+        HashSet<Vector2i> occupied = BuildOccupiedCellSet(inventory, item);
         if (InventorySlotSafetyCore.TrySelectLoadPreservationTailCell(
                 inventory.GetWidth(),
                 inventory.GetHeight(),
                 GetFixedRegularRows(),
                 new InventorySlotSafetyCore.GridCell(target.x, target.y),
-                (x, y) => IsInventoryCellOccupiedByOtherItem(inventory, item, x, y),
+                (x, y) => IsCellOccupied(occupied, x, y),
                 out InventorySlotSafetyCore.GridCell selected))
         {
             target = new Vector2i(selected.X, selected.Y);
@@ -801,19 +826,6 @@ public sealed partial class InventorySlotsPlugin
         return true;
     }
 
-    private static bool IsInventoryCellOccupiedByOtherItem(Inventory inventory, ItemData item, int x, int y)
-    {
-        foreach (ItemData other in inventory.m_inventory)
-        {
-            if (other != null && other != item && other.m_gridPos.x == x && other.m_gridPos.y == y)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     internal static bool TryValidatePlayerInventoryInsert(Inventory inventory, ItemData item, ref Vector2i pos, ref bool result)
     {
         return TryValidatePlayerInventoryInsert(inventory, item, ref pos, ref result, preserveLoadedTailItem: true);
@@ -839,6 +851,21 @@ public sealed partial class InventorySlotsPlugin
         if (!TryGetLocalPlayerInventory(inventory, out Player? player))
         {
             return true;
+        }
+
+        if (TryValidateEquipmentSlotUpgradeReplacementInsert(
+                inventory,
+                player!,
+                item,
+                pos,
+                out bool allowUpgradeReplacement))
+        {
+            if (!allowUpgradeReplacement)
+            {
+                result = false;
+            }
+
+            return allowUpgradeReplacement;
         }
 
         if (CanUseCell(player!, inventory, item, pos))
@@ -884,6 +911,168 @@ public sealed partial class InventorySlotsPlugin
         x = pos.x;
         y = pos.y;
         return runOriginal;
+    }
+
+    private static bool TryHandleProtectedInventoryGridSwap(
+        Player player,
+        Inventory playerInventory,
+        Inventory targetInventory,
+        Inventory fromInventory,
+        ItemData item,
+        int amount,
+        Vector2i targetPos,
+        out bool result)
+    {
+        result = false;
+        if (playerInventory == null ||
+            targetInventory == null ||
+            fromInventory != playerInventory ||
+            !fromInventory.ContainsItem(item))
+        {
+            return false;
+        }
+
+        InventoryCellKind sourceKind = GetInventoryCellKind(player, fromInventory, item.m_gridPos);
+        if (sourceKind is not InventoryCellKind.Quick and not InventoryCellKind.RegularLocked)
+        {
+            return false;
+        }
+
+        ItemData? displaced = targetInventory.GetItemAt(targetPos.x, targetPos.y);
+        if (displaced != null &&
+            (item.m_shared == null || displaced.m_shared == null))
+        {
+            return true;
+        }
+
+        if (!UsesVanillaFullStackSwap(item, displaced, amount))
+        {
+            return false;
+        }
+
+        Vector2i sourcePos = item.m_gridPos;
+        Vector2i displacedDestination;
+        if (CanUseCell(player, fromInventory, displaced!, sourcePos) &&
+            CellContainsOnly(fromInventory, sourcePos, item))
+        {
+            displacedDestination = sourcePos;
+        }
+        else if (!TryFindSafeInsertCell(
+                     player,
+                     fromInventory,
+                     displaced!,
+                     out displacedDestination))
+        {
+            return true;
+        }
+
+        if (!CellContainsOnly(targetInventory, targetPos, displaced!))
+        {
+            return true;
+        }
+
+        bool sameInventory = ReferenceEquals(fromInventory, targetInventory);
+        try
+        {
+            // Commit both ownership legs before invoking Changed or compatibility
+            // callbacks. Vanilla removes the dragged source first and ignores both
+            // move results, allowing a Changed callback to consume the fallback and
+            // orphan the source item. Raw exact-reference transfer has no observable
+            // half-committed callback boundary.
+            if (!sameInventory)
+            {
+                if (!ContainsExactItemReference(fromInventory, item) ||
+                    !ContainsExactItemReference(targetInventory, displaced!))
+                {
+                    return true;
+                }
+
+                fromInventory.m_inventory.RemoveAll(candidate =>
+                    ReferenceEquals(candidate, item));
+                targetInventory.m_inventory.RemoveAll(candidate =>
+                    ReferenceEquals(candidate, displaced));
+                fromInventory.m_inventory.Add(displaced!);
+                targetInventory.m_inventory.Add(item);
+            }
+
+            item.m_gridPos = targetPos;
+            displaced!.m_gridPos = displacedDestination;
+            result = true;
+        }
+        catch (Exception exception)
+        {
+            Log.LogError(
+                $"Protected inventory swap could not commit ownership: {exception}");
+            return true;
+        }
+
+        try
+        {
+            if (((Humanoid)player).IsItemEquiped(item) ||
+                IsInventorySlotsCustomEquipped(item))
+            {
+                UnequipInventorySlotsItem(player, item);
+            }
+
+            if (ReferenceEquals(targetInventory, playerInventory))
+            {
+                OnPlayerInventoryItemPlaced(
+                    targetInventory,
+                    item,
+                    targetPos,
+                    result: true);
+            }
+
+            OnPlayerInventoryItemPlaced(
+                fromInventory,
+                displaced!,
+                displacedDestination,
+                result: true);
+        }
+        catch (Exception exception)
+        {
+            // Ownership and positions are already complete. Compatibility failures
+            // are repaired by the requested integrity audit instead of rolling back
+            // across external callbacks and risking deletion of a reentrant item.
+            Log.LogWarning(
+                $"Protected inventory swap equipment refresh failed: {exception.Message}");
+            RequestInventoryStateEnsure(
+                player,
+                InventoryStateEnsureReason.InventoryChanged,
+                InventoryStateAuditLevel.FullIntegrity);
+        }
+
+        try
+        {
+            fromInventory.Changed();
+            if (!sameInventory)
+            {
+                targetInventory.Changed();
+            }
+        }
+        catch (Exception exception)
+        {
+            Log.LogWarning(
+                $"Protected inventory swap notification failed after ownership committed: {exception.Message}");
+            RequestInventoryStateEnsure(
+                player,
+                InventoryStateEnsureReason.InventoryChanged,
+                InventoryStateAuditLevel.FullIntegrity);
+        }
+
+        return true;
+    }
+
+    private static bool UsesVanillaFullStackSwap(ItemData item, ItemData? displaced, int amount)
+    {
+        if (displaced == null || displaced == item || item.m_stack != amount)
+        {
+            return false;
+        }
+
+        return displaced.m_shared.m_name != item.m_shared.m_name ||
+               item.m_shared.m_maxQuality > 1 && displaced.m_quality != item.m_quality ||
+               displaced.m_shared.m_maxStackSize == 1;
     }
 
     internal static void OnPlayerInventoryItemPlaced(Inventory inventory, ItemData item, Vector2i pos, bool result)

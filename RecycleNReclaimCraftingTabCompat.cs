@@ -192,13 +192,13 @@ public sealed partial class InventorySlotsPlugin
         if (gui.m_craftButton != null && updateLayout)
         {
             RectTransform craftRect = (RectTransform)gui.m_craftButton.transform;
-            SetCraftingTopLeftRect(gui.m_crafting, craftRect, craftPosition, craftButtonSize);
+            SetTopLeftRectLayout(gui.m_crafting, craftRect, craftPosition, craftButtonSize);
             SetActionButtonTextAutoSize(gui.m_craftButton);
         }
 
         if (gui.m_craftProgressPanel is RectTransform progressRect && updateLayout)
         {
-            SetCraftingTopLeftRect(gui.m_crafting, progressRect, craftPosition, craftButtonSize);
+            SetTopLeftRectLayout(gui.m_crafting, progressRect, craftPosition, craftButtonSize);
             gui.m_craftProgressBar?.SetWidth(craftButtonSize.x);
         }
 
@@ -247,7 +247,7 @@ public sealed partial class InventorySlotsPlugin
         string signature = $"{gui.m_crafting.GetInstanceID()}|{grid.GetInstanceID()}|{position.x:0.###}|{position.y:0.###}|{size.x:0.###}|{size.y:0.###}|{text}";
         if (!string.Equals(_recycleNReclaimHudSignature, signature, StringComparison.Ordinal))
         {
-            SetCraftingTopLeftRect(gui.m_crafting, hud, position, size);
+            SetTopLeftRectLayout(gui.m_crafting, hud, position, size);
             ConfigureRecycleNReclaimHudText(_recycleNReclaimHudText, text);
             _recycleNReclaimHudSignature = signature;
         }
@@ -362,7 +362,7 @@ public sealed partial class InventorySlotsPlugin
                 rect.gameObject.SetActive(true);
                 int column = RecycleNReclaimYieldColumn + i;
                 Vector2 position = GetCraftingGridCellPosition(grid, column, CraftingBottomControlRow) + CraftingBottomControlsFixedOffset;
-                SetCraftingTopLeftRect(gui.m_crafting, rect, position, new Vector2(CraftingRecipeGridCellSize, CraftingRecipeGridCellSize));
+                SetTopLeftRectLayout(gui.m_crafting, rect, position, new Vector2(CraftingRecipeGridCellSize, CraftingRecipeGridCellSize));
 
                 ConfigureRecycleNReclaimYieldIcon(rect, yield);
             }

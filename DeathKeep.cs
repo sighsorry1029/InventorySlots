@@ -485,12 +485,13 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool CanRestoreKeepOnDeathItemToSlot(Player player, Inventory inventory, ItemData item, SlotDefinition slot)
     {
-        if (slot == null || !CanUseKeepOnDeathSpecialSlot(player, inventory, item, slot))
+        if (slot == null ||
+            !CanUseKeepOnDeathSpecialSlot(player, inventory, item, slot) ||
+            !TryGetSlotGridPos(inventory, slot, out Vector2i target))
         {
             return false;
         }
 
-        Vector2i target = GetSlotGridPos(inventory, slot);
         return !IsOutOfBounds(inventory, target) &&
                inventory.GetItemAt(target.x, target.y) == null &&
                CanRestoreKeepOnDeathItemAtCell(player, inventory, item, target, expectedSlotId: slot.Id);
@@ -503,7 +504,11 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        Vector2i target = GetSlotGridPos(inventory, slot);
+        if (!TryGetSlotGridPos(inventory, slot, out Vector2i target))
+        {
+            return false;
+        }
+
         item.m_gridPos = target;
         inventory.m_inventory.Add(item);
         RestoreKeepOnDeathSlotState(player, inventory, item, slot);
@@ -535,8 +540,9 @@ public sealed partial class InventorySlotsPlugin
                 continue;
             }
 
-            Vector2i target = GetSlotGridPos(inventory, slot);
-            if (IsOutOfBounds(inventory, target) || inventory.GetItemAt(target.x, target.y) != null)
+            if (!TryGetSlotGridPos(inventory, slot, out Vector2i target) ||
+                IsOutOfBounds(inventory, target) ||
+                inventory.GetItemAt(target.x, target.y) != null)
             {
                 continue;
             }

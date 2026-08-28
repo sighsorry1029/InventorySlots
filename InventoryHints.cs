@@ -30,13 +30,10 @@ public sealed partial class InventorySlotsPlugin
     private static void UpdateHotbarSwitchHud()
     {
         GameObject? hudRoot = Hud.instance != null ? Hud.instance.m_rootObject : null;
-        string keyText = GetHotbarSwitchKeyDisplayText();
-        bool visible = _showHotbarSwitchHint != null && _showHotbarSwitchHint.Value.IsOn() &&
-                       !string.IsNullOrWhiteSpace(keyText) &&
-                       hudRoot != null;
-        if (!visible)
+        if (hudRoot == null)
         {
             SetHintActive(TooltipUi.HotbarSwitchHudHint, false);
+            SetHintActive(TooltipUi.FeatureGuideHudHint, false);
             return;
         }
 
@@ -45,28 +42,164 @@ public sealed partial class InventorySlotsPlugin
         if (parent == null)
         {
             SetHintActive(TooltipUi.HotbarSwitchHudHint, false);
-            return;
-        }
-
-        TooltipUi.HotbarSwitchHudHint = EnsureInventoryHintLabel(parent, "InventorySlots_HotbarSwitchHudHint", ref TooltipUi.HotbarSwitchHudHintText);
-        if (TooltipUi.HotbarSwitchHudHint == null || TooltipUi.HotbarSwitchHudHintText == null)
-        {
+            SetHintActive(TooltipUi.FeatureGuideHudHint, false);
             return;
         }
 
         float elementSpace = hotKeyBarTransform != null ? GetHudElementSpace() : 70f;
-        float size = HotbarSwitchHintSize;
-        TooltipUi.HotbarSwitchHudHint.pivot = new Vector2(0f, 0.5f);
         Vector3 hotbarOrigin = hotKeyBarTransform != null ? hotKeyBarTransform.localPosition : Vector3.zero;
-        TooltipUi.HotbarSwitchHudHint.localPosition = hotbarOrigin + new Vector3(InventoryWidth * elementSpace + 10f, 0f, 0f) + (Vector3)HotbarSwitchHintOffset;
-        TooltipUi.HotbarSwitchHudHint.sizeDelta = new Vector2(Mathf.Max(size * 2.25f, 58f), Mathf.Max(size * 1.6f, 38f));
-        TooltipUi.HotbarSwitchHudHintText.text = LocalizeUi("$inventoryslots_hotbar_switch_hint", "Switch\n[{key}]")
-            .Replace("{key}", keyText);
-        TooltipUi.HotbarSwitchHudHintText.fontSize = HotbarSwitchHintFontSize;
-        TooltipUi.HotbarSwitchHudHintText.lineSpacing = -10f;
-        TooltipUi.HotbarSwitchHudHintText.overflowMode = TextOverflowModes.Overflow;
-        TooltipUi.HotbarSwitchHudHintText.color = HotbarSwitchHintColor;
-        SetHintActive(TooltipUi.HotbarSwitchHudHint, true);
+        string keyText = GetHotbarSwitchKeyDisplayText();
+        bool switchVisible = _showHotbarSwitchHint != null && _showHotbarSwitchHint.Value.IsOn() &&
+                             !string.IsNullOrWhiteSpace(keyText);
+        if (switchVisible)
+        {
+            TooltipUi.HotbarSwitchHudHint = EnsureInventoryHintLabel(parent, "InventorySlots_HotbarSwitchHudHint", ref TooltipUi.HotbarSwitchHudHintText);
+            if (TooltipUi.HotbarSwitchHudHint != null && TooltipUi.HotbarSwitchHudHintText != null)
+            {
+                float size = HotbarSwitchHintSize;
+                TooltipUi.HotbarSwitchHudHint.pivot = new Vector2(0f, 0.5f);
+                TooltipUi.HotbarSwitchHudHint.localPosition = hotbarOrigin + new Vector3(InventoryWidth * elementSpace + 10f, 0f, 0f) + (Vector3)HotbarSwitchHintOffset;
+                TooltipUi.HotbarSwitchHudHint.sizeDelta = new Vector2(Mathf.Max(size * 2.25f, 58f), Mathf.Max(size * 1.6f, 38f));
+                TooltipUi.HotbarSwitchHudHintText.text = LocalizeUi("$inventoryslots_hotbar_switch_hint", "Switch\n[{key}]")
+                    .Replace("{key}", keyText);
+                TooltipUi.HotbarSwitchHudHintText.fontSize = HotbarSwitchHintFontSize;
+                TooltipUi.HotbarSwitchHudHintText.lineSpacing = -10f;
+                TooltipUi.HotbarSwitchHudHintText.overflowMode = TextOverflowModes.Overflow;
+                TooltipUi.HotbarSwitchHudHintText.color = HotbarSwitchHintColor;
+                SetHintActive(TooltipUi.HotbarSwitchHudHint, true);
+            }
+        }
+        else
+        {
+            SetHintActive(TooltipUi.HotbarSwitchHudHint, false);
+        }
+
+        UpdateFeatureGuideHud(parent, hotbarOrigin, elementSpace, switchVisible);
+    }
+
+    private static void UpdateFeatureGuideHud(RectTransform parent, Vector3 hotbarOrigin, float elementSpace, bool switchVisible)
+    {
+        bool visible = _showFeatureGuide != null && _showFeatureGuide.Value.IsOn();
+        if (!visible)
+        {
+            SetHintActive(TooltipUi.FeatureGuideHudHint, false);
+            return;
+        }
+
+        TooltipUi.FeatureGuideHudHint = EnsureInventoryHintLabel(parent, "InventorySlots_FeatureGuideHudHint", ref TooltipUi.FeatureGuideHudHintText);
+        if (TooltipUi.FeatureGuideHudHint == null || TooltipUi.FeatureGuideHudHintText == null)
+        {
+            return;
+        }
+
+        const float guideWidth = 500f;
+        const float minimumGuideWidth = 320f;
+        const float guideHeight = 176f;
+        const float guideGap = 12f;
+        float switchWidth = Mathf.Max(HotbarSwitchHintSize * 2.25f, 58f);
+        float switchHeight = Mathf.Max(HotbarSwitchHintSize * 1.6f, 38f);
+        Vector3 switchPosition = hotbarOrigin + new Vector3(InventoryWidth * elementSpace + 10f, 0f, 0f) + (Vector3)HotbarSwitchHintOffset;
+        float guideX = switchVisible
+            ? switchPosition.x + switchWidth + guideGap
+            : hotbarOrigin.x + InventoryWidth * elementSpace + guideGap;
+        float guideY = switchPosition.y + switchHeight * 0.5f;
+        float resolvedGuideWidth = guideWidth;
+        Rect parentRect = parent.rect;
+        if (parentRect.width > 0f && parentRect.height > 0f)
+        {
+            float availableRightWidth = parentRect.xMax - guideGap - guideX;
+            if (availableRightWidth >= minimumGuideWidth)
+            {
+                resolvedGuideWidth = Mathf.Min(guideWidth, availableRightWidth);
+            }
+            else
+            {
+                resolvedGuideWidth = Mathf.Min(guideWidth, Mathf.Max(1f, parentRect.width - guideGap * 2f));
+                guideX = Mathf.Clamp(
+                    hotbarOrigin.x,
+                    parentRect.xMin + guideGap,
+                    parentRect.xMax - resolvedGuideWidth - guideGap);
+                float belowHotbar = hotbarOrigin.y - elementSpace * 0.5f - guideGap;
+                float aboveHotbar = hotbarOrigin.y + elementSpace * 0.5f + guideGap + guideHeight;
+                bool fitsBelow = belowHotbar - guideHeight >= parentRect.yMin + guideGap;
+                bool fitsAbove = aboveHotbar <= parentRect.yMax - guideGap;
+                guideY = fitsBelow || !fitsAbove ? belowHotbar : aboveHotbar;
+            }
+
+            guideY = Mathf.Clamp(
+                guideY,
+                parentRect.yMin + guideHeight + guideGap,
+                parentRect.yMax - guideGap);
+        }
+
+        TooltipUi.FeatureGuideHudHint.anchorMin = new Vector2(0.5f, 0.5f);
+        TooltipUi.FeatureGuideHudHint.anchorMax = new Vector2(0.5f, 0.5f);
+        TooltipUi.FeatureGuideHudHint.pivot = new Vector2(0f, 1f);
+        TooltipUi.FeatureGuideHudHint.localPosition = new Vector3(guideX, guideY, switchPosition.z);
+        TooltipUi.FeatureGuideHudHint.sizeDelta = new Vector2(resolvedGuideWidth, guideHeight);
+
+        RefreshFeatureGuideText(TooltipUi.FeatureGuideHudHintText);
+        TooltipUi.FeatureGuideHudHintText.alignment = TextAlignmentOptions.TopLeft;
+        TooltipUi.FeatureGuideHudHintText.textWrappingMode = TextWrappingModes.Normal;
+        TooltipUi.FeatureGuideHudHintText.enableAutoSizing = false;
+        TooltipUi.FeatureGuideHudHintText.fontSize = 12f;
+        TooltipUi.FeatureGuideHudHintText.lineSpacing = -3f;
+        TooltipUi.FeatureGuideHudHintText.overflowMode = TextOverflowModes.Overflow;
+        TooltipUi.FeatureGuideHudHintText.color = new Color(0.78f, 0.88f, 0.94f, 0.92f);
+        SetHintActive(TooltipUi.FeatureGuideHudHint, true);
+    }
+
+    private static void RefreshFeatureGuideText(TMP_Text text)
+    {
+        if (!string.IsNullOrEmpty(text.text) && Time.unscaledTime < TooltipUi.NextFeatureGuideTextRefreshTime)
+        {
+            return;
+        }
+
+        TooltipUi.NextFeatureGuideTextRefreshTime = Time.unscaledTime + 0.25f;
+        string guide = LocalizeUi(
+            "$inventoryslots_feature_guide",
+            "<b>InventorySlots quick guide</b>\n<color=#FFA94D>[{tooltipKey}]</color> over an inventory or chest item, or a crafting recipe: Pin tooltip\n<color=#FFA94D>[{favoriteKey}]</color> over an inventory slot or crafting recipe: Toggle favorite\nWhile looking at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching items nearby (favorite slots excluded)\nWhile looking at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill items in favorite slots from nearby chests\nPer-item restock targets: <color=#FFA94D>F1 → InventorySlots → 3 - Restock</color>\nCustom slots and rules: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>\nHide this guide now: <color=#FFA94D>F1 → InventorySlots → Show Feature Guide → Off</color>");
+        string resolved = guide
+            .Replace("{tooltipKey}", GetPinnedTooltipKeyDisplayText())
+            .Replace("{favoriteKey}", GetFavoriteKeyHintDisplayText())
+            .Replace("{useKey}", GetContainerQuickStackKeyDisplayText())
+            .Replace("{restockKey}", GetContainerRestockKeyDisplayText());
+        if (!string.Equals(text.text, resolved, StringComparison.Ordinal))
+        {
+            text.text = resolved;
+        }
+    }
+
+    private static string GetContainerQuickStackKeyDisplayText()
+    {
+        string action = ZInput.IsGamepadActive() ? "JoyUse" : "Use";
+        string display = GetBoundInputActionDisplayText(action);
+        return string.IsNullOrWhiteSpace(display) ? "E" : display;
+    }
+
+    private static string GetBoundInputActionDisplayText(string action)
+    {
+        try
+        {
+            if (Localization.instance != null)
+            {
+                return Localization.instance.GetBoundKeyString(action, true);
+            }
+        }
+        catch
+        {
+            // Fall through to the raw binding lookup.
+        }
+
+        try
+        {
+            return ZInput.instance != null ? ZInput.instance.GetBoundKeyString(action, true) : "";
+        }
+        catch
+        {
+            return "";
+        }
     }
 
     private static void UpdateInventoryWheelHint(InventoryGrid playerGrid, Vector3 origin, float elementSpace, int totalRegularRows)
@@ -249,6 +382,7 @@ public sealed partial class InventorySlotsPlugin
     {
         Transform? existing = parent.Find(name);
         RectTransform rect = existing != null ? existing.GetComponent<RectTransform>() : null!;
+        bool refreshSiblingOrder = rect == null || !rect.gameObject.activeSelf;
         if (rect == null)
         {
             rect = CreateTextRect(name, parent);
@@ -263,7 +397,10 @@ public sealed partial class InventorySlotsPlugin
 
         rect.localScale = Vector3.one;
         rect.localRotation = Quaternion.identity;
-        rect.SetAsLastSibling();
+        if (refreshSiblingOrder)
+        {
+            rect.SetAsLastSibling();
+        }
 
         text = rect.GetComponent<TMP_Text>();
         ApplyDefaultFontAsset(text);

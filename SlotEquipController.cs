@@ -17,7 +17,11 @@ public sealed partial class InventorySlotsPlugin
                 return null;
             }
 
-            Vector2i slotPos = GetSlotGridPos(inventory, slot);
+            if (!TryGetSlotGridPos(inventory, slot, out Vector2i slotPos))
+            {
+                return null;
+            }
+
             ItemData? quickItem = inventory.GetItemAt(slotPos.x, slotPos.y);
             return quickItem != null && slot.Accepts(quickItem) ? quickItem : null;
         }
@@ -57,7 +61,11 @@ public sealed partial class InventorySlotsPlugin
             return item;
         }
 
-        Vector2i slotPos = GetSlotGridPos(inventory, slot);
+        if (!TryGetSlotGridPos(inventory, slot, out Vector2i slotPos))
+        {
+            return null;
+        }
+
         ItemData? gridItem = inventory.GetItemAt(slotPos.x, slotPos.y);
         return gridItem != null && slot.Accepts(gridItem) && CanUseSpecialSlot(player, inventory, gridItem, slot)
             ? gridItem
@@ -195,91 +203,160 @@ public sealed partial class InventorySlotsPlugin
             return TryPlaceQuickItemIntoSlot(player, inventory, item, slot);
         }
 
-        if (!inventory.ContainsItem(item))
+        if (!TryGetSlotGridPos(inventory, slot, out Vector2i target))
         {
-            inventory.m_inventory.Add(item);
+            return false;
         }
 
-        Vector2i target = GetSlotGridPos(inventory, slot);
+        bool incomingWasInInventory = ContainsExactItemReference(inventory, item);
         Vector2i incomingOriginalPos = item.m_gridPos;
         bool incomingOriginalPosUsed = false;
         ItemData? hipLanternStateSnapshot =
             slot.Kind == SlotKind.CustomEquipment
                 ? CaptureHipLanternEquippedState(player)
                 : null;
-        List<SlotEquipItemSnapshot> itemSnapshots = CaptureSlotEquipItemSnapshots(player, inventory, item, slot);
+        List<SlotEquipItemSnapshot> itemSnapshots = CaptureSlotEquipItemSnapshots(player, inventory, item, slot, target);
         HumanoidEquipmentSnapshot equipmentSnapshot = CaptureHumanoidEquipmentSnapshot(player);
+        bool rollbackAttempted = false;
         bool FailSlotEquip()
         {
-            RestoreSlotEquipMutationSnapshots(player, inventory, itemSnapshots, equipmentSnapshot);
-            if (hipLanternStateSnapshot != null &&
-                RestoreHipLanternEquippedState(player, hipLanternStateSnapshot))
+            if (rollbackAttempted)
             {
-                ((Humanoid)player).SetupEquipment();
+                return false;
+            }
+
+            rollbackAttempted = true;
+            Exception? rollbackFailure = null;
+            try
+            {
+                RestoreSlotEquipMutationSnapshots(player, inventory, itemSnapshots, equipmentSnapshot);
+            }
+            catch (Exception ex)
+            {
+                rollbackFailure = ex;
+            }
+
+            try
+            {
+                if (hipLanternStateSnapshot != null &&
+                    RestoreHipLanternEquippedState(player, hipLanternStateSnapshot))
+                {
+                    ((Humanoid)player).SetupEquipment();
+                }
+            }
+            catch (Exception ex)
+            {
+                rollbackFailure ??= ex;
+            }
+
+            try
+            {
+                bool circletStateRestored = false;
+                foreach (SlotEquipItemSnapshot snapshot in itemSnapshots)
+                {
+                    if (snapshot.WasInInventory &&
+                        IsInventorySlotsCustomEquipped(snapshot.Item))
+                    {
+                        circletStateRestored |=
+                            RestoreCircletExtendedEquippedState(
+                                player,
+                                snapshot.Item);
+                    }
+                }
+
+                if (circletStateRestored)
+                {
+                    ((Humanoid)player).SetupEquipment();
+                }
+
+                RefreshExternalEquipmentEffects(player);
+            }
+            catch (Exception ex)
+            {
+                rollbackFailure ??= ex;
+            }
+
+            if (rollbackFailure != null)
+            {
+                Log.LogError($"Special-slot equip rollback encountered an error after restoring inventory ownership: {rollbackFailure.GetBaseException().Message}");
             }
 
             return false;
         }
 
-        ItemData? current = FindItemForSlot(player, inventory, slot);
-        if (current != null && current != item)
+        try
         {
-            UnequipInventorySlotsItem(player, current);
-            if (!TryRelocateSlotEquipBlockingItem(player, inventory, current, item, incomingOriginalPos, ref incomingOriginalPosUsed))
+            if (!incomingWasInInventory)
             {
-                return FailSlotEquip();
+                inventory.m_inventory.Add(item);
             }
-        }
 
-        ItemData? blockingAtTarget = inventory.GetItemAt(target.x, target.y);
-        if (blockingAtTarget != null && blockingAtTarget != item && blockingAtTarget != current)
-        {
-            UnequipInventorySlotsItem(player, blockingAtTarget);
-            if (!TryRelocateSlotEquipBlockingItem(player, inventory, blockingAtTarget, item, incomingOriginalPos, ref incomingOriginalPosUsed))
+            ItemData? current = FindItemForSlot(player, inventory, slot);
+            if (current != null && current != item)
             {
-                return FailSlotEquip();
+                UnequipInventorySlotsItem(player, current);
+                if (!TryRelocateSlotEquipBlockingItem(player, inventory, current, item, incomingOriginalPos, ref incomingOriginalPosUsed))
+                {
+                    return FailSlotEquip();
+                }
             }
-        }
 
-        UnequipConflictingCustomEquipmentItems(player, inventory, item, slot);
-
-        if (slot.Kind == SlotKind.BuiltIn)
-        {
-            if (!((Humanoid)player).IsItemEquiped(item) && !((Humanoid)player).EquipItem(item, true))
+            ItemData? blockingAtTarget = inventory.GetItemAt(target.x, target.y);
+            if (blockingAtTarget != null && blockingAtTarget != item && blockingAtTarget != current)
             {
-                return FailSlotEquip();
+                UnequipInventorySlotsItem(player, blockingAtTarget);
+                if (!TryRelocateSlotEquipBlockingItem(player, inventory, blockingAtTarget, item, incomingOriginalPos, ref incomingOriginalPosUsed))
+                {
+                    return FailSlotEquip();
+                }
             }
-        }
-        else
-        {
-            ClearVanillaEquipmentReferences((Humanoid)player, item);
-            item.m_equipped = true;
-        }
 
-        if (slot.Kind == SlotKind.CustomEquipment)
-        {
-            MarkItemSlot(player, item, slot);
-            _ = OnCustomEquipmentCompatEquipped(player, item);
-            if (!InventorySafety.RoutingEquipToDedicatedSlot)
+            UnequipConflictingCustomEquipmentItems(player, inventory, item, slot);
+
+            if (slot.Kind == SlotKind.BuiltIn)
             {
-                SynchronizeCircletExtendedEquippedState(player, item);
+                if (!((Humanoid)player).IsItemEquiped(item) && !((Humanoid)player).EquipItem(item, true))
+                {
+                    return FailSlotEquip();
+                }
             }
-        }
-        else
-        {
-            ClearItemSlot(item);
-        }
+            else
+            {
+                ClearVanillaEquipmentReferences((Humanoid)player, item);
+                item.m_equipped = true;
+            }
 
-        item.m_gridPos = target;
-        ((Humanoid)player).SetupEquipment();
-        if (slot.Kind == SlotKind.CustomEquipment)
-        {
-            UpdateCustomEquipmentVisuals(player);
-            RefreshExternalEquipmentEffects(player);
-        }
+            if (slot.Kind == SlotKind.CustomEquipment)
+            {
+                MarkItemSlot(player, item, slot);
+                _ = OnCustomEquipmentCompatEquipped(player, item);
+                if (!InventorySafety.RoutingEquipToDedicatedSlot)
+                {
+                    SynchronizeCircletExtendedEquippedState(player, item);
+                }
+            }
+            else
+            {
+                ClearItemSlot(item);
+            }
 
-        inventory.Changed();
-        return true;
+            item.m_gridPos = target;
+            ((Humanoid)player).SetupEquipment();
+            if (slot.Kind == SlotKind.CustomEquipment)
+            {
+                UpdateCustomEquipmentVisuals(player);
+                RefreshExternalEquipmentEffects(player);
+            }
+
+            inventory.Changed();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            FailSlotEquip();
+            Log.LogWarning($"Special-slot equip failed safely and was rolled back: {ex.GetBaseException().Message}");
+            return false;
+        }
     }
 
     private sealed class SlotEquipItemSnapshot
@@ -290,7 +367,9 @@ public sealed partial class InventorySlotsPlugin
             WasInInventory = wasInInventory;
             GridPos = item.m_gridPos;
             Equipped = item.m_equipped;
-            CustomData = new Dictionary<string, string>(item.m_customData);
+            CustomData = item.m_customData != null
+                ? new Dictionary<string, string>(item.m_customData)
+                : new Dictionary<string, string>();
         }
 
         public ItemData Item { get; }
@@ -313,6 +392,8 @@ public sealed partial class InventorySlotsPlugin
             ShoulderItem = humanoid.m_shoulderItem;
             UtilityItem = humanoid.m_utilityItem;
             TrinketItem = humanoid.m_trinketItem;
+            HiddenLeftItem = humanoid.m_hiddenLeftItem;
+            HiddenRightItem = humanoid.m_hiddenRightItem;
         }
 
         public ItemData? RightItem { get; }
@@ -324,9 +405,16 @@ public sealed partial class InventorySlotsPlugin
         public ItemData? ShoulderItem { get; }
         public ItemData? UtilityItem { get; }
         public ItemData? TrinketItem { get; }
+        public ItemData? HiddenLeftItem { get; }
+        public ItemData? HiddenRightItem { get; }
     }
 
-    private static List<SlotEquipItemSnapshot> CaptureSlotEquipItemSnapshots(Player player, Inventory inventory, ItemData incoming, SlotDefinition slot)
+    private static List<SlotEquipItemSnapshot> CaptureSlotEquipItemSnapshots(
+        Player player,
+        Inventory inventory,
+        ItemData incoming,
+        SlotDefinition slot,
+        Vector2i target)
     {
         List<SlotEquipItemSnapshot> snapshots = new();
         HashSet<ItemData> seen = new();
@@ -338,12 +426,11 @@ public sealed partial class InventorySlotsPlugin
                 return;
             }
 
-            snapshots.Add(new SlotEquipItemSnapshot(candidate, inventory.ContainsItem(candidate)));
+            snapshots.Add(new SlotEquipItemSnapshot(candidate, ContainsExactItemReference(inventory, candidate)));
         }
 
         Add(incoming);
         Add(FindItemForSlot(player, inventory, slot));
-        Vector2i target = GetSlotGridPos(inventory, slot);
         Add(inventory.GetItemAt(target.x, target.y));
 
         foreach (ItemData candidate in inventory.m_inventory.ToArray())
@@ -367,24 +454,35 @@ public sealed partial class InventorySlotsPlugin
     private static HumanoidEquipmentSnapshot CaptureHumanoidEquipmentSnapshot(Player player) =>
         new((Humanoid)player);
 
+    private static bool ContainsExactItemReference(Inventory inventory, ItemData item) =>
+        inventory.m_inventory.Any(candidate => ReferenceEquals(candidate, item));
+
     private static void RestoreSlotEquipMutationSnapshots(Player player, Inventory inventory, List<SlotEquipItemSnapshot> itemSnapshots, HumanoidEquipmentSnapshot equipmentSnapshot)
     {
         foreach (SlotEquipItemSnapshot snapshot in itemSnapshots)
         {
             ItemData item = snapshot.Item;
-            bool inInventory = inventory.ContainsItem(item);
+            bool inInventory = ContainsExactItemReference(inventory, item);
             if (snapshot.WasInInventory && !inInventory)
             {
                 inventory.m_inventory.Add(item);
             }
             else if (!snapshot.WasInInventory && inInventory)
             {
-                inventory.m_inventory.Remove(item);
+                inventory.m_inventory.RemoveAll(candidate => ReferenceEquals(candidate, item));
             }
 
             item.m_gridPos = snapshot.GridPos;
             item.m_equipped = snapshot.Equipped;
-            item.m_customData.Clear();
+            if (item.m_customData == null)
+            {
+                item.m_customData = new Dictionary<string, string>();
+            }
+            else
+            {
+                item.m_customData.Clear();
+            }
+
             foreach (KeyValuePair<string, string> entry in snapshot.CustomData)
             {
                 item.m_customData[entry.Key] = entry.Value;
@@ -406,6 +504,8 @@ public sealed partial class InventorySlotsPlugin
         humanoid.m_shoulderItem = snapshot.ShoulderItem;
         humanoid.m_utilityItem = snapshot.UtilityItem;
         humanoid.m_trinketItem = snapshot.TrinketItem;
+        humanoid.m_hiddenLeftItem = snapshot.HiddenLeftItem;
+        humanoid.m_hiddenRightItem = snapshot.HiddenRightItem;
         humanoid.SetupEquipment();
         UpdateCustomEquipmentVisuals(player);
     }
@@ -619,12 +719,16 @@ public sealed partial class InventorySlotsPlugin
 
         ClearSlotActionState(item);
         Inventory inventory = humanoid.GetInventory();
-        if (inventory == null || !inventory.ContainsItem(item) || !pending.Slot.Accepts(item))
+        if (inventory == null ||
+            !inventory.ContainsItem(item) ||
+            !TryResolveCurrentSlotDefinition(pending.Slot, out SlotDefinition? currentSlot) ||
+            currentSlot == null ||
+            !CanUseSpecialSlot(player, inventory, item, currentSlot))
         {
             return true;
         }
 
-        result = TryEquipIntoDedicatedSlot(player, inventory, item, pending.Slot);
+        result = TryEquipIntoDedicatedSlot(player, inventory, item, currentSlot);
         if (!result)
         {
             ((Character)player).Message(MessageHud.MessageType.Center, "$msg_cantuse", 0, null);
@@ -672,45 +776,105 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        Vector2i target = GetSlotGridPos(inventory, slot);
-        ItemData? current = inventory.GetItemAt(target.x, target.y);
-        if (current != null && current != item)
+        if (!TryGetSlotGridPos(inventory, slot, out Vector2i target))
         {
-            if (!TryRelocateBlockingItem(player, inventory, current, item))
+            return false;
+        }
+
+        bool incomingWasInInventory = ContainsExactItemReference(inventory, item);
+        List<SlotEquipItemSnapshot> itemSnapshots =
+            CaptureSlotEquipItemSnapshots(player, inventory, item, slot, target);
+        HumanoidEquipmentSnapshot equipmentSnapshot =
+            CaptureHumanoidEquipmentSnapshot(player);
+        ItemData? hipLanternStateSnapshot =
+            CaptureHipLanternEquippedState(player);
+
+        bool RollbackQuickPlacement()
+        {
+            try
             {
-                return false;
+                RestoreSlotEquipMutationSnapshots(
+                    player,
+                    inventory,
+                    itemSnapshots,
+                    equipmentSnapshot);
+                if (hipLanternStateSnapshot != null &&
+                    RestoreHipLanternEquippedState(
+                        player,
+                        hipLanternStateSnapshot))
+                {
+                    ((Humanoid)player).SetupEquipment();
+                }
+
+                foreach (SlotEquipItemSnapshot snapshot in itemSnapshots)
+                {
+                    if (snapshot.WasInInventory &&
+                        IsInventorySlotsCustomEquipped(snapshot.Item))
+                    {
+                        RestoreCircletExtendedEquippedState(
+                            player,
+                            snapshot.Item);
+                    }
+                }
+
+                UpdateCustomEquipmentVisuals(player);
+                RefreshExternalEquipmentEffects(player);
             }
+            catch (Exception exception)
+            {
+                Log.LogError(
+                    $"Quick-slot placement rollback failed after ownership restoration: {exception.GetBaseException().Message}");
+            }
+
+            return false;
         }
 
-        if (((Humanoid)player).IsItemEquiped(item))
+        try
         {
-            ((Humanoid)player).UnequipItem(item, true);
-        }
+            ItemData? current = inventory.GetItemAt(target.x, target.y);
+            if (current != null && current != item &&
+                !TryRelocateBlockingItem(player, inventory, current, item))
+            {
+                return RollbackQuickPlacement();
+            }
 
-        bool customEquipmentChanged = false;
-        if (IsInventorySlotsCustomEquipped(item))
-        {
-            OnCustomEquipmentCompatUnequipping(player, item);
-            item.m_equipped = false;
+            if (((Humanoid)player).IsItemEquiped(item))
+            {
+                ((Humanoid)player).UnequipItem(item, true);
+            }
+
+            bool customEquipmentChanged = false;
+            if (IsInventorySlotsCustomEquipped(item))
+            {
+                OnCustomEquipmentCompatUnequipping(player, item);
+                item.m_equipped = false;
+                ClearItemSlot(item);
+                ((Humanoid)player).SetupEquipment();
+                customEquipmentChanged = true;
+            }
+
             ClearItemSlot(item);
-            ((Humanoid)player).SetupEquipment();
-            customEquipmentChanged = true;
-        }
+            item.m_gridPos = target;
+            if (!incomingWasInInventory)
+            {
+                inventory.m_inventory.Add(item);
+            }
 
-        ClearItemSlot(item);
-        item.m_gridPos = target;
-        if (!inventory.ContainsItem(item))
+            inventory.Changed();
+            if (customEquipmentChanged)
+            {
+                RefreshExternalEquipmentEffects(player);
+            }
+
+            return true;
+        }
+        catch (Exception exception)
         {
-            inventory.m_inventory.Add(item);
+            RollbackQuickPlacement();
+            Log.LogWarning(
+                $"Quick-slot placement failed safely and was rolled back: {exception.GetBaseException().Message}");
+            return false;
         }
-
-        inventory.Changed();
-        if (customEquipmentChanged)
-        {
-            RefreshExternalEquipmentEffects(player);
-        }
-
-        return true;
     }
 
     internal static void UnequipInventorySlotsItem(Player player, ItemData item)
@@ -890,8 +1054,32 @@ public sealed partial class InventorySlotsPlugin
 
     internal static bool TryPrepareSlotItemForExternalRemoval(Player player, Inventory inventory, ItemData item, out SlotDefinition? slot)
     {
+        if (!TryResolveSlotItemForExternalRemoval(
+                player,
+                inventory,
+                item,
+                out slot))
+        {
+            return false;
+        }
+
+        InventorySafety.SlotUnequipToInventoryRequests.Remove(item);
+        UnequipInventorySlotsItem(player, item);
+        return true;
+    }
+
+    private static bool TryResolveSlotItemForExternalRemoval(
+        Player player,
+        Inventory inventory,
+        ItemData item,
+        out SlotDefinition? slot)
+    {
         slot = null;
-        if (player == null || inventory == null || item == null || !inventory.ContainsItem(item) || item.m_shared?.m_questItem == true)
+        if (player == null ||
+            inventory == null ||
+            item == null ||
+            !inventory.ContainsItem(item) ||
+            item.m_shared?.m_questItem == true)
         {
             return false;
         }
@@ -909,8 +1097,6 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        InventorySafety.SlotUnequipToInventoryRequests.Remove(item);
-        UnequipInventorySlotsItem(player, item);
         return true;
     }
 
@@ -1083,6 +1269,31 @@ public sealed partial class InventorySlotsPlugin
             return true;
         }
 
+        if (!TryResolveCurrentSlotDefinition(
+                pending.SourceSlot,
+                out SlotDefinition? currentSourceSlot) ||
+            currentSourceSlot == null ||
+            currentSourceSlot.Kind == SlotKind.Quick ||
+            !CanUseSpecialSlot(player, playerInventory, item, currentSourceSlot))
+        {
+            InvalidateCustomEquipmentProjectionCache();
+            try
+            {
+                RefreshExternalEquipmentEffects(player);
+            }
+            catch (Exception exception)
+            {
+                Log.LogWarning(
+                    $"Could not refresh external equipment effects after a stale pending unequip: {exception.GetBaseException().Message}");
+            }
+
+            RequestInventoryStateEnsure(
+                player,
+                InventoryStateEnsureReason.SlotAction,
+                InventoryStateAuditLevel.FullIntegrity);
+            return true;
+        }
+
         bool completed;
         BeginSlotAutoEquipSuppression();
         try
@@ -1112,7 +1323,7 @@ public sealed partial class InventorySlotsPlugin
 
         if (!completed)
         {
-            RestoreSlotItemAfterFailedExternalRemoval(player, playerInventory, item, pending.SourceSlot);
+            RestoreSlotItemAfterFailedExternalRemoval(player, playerInventory, item, currentSourceSlot);
             ((Character)player).Message(MessageHud.MessageType.Center, "$msg_inventoryfull", 0, null);
         }
 

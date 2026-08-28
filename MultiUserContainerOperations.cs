@@ -70,6 +70,42 @@ public sealed partial class InventorySlotsPlugin
         public MultiUserContainerRecoveryMode RecoveryMode;
         public bool CompletionActionAttempted;
         public MultiUserContainerWorldDeliveryResult WorldDeliveryResult;
+
+        public void ApplyTerminalFailure(float resolvedAt)
+        {
+            TerminalFailureReceived = true;
+            ResponseAppliedAt = resolvedAt;
+            Projection = null;
+            AcknowledgementPending = true;
+        }
+
+        public void ApplySuccessfulResponse(float resolvedAt)
+        {
+            ResponseApplied = true;
+            ResponseAppliedAt = resolvedAt;
+            AcknowledgementPending = true;
+        }
+
+        public void BeginLocalRecovery(ItemData item)
+        {
+            PendingRecoveryItem = item;
+            LocalRecoveryPending = true;
+        }
+
+        public void CompleteLocalRecovery()
+        {
+            LocalRecoveryPending = false;
+            PendingRecoveryItem = null;
+            if (TerminalFailureReceived)
+            {
+                LocalEscrow = null;
+            }
+        }
+
+        public void MarkAcknowledged()
+        {
+            AcknowledgementPending = false;
+        }
     }
 
     private sealed class PendingMultiUserContainerLocalRecovery
@@ -81,9 +117,29 @@ public sealed partial class InventorySlotsPlugin
         public MultiUserContainerLocalPlacementPolicy PlacementPolicy;
     }
 
+    private sealed class MultiUserContainerWorldDropCreationScope
+    {
+        public MultiUserContainerWorldDropCreationScope(
+            string expectedPrefab,
+            MultiUserContainerWorldDropCreationScope? previous)
+        {
+            ExpectedPrefab = expectedPrefab;
+            Previous = previous;
+        }
+
+        public string ExpectedPrefab { get; }
+        public MultiUserContainerWorldDropCreationScope? Previous { get; }
+        public ItemDrop? Candidate { get; set; }
+    }
+
     private static PendingMultiUserContainerTransfer? _pendingMultiUserContainerTransfer;
     private static readonly List<PendingMultiUserContainerLocalRecovery>
         PendingMultiUserContainerLocalRecoveries = new();
+
+    [ThreadStatic]
+    private static MultiUserContainerWorldDropCreationScope?
+        _activeMultiUserContainerWorldDropCreationScope;
+
     private static int _nextMultiUserContainerRequestId =
         Math.Max(1, Guid.NewGuid().GetHashCode() & int.MaxValue);
 
@@ -448,7 +504,7 @@ public sealed partial class InventorySlotsPlugin
         MultiUserContainerRecoveryMode recoveryMode =
             MultiUserContainerRecoveryMode.InventoryFirst)
     {
-        if (!CanStartMultiUserContainerTransfer(container, sourceInventory, item, amount) ||
+        if (!CanStartMultiUserContainerTransfer(container, item, amount) ||
             !IsLocalPlayerInventory(sourceInventory))
         {
             return false;
@@ -548,7 +604,7 @@ public sealed partial class InventorySlotsPlugin
         MultiUserContainerRecoveryMode recoveryMode =
             MultiUserContainerRecoveryMode.InventoryFirst)
     {
-        if (!CanStartMultiUserContainerTransfer(container, destinationInventory, item, amount) ||
+        if (!CanStartMultiUserContainerTransfer(container, item, amount) ||
             !IsLocalPlayerInventory(destinationInventory))
         {
             return false;
@@ -606,7 +662,6 @@ public sealed partial class InventorySlotsPlugin
             item.m_shared.m_questItem ||
             !CanStartMultiUserContainerTransfer(
                 container,
-                player.GetInventory(),
                 item,
                 amount))
         {
@@ -633,7 +688,7 @@ public sealed partial class InventorySlotsPlugin
         int amount,
         Vector2i target)
     {
-        if (!CanStartMultiUserContainerTransfer(container, container.GetInventory(), item, amount))
+        if (!CanStartMultiUserContainerTransfer(container, item, amount))
         {
             return false;
         }
@@ -672,7 +727,6 @@ public sealed partial class InventorySlotsPlugin
             !IsLocalPlayerInventory(localInventory) ||
             !CanStartMultiUserContainerTransfer(
                 container,
-                localInventory,
                 containerItem,
                 containerItem.m_stack) ||
             localItem?.m_shared == null ||
@@ -806,7 +860,6 @@ public sealed partial class InventorySlotsPlugin
             target.m_shared.m_questItem ||
             !CanStartMultiUserContainerTransfer(
                 container,
-                container.GetInventory(),
                 source,
                 source.m_stack))
         {
@@ -867,7 +920,7 @@ public sealed partial class InventorySlotsPlugin
         MultiUserContainerRecoveryMode recoveryMode =
             MultiUserContainerRecoveryMode.InventoryFirst)
     {
-        if (!CanStartMultiUserContainerTransfer(container, localInventory, item, amount))
+        if (!CanStartMultiUserContainerTransfer(container, item, amount))
         {
             return false;
         }
@@ -1032,7 +1085,6 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool CanStartMultiUserContainerTransfer(
         Container container,
-        Inventory? relatedInventory,
         ItemData item,
         int amount)
     {
@@ -1043,9 +1095,10 @@ public sealed partial class InventorySlotsPlugin
                IsBuiltInMultiUserContainerEligible(container) &&
                item?.m_shared != null &&
                item.m_customData != null &&
-               amount > 0 &&
-               amount <= item.m_stack &&
-               amount <= Math.Max(1, item.m_shared.m_maxStackSize) &&
+               MultiUserContainerTransferCore.CanTransferAmount(
+                   item.m_stack,
+                   item.m_shared.m_maxStackSize,
+                   amount) &&
                Player.m_localPlayer != null &&
                !IsUnityNull(Player.m_localPlayer) &&
                !Player.m_localPlayer.m_isLoading;
@@ -1220,7 +1273,7 @@ public sealed partial class InventorySlotsPlugin
         int amount,
         Vector2i targetPosition)
     {
-        if (!IsMultiUserContainerPositionInBounds(inventory, targetPosition))
+        if (!IsValidMultiUserContainerCoordinate(inventory, targetPosition))
         {
             return false;
         }
@@ -1276,7 +1329,11 @@ public sealed partial class InventorySlotsPlugin
             }
         }
 
-        return TryFindFreeAutomaticPlacementCell(
+        // Use the same safe fallback search as other player-inventory inserts.
+        // This keeps the regular/hotbar preference while allowing a compatible
+        // empty Quick, built-in equipment, or custom equipment slot when the
+        // regular inventory is full.
+        return TryFindSafeInsertCell(
             player,
             inventory,
             incoming,
@@ -1292,7 +1349,7 @@ public sealed partial class InventorySlotsPlugin
         Player? player = Player.m_localPlayer;
         if (player == null ||
             IsUnityNull(player) ||
-            !IsMultiUserContainerPositionInBounds(inventory, targetPosition) ||
+            !IsValidMultiUserContainerCoordinate(inventory, targetPosition) ||
             !CanUseCell(player, inventory, incoming, targetPosition))
         {
             return false;
@@ -1378,14 +1435,10 @@ public sealed partial class InventorySlotsPlugin
 
         if (!validSuccess)
         {
-            pending.TerminalFailureReceived = true;
-            pending.ResponseAppliedAt = Time.unscaledTime;
-            pending.Projection = null;
-            pending.AcknowledgementPending = true;
+            pending.ApplyTerminalFailure(Time.unscaledTime);
             if (pending.LocalEscrow != null)
             {
-                pending.PendingRecoveryItem = pending.LocalEscrow;
-                pending.LocalRecoveryPending = true;
+                pending.BeginLocalRecovery(pending.LocalEscrow);
                 _ = TrySecurePendingMultiUserContainerLocalRecovery(pending);
             }
 
@@ -1409,9 +1462,7 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        pending.ResponseApplied = true;
-        pending.ResponseAppliedAt = Time.unscaledTime;
-        pending.AcknowledgementPending = true;
+        pending.ApplySuccessfulResponse(Time.unscaledTime);
         bool responseSecured = true;
         switch (response.Operation)
         {
@@ -1423,8 +1474,7 @@ public sealed partial class InventorySlotsPlugin
             case MultiUserContainerOperation.Exchange:
                 if (response.Item != null)
                 {
-                    pending.LocalRecoveryPending = true;
-                    pending.PendingRecoveryItem = response.Item;
+                    pending.BeginLocalRecovery(response.Item);
                     responseSecured =
                         TrySecurePendingMultiUserContainerLocalRecovery(pending);
                 }
@@ -1715,22 +1765,23 @@ public sealed partial class InventorySlotsPlugin
                 pending.WorldDeliveryResult !=
                 MultiUserContainerWorldDeliveryResult.Uncertain)
             {
-                QueueMultiUserContainerLocalRecovery(
-                    pending.LocalInventory,
-                    pending.PendingRecoveryItem,
-                    pending.PreferredLocalPosition,
-                    GetMultiUserContainerLocalPlacementPolicy(
-                        pending.RecoveryMode));
+                secured =
+                    TryPreservePendingMultiUserContainerRecoveryForShutdown(
+                        pending);
+                if (!secured)
+                {
+                    QueueMultiUserContainerLocalRecovery(
+                        pending.LocalInventory,
+                        pending.PendingRecoveryItem,
+                        pending.PreferredLocalPosition,
+                        GetMultiUserContainerLocalPlacementPolicy(
+                            pending.RecoveryMode));
+                }
             }
 
             if (secured)
             {
-                pending.LocalRecoveryPending = false;
-                pending.PendingRecoveryItem = null;
-                if (pending.TerminalFailureReceived)
-                {
-                    pending.LocalEscrow = null;
-                }
+                pending.CompleteLocalRecovery();
             }
         }
 
@@ -1766,7 +1817,24 @@ public sealed partial class InventorySlotsPlugin
                     pending.RecoveryMode));
         }
 
-        if (pending != null)
+        bool retainUncertainRecoveryOwnership =
+            pending != null &&
+            pending.LocalRecoveryPending &&
+            pending.PendingRecoveryItem != null &&
+            pending.WorldDeliveryResult ==
+                MultiUserContainerWorldDeliveryResult.Uncertain;
+        if (retainUncertainRecoveryOwnership)
+        {
+            // The owner has already committed this response, but the requester
+            // cannot prove whether ItemDrop created its network object. Keep the
+            // exact pending item and its durable receipt unacknowledged. Clearing
+            // the pending here would abandon the only recovery ownership we have;
+            // creating a local fallback would risk duplicating a live world item.
+            Log.LogError(
+                "Built-in multi-user chest shutdown retained an uncertain world-drop recovery; " +
+                "the pending response remains unacknowledged to avoid item loss or duplication.");
+        }
+        else if (pending != null)
         {
             CompletePendingMultiUserContainerTransfer(
                 pending,
@@ -1778,6 +1846,74 @@ public sealed partial class InventorySlotsPlugin
         {
             Log.LogWarning(
                 $"{PendingMultiUserContainerLocalRecoveries.Count} built-in multi-user chest item recovery operation(s) are still pending.");
+        }
+    }
+
+    private static bool TryPreservePendingMultiUserContainerRecoveryForShutdown(
+        PendingMultiUserContainerTransfer pending)
+    {
+        Inventory? inventory = pending.LocalInventory;
+        ItemData? item = pending.PendingRecoveryItem;
+        if (inventory == null ||
+            item?.m_shared == null ||
+            pending.WorldDeliveryResult ==
+                MultiUserContainerWorldDeliveryResult.Uncertain ||
+            pending.WorldDeliveryResult ==
+                MultiUserContainerWorldDeliveryResult.Succeeded)
+        {
+            return false;
+        }
+
+        try
+        {
+            if (ContainsExactItemReference(inventory, item))
+            {
+                return true;
+            }
+
+            HashSet<Vector2i> occupied = new(
+                inventory.m_inventory
+                    .Where(candidate => candidate != null)
+                    .Select(candidate => candidate.m_gridPos));
+            InventorySlotSafetyCore.GridCell preservationCell =
+                InventorySlotSafetyCore.SelectNonOverlappingPreservationCell(
+                    inventory.GetWidth(),
+                    inventory.GetHeight(),
+                    new InventorySlotSafetyCore.GridCell(
+                        pending.PreferredLocalPosition.x,
+                        pending.PreferredLocalPosition.y),
+                    (x, y) => IsCellOccupied(occupied, x, y));
+            item.m_gridPos = new Vector2i(
+                preservationCell.X,
+                preservationCell.Y);
+            inventory.m_inventory.Add(item);
+
+            try
+            {
+                inventory.Changed();
+            }
+            catch (Exception exception)
+            {
+                // The exact item reference is already owned by the inventory.
+                // Do not undo that durable boundary because a listener failed.
+                Log.LogWarning(
+                    $"Built-in multi-user chest shutdown preservation notification failed: {exception.Message}");
+            }
+
+            bool preserved = ContainsExactItemReference(inventory, item);
+            if (preserved)
+            {
+                Log.LogWarning(
+                    "Built-in multi-user chest recovery was preserved in a non-overlapping inventory overflow cell for the next integrity pass.");
+            }
+
+            return preserved;
+        }
+        catch (Exception exception)
+        {
+            Log.LogError(
+                $"Could not preserve a built-in multi-user chest recovery during shutdown: {exception}");
+            return false;
         }
     }
 
@@ -1794,7 +1930,7 @@ public sealed partial class InventorySlotsPlugin
         if (request.Operation == MultiUserContainerOperation.Add)
         {
             Vector2i targetPosition = request.TargetPosition;
-            if (!IsMultiUserContainerPositionInBounds(
+            if (!IsValidMultiUserContainerCoordinate(
                     inventory,
                     targetPosition))
             {
@@ -1877,7 +2013,7 @@ public sealed partial class InventorySlotsPlugin
                        request.Amount);
         }
 
-        if (!IsMultiUserContainerPositionInBounds(
+        if (!IsValidMultiUserContainerCoordinate(
                 inventory,
                 request.TargetPosition) ||
             !IsMultiUserContainerSourceRemainderVisible(
@@ -1904,7 +2040,7 @@ public sealed partial class InventorySlotsPlugin
         Inventory inventory,
         MultiUserContainerRequest request)
     {
-        if (!IsMultiUserContainerPositionInBounds(
+        if (!IsValidMultiUserContainerCoordinate(
                 inventory,
                 request.SourcePosition))
         {
@@ -2257,6 +2393,15 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
+        if (pending.WorldDeliveryResult ==
+            MultiUserContainerWorldDeliveryResult.Uncertain)
+        {
+            // ItemDrop may already have created its network object. Never resume
+            // an inventory fallback after that boundary, even if a cell becomes
+            // available later, because doing so could duplicate the response.
+            return false;
+        }
+
         ItemData? securedInventoryItem = null;
         bool secured;
         switch (pending.RecoveryMode)
@@ -2327,17 +2472,40 @@ public sealed partial class InventorySlotsPlugin
                 break;
         }
 
+        bool committedResponseNeedsDelivery =
+            pending.ResponseApplied &&
+            pending.Request.Operation is
+                MultiUserContainerOperation.Remove or
+                MultiUserContainerOperation.Exchange;
+        bool terminalFailureEscrowNeedsDelivery =
+            pending.TerminalFailureReceived &&
+            ReferenceEquals(recoveryItem, pending.LocalEscrow);
+        if (!secured &&
+            (committedResponseNeedsDelivery ||
+             terminalFailureEscrowNeedsDelivery) &&
+            pending.RecoveryMode != MultiUserContainerRecoveryMode.WorldFirst)
+        {
+            // Either the owner committed a response item or a verified terminal
+            // failure returned the requester's exact escrow. If the reserved
+            // local destination filled while the request was in flight, do not
+            // leave that only deliverable copy in a process-local retry queue. A
+            // proven world spawn is terminal; an uncertain spawn keeps both the
+            // local fallback and acknowledgement blocked to avoid duplication.
+            MultiUserContainerWorldDeliveryResult worldDeliveryResult =
+                TryDeliverPendingMultiUserContainerRecoveryToWorld(
+                    pending,
+                    recoveryItem);
+            secured =
+                worldDeliveryResult ==
+                MultiUserContainerWorldDeliveryResult.Succeeded;
+        }
+
         if (!secured)
         {
             return false;
         }
 
-        pending.LocalRecoveryPending = false;
-        pending.PendingRecoveryItem = null;
-        if (pending.TerminalFailureReceived)
-        {
-            pending.LocalEscrow = null;
-        }
+        pending.CompleteLocalRecovery();
 
         if (pending.RecoveryMode ==
                 MultiUserContainerRecoveryMode.ConsumeAfterInventory &&
@@ -2455,7 +2623,7 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        pending.AcknowledgementPending = false;
+        pending.MarkAcknowledged();
         return true;
     }
 
@@ -2710,7 +2878,10 @@ public sealed partial class InventorySlotsPlugin
         }
 
         Transform playerTransform = player.transform;
-        ItemDrop drop;
+        MultiUserContainerWorldDropCreationScope creationScope =
+            BeginMultiUserContainerWorldDropCreation(item);
+        ItemDrop? drop = null;
+        Exception? creationException = null;
         try
         {
             drop = ItemDrop.DropItem(
@@ -2721,15 +2892,28 @@ public sealed partial class InventorySlotsPlugin
         }
         catch (Exception exception)
         {
+            creationException = exception;
             Log.LogWarning(
                 $"Built-in multi-user chest local item drop failed: {exception.Message}");
-            // ItemDrop.DropItem may throw after creating its network object.
-            // Treat the outcome as unknown instead of risking an inventory copy.
-            return MultiUserContainerWorldDeliveryResult.Uncertain;
+        }
+        finally
+        {
+            EndMultiUserContainerWorldDropCreation(creationScope);
         }
 
-        if (drop == null || IsUnityNull(drop))
+        if (creationException != null || drop == null || IsUnityNull(drop))
         {
+            ItemDrop? partial = creationScope.Candidate;
+            if (partial == null ||
+                IsUnityNull(partial) ||
+                TryDiscardIncompleteInventorySlotsWorldDrop(partial))
+            {
+                return MultiUserContainerWorldDeliveryResult.DefinitelyNotSpawned;
+            }
+
+            // A matching object was observed during this exact synchronous
+            // DropItem call, but ownership did not allow us to remove it. Local
+            // fallback must remain blocked because that object may be live.
             return MultiUserContainerWorldDeliveryResult.Uncertain;
         }
 
@@ -2760,6 +2944,53 @@ public sealed partial class InventorySlotsPlugin
         }
 
         return MultiUserContainerWorldDeliveryResult.Succeeded;
+    }
+
+    internal static void OnItemDropAwakeForMultiUserContainerWorldDelivery(
+        ItemDrop itemDrop)
+    {
+        MultiUserContainerWorldDropCreationScope? scope =
+            _activeMultiUserContainerWorldDropCreationScope;
+        if (scope == null ||
+            scope.Candidate != null ||
+            itemDrop == null ||
+            IsUnityNull(itemDrop))
+        {
+            return;
+        }
+
+        string actualPrefab = CleanPrefabName(itemDrop.gameObject.name);
+        if (string.Equals(
+                scope.ExpectedPrefab,
+                actualPrefab,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            scope.Candidate = itemDrop;
+        }
+    }
+
+    private static MultiUserContainerWorldDropCreationScope
+        BeginMultiUserContainerWorldDropCreation(ItemData item)
+    {
+        string expectedPrefab = item.m_dropPrefab != null
+            ? CleanPrefabName(item.m_dropPrefab.name)
+            : "";
+        MultiUserContainerWorldDropCreationScope scope = new(
+            expectedPrefab,
+            _activeMultiUserContainerWorldDropCreationScope);
+        _activeMultiUserContainerWorldDropCreationScope = scope;
+        return scope;
+    }
+
+    private static void EndMultiUserContainerWorldDropCreation(
+        MultiUserContainerWorldDropCreationScope scope)
+    {
+        if (ReferenceEquals(
+                _activeMultiUserContainerWorldDropCreationScope,
+                scope))
+        {
+            _activeMultiUserContainerWorldDropCreationScope = scope.Previous;
+        }
     }
 
     private static void ShowMultiUserContainerNotReady()

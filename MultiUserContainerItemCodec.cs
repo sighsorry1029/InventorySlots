@@ -15,7 +15,6 @@ public sealed partial class InventorySlotsPlugin
     private const int MultiUserContainerMaxCustomDataKeyBytes = 4 * 1024;
     private const int MultiUserContainerMaxCustomDataValueBytes = 40 * 1024;
     private const int MultiUserContainerMaxCustomDataBytes = 40 * 1024;
-    private const int MultiUserContainerMaxStack = 1_000_000;
     private const int MultiUserContainerMaxQuality = 10_000;
     private const int MultiUserContainerMaxVariant = 10_000;
     private const int MultiUserContainerMaxWorldLevel = 10_000;
@@ -325,7 +324,7 @@ public sealed partial class InventorySlotsPlugin
         int worldLevel)
     {
         return stack > 0 &&
-               stack <= MultiUserContainerMaxStack &&
+               stack <= MultiUserContainerTransferCore.MaximumSerializedStack &&
                !float.IsNaN(durability) &&
                !float.IsInfinity(durability) &&
                durability >= 0f &&

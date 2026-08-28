@@ -39,7 +39,7 @@ namespace InventorySlots;
 [BepInDependency(HipLanternGuid, BepInDependency.DependencyFlags.SoftDependency)]
 public sealed partial class InventorySlotsPlugin : BaseUnityPlugin
 {
-    private const int BaseRows = 4;
+    private const int BaseRows = ClientStateCore.DefaultLastExpandableRows;
     private const int InventoryWidth = 8;
     private const int MaxSupportedExtraRows = 5;
     private const string SlotIdKey = "InventorySlotsSlotId";
@@ -84,7 +84,6 @@ public sealed partial class InventorySlotsPlugin : BaseUnityPlugin
     private const int CustomSlotPanelRows = 3;
     private const int QuickSlotPanelColumns = 3;
     private const int QuickSlotPanelRows = 3;
-    private const float EquipmentPanelGapRows = 0.35f;
     private const float SidePanelGapColumns = 1.45f;
     private const float SidePanelBackgroundPadding = 16f;
     private const float PlayerStatPanelGap = -8f;
@@ -118,9 +117,15 @@ public sealed partial class InventorySlotsPlugin : BaseUnityPlugin
     private static readonly Vector2 PinnedTooltipFixedPanelSize = new(345f, 600f);
     private static readonly Vector2 InventoryPinnedTooltipFixedOffset = new(828f, -384f);
     private static readonly Vector2 CraftingPinnedTooltipFixedOffset = new(-900f, 0f);
-    private static readonly Vector2 QuickSlotsPanelFixedOffset = new(-80f, -552f);
-    private static readonly Vector2 QuickSlotsHudFallbackPosition = new(64f, -520f);
-    private static readonly Vector2 EquipmentSlotsPanelFixedOffset = new(-80f, 0f);
+    private static readonly Vector2 QuickSlotsPanelFixedOffset = new(
+        ClientStateCore.DefaultQuickSlotsPanelX,
+        ClientStateCore.DefaultQuickSlotsPanelY);
+    private static readonly Vector2 QuickSlotsHudFallbackPosition = new(
+        ClientStateCore.DefaultQuickSlotsHudX,
+        ClientStateCore.DefaultQuickSlotsHudY);
+    private static readonly Vector2 EquipmentSlotsPanelFixedOffset = new(
+        ClientStateCore.DefaultEquipmentSlotsPanelX,
+        ClientStateCore.DefaultEquipmentSlotsPanelY);
     private static readonly Vector2 PlayerStatPanelsFixedOffset = Vector2.zero;
     private static readonly Vector2 ArmorPanelFixedOffset = new(-5f, 15f);
     private static readonly Vector2 WeightPanelFixedOffset = new(-5f, -5f);

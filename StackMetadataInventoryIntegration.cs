@@ -40,25 +40,6 @@ internal sealed class InventoryAddItemStackMetadataState
 
 public sealed partial class InventorySlotsPlugin
 {
-    private static long? GetStackMetadataWorldTicks()
-    {
-        ZNet znet = ZNet.instance;
-        if (znet == null)
-        {
-            return null;
-        }
-
-        try
-        {
-            long ticks = znet.GetTime().Ticks;
-            return ticks > 0L ? ticks : null;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
     internal static InventoryAddItemStackMetadataState BeginAutomaticStackMetadataMerge(
         Inventory inventory,
         ItemData item) =>

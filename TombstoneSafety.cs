@@ -204,7 +204,11 @@ public sealed partial class InventorySlotsPlugin
 
         foreach (SlotDefinition slot in SlotDefinitions.Where(slot => slot.Kind != SlotKind.Quick && CanUseSpecialSlot(player, inventory, item, slot)))
         {
-            Vector2i candidate = GetSlotGridPos(inventory, slot);
+            if (!TryGetSlotGridPos(inventory, slot, out Vector2i candidate))
+            {
+                continue;
+            }
+
             if (!claimed.Contains(candidate))
             {
                 pos = candidate;
@@ -228,7 +232,11 @@ public sealed partial class InventorySlotsPlugin
 
         foreach (SlotDefinition slot in SlotDefinitions.Where(slot => slot.Kind == SlotKind.Quick && CanUseSpecialSlot(player, inventory, item, slot)))
         {
-            Vector2i candidate = GetSlotGridPos(inventory, slot);
+            if (!TryGetSlotGridPos(inventory, slot, out Vector2i candidate))
+            {
+                continue;
+            }
+
             if (!claimed.Contains(candidate))
             {
                 pos = candidate;

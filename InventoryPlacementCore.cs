@@ -111,7 +111,11 @@ public sealed partial class InventorySlotsPlugin
                 continue;
             }
 
-            Vector2i candidate = GetSlotGridPos(inventory, slot);
+            if (!TryGetSlotGridPos(inventory, slot, out Vector2i candidate))
+            {
+                continue;
+            }
+
             if (CanUseCell(player, inventory, item, candidate) && CellContainsOnly(inventory, candidate, item))
             {
                 pos = candidate;
@@ -189,13 +193,22 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool CanUseSpecialSlot(Player player, Inventory inventory, ItemData item, SlotDefinition slot)
     {
+        return IsItemCompatibleWithSpecialSlot(player, item, slot) &&
+               IsSpecialSlotUnlocked(player, inventory, slot);
+    }
+
+    private static bool IsItemCompatibleWithSpecialSlot(
+        Player player,
+        ItemData item,
+        SlotDefinition slot)
+    {
         return item != null &&
                slot != null &&
+               SlotDefinitions.Contains(slot) &&
                slot.Accepts(item) &&
                !IsJewelcraftingUtilityGemBlockedForSlot(item, slot) &&
                CanUseCircletExtendedCustomSlot(player, item, slot) &&
-               CanUseHipLanternCustomSlot(item, slot) &&
-               IsSpecialSlotUnlocked(player, inventory, slot);
+               CanUseHipLanternCustomSlot(item, slot);
     }
 
     private static bool CanUseEmptySpecialSlot(Player player, Inventory inventory, ItemData item, SlotDefinition slot)

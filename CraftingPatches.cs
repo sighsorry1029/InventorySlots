@@ -171,3 +171,31 @@ internal static class InventoryGuiUpgradeFavoriteCraftingPatch
         return __exception;
     }
 }
+
+[HarmonyPatch(typeof(InventoryGui), "DoCrafting")]
+internal static class InventoryGuiEquipmentSlotUpgradeSafetyPatch
+{
+    [HarmonyPriority(Priority.First)]
+    [HarmonyBefore(new[] { "org.bepinex.plugins.jewelcrafting", "Azumatt.Recycle_N_Reclaim", "sighsorry.FineDining" })]
+    private static bool Prefix(
+        InventoryGui __instance,
+        Player player,
+        out EquipmentSlotUpgradeTransaction? __state)
+    {
+        __state = InventorySlotsPlugin.BeginEquipmentSlotUpgradeTransaction(
+            __instance,
+            player,
+            out bool abortCrafting);
+        return !abortCrafting;
+    }
+
+    [HarmonyPriority(Priority.Last)]
+    [HarmonyAfter(new[] { "org.bepinex.plugins.jewelcrafting", "Azumatt.Recycle_N_Reclaim", "sighsorry.FineDining" })]
+    private static Exception? Finalizer(
+        EquipmentSlotUpgradeTransaction? __state,
+        Exception? __exception)
+    {
+        InventorySlotsPlugin.CompleteEquipmentSlotUpgradeTransaction(__state, __exception);
+        return __exception;
+    }
+}

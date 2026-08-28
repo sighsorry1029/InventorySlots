@@ -1,11 +1,32 @@
 using System;
+using System.Collections.Generic;
+using System.Reflection;
+using System.Reflection.Emit;
 using HarmonyLib;
 using UnityEngine;
 using ItemData = ItemDrop.ItemData;
 
 namespace InventorySlots;
 
-[HarmonyPatch(typeof(Inventory), "FindEmptySlot")]
+[HarmonyPatch(typeof(Inventory), "FindEmptySlot", typeof(bool))]
+internal static class InventoryEquipmentSlotUpgradeFindEmptySlotPatch
+{
+    [HarmonyPriority(Priority.First)]
+    private static bool Prefix(Inventory __instance, ref Vector2i __result)
+    {
+        if (!InventorySlotsPlugin.TryUseEquipmentSlotUpgradeReplacementCell(
+                __instance,
+                out Vector2i replacementPosition))
+        {
+            return true;
+        }
+
+        __result = replacementPosition;
+        return false;
+    }
+}
+
+[HarmonyPatch(typeof(Inventory), "FindEmptySlot", typeof(bool))]
 internal static class InventoryFindEmptySlotPatch
 {
     private static bool Prefix(Inventory __instance, ref Vector2i __result)
@@ -20,6 +41,99 @@ internal static class InventoryFindFreeStackItemPatch
     private static bool Prefix(Inventory __instance, string name, int quality, float worldLevel, ref ItemData? __result)
     {
         return InventorySlotsPlugin.TryOverrideFindFreeStackItem(__instance, name, quality, worldLevel, ref __result);
+    }
+}
+
+[HarmonyPatch(
+    typeof(Inventory),
+    "AddItem",
+    typeof(string),
+    typeof(int),
+    typeof(int),
+    typeof(int),
+    typeof(long),
+    typeof(string),
+    typeof(Vector2i),
+    typeof(bool))]
+internal static class InventoryEquipmentSlotUpgradeReplacementAddPatch
+{
+    private static readonly MethodInfo FindEmptySlotMethod = AccessTools.DeclaredMethod(
+        typeof(Inventory),
+        "FindEmptySlot",
+        new[] { typeof(bool) });
+
+    private static readonly MethodInfo OverrideCapacityResultMethod = AccessTools.DeclaredMethod(
+        typeof(InventorySlotsPlugin),
+        nameof(InventorySlotsPlugin.OverrideEquipmentSlotUpgradeCapacityResult));
+
+    [HarmonyTranspiler]
+    [HarmonyPriority(Priority.First)]
+    [HarmonyBefore(new[] { "org.bepinex.plugins.jewelcrafting", "Azumatt.Recycle_N_Reclaim" })]
+    private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+    {
+        int replacements = 0;
+        foreach (CodeInstruction instruction in instructions)
+        {
+            yield return instruction;
+            if (!instruction.Calls(FindEmptySlotMethod))
+            {
+                continue;
+            }
+
+            // Some already-patched AddItem wrappers may no longer reach a later
+            // patch on the private FindEmptySlot call. Keep the original capacity
+            // result and override it only for the exact active upgrade transaction.
+            yield return new CodeInstruction(OpCodes.Ldarg_0);
+            yield return new CodeInstruction(OpCodes.Call, OverrideCapacityResultMethod);
+            replacements++;
+        }
+
+        if (replacements != 1)
+        {
+            InventorySlotsPlugin.Log.LogWarning(
+                $"Equipment-upgrade capacity patch expected one FindEmptySlot call but found {replacements}; full-inventory equipment upgrades will remain fail-closed.");
+        }
+    }
+
+    [HarmonyPriority(Priority.First)]
+    [HarmonyBefore(new[] { "org.bepinex.plugins.jewelcrafting", "Azumatt.Recycle_N_Reclaim" })]
+    private static void Prefix(
+        Inventory __instance,
+        string name,
+        int stack,
+        int quality,
+        int variant,
+        Vector2i position,
+        out EquipmentSlotUpgradeReplacementAddScope? __state)
+    {
+        __state = InventorySlotsPlugin.BeginEquipmentSlotUpgradeReplacementAdd(
+            __instance,
+            name,
+            stack,
+            quality,
+            variant,
+            position);
+    }
+
+    [HarmonyPriority(Priority.First)]
+    [HarmonyBefore(new[] { "org.bepinex.plugins.jewelcrafting", "Azumatt.Recycle_N_Reclaim" })]
+    private static void Postfix(EquipmentSlotUpgradeReplacementAddScope? __state)
+    {
+        InventorySlotsPlugin.ReleaseEquipmentSlotUpgradeReplacementAdd(__state);
+    }
+
+    [HarmonyPriority(Priority.Last)]
+    [HarmonyAfter(new[] { "org.bepinex.plugins.jewelcrafting", "Azumatt.Recycle_N_Reclaim" })]
+    private static Exception? Finalizer(
+        EquipmentSlotUpgradeReplacementAddScope? __state,
+        ref ItemData? __result,
+        Exception? __exception)
+    {
+        InventorySlotsPlugin.FinalizeEquipmentSlotUpgradeReplacementAdd(
+            __state,
+            ref __result,
+            __exception);
+        return __exception;
     }
 }
 
@@ -291,6 +405,12 @@ internal static class InventoryGridDropItemPatch
             return false;
         }
 
-        return InventorySlotsPlugin.ShouldAllowInventoryGridDropItem(__instance, item, pos);
+        return InventorySlotsPlugin.ShouldAllowInventoryGridDropItem(
+            __instance,
+            fromInventory,
+            item,
+            amount,
+            pos,
+            ref __result);
     }
 }

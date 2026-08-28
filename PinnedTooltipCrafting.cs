@@ -116,7 +116,7 @@ public sealed partial class InventorySlotsPlugin
         RectTransform parent = panel.parent as RectTransform ?? gui.m_crafting;
         Vector2 size = GetPinnedTooltipPanelSize(parent);
         Vector2 position = GetPinnedTooltipPosition(parent, slot, size, CraftingPinnedTooltipFixedOffset);
-        SetCenteredRect(parent, panel, position, size);
+        SetCenteredRectLayout(panel, position, size);
         ConfigurePinnedTooltipPanelBackground(panel);
         panel.SetAsLastSibling();
         panel.gameObject.SetActive(true);

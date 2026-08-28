@@ -26,6 +26,8 @@ internal sealed class QuickHudSlotMarker : MonoBehaviour
     public string LayoutSignature { get; set; } = "";
     public string BindingSignature { get; set; } = "";
     public int TooltipHash { get; set; }
+    public ItemData? TooltipItem { get; set; }
+    public float NextTooltipRefreshTime { get; set; }
 }
 
 public sealed partial class InventorySlotsPlugin
@@ -62,8 +64,9 @@ public sealed partial class InventorySlotsPlugin
         for (int i = 0; i < quickSlots.Count; i++)
         {
             SlotDefinition slot = quickSlots[i];
-            Vector2i gridPos = GetSlotGridPos(inventory, slot);
-            ItemData? item = inventory.GetItemAt(gridPos.x, gridPos.y);
+            ItemData? item = TryGetSlotGridPos(inventory, slot, out Vector2i gridPos)
+                ? inventory.GetItemAt(gridPos.x, gridPos.y)
+                : null;
             UpdateQuickSlotsHotkeyBarElement(player, hotkeyBar.m_elements[i], i, slot, item, elementSpace);
         }
     }
@@ -259,6 +262,8 @@ public sealed partial class InventorySlotsPlugin
             SetQuickHudDurability(element, marker, null);
             element.m_amount?.gameObject.SetActive(false);
             marker.TooltipHash = 0;
+            marker.TooltipItem = null;
+            marker.NextTooltipRefreshTime = 0f;
             SetQuickHotkeyBarTooltip(element, marker, $"empty|{slot.Id}|{slot.Name}", slot.Name, "");
             return;
         }
@@ -281,9 +286,15 @@ public sealed partial class InventorySlotsPlugin
 
         element.m_equiped?.SetActive(IsQuickSlotHudItemEquipped(player, item));
         int tooltipHash = GetQuickHudTooltipHash(item);
-        if (marker.TooltipHash != tooltipHash)
+        float now = Time.unscaledTime;
+        if (!ReferenceEquals(marker.TooltipItem, item) ||
+            marker.TooltipHash != tooltipHash ||
+            marker.NextTooltipRefreshTime <= 0f ||
+            now >= marker.NextTooltipRefreshTime)
         {
+            marker.TooltipItem = item;
             marker.TooltipHash = tooltipHash;
+            marker.NextTooltipRefreshTime = now + DynamicTooltipTextRefreshInterval;
             SetQuickHotkeyBarTooltip(element, marker, "item|" + tooltipHash.ToString("X8"), item.m_shared.m_name, item.GetTooltip());
         }
     }
@@ -635,12 +646,13 @@ public sealed partial class InventorySlotsPlugin
         }
 
         Inventory inventory = ((Humanoid)Player.m_localPlayer).GetInventory();
-        if (!TryGetQuickSlotDefinition(marker.Index, out SlotDefinition? slot))
+        if (!TryGetQuickSlotDefinition(marker.Index, out SlotDefinition? slot) ||
+            slot == null ||
+            !TryGetSlotGridPos(inventory, slot, out Vector2i pos))
         {
             return;
         }
 
-        Vector2i pos = GetSlotGridPos(inventory, slot!);
         ItemData? item = inventory.GetItemAt(pos.x, pos.y);
         InventoryGui.instance.OnSelectedItem(InventoryGui.instance.m_playerGrid, item, pos, InventoryGrid.Modifier.Select);
     }
@@ -653,14 +665,15 @@ public sealed partial class InventorySlotsPlugin
         }
 
         Inventory inventory = ((Humanoid)Player.m_localPlayer).GetInventory();
-        if (!TryGetQuickSlotDefinition(marker.Index, out SlotDefinition? slot))
+        if (!TryGetQuickSlotDefinition(marker.Index, out SlotDefinition? slot) ||
+            slot == null ||
+            !TryGetSlotGridPos(inventory, slot, out Vector2i pos))
         {
             return;
         }
 
-        Vector2i pos = GetSlotGridPos(inventory, slot!);
         ItemData? item = inventory.GetItemAt(pos.x, pos.y);
-        if (item != null && slot!.Accepts(item))
+        if (item != null && slot.Accepts(item))
         {
             Player.m_localPlayer.UseItem(inventory, item, fromInventoryGui: InventoryGui.IsVisible());
             inventory.Changed();

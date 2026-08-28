@@ -115,7 +115,10 @@ public sealed partial class InventorySlotsPlugin
                     break;
                 }
 
-                int amount = Math.Min(target.m_shared.m_maxStackSize - target.m_stack, source.m_stack);
+                int amount = GetSafeTakeAllStackMoveAmount(
+                    source,
+                    target,
+                    source.m_stack);
                 if (amount <= 0)
                 {
                     continue;
@@ -144,6 +147,26 @@ public sealed partial class InventorySlotsPlugin
         }
 
         return movedAmount;
+    }
+
+    private static int GetSafeTakeAllStackMoveAmount(
+        ItemData source,
+        ItemData target,
+        int remainingAmount)
+    {
+        if (source?.m_shared == null ||
+            target?.m_shared == null ||
+            remainingAmount <= 0)
+        {
+            return 0;
+        }
+
+        int free = Math.Max(
+            0,
+            target.m_shared.m_maxStackSize - target.m_stack);
+        return Math.Min(
+            Math.Min(source.m_stack, remainingAmount),
+            free);
     }
 
     private static List<ItemData> GetSafeTakeAllStackTargets(Inventory playerInventory, ItemData source, HashSet<Vector2i> allowedSlots)

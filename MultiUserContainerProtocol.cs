@@ -666,75 +666,14 @@ public sealed partial class InventorySlotsPlugin
             return response;
         }
 
-        switch (request.Operation)
-        {
-            case MultiUserContainerOperation.Add:
-                response.Success = TryApplyMultiUserContainerAdd(
-                    inventory,
-                    request.Item,
-                    request.Amount,
-                    request.TargetPosition,
-                    request.ExpectedTargetStack);
-                response.Amount = response.Success ? request.Amount : 0;
-                response.Failure = response.Success
-                    ? MultiUserContainerFailure.None
-                    : MultiUserContainerFailure.DestinationChanged;
-                break;
-            case MultiUserContainerOperation.Remove:
-                response.Success = TryApplyMultiUserContainerRemove(
-                    inventory,
-                    request.Item,
-                    request.Amount,
-                    request.SourcePosition,
-                    out ItemData removed);
-                response.Amount = response.Success ? request.Amount : 0;
-                response.Item = response.Success ? removed : null;
-                response.Failure = response.Success
-                    ? MultiUserContainerFailure.None
-                    : MultiUserContainerFailure.ItemChanged;
-                break;
-            case MultiUserContainerOperation.Move:
-                response.Success = TryApplyMultiUserContainerMove(
-                    inventory,
-                    request.Item,
-                    request.Amount,
-                    request.SourcePosition,
-                    request.TargetPosition,
-                    request.ExpectedTargetStack);
-                response.Amount = response.Success ? request.Amount : 0;
-                response.Failure = response.Success
-                    ? MultiUserContainerFailure.None
-                    : MultiUserContainerFailure.DestinationChanged;
-                break;
-            case MultiUserContainerOperation.Exchange:
-                response.Success = TryApplyMultiUserContainerExchange(
-                    inventory,
-                    request.Item,
-                    request.CounterpartItem!,
-                    request.SourcePosition,
-                    out ItemData displaced);
-                response.Amount = response.Success ? request.Amount : 0;
-                response.Item = response.Success ? displaced : null;
-                response.Failure = response.Success
-                    ? MultiUserContainerFailure.None
-                    : MultiUserContainerFailure.ItemChanged;
-                break;
-            case MultiUserContainerOperation.Swap:
-                response.Success = TryApplyMultiUserContainerSwap(
-                    inventory,
-                    request.Item,
-                    request.CounterpartItem!,
-                    request.SourcePosition,
-                    request.TargetPosition);
-                response.Amount = response.Success ? request.Amount : 0;
-                response.Failure = response.Success
-                    ? MultiUserContainerFailure.None
-                    : MultiUserContainerFailure.DestinationChanged;
-                break;
-            default:
-                response.Failure = MultiUserContainerFailure.InvalidRequest;
-                break;
-        }
+        response.Success = TryApplyMultiUserContainerRequestToInventory(
+            inventory,
+            request,
+            out ItemData? responseItem,
+            out MultiUserContainerFailure failure);
+        response.Amount = response.Success ? request.Amount : 0;
+        response.Item = response.Success ? responseItem : null;
+        response.Failure = failure;
 
         if (response.Success &&
             !TryPersistMultiUserContainerInventory(container))
@@ -835,9 +774,10 @@ public sealed partial class InventorySlotsPlugin
         if (request.RequestId <= 0 ||
             !Enum.IsDefined(typeof(MultiUserContainerOperation), request.Operation) ||
             request.Item?.m_shared == null ||
-            request.Amount <= 0 ||
-            request.Amount > request.Item.m_stack ||
-            request.Amount > Math.Max(1, request.Item.m_shared.m_maxStackSize))
+            !MultiUserContainerTransferCore.CanTransferAmount(
+                request.Item.m_stack,
+                request.Item.m_shared.m_maxStackSize,
+                request.Amount))
         {
             return false;
         }
@@ -870,19 +810,10 @@ public sealed partial class InventorySlotsPlugin
               !request.Item.m_shared.m_questItem &&
               !request.CounterpartItem.m_shared.m_questItem
             : request.CounterpartItem == null;
-        return (!sourceRequired || IsMultiUserContainerPositionInBounds(inventory, request.SourcePosition)) &&
-               (!targetRequired || IsMultiUserContainerPositionInBounds(inventory, request.TargetPosition)) &&
+        return (!sourceRequired || IsValidMultiUserContainerCoordinate(inventory, request.SourcePosition)) &&
+               (!targetRequired || IsValidMultiUserContainerCoordinate(inventory, request.TargetPosition)) &&
                targetStackValid &&
                counterpartValid;
-    }
-
-    private static bool IsMultiUserContainerPositionInBounds(Inventory inventory, Vector2i position)
-    {
-        return inventory != null &&
-               position.x >= 0 &&
-               position.y >= 0 &&
-               position.x < inventory.GetWidth() &&
-               position.y < inventory.GetHeight();
     }
 
     private static MultiUserContainerResponse CreateMultiUserContainerResponse(MultiUserContainerRequest request)

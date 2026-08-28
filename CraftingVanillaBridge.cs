@@ -25,12 +25,16 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
+        if (IsVneiUiTransform(transform, gui.m_crafting))
+        {
+            return true;
+        }
+
         Transform? cursor = transform;
         while (cursor != null && cursor != gui.m_crafting)
         {
             string lowerName = cursor.name.ToLowerInvariant();
-            if (lowerName.Contains("vnei") ||
-                lowerName.Contains("jewelcrafting") ||
+            if (lowerName.Contains("jewelcrafting") ||
                 lowerName.Contains("augment") ||
                 lowerName.Contains("synergy"))
             {
@@ -41,8 +45,7 @@ public sealed partial class InventorySlotsPlugin
             {
                 Type? type = behaviour != null ? behaviour.GetType() : null;
                 string ns = type?.Namespace ?? "";
-                if (ns.StartsWith("VNEI", StringComparison.Ordinal) ||
-                    ns.StartsWith("Jewelcrafting", StringComparison.Ordinal))
+                if (ns.StartsWith("Jewelcrafting", StringComparison.Ordinal))
                 {
                     return true;
                 }
@@ -416,7 +419,7 @@ public sealed partial class InventorySlotsPlugin
                 {
                     foreach (Image siblingImage in parent.GetComponentsInChildren<Image>(includeInactive: true))
                     {
-                        if (ShouldHideCraftingPanelBackgroundImage(gui, siblingImage) && IsNearCraftingFieldBackground(anchor, siblingImage.transform, parent))
+                        if (ShouldHideCraftingPanelBackgroundImage(gui, siblingImage) && IsNearCraftingFieldBackground(anchor, siblingImage.transform))
                         {
                             yield return siblingImage;
                         }
@@ -460,7 +463,7 @@ public sealed partial class InventorySlotsPlugin
                lowerName.Contains("panel");
     }
 
-    private static bool IsNearCraftingFieldBackground(Transform? anchor, Transform imageTransform, Transform parent)
+    private static bool IsNearCraftingFieldBackground(Transform? anchor, Transform imageTransform)
     {
         if (anchor == null)
         {

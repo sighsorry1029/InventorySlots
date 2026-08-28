@@ -1288,13 +1288,10 @@ public sealed partial class InventorySlotsPlugin
                          source,
                          allowedSlots))
             {
-                int free = Math.Max(
-                    0,
-                    stackTarget.m_shared.m_maxStackSize -
-                    stackTarget.m_stack);
-                int candidateAmount = Math.Min(
-                    Math.Min(source.m_stack, remainingAmount),
-                    free);
+                int candidateAmount = GetSafeTakeAllStackMoveAmount(
+                    source,
+                    stackTarget,
+                    remainingAmount);
                 if (candidateAmount <= 0 ||
                     !CanAddWithinInventoryLimits(
                         playerInventory,

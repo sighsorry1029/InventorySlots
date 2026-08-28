@@ -4,6 +4,13 @@ namespace InventorySlots;
 
 internal static class InventorySlotSafetyCore
 {
+    public enum EquipmentUpgradeCompletionPlan
+    {
+        None,
+        Commit,
+        Rollback
+    }
+
     public readonly struct GridCell
     {
         public GridCell(int x, int y)
@@ -14,6 +21,35 @@ internal static class InventorySlotSafetyCore
 
         public int X { get; }
         public int Y { get; }
+    }
+
+    public static bool TryMapGridPositionToSlotIndex(
+        int inventoryWidth,
+        int fixedRegularRows,
+        int slotCount,
+        int gridX,
+        int gridY,
+        out int slotIndex)
+    {
+        slotIndex = -1;
+        if (inventoryWidth <= 0 ||
+            fixedRegularRows < 0 ||
+            slotCount <= 0 ||
+            gridX < 0 ||
+            gridX >= inventoryWidth ||
+            gridY < fixedRegularRows)
+        {
+            return false;
+        }
+
+        long candidate = ((long)gridY - fixedRegularRows) * inventoryWidth + gridX;
+        if (candidate < 0 || candidate >= slotCount)
+        {
+            return false;
+        }
+
+        slotIndex = (int)candidate;
+        return true;
     }
 
     public enum KeepOnDeathRestorePlan
@@ -74,6 +110,61 @@ internal static class InventorySlotSafetyCore
         string marked = markedSlotId!.Trim();
         string candidate = candidateSlotId == null ? "" : candidateSlotId.Trim();
         return string.Equals(marked, candidate, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static bool CanReuseOriginalEquipmentSlotForUpgrade(
+        bool transactionActive,
+        bool matchingReplacementAdd,
+        bool sameInventory,
+        bool originalWasEquipmentSlot,
+        bool originalRemoved,
+        bool originalCellEmpty,
+        bool slotAcceptsResult)
+    {
+        return transactionActive &&
+               matchingReplacementAdd &&
+               sameInventory &&
+               originalWasEquipmentSlot &&
+               originalRemoved &&
+               originalCellEmpty &&
+               slotAcceptsResult;
+    }
+
+    public static EquipmentUpgradeCompletionPlan SelectEquipmentUpgradeCompletionPlan(
+        bool transactionActive,
+        bool replacementAddAttempted,
+        bool originalStillPresent,
+        bool resultExists,
+        bool resultIsNew,
+        bool resultMatchesExpected,
+        bool resultInOriginalCell,
+        bool resultEquippedInOriginalSlot)
+    {
+        if (!transactionActive || !replacementAddAttempted)
+        {
+            return EquipmentUpgradeCompletionPlan.None;
+        }
+
+        return !originalStillPresent &&
+               resultExists &&
+               resultIsNew &&
+               resultMatchesExpected &&
+               resultInOriginalCell &&
+               resultEquippedInOriginalSlot
+            ? EquipmentUpgradeCompletionPlan.Commit
+            : EquipmentUpgradeCompletionPlan.Rollback;
+    }
+
+    public static bool ShouldRollbackInterruptedEquipmentUpgrade(
+        bool transactionActive,
+        bool craftingThrew,
+        bool replacementAddAttempted,
+        bool originalStillPresent)
+    {
+        return transactionActive &&
+               craftingThrew &&
+               !replacementAddAttempted &&
+               !originalStillPresent;
     }
 
     public static bool ShouldDelegateCircletOwnership(

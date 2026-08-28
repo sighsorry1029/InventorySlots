@@ -7,25 +7,29 @@ public sealed partial class InventorySlotsPlugin
     private void Awake()
     {
         _instance = this;
-        StackMetadataPolicy.SetWorldTicksProvider(GetStackMetadataWorldTicks);
         LocalizationManager.Localizer.OnLocalizationComplete += HandleLocalizationComplete;
         LocalizationManager.Localizer.Load(this);
         bool saveOnSet = Config.SaveOnConfigSet;
         Config.SaveOnConfigSet = false;
+        try
+        {
+            BindConfigs();
+            EnsureDefaultYamlFiles();
+            InitializeJewelcraftingSlotCompatibility();
+            InitializeBackpackCompatibility();
+            InitializeMagicSupremacyCompatibility();
+            InitializeHipLanternCompatibility();
+            InitializeEpicLootCompatibility();
+            InitializeYamlSync();
 
-        BindConfigs();
-        EnsureDefaultYamlFiles();
-        InitializeJewelcraftingSlotCompatibility();
-        InitializeBackpackCompatibility();
-        InitializeMagicSupremacyCompatibility();
-        InitializeHipLanternCompatibility();
-        InitializeEpicLootCompatibility();
-        InitializeYamlSync();
-
-        _harmony.PatchAll();
-        ApplyMyLittleUICraftingCompatibility();
-        Config.Save();
-        Config.SaveOnConfigSet = saveOnSet;
+            _harmony.PatchAll();
+            ApplyMyLittleUICraftingCompatibility();
+            Config.Save();
+        }
+        finally
+        {
+            Config.SaveOnConfigSet = saveOnSet;
+        }
 
         Log.LogInfo($"{ModName} loaded.");
     }
@@ -56,6 +60,7 @@ public sealed partial class InventorySlotsPlugin
             HideQuickSlotInventoryPanels();
             ClearCustomEquipmentVisuals();
             SetHintActive(TooltipUi.HotbarSwitchHudHint, false);
+            SetHintActive(TooltipUi.FeatureGuideHudHint, false);
             return;
         }
 
@@ -68,6 +73,7 @@ public sealed partial class InventorySlotsPlugin
         UpdateHotbarSwitchHud();
         ApplyPinnedTooltipSlotLimit();
         RefreshJewelcraftingPinnedTooltips();
+        RefreshActiveDynamicTooltipText();
         HandlePinnedTooltipHotkey();
         HandleInventoryPinnedTooltipWheel();
 

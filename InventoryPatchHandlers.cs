@@ -1,11 +1,71 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using ItemData = ItemDrop.ItemData;
 
 namespace InventorySlots;
 
+internal sealed class HumanoidDropInventorySlotsState
+{
+    public HumanoidDropInventorySlotsState(
+        Humanoid humanoid,
+        Inventory inventory,
+        ItemData item,
+        int amount,
+        SlotDefinition slot,
+        Vector2i originalPosition,
+        HumanoidDropInventorySlotsState? previous)
+    {
+        Humanoid = humanoid;
+        Inventory = inventory;
+        Item = item;
+        Amount = amount;
+        Slot = slot;
+        OriginalPosition = originalPosition;
+        OriginalSnapshot = item.Clone();
+        HumanoidSnapshot = new EquipmentSlotUpgradeHumanoidSnapshot(humanoid, item);
+        Previous = previous;
+    }
+
+    public Humanoid Humanoid { get; }
+    public Inventory Inventory { get; }
+    public ItemData Item { get; }
+    public int Amount { get; }
+    public SlotDefinition Slot { get; }
+    public Vector2i OriginalPosition { get; }
+    public ItemData OriginalSnapshot { get; }
+    public EquipmentSlotUpgradeHumanoidSnapshot HumanoidSnapshot { get; }
+    public HumanoidDropInventorySlotsState? Previous { get; }
+    public ItemDrop? WorldDrop { get; set; }
+    public bool WorldDropCompleted { get; set; }
+    public bool Prepared { get; set; }
+    public bool Completed { get; set; }
+}
+
+internal sealed class InventorySlotsItemDropCreationScope
+{
+    public InventorySlotsItemDropCreationScope(
+        HumanoidDropInventorySlotsState dropState,
+        InventorySlotsItemDropCreationScope? previous)
+    {
+        DropState = dropState;
+        Previous = previous;
+    }
+
+    public HumanoidDropInventorySlotsState DropState { get; }
+    public InventorySlotsItemDropCreationScope? Previous { get; }
+    public bool Completed { get; set; }
+}
+
 public sealed partial class InventorySlotsPlugin
 {
+    [ThreadStatic]
+    private static HumanoidDropInventorySlotsState? _activeHumanoidDropInventorySlotsState;
+
+    [ThreadStatic]
+    private static InventorySlotsItemDropCreationScope? _activeInventorySlotsItemDropCreationScope;
+
     internal static bool BeginPlayerInventoryLoad(Player player)
     {
         if (IsUnityNull(player))
@@ -238,20 +298,44 @@ public sealed partial class InventorySlotsPlugin
         graveInventory.m_height = Math.Max(GetInventoryFullHeight(graveInventory.GetWidth()), originalHeight);
     }
 
-    internal static bool ShouldAllowInventoryGridDropItem(InventoryGrid grid, ItemData item, Vector2i pos)
+    internal static bool ShouldAllowInventoryGridDropItem(
+        InventoryGrid grid,
+        Inventory fromInventory,
+        ItemData item,
+        int amount,
+        Vector2i pos,
+        ref bool result)
     {
         Player? player = Player.m_localPlayer;
-        if (player == null || item == null || grid.m_inventory != ((Humanoid)player).GetInventory())
+        if (player == null || item == null)
         {
             return true;
         }
 
-        if (!CanUseCell(player, grid.m_inventory, item, pos))
+        Inventory targetInventory = grid.m_inventory;
+        Inventory playerInventory = ((Humanoid)player).GetInventory();
+        if (targetInventory == playerInventory && !CanUseCell(player, targetInventory, item, pos))
         {
             return false;
         }
 
-        if (!TryGetSlotAtGridPos(grid.m_inventory, pos, out _) && IsInventorySlotsCustomEquipped(item))
+        if (TryHandleProtectedInventoryGridSwap(
+                player,
+                playerInventory,
+                targetInventory,
+                fromInventory,
+                item,
+                amount,
+                pos,
+                out bool swapResult))
+        {
+            result = swapResult;
+            return false;
+        }
+
+        if (targetInventory == playerInventory &&
+            !TryGetSlotAtGridPos(targetInventory, pos, out _) &&
+            IsInventorySlotsCustomEquipped(item))
         {
             UnequipInventorySlotsItem(player, item);
         }
@@ -259,8 +343,14 @@ public sealed partial class InventorySlotsPlugin
         return true;
     }
 
-    internal static SlotDefinition? PrepareHumanoidDropInventorySlotsItem(Humanoid humanoid, Inventory inventory, ItemData item, int amount)
+    internal static HumanoidDropInventorySlotsState? PrepareHumanoidDropInventorySlotsItem(
+        Humanoid humanoid,
+        Inventory inventory,
+        ItemData item,
+        int amount,
+        out bool abortDrop)
     {
+        abortDrop = false;
         Player? player = Player.m_localPlayer;
         if (IsHandlingSlotDropOutside ||
             player == null ||
@@ -273,22 +363,329 @@ public sealed partial class InventorySlotsPlugin
             return null;
         }
 
-        return TryPrepareSlotItemForExternalRemoval(player, inventory, item, out SlotDefinition? slot)
-            ? slot
-            : null;
+        Vector2i originalPosition = item.m_gridPos;
+        if (!TryResolveSlotItemForExternalRemoval(
+                player,
+                inventory,
+                item,
+                out SlotDefinition? slot) ||
+            slot == null)
+        {
+            return null;
+        }
+
+        HumanoidDropInventorySlotsState state = new(
+            humanoid,
+            inventory,
+            item,
+            amount,
+            slot,
+            originalPosition,
+            _activeHumanoidDropInventorySlotsState);
+        _activeHumanoidDropInventorySlotsState = state;
+        try
+        {
+            if (!TryPrepareSlotItemForExternalRemoval(
+                    player,
+                    inventory,
+                    item,
+                    out SlotDefinition? preparedSlot) ||
+                preparedSlot == null ||
+                !string.Equals(
+                    preparedSlot.Id,
+                    slot.Id,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                abortDrop = true;
+                CompleteHumanoidDropInventorySlotsItem(
+                    humanoid,
+                    inventory,
+                    item,
+                    result: false,
+                    state: state);
+            }
+            else
+            {
+                state.Prepared = true;
+            }
+        }
+        catch (Exception exception)
+        {
+            abortDrop = true;
+            CompleteHumanoidDropInventorySlotsItem(
+                humanoid,
+                inventory,
+                item,
+                result: false,
+                state: state,
+                exception: exception);
+        }
+
+        return state;
     }
 
-    internal static void RestoreHumanoidDropInventorySlotsItem(Humanoid humanoid, Inventory inventory, ItemData item, bool result, SlotDefinition? slot)
+    internal static void CompleteHumanoidDropInventorySlotsItem(
+        Humanoid humanoid,
+        Inventory inventory,
+        ItemData item,
+        bool result,
+        HumanoidDropInventorySlotsState? state,
+        Exception? exception = null)
     {
-        if (result || slot == null)
+        if (state == null || state.Completed)
         {
             return;
         }
 
-        Player? player = Player.m_localPlayer;
-        if (player != null && humanoid == (Humanoid)player)
+        state.Completed = true;
+        try
         {
-            RestoreSlotItemAfterFailedExternalRemoval(player, inventory, item, slot);
+            Player? player = Player.m_localPlayer;
+            if (player == null ||
+                humanoid != state.Humanoid ||
+                inventory != state.Inventory ||
+                item != state.Item ||
+                humanoid != (Humanoid)player)
+            {
+                return;
+            }
+
+            bool itemOwned = ContainsExactItemReference(inventory, item);
+            bool liveWorldDrop =
+                state.WorldDrop != null && !IsUnityNull(state.WorldDrop);
+            bool incompleteWorldDropDiscarded = false;
+            if (state.WorldDropCompleted && liveWorldDrop)
+            {
+                if (itemOwned)
+                {
+                    inventory.m_inventory.RemoveAll(candidate =>
+                        ReferenceEquals(candidate, item));
+                    inventory.Changed();
+                }
+
+                if (exception != null)
+                {
+                    Log.LogWarning(
+                        $"Equipment drop callback failed after the world item was saved; kept the world copy to avoid duplication: {exception.GetBaseException().Message}");
+                }
+
+                return;
+            }
+
+            if (liveWorldDrop && !TryDiscardIncompleteInventorySlotsWorldDrop(state.WorldDrop!))
+            {
+                Log.LogError(
+                    "An incomplete equipment world drop could not be discarded; " +
+                    "the inventory copy was not restored to avoid duplication.");
+                return;
+            }
+
+            if (liveWorldDrop)
+            {
+                incompleteWorldDropDiscarded = true;
+                liveWorldDrop = false;
+                state.WorldDrop = null;
+            }
+
+            if (result && !itemOwned && !incompleteWorldDropDiscarded)
+            {
+                // A true result without our exact ItemDrop completion is not
+                // enough proof to manufacture another inventory copy.
+                return;
+            }
+
+            if (!itemOwned && !liveWorldDrop)
+            {
+                inventory.m_inventory.Add(item);
+                itemOwned = true;
+            }
+
+            if (itemOwned)
+            {
+                RestoreEquipmentSlotUpgradeItemSnapshot(
+                    item,
+                    state.OriginalSnapshot);
+                ItemData? blocker = inventory.m_inventory.FirstOrDefault(candidate =>
+                    candidate != null &&
+                    candidate != item &&
+                    candidate.m_gridPos == state.OriginalPosition);
+                bool restoreSlotState = blocker == null;
+                if (restoreSlotState)
+                {
+                    item.m_gridPos = state.OriginalPosition;
+                    state.HumanoidSnapshot.Restore(humanoid, item);
+                    RestoreSlotEquipmentState(
+                        player,
+                        inventory,
+                        item,
+                        state.Slot);
+                }
+                else
+                {
+                    HashSet<Vector2i> occupied = new(
+                        inventory.m_inventory
+                            .Where(candidate => candidate != null && candidate != item)
+                            .Select(candidate => candidate.m_gridPos));
+                    InventorySlotSafetyCore.GridCell preservationCell =
+                        InventorySlotSafetyCore.SelectNonOverlappingPreservationCell(
+                            inventory.GetWidth(),
+                            inventory.GetHeight(),
+                            new InventorySlotSafetyCore.GridCell(
+                                state.OriginalPosition.x,
+                                state.OriginalPosition.y),
+                            (x, y) => IsCellOccupied(occupied, x, y));
+                    item.m_gridPos = new Vector2i(
+                        preservationCell.X,
+                        preservationCell.Y);
+                    item.m_equipped = false;
+                    ClearItemSlot(item);
+                    ClearVanillaEquipmentReferences(humanoid, item);
+                    humanoid.SetupEquipment();
+                    RequestInventoryStateEnsure(
+                        player,
+                        InventoryStateEnsureReason.InventoryChanged,
+                        InventoryStateAuditLevel.FullIntegrity);
+                }
+
+                inventory.Changed();
+            }
+
+            if (exception != null)
+            {
+                Log.LogWarning(
+                    $"Restored equipment after a drop exception before world creation: {exception.GetBaseException().Message}");
+            }
+        }
+        catch (Exception recoveryException)
+        {
+            Log.LogError(
+                $"Equipment drop recovery failed: {recoveryException}");
+        }
+        finally
+        {
+            if (ReferenceEquals(
+                    _activeHumanoidDropInventorySlotsState,
+                    state))
+            {
+                _activeHumanoidDropInventorySlotsState = state.Previous;
+            }
+        }
+    }
+
+    internal static void OnItemDropAwakeForInventorySlotsDrop(ItemDrop itemDrop)
+    {
+        OnItemDropAwakeForMultiUserContainerWorldDelivery(itemDrop);
+
+        InventorySlotsItemDropCreationScope? scope =
+            _activeInventorySlotsItemDropCreationScope;
+        HumanoidDropInventorySlotsState? state = scope?.DropState;
+        if (scope == null ||
+            state == null ||
+            state.Completed ||
+            state.WorldDrop != null ||
+            itemDrop == null ||
+            IsUnityNull(itemDrop) ||
+            state.Item?.m_dropPrefab == null)
+        {
+            return;
+        }
+
+        string expectedName = CleanPrefabName(state.Item.m_dropPrefab.name);
+        string actualName = CleanPrefabName(itemDrop.gameObject.name);
+        if (string.Equals(
+                expectedName,
+                actualName,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            state.WorldDrop = itemDrop;
+        }
+    }
+
+    internal static InventorySlotsItemDropCreationScope? BeginInventorySlotsItemDropCreation(
+        ItemData item,
+        int amount)
+    {
+        HumanoidDropInventorySlotsState? state =
+            _activeHumanoidDropInventorySlotsState;
+        if (state == null ||
+            state.Completed ||
+            !state.Prepared ||
+            !ReferenceEquals(state.Item, item) ||
+            amount != Math.Min(state.Amount, state.OriginalSnapshot.m_stack) ||
+            ReferenceEquals(
+                _activeInventorySlotsItemDropCreationScope?.DropState,
+                state))
+        {
+            return null;
+        }
+
+        InventorySlotsItemDropCreationScope scope = new(
+            state,
+            _activeInventorySlotsItemDropCreationScope);
+        _activeInventorySlotsItemDropCreationScope = scope;
+        return scope;
+    }
+
+    internal static void CompleteInventorySlotsItemDropCreation(
+        InventorySlotsItemDropCreationScope? scope,
+        ItemDrop? result,
+        Exception? exception)
+    {
+        if (scope == null || scope.Completed)
+        {
+            return;
+        }
+
+        scope.Completed = true;
+        try
+        {
+            if (exception == null && result != null && !IsUnityNull(result))
+            {
+                scope.DropState.WorldDrop = result;
+                scope.DropState.WorldDropCompleted = true;
+            }
+        }
+        finally
+        {
+            if (ReferenceEquals(
+                    _activeInventorySlotsItemDropCreationScope,
+                    scope))
+            {
+                _activeInventorySlotsItemDropCreationScope = scope.Previous;
+            }
+        }
+    }
+
+    private static bool TryDiscardIncompleteInventorySlotsWorldDrop(
+        ItemDrop itemDrop)
+    {
+        try
+        {
+            if (itemDrop == null || IsUnityNull(itemDrop))
+            {
+                return true;
+            }
+
+            ZNetView? nview = itemDrop.m_nview;
+            if (nview != null && !IsUnityNull(nview) && nview.IsValid())
+            {
+                if (!nview.IsOwner())
+                {
+                    return false;
+                }
+
+                nview.Destroy();
+                return true;
+            }
+
+            UnityEngine.Object.Destroy(itemDrop.gameObject);
+            return true;
+        }
+        catch (Exception exception)
+        {
+            Log.LogWarning(
+                $"Could not discard an incomplete equipment world drop: {exception.Message}");
+            return false;
         }
     }
 

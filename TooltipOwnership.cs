@@ -45,7 +45,7 @@ public sealed partial class InventorySlotsPlugin
         CanvasGroup group = existingGroup != null && !IsUnityNull(existingGroup)
             ? existingGroup
             : tooltipObject.AddComponent<CanvasGroup>();
-        HideVanillaTooltipCanvasGroup(group, VanillaTooltipVisualSnapshots[tooltipObject]);
+        HideVanillaTooltipCanvasGroup(group);
 
         if (!firstHide)
         {
@@ -69,11 +69,11 @@ public sealed partial class InventorySlotsPlugin
                     childGroup.ignoreParentGroups);
             }
 
-            HideVanillaTooltipCanvasGroup(childGroup, VanillaTooltipChildCanvasGroupSnapshots[childGroup]);
+            HideVanillaTooltipCanvasGroup(childGroup);
         }
     }
 
-    private static void HideVanillaTooltipCanvasGroup(CanvasGroup group, TooltipCanvasGroupVisualSnapshot snapshot)
+    private static void HideVanillaTooltipCanvasGroup(CanvasGroup group)
     {
         group.alpha = 0f;
         group.interactable = false;

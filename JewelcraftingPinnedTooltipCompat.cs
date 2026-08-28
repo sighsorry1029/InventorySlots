@@ -57,7 +57,7 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
-    private static void SetInventoryPinnedTooltipTextReservedSpace(RectTransform panel, bool reserveJewelcraftingSpace)
+    private static void SetInventoryPinnedTooltipTextReservedSpace(RectTransform panel)
     {
         TMP_Text? text = FindPinnedTooltipText(panel);
         RectTransform? textRect = text != null ? text.rectTransform : null;
@@ -101,38 +101,6 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        bool hasActivePanel = false;
-        for (int i = 0; i < PinnedTooltips.Inventory.Panels.Length; i++)
-        {
-            RectTransform? panel = PinnedTooltips.Inventory.Panels[i];
-            if (panel != null && !IsUnityNull(panel) && panel.gameObject.activeInHierarchy && PinnedTooltips.Inventory.Items[i]?.m_shared != null)
-            {
-                hasActivePanel = true;
-                break;
-            }
-        }
-
-        if (!hasActivePanel)
-        {
-            for (int i = 0; i < PinnedTooltips.Crafting.Panels.Length; i++)
-            {
-                RectTransform? panel = PinnedTooltips.Crafting.Panels[i];
-                if (panel != null &&
-                    !IsUnityNull(panel) &&
-                    panel.gameObject.activeInHierarchy &&
-                    PinnedTooltips.Crafting.RecipeIndices[i] >= 0)
-                {
-                    hasActivePanel = true;
-                    break;
-                }
-            }
-        }
-
-        if (!hasActivePanel)
-        {
-            return;
-        }
-
         for (int i = 0; i < PinnedTooltips.Inventory.Panels.Length; i++)
         {
             RectTransform? panel = PinnedTooltips.Inventory.Panels[i];
@@ -142,8 +110,8 @@ public sealed partial class InventorySlotsPlugin
                 continue;
             }
 
-            bool hasJewelcraftingTooltip = UpdateInventoryPinnedJewelcraftingTooltip(panel, item, PinnedTooltips.Inventory.Grids[i]);
-            SetInventoryPinnedTooltipTextReservedSpace(panel, hasJewelcraftingTooltip);
+            UpdateInventoryPinnedJewelcraftingTooltip(panel, item, PinnedTooltips.Inventory.Grids[i]);
+            SetInventoryPinnedTooltipTextReservedSpace(panel);
         }
 
         InventoryGui? gui = InventoryGui.instance;

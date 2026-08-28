@@ -32,6 +32,7 @@ public sealed partial class InventorySlotsPlugin
     private static ConfigEntry<KeyboardShortcut> _hotbarSwitchKey = null!;
     private static ConfigEntry<KeyboardShortcut> _containerRestockKey = null!;
     private static ConfigEntry<Toggle> _showHotbarSwitchHint = null!;
+    private static ConfigEntry<Toggle> _showFeatureGuide = null!;
     private static ConfigEntry<Toggle> _quickSlotHudFollowsPanel = null!;
     private static ConfigEntry<InventoryRowsDisplayMode> _inventoryRowsDisplayMode = null!;
     private static ConfigEntry<Toggle> _showInventoryWheelButton = null!;
@@ -138,6 +139,7 @@ public sealed partial class InventorySlotsPlugin
         _quickSlotHudFollowsPanel = OrderedConfigEntry(ClientUiConfigSection, "Quick Slot HUD Follows Panel", Toggle.On, "When enabled, the quick slot HUD follows the quick slot inventory panel position. Turn this Off to keep the HUD at its last saved position while moving the panel separately. Not synced with server.", order: 910, synchronizedSetting: false);
         _showInventoryWheelButton = OrderedConfigEntry(ClientUiConfigSection, "Show Inventory Wheel Hint", Toggle.On, "Show the mouse wheel hint next to the player inventory when expandable inventory rows are available. Not synced with server.", order: 900, synchronizedSetting: false);
         _showHotbarSwitchHint = OrderedConfigEntry(ClientUiConfigSection, "Show Hotbar Switch Hint", Toggle.On, "Show the hotbar row switch hint next to the hotbar. Not synced with server.", order: 890, synchronizedSetting: false);
+        _showFeatureGuide = OrderedConfigEntry(ClientUiConfigSection, "Show Feature Guide", Toggle.On, "Show a compact InventorySlots feature guide next to the hotbar. Not synced with server.", order: 920, synchronizedSetting: false);
         _showCraftingHoverTooltip = OrderedConfigEntry(ClientUiConfigSection, "Show Crafting Hover Tooltip", CraftingHoverTooltipMode.Full, "Controls InventorySlots recipe hover tooltips in the crafting station grid. Full shows the recipe title, item tooltip, and requirement row. TitleOnly shows only the recipe title. Off disables hover tooltips. Pinned crafting tooltips still work when this is Off. Not synced with server.", order: 870, synchronizedSetting: false);
         _pinnedTooltipSlots = OrderedConfigEntry(ClientUiConfigSection, "Pinned Tooltip Slots", PinnedTooltipSlotMode.Two, "Number of comparison tooltip panels available for pinning. Inventory/container panels unfold from the inventory panel edge to the right, and crafting panels unfold from the crafting panel edge to the left.", order: 860, synchronizedSetting: false);
         _pinnedTooltipBackgroundAlpha = OrderedConfigEntry(ClientUiConfigSection, "Pinned Tooltip Background Alpha", 0.9f, new ConfigDescription("Advanced alpha for pinned tooltip panel backgrounds. 0 is fully transparent and 1 is fully opaque. Not synced with server.", new AcceptableValueRange<float>(0f, 1f)), order: 850, synchronizedSetting: false);

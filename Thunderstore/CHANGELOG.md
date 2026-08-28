@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.4.2
+
+- Added a localized feature guide beside the hotbar with live key bindings, highlighted controls and configuration paths, and a client-only `Show Feature Guide` toggle.
+- Changed food classification so any food with positive eitr is Eitr Food; otherwise health greater than stamina is Health Food, while equal or greater stamina is Stamina Food. Items without positive food stats remain unclassified.
+- Fixed the Quick Slot panel position so unlocking or showing the Equipment Slot panel no longer moves it. Invalid saved panel coordinates are normalized, and client-state files are replaced atomically.
+- Refreshed visible pinned inventory and crafting tooltips and Quick Slot HUD tooltip text on a bounded cadence, keeping time-varying FineDining and other item state current without resetting tooltip scroll positions.
+- Fixed full-inventory upgrades of equipped Equipment Slot items. Only the exact slot vacated by the matching upgrade may be reused, the replacement and equipped state are committed transactionally, and failures restore the original before resources can be consumed. The safety boundary is ordered around Jewelcrafting, Recycle_N_Reclaim, and FineDining crafting hooks.
+- Hardened full-inventory and special-slot mutations with protected swaps, exact-reference ownership checks, safe equipped-item world drops, bounded Take All amounts, duplicate custom-equipment cleanup, recovery for removed or reordered tail slots, and fail-closed invalid slot coordinates.
+- Hardened built-in multi-user chest transfers with shared authoritative mutation validation, support for moving only whole intentional over-stacks, and causally tracked world-drop and shutdown recovery so uncertain delivery cannot create both an inventory fallback and a live drop.
+- Extended stack-metadata policy registration with an optional symmetric, fail-closed compatibility predicate. Removed the built-in BeingSpoiled clock fallback and the public `BeingSpoiledExpiryWorldTicksKey` constant; integrations must now register their own authoritative merge and compatibility policy.
+
 ## 1.4.1
 
 - Updated Expandable inventory rows to reveal newly unlocked progressive rows once when the local player first discovers a configured unlock item. The added space becomes immediately visible, while character loading and later rediscovery leave the locally remembered row count unchanged.

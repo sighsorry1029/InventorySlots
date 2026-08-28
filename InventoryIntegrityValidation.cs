@@ -76,7 +76,11 @@ public sealed partial class InventorySlotsPlugin
                 continue;
             }
 
-            Vector2i target = GetSlotGridPos(inventory, slot);
+            if (!TryGetSlotGridPos(inventory, slot, out Vector2i target))
+            {
+                continue;
+            }
+
             ItemData? blocking = inventory.GetItemAt(target.x, target.y);
             if (blocking != null && blocking != item)
             {
@@ -107,6 +111,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         changed |= ClearMissingCustomEquipment(player, inventory);
+        changed |= ClearDuplicateCustomEquipmentAssignments(player, inventory);
 
         if (changed)
         {
@@ -144,12 +149,12 @@ public sealed partial class InventorySlotsPlugin
     {
         if (!TryGetCanonicalEquippedSlot(player, inventory, blocking, out SlotDefinition? blockingSlot) ||
             blockingSlot == null ||
-            blockingSlot == incomingSlot)
+            blockingSlot == incomingSlot ||
+            !TryGetSlotGridPos(inventory, blockingSlot, out Vector2i target))
         {
             return false;
         }
 
-        Vector2i target = GetSlotGridPos(inventory, blockingSlot);
         ItemData? targetItem = inventory.GetItemAt(target.x, target.y);
         if (targetItem != null && targetItem != incoming)
         {
@@ -168,8 +173,6 @@ public sealed partial class InventorySlotsPlugin
     private static bool ResolveOverlappingItems(Player player, Inventory inventory)
     {
         bool changed = false;
-        int moved = 0;
-        int unresolved = 0;
         Dictionary<Vector2i, List<ItemData>> overlaps = new();
 
         foreach (ItemData item in inventory.m_inventory)
@@ -210,24 +213,90 @@ public sealed partial class InventorySlotsPlugin
                     continue;
                 }
 
+                if (ClearDuplicateCustomEquipmentState(
+                        player,
+                        inventory,
+                        keeper,
+                        item))
+                {
+                    changed = true;
+                }
+
                 if (TryRelocateOverlappingItem(player, inventory, item))
                 {
-                    moved++;
                     changed = true;
                 }
                 else if (TryMoveOverlappingItemToOverflowPreservationCell(inventory, item))
                 {
-                    moved++;
                     changed = true;
-                }
-                else
-                {
-                    unresolved++;
                 }
             }
         }
 
         return changed;
+    }
+
+    private static bool ClearDuplicateCustomEquipmentState(
+        Player player,
+        Inventory inventory,
+        ItemData keeper,
+        ItemData duplicate)
+    {
+        if (!IsInventorySlotsCustomEquipped(keeper) ||
+            !IsInventorySlotsCustomEquipped(duplicate) ||
+            !keeper.m_customData.TryGetValue(SlotIdKey, out string keeperSlotId) ||
+            !duplicate.m_customData.TryGetValue(SlotIdKey, out string duplicateSlotId) ||
+            !string.Equals(
+                keeperSlotId,
+                duplicateSlotId,
+                System.StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        try
+        {
+            UnequipInventorySlotsItem(player, duplicate);
+        }
+        catch (System.Exception exception)
+        {
+            Log.LogWarning(
+                $"Custom-equipment cleanup failed for duplicate slot '{duplicateSlotId}'; clearing local state: {exception.Message}");
+            duplicate.m_equipped = false;
+            ClearItemSlot(duplicate);
+            ClearVanillaEquipmentReferences((Humanoid)player, duplicate);
+            try
+            {
+                ((Humanoid)player).SetupEquipment();
+            }
+            catch (System.Exception setupException)
+            {
+                Log.LogWarning(
+                    $"Could not refresh equipment after duplicate-slot cleanup: {setupException.Message}");
+            }
+        }
+
+        try
+        {
+            SlotDefinition? keeperSlot = GetSlotFromItemMarker(keeper);
+            if (keeperSlot != null &&
+                inventory.ContainsItem(keeper) &&
+                IsValidCustomEquipmentAssignment(player, keeper, keeperSlot))
+            {
+                RestoreSlotEquipmentState(
+                    player,
+                    inventory,
+                    keeper,
+                    keeperSlot);
+            }
+        }
+        catch (System.Exception exception)
+        {
+            Log.LogWarning(
+                $"Could not resynchronize retained custom equipment after duplicate cleanup: {exception.Message}");
+        }
+
+        return true;
     }
 
     private static ItemData SelectOverlapKeeper(Player player, Inventory inventory, Vector2i position, List<ItemData> items)
@@ -259,9 +328,10 @@ public sealed partial class InventorySlotsPlugin
             return TryMoveOverlappingQuickSlotItemToEmptyQuickSlot(player, inventory, item);
         }
 
-        if (TryGetCanonicalEquippedSlot(player, inventory, item, out SlotDefinition? canonicalSlot) && canonicalSlot != null)
+        if (TryGetCanonicalEquippedSlot(player, inventory, item, out SlotDefinition? canonicalSlot) &&
+            canonicalSlot != null &&
+            TryGetSlotGridPos(inventory, canonicalSlot, out Vector2i target))
         {
-            Vector2i target = GetSlotGridPos(inventory, canonicalSlot);
             if (CanUseCell(player, inventory, item, target) && CellContainsOnly(inventory, target, item))
             {
                 item.m_gridPos = target;
@@ -314,7 +384,11 @@ public sealed partial class InventorySlotsPlugin
                 continue;
             }
 
-            Vector2i target = GetSlotGridPos(inventory, slot);
+            if (!TryGetSlotGridPos(inventory, slot, out Vector2i target))
+            {
+                continue;
+            }
+
             if (target == item.m_gridPos ||
                 !CanUseCell(player, inventory, item, target) ||
                 inventory.GetItemAt(target.x, target.y) != null)
@@ -357,6 +431,77 @@ public sealed partial class InventorySlotsPlugin
         }
 
         return changed;
+    }
+
+    private static bool ClearDuplicateCustomEquipmentAssignments(
+        Player player,
+        Inventory inventory)
+    {
+        bool changed = false;
+        Dictionary<string, ItemData> keepers =
+            new(System.StringComparer.OrdinalIgnoreCase);
+        foreach (ItemData item in new List<ItemData>(inventory.m_inventory))
+        {
+            if (item == null || !inventory.ContainsItem(item))
+            {
+                continue;
+            }
+
+            if (!IsInventorySlotsCustomEquipped(item) ||
+                !item.m_customData.TryGetValue(SlotIdKey, out string slotId) ||
+                !TryGetSlotById(slotId, out SlotDefinition? slot) ||
+                slot == null)
+            {
+                continue;
+            }
+
+            if (!keepers.TryGetValue(slotId, out ItemData keeper))
+            {
+                keepers[slotId] = item;
+                continue;
+            }
+
+            if (!TryGetSlotGridPos(inventory, slot, out Vector2i target))
+            {
+                continue;
+            }
+
+            bool itemValid = IsValidCustomEquipmentAssignment(player, item, slot);
+            bool keeperValid = IsValidCustomEquipmentAssignment(player, keeper, slot);
+            bool itemAtCanonicalCell = item.m_gridPos == target;
+            bool keeperAtCanonicalCell = keeper.m_gridPos == target;
+            ItemData retained = itemValid && !keeperValid
+                ? item
+                : keeperValid && !itemValid
+                    ? keeper
+                    : itemAtCanonicalCell && !keeperAtCanonicalCell
+                        ? item
+                        : keeper;
+            ItemData duplicate = retained == item ? keeper : item;
+            if (ClearDuplicateCustomEquipmentState(
+                    player,
+                    inventory,
+                    retained,
+                    duplicate))
+            {
+                changed = true;
+                keepers[slotId] = retained;
+            }
+        }
+
+        return changed;
+    }
+
+    private static bool IsValidCustomEquipmentAssignment(
+        Player player,
+        ItemData item,
+        SlotDefinition slot)
+    {
+        return item != null &&
+               slot != null &&
+               slot.Accepts(item) &&
+               CanUseCircletExtendedCustomSlot(player, item, slot) &&
+               CanUseHipLanternCustomSlot(item, slot);
     }
 
     private static bool TryReleaseItemToRegularInventory(Player player, Inventory inventory, ItemData item, string reason)

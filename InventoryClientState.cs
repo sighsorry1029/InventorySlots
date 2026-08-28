@@ -41,6 +41,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void SaveClientState()
     {
+        string? tempPath = null;
         try
         {
             EnsureClientStateLoaded();
@@ -51,18 +52,36 @@ public sealed partial class InventorySlotsPlugin
                 .WithNamingConvention(CamelCaseNamingConvention.Instance)
                 .Build();
 
-            string tempPath = ClientStateFilePath + ".tmp";
+            tempPath = ClientStateFilePath + ".tmp";
             File.WriteAllText(tempPath, serializer.Serialize(InventoryClient.ClientState));
             if (File.Exists(ClientStateFilePath))
             {
-                File.Delete(ClientStateFilePath);
+                File.Replace(tempPath, ClientStateFilePath, null);
+            }
+            else
+            {
+                File.Move(tempPath, ClientStateFilePath);
             }
 
-            File.Move(tempPath, ClientStateFilePath);
+            tempPath = null;
         }
         catch (Exception ex)
         {
             Log.LogWarning($"Failed to save InventorySlots client state: {ex.Message}");
+        }
+        finally
+        {
+            if (!string.IsNullOrEmpty(tempPath) && File.Exists(tempPath))
+            {
+                try
+                {
+                    File.Delete(tempPath);
+                }
+                catch (Exception ex)
+                {
+                    Log.LogWarning($"Failed to remove temporary InventorySlots client state: {ex.Message}");
+                }
+            }
         }
     }
 

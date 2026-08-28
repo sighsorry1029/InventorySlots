@@ -8,6 +8,8 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
+    private const float DynamicTooltipTextRefreshInterval = 1f;
+
     private sealed class InventoryPinnedTooltipRuntimeState
     {
         public readonly RectTransform?[] Panels = new RectTransform?[PinnedTooltipSlotCount];
@@ -36,12 +38,16 @@ public sealed partial class InventorySlotsPlugin
         public readonly InventoryPinnedTooltipRuntimeState Inventory = new();
         public readonly CraftingPinnedTooltipRuntimeState Crafting = new();
         public PinnedTooltipContext ActiveContext = PinnedTooltipContext.None;
+        public float NextDynamicTextRefreshTime;
     }
 
     private sealed class TooltipUiRuntimeState
     {
         public RectTransform? HotbarSwitchHudHint;
         public TMP_Text? HotbarSwitchHudHintText;
+        public RectTransform? FeatureGuideHudHint;
+        public TMP_Text? FeatureGuideHudHintText;
+        public float NextFeatureGuideTextRefreshTime;
         public RectTransform? InventoryWheelHint;
         public TMP_Text? InventoryWheelHintText;
         public TMP_FontAsset? DefaultFontAsset;

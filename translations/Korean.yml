@@ -46,6 +46,8 @@ inventoryslots_multi_user_chest_use_empty_slot: 빈 칸이나 같은 아이템 �
 inventoryslots_hold_to_restock: 누르고 있으면 보충
 inventoryslots_reclaim_blocked: 차단됨
 inventoryslots_hotbar_switch_hint: "전환\n[{key}]"
+inventoryslots_feature_guide: "<b>InventorySlots 빠른 가이드</b>\n인벤토리·상자 아이템 또는 제작 레시피 위에서 <color=#FFA94D>[{tooltipKey}]</color>: 툴팁 고정\n인벤토리 칸 또는 제작 레시피 위에서 <color=#FFA94D>[{favoriteKey}]</color>: 즐겨찾기 등록/해제\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 일치하는 아이템을 주변 상자에 보관 (즐겨찾기 칸 제외)\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 주변 상자에서 즐겨찾기 칸의 아이템 보충\n아이템별 보충 목표 수량: <color=#FFA94D>F1 → InventorySlots → 3 - Restock</color>\n커스텀 슬롯·규칙: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>\n지금 이 가이드 숨기기: <color=#FFA94D>F1 → InventorySlots → Show Feature Guide → Off</color>"
 inventoryslots_quick_slot_format: "퀵 {index}"
 inventoryslots_clear_favorites_hint_format: "{key}: 즐겨찾기 해제"
 inventoryslots_inventory_limit_reached: "{item}: 최대 {max}개까지 지닐 수 있습니다."
+inventoryslots_upgrade_safety_canceled: 장착 아이템을 슬롯에 안전하게 되돌릴 수 없어 업그레이드를 취소했습니다.

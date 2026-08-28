@@ -738,7 +738,7 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        SetCraftingTopLeftRect(gui.m_crafting, inputRect, position, size);
+        SetTopLeftRectLayout(gui.m_crafting, inputRect, position, size);
         ConfigureCraftingSearchInputStyle(gui, inputRect);
         CraftingController.StoreSearchInputStamp(stamp);
     }
@@ -1007,7 +1007,7 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        SetCraftingTopLeftRect(gui.m_crafting, group, position, size);
+        SetTopLeftRectLayout(gui.m_crafting, group, position, size);
         ConfigureCraftingSortModeButton(gui, group, CraftingGroupFirstSortButtonName, 0, buttonSize, CraftingRecipeSortMode.GroupThenTier);
         ConfigureCraftingSortModeButton(gui, group, CraftingTierFirstSortButtonName, 1, buttonSize, CraftingRecipeSortMode.TierThenGroup);
         CraftingController.StoreSortModeButtonsStamp(stamp);

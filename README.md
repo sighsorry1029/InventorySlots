@@ -445,7 +445,6 @@ Soft compatibility and adaptive behavior include:
 - TooltipExpansion: InventorySlots-owned tooltips avoid vanilla tooltip scrollbar/layout interference.
 - VNEI: crafting and upgrade recipe icons expose item tooltip data for VNEI recipe lookup.
 - ContentsWithin: the integrated preview disables itself when the standalone plugin is present to prevent duplicate GUI ownership.
-- BeingSpoiled: running deadlines and Mountain-frozen remaining-time values are treated as mergeable stack metadata. The shorter effective remaining time wins while the destination stack normally keeps its running/frozen state; an already-expired running value always becomes an immediately due running deadline so cold cannot rescue it. Unrelated custom data remains protected, and cross-state stacking waits until the shared ZNet world clock is available.
 
 ## Github
 

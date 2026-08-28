@@ -19,8 +19,8 @@ TestRunner.Run(
     ("Resource map rejects duplicate tier names", Tests.ResourceMapRejectsDuplicateTierNames),
     ("Main YAML rejects legacy inline resource map", Tests.MainYamlRejectsLegacyInlineResourceMap),
     ("Built-in group section names normalize to ids", Tests.BuiltInGroupSectionNamesNormalizeToIds),
-    ("Dominant food stat tie breaks are stable", Tests.DominantFoodStatTieBreaksAreStable),
-    ("Dominant food stat ignores empty foods", Tests.DominantFoodStatIgnoresEmptyFoods),
+    ("Food stat classification follows Eitr and stamina priority", Tests.FoodStatClassificationFollowsEitrAndStaminaPriority),
+    ("Food stat classification ignores non-positive and invalid values", Tests.FoodStatClassificationIgnoresNonPositiveAndInvalidValues),
     ("Slot food fork rejects appended-tooltip materials", Tests.SlotFoodForkRejectsAppendedTooltipMaterials),
     ("Slot food fork accepts direct consumables", Tests.SlotFoodForkAcceptsDirectConsumables),
     ("Crafting frame fast-path stamp tracks relevant fields", Tests.CraftingFrameFastPathStampTracksRelevantFields),
@@ -43,6 +43,9 @@ TestRunner.Run(
     ("Jewelcrafting socket actions refresh and guard the selected recipe pair", Tests.JewelcraftingSocketActionsRefreshAndGuardSelectedRecipePair),
     ("Client state normalize creates missing roots", Tests.ClientStateNormalizeCreatesMissingRoots),
     ("Client state normalize trims players and lists", Tests.ClientStateNormalizeTrimsPlayersAndLists),
+    ("Client state normalize repairs non-finite layout values", Tests.ClientStateNormalizeRepairsNonFiniteLayoutValues),
+    ("Special slot grid mapping rejects horizontal aliases", Tests.SpecialSlotGridMappingRejectsHorizontalAliases),
+    ("Quick slot panel position ignores equipment panel visibility", Tests.QuickSlotPanelPositionIgnoresEquipmentPanelVisibility),
     ("Custom equipped item keeps stable slot identity during auto-adopt", Tests.CustomEquippedItemKeepsStableSlotIdentityDuringAutoAdopt),
     ("Unmarked item can auto-adopt matching grid slot", Tests.UnmarkedItemCanAutoAdoptMatchingGridSlot),
     ("CircletExtended custom slot ownership fails closed", Tests.CircletExtendedCustomSlotOwnershipFailsClosed),
@@ -69,6 +72,10 @@ TestRunner.Run(
     ("Keep-on-death preservation cell uses overflow when original occupied", Tests.KeepOnDeathPreservationCellUsesOverflowWhenOriginalOccupied),
     ("Inventory first-free cell skips disallowed and occupied cells", Tests.InventoryFirstFreeCellSkipsDisallowedAndOccupiedCells),
     ("Inventory first-free cell reports no cell when full", Tests.InventoryFirstFreeCellReportsNoCellWhenFull),
+    ("Full inventory upgrade reuses only the exact equipment cell", Tests.FullInventoryUpgradeReusesOnlyExactEquipmentCell),
+    ("Equipment upgrade completion fails closed", Tests.EquipmentUpgradeCompletionFailsClosed),
+    ("Equipment upgrade safety stays scoped and transactional", Tests.EquipmentUpgradeSafetyStaysScopedAndTransactional),
+    ("Full inventory boundary guards stay ownership safe", Tests.FullInventoryBoundaryGuardsStayOwnershipSafe),
     ("Inventory load preservation treats quickslot rows as tail cells", Tests.InventoryLoadPreservationTreatsQuickslotRowsAsTailCells),
     ("Inventory load preservation rejects hotbar cells", Tests.InventoryLoadPreservationRejectsHotbarCells),
     ("Inventory load preservation keeps free tail cell", Tests.InventoryLoadPreservationKeepsFreeTailCell),
@@ -110,6 +117,7 @@ TestRunner.Run(
     ("Crafting tooltip wheel blocks only underlying crafting scroll rects", Tests.CraftingTooltipWheelBlocksOnlyUnderlyingCraftingScrollRects),
     ("Tooltip source cache prunes matching entries", Tests.TooltipSourceCachePrunesMatchingEntries),
     ("Tooltip source cache trims oldest entries", Tests.TooltipSourceCacheTrimsOldestEntries),
+    ("Dynamic tooltip refresh stays bounded and change-driven", Tests.DynamicTooltipRefreshStaysBoundedAndChangeDriven),
     ("Container transfer sums moved amounts and callbacks", Tests.ContainerTransferSumsMovedAmountsAndCallbacks),
     ("Container transfer stays quiet when nothing moves", Tests.ContainerTransferStaysQuietWhenNothingMoves),
     ("Direct container actions use positional ownership-safe moves", Tests.DirectContainerActionsUsePositionalOwnershipSafeMoves),
@@ -121,16 +129,18 @@ TestRunner.Run(
     ("InventoryActions success FX stays local guarded and self cleaning", Tests.InventoryActionsContainerActionSuccessFxStaysLocalGuardedAndSelfCleaning),
     ("Multi-user item snapshot ignores custom data order", Tests.MultiUserItemSnapshotIgnoresCustomDataOrder),
     ("Multi-user item snapshot rejects socket data changes", Tests.MultiUserItemSnapshotRejectsSocketDataChanges),
-    ("BeingSpoiled signed clocks remain stack compatible", Tests.BeingSpoiledSignedClocksRemainStackCompatible),
+    ("Multi-user transfer preserves only whole intentional over-stacks", Tests.MultiUserTransferPreservesOnlyWholeIntentionalOverStacks),
+    ("Multi-user over-stack validation stays wired end to end", Tests.MultiUserOverStackValidationStaysWiredEndToEnd),
+    ("Registered stack metadata remains stack compatible", Tests.RegisteredStackMetadataRemainsStackCompatible),
+    ("Stack metadata compatibility predicate fails closed", Tests.StackMetadataCompatibilityPredicateFailsClosed),
     ("Stack metadata policy preserves other custom-data identity", Tests.StackMetadataPolicyPreservesOtherCustomDataIdentity),
-    ("BeingSpoiled signed clock merge preserves destination state", Tests.BeingSpoiledSignedClockMergePreservesDestinationState),
-    ("BeingSpoiled signed clock validates missing and malformed values", Tests.BeingSpoiledSignedClockValidatesMissingAndMalformedValues),
-    ("BeingSpoiled partial merge leaves source clock unchanged", Tests.BeingSpoiledPartialMergeLeavesSourceClockUnchanged),
-    ("BeingSpoiled registration replaces only the fallback", Tests.BeingSpoiledRegistrationReplacesOnlyTheFallback),
+    ("Stack metadata merge leaves source unchanged", Tests.StackMetadataMergeLeavesSourceUnchanged),
+    ("Stack metadata registration is first-wins", Tests.StackMetadataRegistrationIsFirstWins),
     ("Multi-user item snapshot rejects insufficient stack", Tests.MultiUserItemSnapshotRejectsInsufficientStack),
     ("Multi-user item snapshot rejects identity field changes", Tests.MultiUserItemSnapshotRejectsIdentityFieldChanges),
     ("Multi-user transfer requires exact pre-mutation stack state", Tests.MultiUserTransferRequiresExactPreMutationStackState),
     ("Multi-user request preparation keeps escrow behind a published pending", Tests.MultiUserRequestPreparationKeepsEscrowBehindPublishedPending),
+    ("Multi-user uncertain world delivery retains recovery ownership", Tests.MultiUserUncertainWorldDeliveryRetainsRecoveryOwnership),
     ("InventoryActions current-container transfers notify only after movement", Tests.InventoryActionsCurrentContainerTransfersNotifyOnlyAfterMovement),
     ("InventoryActions container action core copy mirrors InventorySlots behavior", Tests.InventoryActionsContainerActionCoreCopyMirrorsInventorySlotsBehavior),
     ("Area ownership handoff executes a matching grant once", Tests.AreaOwnershipHandoffExecutesMatchingGrantOnce),
@@ -393,28 +403,40 @@ internal static class Tests
         Assert.False(ItemGroupRegistry.TryNormalizeSectionId("melee", out _), "section YAML names are intentionally case-sensitive");
     }
 
-    public static void DominantFoodStatTieBreaksAreStable()
+    public static void FoodStatClassificationFollowsEitrAndStaminaPriority()
     {
-        Assert.True(FoodStatCore.TryGetDominant(30f, 90f, 100f, out FoodStat ratatoskr), "Ratatoskr's Desire should classify");
-        Assert.Equal(FoodStat.Eitr, ratatoskr);
+        Assert.True(FoodStatCore.TryGetDominant(100f, 10f, 1f, out FoodStat eitr), "any positive Eitr should classify");
+        Assert.Equal(FoodStat.Eitr, eitr);
 
-        Assert.True(FoodStatCore.TryGetDominant(41f, 14f, 52f, out FoodStat squirrelStew), "Squirrel Stew should classify");
-        Assert.Equal(FoodStat.Eitr, squirrelStew);
+        Assert.True(FoodStatCore.TryGetDominant(23f, 22f, 0f, out FoodStat health), "higher health should classify");
+        Assert.Equal(FoodStat.Health, health);
 
-        Assert.True(FoodStatCore.TryGetDominant(22f, 22f, 0f, out FoodStat healthTie), "health/stamina tie should classify");
-        Assert.Equal(FoodStat.Health, healthTie);
-
-        Assert.True(FoodStatCore.TryGetDominant(0f, 30f, 30f, out FoodStat staminaTie), "stamina/eitr tie should classify");
+        Assert.True(FoodStatCore.TryGetDominant(22f, 22f, 0f, out FoodStat staminaTie), "health/stamina tie should classify");
         Assert.Equal(FoodStat.Stamina, staminaTie);
 
-        Assert.True(FoodStatCore.TryGetDominant(50f, 50f, 50f, out FoodStat allTie), "all-stat tie should classify");
-        Assert.Equal(FoodStat.Health, allTie);
+        Assert.True(FoodStatCore.TryGetDominant(22f, 23f, 0f, out FoodStat stamina), "higher stamina should classify");
+        Assert.Equal(FoodStat.Stamina, stamina);
+
+        Assert.True(FoodStatCore.TryGetDominant(0f, 30f, 30f, out FoodStat eitrTie), "positive Eitr should win ties");
+        Assert.Equal(FoodStat.Eitr, eitrTie);
     }
 
-    public static void DominantFoodStatIgnoresEmptyFoods()
+    public static void FoodStatClassificationIgnoresNonPositiveAndInvalidValues()
     {
         Assert.False(FoodStatCore.TryGetDominant(0f, 0f, 0f, out FoodStat stat), "zero-value food should not classify");
         Assert.Equal(FoodStat.None, stat);
+
+        Assert.False(FoodStatCore.TryGetDominant(-10f, -20f, -30f, out FoodStat negativeStat), "negative food stats should not classify");
+        Assert.Equal(FoodStat.None, negativeStat);
+
+        Assert.True(FoodStatCore.TryGetDominant(10f, float.NaN, 0f, out FoodStat health), "invalid stamina should be ignored");
+        Assert.Equal(FoodStat.Health, health);
+
+        Assert.True(FoodStatCore.TryGetDominant(float.NaN, 10f, 0f, out FoodStat stamina), "invalid health should be ignored");
+        Assert.Equal(FoodStat.Stamina, stamina);
+
+        Assert.False(FoodStatCore.TryGetDominant(float.NaN, float.NaN, float.NaN, out FoodStat invalidStat), "invalid food stats should not classify");
+        Assert.Equal(FoodStat.None, invalidStat);
     }
 
     public static void SlotFoodForkRejectsAppendedTooltipMaterials()
@@ -461,7 +483,7 @@ internal static class Tests
                 eitr: 10f,
                 out FoodStat stat),
             "a direct consumable with food stats should receive a fork");
-        Assert.Equal(FoodStat.Stamina, stat);
+        Assert.Equal(FoodStat.Eitr, stat);
 
         Assert.False(
             FoodStatCore.TryGetSlotForkDominant(
@@ -793,7 +815,6 @@ internal static class Tests
         Assert.Equal(-520f, inventory.QuickSlotsHudPosition.Y);
         Assert.Equal(70f, inventory.QuickSlotsHudElementSpace);
         Assert.True(normalized.Players != null, "players root should be created");
-        Assert.Equal(1, normalized.Version);
     }
 
     public static void ClientStateNormalizeTrimsPlayersAndLists()
@@ -838,6 +859,110 @@ internal static class Tests
         Assert.True(normalized.Players["PlayerOne"].CraftingFavorites != null, "crafting favorites list should be recreated");
         Assert.True(normalized.Players["PlayerOne"].UpgradeFavorites != null, "upgrade favorites list should be recreated");
         Assert.True(normalized.Players["NullValue"].FavoriteSlots != null, "null player state should be recreated");
+    }
+
+    public static void ClientStateNormalizeRepairsNonFiniteLayoutValues()
+    {
+        InventorySlotsClientState state = new()
+        {
+            Inventory = new InventorySlotsClientInventoryState
+            {
+                EquipmentSlotsPanelPosition = new InventorySlotsClientPanelPosition(float.NaN, 23f),
+                QuickSlotsPanelPosition = new InventorySlotsClientPanelPosition(-17f, float.PositiveInfinity),
+                QuickSlotsHudPosition = new InventorySlotsClientPanelPosition(float.NegativeInfinity, float.NaN),
+                QuickSlotsHudElementSpace = float.PositiveInfinity
+            }
+        };
+
+        InventorySlotsClientInventoryState inventory = ClientStateCore.Normalize(state).Inventory;
+
+        Assert.Equal(ClientStateCore.DefaultEquipmentSlotsPanelX, inventory.EquipmentSlotsPanelPosition.X);
+        Assert.Equal(23f, inventory.EquipmentSlotsPanelPosition.Y);
+        Assert.Equal(-17f, inventory.QuickSlotsPanelPosition.X);
+        Assert.Equal(ClientStateCore.DefaultQuickSlotsPanelY, inventory.QuickSlotsPanelPosition.Y);
+        Assert.Equal(ClientStateCore.DefaultQuickSlotsHudX, inventory.QuickSlotsHudPosition.X);
+        Assert.Equal(ClientStateCore.DefaultQuickSlotsHudY, inventory.QuickSlotsHudPosition.Y);
+        Assert.Equal(ClientStateCore.DefaultQuickSlotsHudElementSpace, inventory.QuickSlotsHudElementSpace);
+    }
+
+    public static void SpecialSlotGridMappingRejectsHorizontalAliases()
+    {
+        Assert.True(
+            InventorySlotSafetyCore.TryMapGridPositionToSlotIndex(
+                inventoryWidth: 8,
+                fixedRegularRows: 4,
+                slotCount: 10,
+                gridX: 0,
+                gridY: 4,
+                out int firstIndex),
+            "the first special-slot cell should map successfully");
+        Assert.Equal(0, firstIndex);
+
+        Assert.True(
+            InventorySlotSafetyCore.TryMapGridPositionToSlotIndex(
+                inventoryWidth: 8,
+                fixedRegularRows: 4,
+                slotCount: 10,
+                gridX: 1,
+                gridY: 5,
+                out int lastIndex),
+            "the last configured special-slot cell should map successfully");
+        Assert.Equal(9, lastIndex);
+
+        Assert.False(
+            InventorySlotSafetyCore.TryMapGridPositionToSlotIndex(8, 4, 10, -1, 5, out int negativeX),
+            "negative x must not alias a configured slot");
+        Assert.Equal(-1, negativeX);
+        Assert.False(
+            InventorySlotSafetyCore.TryMapGridPositionToSlotIndex(8, 4, 10, 8, 4, out int wrappedX),
+            "x equal to inventory width must not wrap into the following row");
+        Assert.Equal(-1, wrappedX);
+        Assert.False(
+            InventorySlotSafetyCore.TryMapGridPositionToSlotIndex(0, 4, 10, 0, 4, out int invalidWidth),
+            "an invalid inventory width must fail closed");
+        Assert.Equal(-1, invalidWidth);
+        Assert.False(
+            InventorySlotSafetyCore.TryMapGridPositionToSlotIndex(8, 4, 10, 2, int.MaxValue, out int overflow),
+            "overflowing row arithmetic must fail closed");
+        Assert.Equal(-1, overflow);
+    }
+
+    public static void QuickSlotPanelPositionIgnoresEquipmentPanelVisibility()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string controller = File.ReadAllText(
+            Path.Combine(repositoryRoot, "InventoryUiController.cs"));
+        string panels = File.ReadAllText(
+            Path.Combine(repositoryRoot, "InventorySlotPanels.cs"));
+        string plugin = File.ReadAllText(
+            Path.Combine(repositoryRoot, "Plugin.cs"));
+        string normalLayout = ReadSourceSection(
+            controller,
+            "if (quickPanel != null)",
+            "UpdateInventorySideHints");
+        string dragLayout = ReadSourceSection(
+            panels,
+            "private static bool TryUpdateDraggedInventoryPanelPositionOnly",
+            "private static bool TryGetInventoryPanelDragLocalMousePosition");
+
+        foreach (string layout in new[] { normalLayout, dragLayout })
+        {
+            Assert.True(
+                layout.Contains(
+                    "sidePanelBasePosition +",
+                    StringComparison.Ordinal) &&
+                layout.Contains(
+                    "InventoryPanels.QuickSlotsPanelRuntimeOffset",
+                    StringComparison.Ordinal) &&
+                !layout.Contains("quickPanelYOffset", StringComparison.Ordinal) &&
+                !layout.Contains("equipmentPanelRows", StringComparison.Ordinal) &&
+                !layout.Contains("EquipmentPanelGapRows", StringComparison.Ordinal),
+                "Quick panel placement must use only its own saved offset in normal and drag-only layout paths");
+        }
+
+        Assert.False(
+            plugin.Contains("EquipmentPanelGapRows", StringComparison.Ordinal),
+            "the removed equipment-to-Quick coupling constant should not remain as dead configuration");
     }
 
     public static void CustomEquippedItemKeepsStableSlotIdentityDuringAutoAdopt()
@@ -1685,6 +1810,437 @@ internal static class Tests
         Assert.False(found, "full candidate range should report no available cell");
         Assert.Equal(-1, selected.X);
         Assert.Equal(-1, selected.Y);
+    }
+
+    public static void FullInventoryUpgradeReusesOnlyExactEquipmentCell()
+    {
+        bool firstCapacityProbe =
+            InventorySlotSafetyCore.CanReuseOriginalEquipmentSlotForUpgrade(
+                transactionActive: true,
+                matchingReplacementAdd: true,
+                sameInventory: true,
+                originalWasEquipmentSlot: true,
+                originalRemoved: true,
+                originalCellEmpty: true,
+                slotAcceptsResult: true);
+        bool repeatedCapacityProbe =
+            InventorySlotSafetyCore.CanReuseOriginalEquipmentSlotForUpgrade(
+                transactionActive: true,
+                matchingReplacementAdd: true,
+                sameInventory: true,
+                originalWasEquipmentSlot: true,
+                originalRemoved: true,
+                originalCellEmpty: true,
+                slotAcceptsResult: true);
+        Assert.True(
+            firstCapacityProbe && repeatedCapacityProbe,
+            "compatibility and vanilla capacity probes in the same replacement scope must both see the exact empty equipment cell");
+
+        bool[] rejected =
+        {
+            InventorySlotSafetyCore.CanReuseOriginalEquipmentSlotForUpgrade(false, true, true, true, true, true, true),
+            InventorySlotSafetyCore.CanReuseOriginalEquipmentSlotForUpgrade(true, false, true, true, true, true, true),
+            InventorySlotSafetyCore.CanReuseOriginalEquipmentSlotForUpgrade(true, true, false, true, true, true, true),
+            InventorySlotSafetyCore.CanReuseOriginalEquipmentSlotForUpgrade(true, true, true, false, true, true, true),
+            InventorySlotSafetyCore.CanReuseOriginalEquipmentSlotForUpgrade(true, true, true, true, false, true, true),
+            InventorySlotSafetyCore.CanReuseOriginalEquipmentSlotForUpgrade(true, true, true, true, true, false, true),
+            InventorySlotSafetyCore.CanReuseOriginalEquipmentSlotForUpgrade(true, true, true, true, true, true, false)
+        };
+        Assert.True(
+            rejected.All(value => !value),
+            "unrelated, occupied, locked, or rejected cells must keep the normal full-inventory result");
+    }
+
+    public static void EquipmentUpgradeCompletionFailsClosed()
+    {
+        InventorySlotSafetyCore.EquipmentUpgradeCompletionPlan committed =
+            InventorySlotSafetyCore.SelectEquipmentUpgradeCompletionPlan(
+                transactionActive: true,
+                replacementAddAttempted: true,
+                originalStillPresent: false,
+                resultExists: true,
+                resultIsNew: true,
+                resultMatchesExpected: true,
+                resultInOriginalCell: true,
+                resultEquippedInOriginalSlot: true);
+        Assert.Equal(InventorySlotSafetyCore.EquipmentUpgradeCompletionPlan.Commit, committed);
+
+        InventorySlotSafetyCore.EquipmentUpgradeCompletionPlan[] rejected =
+        {
+            InventorySlotSafetyCore.SelectEquipmentUpgradeCompletionPlan(true, true, false, false, false, false, false, false),
+            InventorySlotSafetyCore.SelectEquipmentUpgradeCompletionPlan(true, true, false, true, true, true, false, true),
+            InventorySlotSafetyCore.SelectEquipmentUpgradeCompletionPlan(true, true, false, true, true, false, true, true),
+            InventorySlotSafetyCore.SelectEquipmentUpgradeCompletionPlan(true, true, false, true, false, true, true, true),
+            InventorySlotSafetyCore.SelectEquipmentUpgradeCompletionPlan(true, true, false, true, true, true, true, false),
+            InventorySlotSafetyCore.SelectEquipmentUpgradeCompletionPlan(true, true, true, true, true, true, true, true)
+        };
+        Assert.True(
+            rejected.All(plan => plan == InventorySlotSafetyCore.EquipmentUpgradeCompletionPlan.Rollback),
+            "missing, moved, mismatched, unequipped, pre-existing, or duplicate results must restore the original item");
+        Assert.Equal(
+            InventorySlotSafetyCore.EquipmentUpgradeCompletionPlan.None,
+            InventorySlotSafetyCore.SelectEquipmentUpgradeCompletionPlan(
+                transactionActive: true,
+                replacementAddAttempted: false,
+                originalStillPresent: true,
+                resultExists: false,
+                resultIsNew: false,
+                resultMatchesExpected: false,
+                resultInOriginalCell: false,
+                resultEquippedInOriginalSlot: false));
+
+        Assert.True(
+            InventorySlotSafetyCore.ShouldRollbackInterruptedEquipmentUpgrade(
+                transactionActive: true,
+                craftingThrew: true,
+                replacementAddAttempted: false,
+                originalStillPresent: false),
+            "an exception after removing the original but before AddItem must restore it");
+        Assert.False(
+            InventorySlotSafetyCore.ShouldRollbackInterruptedEquipmentUpgrade(true, false, false, false),
+            "a normal foreign crafting completion without the vanilla AddItem call must not be rewritten");
+        Assert.False(
+            InventorySlotSafetyCore.ShouldRollbackInterruptedEquipmentUpgrade(true, true, false, true),
+            "an interrupted craft needs no rollback while the original is still owned");
+        Assert.False(
+            InventorySlotSafetyCore.ShouldRollbackInterruptedEquipmentUpgrade(false, true, false, false),
+            "inactive transactions must never restore an item");
+    }
+
+    public static void EquipmentUpgradeSafetyStaysScopedAndTransactional()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string safety = File.ReadAllText(Path.Combine(repositoryRoot, "CraftingUpgradeSafety.cs"));
+        string placementPatches = File.ReadAllText(Path.Combine(repositoryRoot, "InventoryPlacementPatches.cs"));
+        string placementPolicy = File.ReadAllText(Path.Combine(repositoryRoot, "InventoryPlacementPolicy.cs"));
+        string placementCore = File.ReadAllText(Path.Combine(repositoryRoot, "InventoryPlacementCore.cs"));
+        string craftingPatches = File.ReadAllText(Path.Combine(repositoryRoot, "CraftingPatches.cs"));
+        string beginUpgrade = ReadSourceSection(
+            safety,
+            "internal static EquipmentSlotUpgradeTransaction? BeginEquipmentSlotUpgradeTransaction",
+            "private static void NotifyUnsafeEquipmentSlotUpgradeCanceled");
+        string replacementCell = ReadSourceSection(
+            safety,
+            "internal static bool TryUseEquipmentSlotUpgradeReplacementCell",
+            "private static bool TryGetEquipmentSlotUpgradeOriginalSlot");
+        string replacementInsert = ReadSourceSection(
+            safety,
+            "internal static bool TryValidateEquipmentSlotUpgradeReplacementInsert",
+            "private static bool CanUseCapturedEquipmentUpgradeSlot");
+        string capturedSlot = ReadSourceSection(
+            safety,
+            "private static bool CanUseCapturedEquipmentUpgradeSlot",
+            "private static void FinalizeEquipmentSlotUpgradeResult");
+        string findResult = ReadSourceSection(
+            safety,
+            "private static ItemData? FindEquipmentSlotUpgradeResult",
+            "private static void TryReturnEquipmentSlotUpgradeResultToOriginalSlot");
+        string postCostCommit = ReadSourceSection(
+            safety,
+            "private static bool TryCommitPostCostUnobservedEquipmentSlotUpgradeResult",
+            "private static void TryReturnEquipmentSlotUpgradeResultToOriginalSlot");
+        string finalizeResult = ReadSourceSection(
+            safety,
+            "private static void FinalizeEquipmentSlotUpgradeResult",
+            "private static InventorySlotSafetyCore.EquipmentUpgradeCompletionPlan SelectEquipmentSlotUpgradeCompletionPlan");
+        string builtInReplacementRestore = ReadSourceSection(
+            safety,
+            "private static bool TryRestoreEquipmentSlotUpgradeBuiltInReplacementState",
+            "private static bool IsEquipmentSlotUpgradeResultEquipped");
+        string returnReplacementToSlot = ReadSourceSection(
+            safety,
+            "private static void TryReturnEquipmentSlotUpgradeResultToOriginalSlot",
+            "private static bool TryRestoreEquipmentSlotUpgradeBuiltInReplacementState");
+        string rollback = ReadSourceSection(
+            safety,
+            "private static void TryRollbackEquipmentSlotUpgrade",
+            "private static bool EnsureEquipmentSlotUpgradeOriginalOwnership");
+        string snapshotRestore = ReadSourceSection(
+            safety,
+            "private static void RestoreEquipmentSlotUpgradeItemSnapshot",
+            "\n}");
+        string findEmptyPatch = ReadSourceSection(
+            placementPatches,
+            "internal static class InventoryEquipmentSlotUpgradeFindEmptySlotPatch",
+            "internal static class InventoryFindEmptySlotPatch");
+        string replacementAddPatch = ReadSourceSection(
+            placementPatches,
+            "internal static class InventoryEquipmentSlotUpgradeReplacementAddPatch",
+            "internal static class InventoryGetEmptySlotsPatch");
+
+        Assert.True(
+            !beginUpgrade.Contains("GetCraftingTabAdapterState", StringComparison.Ordinal) &&
+            !beginUpgrade.Contains("InUpradeTab", StringComparison.Ordinal) &&
+            beginUpgrade.Contains("IsJewelcraftingSocketTabActive(gui)", StringComparison.Ordinal) &&
+            !beginUpgrade.Contains("IsRecycleNReclaimReclaimTabActive(gui)", StringComparison.Ordinal),
+            "mutable presentation state must not disable upgrade safety, while only Jewelcrafting's authoritative DoCrafting socket operation remains excluded");
+        Assert.True(
+            beginUpgrade.Contains("out bool abortCrafting", StringComparison.Ordinal) &&
+            beginUpgrade.Contains("IsUsableRegularCell(inventory, player, original.m_gridPos)", StringComparison.Ordinal) &&
+            beginUpgrade.Contains("protectionRequired = true", StringComparison.Ordinal) &&
+            beginUpgrade.Contains("abortCrafting = true", StringComparison.Ordinal) &&
+            beginUpgrade.Contains("abortCrafting = protectionRequired", StringComparison.Ordinal) &&
+            beginUpgrade.IndexOf("protectionRequired = true", StringComparison.Ordinal) <
+            beginUpgrade.IndexOf("IsJewelcraftingSocketTabActive(gui)", StringComparison.Ordinal) &&
+            craftingPatches.Contains("return !abortCrafting;", StringComparison.Ordinal),
+            "every upgrade outside a usable regular cell must arm fail-closed protection before compatibility probes and stop DoCrafting unless safely handled");
+        Assert.True(
+            placementPatches.Contains("typeof(Vector2i),", StringComparison.Ordinal) &&
+            placementPatches.Contains("typeof(bool))]", StringComparison.Ordinal) &&
+            placementPatches.Contains("BeginEquipmentSlotUpgradeReplacementAdd", StringComparison.Ordinal),
+            "only the exact eight-parameter positional AddItem overload may open the replacement scope");
+        Assert.True(
+            findEmptyPatch.Contains("\"FindEmptySlot\", typeof(bool)", StringComparison.Ordinal) &&
+            findEmptyPatch.Contains("[HarmonyPriority(Priority.First)]", StringComparison.Ordinal) &&
+            findEmptyPatch.Contains("TryUseEquipmentSlotUpgradeReplacementCell", StringComparison.Ordinal) &&
+            !placementPolicy.Contains("TryUseEquipmentSlotUpgradeReplacementCell", StringComparison.Ordinal),
+            "the exact replacement cell must be claimed before the general FindEmptySlot prefix skips the original");
+        Assert.True(
+            replacementAddPatch.Contains("instruction.Calls(FindEmptySlotMethod)", StringComparison.Ordinal) &&
+            replacementAddPatch.Contains("OpCodes.Ldarg_0", StringComparison.Ordinal) &&
+            replacementAddPatch.Contains("OverrideEquipmentSlotUpgradeCapacityResult", StringComparison.Ordinal) &&
+            safety.Contains("internal static Vector2i OverrideEquipmentSlotUpgradeCapacityResult", StringComparison.Ordinal) &&
+            safety.Contains("if (originalResult.x != -1)", StringComparison.Ordinal),
+            "the outer positional AddItem must override its capacity result inside the same patched body instead of relying only on a later private FindEmptySlot patch");
+        Assert.True(
+            safety.Contains("stack != 1", StringComparison.Ordinal),
+            "the replacement scope must never be shared by a multi-item AddItem loop");
+        Assert.True(
+            !safety.Contains("ReplacementCellAvailable", StringComparison.Ordinal) &&
+            !replacementCell.Contains("CanUseCapturedEquipmentUpgradeSlot", StringComparison.Ordinal) &&
+            replacementCell.Contains("inventory.ContainsItem(transaction.OriginalItem)", StringComparison.Ordinal) &&
+            replacementCell.Contains("ItemData? blocker", StringComparison.Ordinal) &&
+            replacementCell.Contains("originalPresent || !inBounds || blocker != null", StringComparison.Ordinal) &&
+            replacementInsert.Contains("CanUseCapturedEquipmentUpgradeSlot", StringComparison.Ordinal),
+            "the vanilla capacity probe may claim only the emptied captured cell, while the actual nested insert retains full live compatibility validation");
+        Assert.True(
+            replacementInsert.Contains("bool resultIsNew = !transaction.InitialItems.Contains(item)", StringComparison.Ordinal) &&
+            replacementInsert.Contains("expectedResult && replacementSlotEligible && resultIsNew", StringComparison.Ordinal),
+            "the actual replacement insert must reject any pre-existing ItemData reference before it can reuse the captured cell");
+        Assert.True(
+            beginUpgrade.Contains("!CanUseSpecialSlot(player, inventory, original, slot!)", StringComparison.Ordinal) &&
+            beginUpgrade.Contains("the original equipment slot was not eligible before removal", StringComparison.Ordinal) &&
+            !safety.Contains("OriginalSlotEligibleAtStart", StringComparison.Ordinal) &&
+            placementCore.Contains("private static bool IsItemCompatibleWithSpecialSlot", StringComparison.Ordinal) &&
+            capturedSlot.Contains("IsItemCompatibleWithSpecialSlot", StringComparison.Ordinal) &&
+            !capturedSlot.Contains("IsSpecialSlotUnlocked", StringComparison.Ordinal),
+            "the transaction must reject an ineligible slot before removal and avoid occupancy-dependent unlock checks while inserting its replacement");
+        Assert.True(
+            beginUpgrade.Contains("CleanPrefabName(recipe.m_item.gameObject.name)", StringComparison.Ordinal) &&
+            !beginUpgrade.Contains("GetItemPrefabName(recipeItem)", StringComparison.Ordinal),
+            "the expected replacement identity must use the exact recipe prefab name that vanilla passes to AddItem, not an optional template ItemData drop-prefab reference");
+        Assert.True(
+            safety.Contains("transaction.ExpectedQuality = quality", StringComparison.Ordinal) &&
+            safety.Contains("transaction.ExpectedVariant = variant", StringComparison.Ordinal) &&
+            !safety.Contains("quality != transaction.ExpectedQuality", StringComparison.Ordinal),
+            "the exact replacement call must adopt compatibility-modified quality and variant values");
+        Assert.True(
+            placementPatches.Contains("TryUseEquipmentSlotUpgradeReplacementCell", StringComparison.Ordinal) &&
+            placementPolicy.Contains("TryValidateEquipmentSlotUpgradeReplacementInsert", StringComparison.Ordinal) &&
+            placementPolicy.IndexOf("TryValidateEquipmentSlotUpgradeReplacementInsert", StringComparison.Ordinal) <
+            placementPolicy.IndexOf("TryRedirectUnsafePlayerInventoryInsert", StringComparison.Ordinal),
+            "a matching upgrade insert must use the original slot or fail before generic redirection");
+        Assert.True(
+            safety.Contains("!transaction.InitialItems.Contains", StringComparison.Ordinal) &&
+            safety.Contains("RestoreEquipmentSlotUpgradeItemSnapshot", StringComparison.Ordinal) &&
+            safety.Contains("SelectNonOverlappingPreservationCell", StringComparison.Ordinal) &&
+            safety.Contains("completion recovery", StringComparison.Ordinal) &&
+            safety.Contains("ReloadEpicLootRuntimeItemData(transaction.Player)", StringComparison.Ordinal) &&
+            !safety.Contains("result.m_customData = new Dictionary", StringComparison.Ordinal),
+            "commit must require a new exact result while rollback remains retryable and never overwrites result metadata");
+        Assert.True(
+            findResult.Contains("transaction.ReplacementResult", StringComparison.Ordinal) &&
+            findResult.Contains("preferredValid && !trackedValid", StringComparison.Ordinal) &&
+            findResult.Contains("TryCommitPostCostUnobservedEquipmentSlotUpgradeResult", StringComparison.Ordinal) &&
+            findResult.Contains("transaction.Committed = true", StringComparison.Ordinal) &&
+            findResult.Contains("post-cost compatibility upgrade path", StringComparison.Ordinal) &&
+            !findResult.Contains("FirstOrDefault", StringComparison.Ordinal) &&
+            !safety.Contains("moved outside the player inventory", StringComparison.Ordinal) &&
+            !rollback.Contains("MatchesExpectedEquipmentSlotUpgradeResult", StringComparison.Ordinal),
+            "stale inner candidates must yield to the causal outer result, while a unique result first seen after the cost boundary must be preserved rather than rolled back");
+        Assert.True(
+            postCostCommit.IndexOf("transaction.Committed = true", StringComparison.Ordinal) <
+            postCostCommit.IndexOf("TryReturnEquipmentSlotUpgradeResultToOriginalSlot", StringComparison.Ordinal) &&
+            postCostCommit.Contains("candidateStillOwned", StringComparison.Ordinal) &&
+            !postCostCommit.Contains("TryRollbackEquipmentSlotUpgrade", StringComparison.Ordinal),
+            "post-cost compatibility results must commit before external slot callbacks and can only be audited afterward, never rolled back");
+        Assert.True(
+            finalizeResult.Contains("transaction.Committed = true", StringComparison.Ordinal) &&
+            finalizeResult.Contains("DescribeEquipmentSlotUpgradeResultState", StringComparison.Ordinal) &&
+            safety.Contains("capacityObserved=", StringComparison.Ordinal) &&
+            safety.Contains("insertObserved=", StringComparison.Ordinal) &&
+            safety.Contains("candidateEquippedFlag=", StringComparison.Ordinal) &&
+            !safety.Contains("CraftingCostPhaseCompleted", StringComparison.Ordinal) &&
+            !safety.Contains("CanCommitValidatedEquipmentSlotUpgrade", StringComparison.Ordinal) &&
+            !craftingPatches.Contains("MarkEquipmentSlotUpgradeCostPhaseCompleted", StringComparison.Ordinal),
+            "the exact verified AddItem result must commit before vanilla consumes resources, without attempting a partial resource transaction");
+        Assert.True(
+            safety.Contains("TryRestoreEquipmentSlotUpgradeBuiltInReplacementState", StringComparison.Ordinal) &&
+            returnReplacementToSlot.Contains("RestoreSlotEquipmentState", StringComparison.Ordinal) &&
+            returnReplacementToSlot.Contains("TryRestoreEquipmentSlotUpgradeBuiltInReplacementState", StringComparison.Ordinal) &&
+            returnReplacementToSlot.IndexOf("RestoreSlotEquipmentState", StringComparison.Ordinal) <
+            returnReplacementToSlot.IndexOf("TryRestoreEquipmentSlotUpgradeBuiltInReplacementState", StringComparison.Ordinal) &&
+            builtInReplacementRestore.Contains("HumanoidSnapshot.Restore(humanoid, result)", StringComparison.Ordinal) &&
+            builtInReplacementRestore.Contains("IsEquipmentSlotUpgradeItemSoleCellOccupant", StringComparison.Ordinal) &&
+            builtInReplacementRestore.Contains("GetBuiltInEquipmentSlotItem", StringComparison.Ordinal) &&
+            !builtInReplacementRestore.Contains("EquipItem(", StringComparison.Ordinal),
+            "a captured built-in equipment replacement must rebind its verified Humanoid slot directly instead of depending on transient EquipItem action guards");
+        Assert.True(
+            rollback.IndexOf("EnsureEquipmentSlotUpgradeOriginalOwnership", StringComparison.Ordinal) <
+            rollback.IndexOf("UnequipInventorySlotsItem", StringComparison.Ordinal) &&
+            rollback.Contains("while (transaction.Inventory.m_inventory.Remove(replacement))", StringComparison.Ordinal),
+            "rollback must secure the original before compatibility callbacks and raw-remove the tracked replacement even if cleanup faults");
+        Assert.True(
+            snapshotRestore.Contains("item.m_customData.Clear()", StringComparison.Ordinal) &&
+            snapshotRestore.Contains("item.m_customData[entry.Key] = entry.Value", StringComparison.Ordinal),
+            "rollback must preserve the original custom-data dictionary reference while restoring its contents");
+        Assert.True(
+            craftingPatches.Contains("InventoryGuiEquipmentSlotUpgradeSafetyPatch", StringComparison.Ordinal) &&
+            CountSourceOccurrences(craftingPatches, "CompleteEquipmentSlotUpgradeTransaction(__state") == 1 &&
+            craftingPatches.Contains("[HarmonyPriority(Priority.Last)]", StringComparison.Ordinal) &&
+            craftingPatches.Contains("[HarmonyAfter(new[]", StringComparison.Ordinal) &&
+            CountSourceOccurrences(placementPatches, "ReleaseEquipmentSlotUpgradeReplacementAdd(__state)") == 1 &&
+            CountSourceOccurrences(placementPatches, "FinalizeEquipmentSlotUpgradeReplacementAdd(") == 1,
+            "the last DoCrafting finalizer must close the transaction after compatibility patches, while the AddItem scope remains balanced");
+    }
+
+    public static void FullInventoryBoundaryGuardsStayOwnershipSafe()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string slotEquip = File.ReadAllText(Path.Combine(repositoryRoot, "SlotEquipController.cs"));
+        string upgrade = File.ReadAllText(Path.Combine(repositoryRoot, "CraftingUpgradeSafety.cs"));
+        string placementPatches = File.ReadAllText(Path.Combine(repositoryRoot, "InventoryPlacementPatches.cs"));
+        string placementHandlers = File.ReadAllText(Path.Combine(repositoryRoot, "InventoryPatchHandlers.cs"));
+        string placementPolicy = File.ReadAllText(Path.Combine(repositoryRoot, "InventoryPlacementPolicy.cs"));
+        string multiUser = File.ReadAllText(Path.Combine(repositoryRoot, "MultiUserContainerOperations.cs"));
+        string foreignRecovery = File.ReadAllText(Path.Combine(repositoryRoot, "ForeignSlotRecovery.cs"));
+        string integrity = File.ReadAllText(Path.Combine(repositoryRoot, "InventoryIntegrityValidation.cs"));
+
+        string equipTransaction = ReadSourceSection(
+            slotEquip,
+            "internal static bool TryEquipIntoSlot",
+            "private sealed class SlotEquipItemSnapshot");
+        int ownershipSnapshot = equipTransaction.IndexOf(
+            "bool incomingWasInInventory = ContainsExactItemReference",
+            StringComparison.Ordinal);
+        int stateSnapshot = equipTransaction.IndexOf(
+            "CaptureSlotEquipItemSnapshots",
+            StringComparison.Ordinal);
+        int rawAdd = equipTransaction.IndexOf(
+            "inventory.m_inventory.Add(item)",
+            StringComparison.Ordinal);
+        Assert.True(
+            ownershipSnapshot >= 0 && stateSnapshot > ownershipSnapshot && rawAdd > stateSnapshot &&
+            equipTransaction.Contains("catch (Exception ex)", StringComparison.Ordinal) &&
+            slotEquip.Contains("RemoveAll(candidate => ReferenceEquals(candidate, item))", StringComparison.Ordinal) &&
+            equipTransaction.Contains("RestoreCircletExtendedEquippedState", StringComparison.Ordinal),
+            "external special-slot placement must snapshot exact ownership before raw add and remove only that reference on rollback");
+
+        string beginUpgrade = ReadSourceSection(
+            upgrade,
+            "internal static EquipmentSlotUpgradeTransaction? BeginEquipmentSlotUpgradeTransaction",
+            "internal static void CompleteEquipmentSlotUpgradeTransaction");
+        string upgradeSlotState = ReadSourceSection(
+            upgrade,
+            "private static bool IsEquipmentSlotUpgradeItemEquipped",
+            "private static bool MatchesExpectedEquipmentSlotUpgradeResult");
+        Assert.True(
+            !beginUpgrade.Contains("slot.Kind == SlotKind.Quick", StringComparison.Ordinal) &&
+            upgradeSlotState.Contains("if (slot.Kind == SlotKind.Quick)", StringComparison.Ordinal) &&
+            upgradeSlotState.Contains("return true;", StringComparison.Ordinal) &&
+            upgrade.Contains("TryAdoptUnobservedEquipmentSlotUpgradeResult", StringComparison.Ordinal) &&
+            upgrade.Contains("RestoreEquipmentSlotUpgradeQuickReplacementState", StringComparison.Ordinal) &&
+            upgrade.Contains("transaction.HumanoidSnapshot.Matches", StringComparison.Ordinal) &&
+            placementPatches.Contains("InventoryEquipmentSlotUpgradeReplacementAddPatch", StringComparison.Ordinal) &&
+            placementPatches.Contains("[HarmonyPriority(Priority.First)]", StringComparison.Ordinal),
+            "the same exact-cell upgrade transaction must protect Quick slots and preserve their wielded or hidden state");
+
+        string dropPatch = ReadSourceSection(
+            placementPatches,
+            "internal static class InventoryGridDropItemPatch",
+            "\n}");
+        string dropGuard = ReadSourceSection(
+            placementHandlers,
+            "internal static bool ShouldAllowInventoryGridDropItem",
+            "internal static HumanoidDropInventorySlotsState? PrepareHumanoidDropInventorySlotsItem");
+        string swapGuard = ReadSourceSection(
+            placementPolicy,
+            "private static bool TryHandleProtectedInventoryGridSwap",
+            "internal static void OnPlayerInventoryItemPlaced");
+        Assert.True(
+            dropPatch.Contains("fromInventory", StringComparison.Ordinal) &&
+            dropPatch.Contains("amount", StringComparison.Ordinal) &&
+            dropGuard.IndexOf("TryHandleProtectedInventoryGridSwap", StringComparison.Ordinal) <
+            dropGuard.IndexOf("UnequipInventorySlotsItem", StringComparison.Ordinal) &&
+            swapGuard.Contains("InventoryCellKind.Quick", StringComparison.Ordinal) &&
+            swapGuard.Contains("InventoryCellKind.RegularLocked", StringComparison.Ordinal) &&
+            swapGuard.Contains("TryFindSafeInsertCell", StringComparison.Ordinal) &&
+            swapGuard.Contains("Raw exact-reference transfer", StringComparison.Ordinal) &&
+            swapGuard.IndexOf("fromInventory.m_inventory.Add(displaced", StringComparison.Ordinal) <
+            swapGuard.IndexOf("fromInventory.Changed()", StringComparison.Ordinal),
+            "Quick and locked-row swaps must commit both exact ownership legs before any Changed callback can consume the fallback");
+
+        string multiUserDestination = ReadSourceSection(
+            multiUser,
+            "private static bool TryFindLocalMultiUserContainerDestination",
+            "private static bool CanReceiveEntireMultiUserContainerItemAt");
+        string multiUserRecovery = ReadSourceSection(
+            multiUser,
+            "private static bool TrySecurePendingMultiUserContainerLocalRecovery",
+            "private static MultiUserContainerWorldDeliveryResult");
+        Assert.True(
+            multiUserDestination.Contains("TryFindSafeInsertCell", StringComparison.Ordinal) &&
+            multiUserRecovery.Contains("pending.ResponseApplied", StringComparison.Ordinal) &&
+            multiUserRecovery.Contains("terminalFailureEscrowNeedsDelivery", StringComparison.Ordinal) &&
+            multiUserRecovery.Contains("ReferenceEquals(recoveryItem, pending.LocalEscrow)", StringComparison.Ordinal) &&
+            multiUserRecovery.Contains("TryDeliverPendingMultiUserContainerRecoveryToWorld", StringComparison.Ordinal) &&
+            multiUserRecovery.Contains("MultiUserContainerWorldDeliveryResult.Uncertain", StringComparison.Ordinal),
+            "committed multi-user removals must use special slots or a causally tracked world fallback instead of a volatile-only queue");
+
+        string canAdd = ReadSourceSection(
+            placementPolicy,
+            "private static bool CanAddItemToUsablePlayerSlots",
+            "private static bool CanAddWithinInventoryLimits");
+        string stackCount = ReadSourceSection(
+            placementPolicy,
+            "private static int CountStackSpaceForIncomingItem",
+            "private static bool CanStackIncomingItemInto");
+        string stackLookup = ReadSourceSection(
+            placementPolicy,
+            "internal static bool TryOverrideFindFreeStackItem",
+            "private static bool CanUseAutomaticStackDestination");
+        Assert.True(
+            canAdd.Contains("craftingNonStackItem", StringComparison.Ordinal) &&
+            placementPolicy.Contains("CanUseAutomaticStackDestination", StringComparison.Ordinal) &&
+            stackCount.Contains("CanUseAutomaticStackDestination", StringComparison.Ordinal) &&
+            stackLookup.Contains("trustedSource", StringComparison.Ordinal) &&
+            stackLookup.Contains("CanUseAutomaticStackDestination", StringComparison.Ordinal),
+            "crafting capacity and automatic stacking must not count destinations the actual add path cannot use");
+
+        Assert.True(
+            foreignRecovery.Contains("IsUndefinedInventorySlotsTailCell", StringComparison.Ordinal) &&
+            foreignRecovery.Contains("TryGetCanonicalEquippedSlot", StringComparison.Ordinal) &&
+            integrity.Contains("ClearDuplicateCustomEquipmentAssignments", StringComparison.Ordinal) &&
+            integrity.Contains("ClearDuplicateCustomEquipmentState", StringComparison.Ordinal) &&
+            integrity.Contains("IsValidCustomEquipmentAssignment", StringComparison.Ordinal) &&
+            integrity.Contains("new List<ItemData>(inventory.m_inventory)", StringComparison.Ordinal),
+            "removed tail slots and duplicate custom-equipment ownership must remain recoverable when regular inventory is full");
+
+        string lifecycle = File.ReadAllText(Path.Combine(repositoryRoot, "InventoryLifecyclePatches.cs"));
+        string awakeDropPatch = ReadSourceSection(
+            lifecycle,
+            "internal static class ItemDropAwakeInventorySlotsDropPatch",
+            "\n}");
+        Assert.True(
+            lifecycle.Contains("ItemDropAwakeInventorySlotsDropPatch", StringComparison.Ordinal) &&
+            lifecycle.Contains("ItemDropCreateInventorySlotsDropPatch", StringComparison.Ordinal) &&
+            awakeDropPatch.Contains("HarmonyPriority(Priority.First)", StringComparison.Ordinal) &&
+            awakeDropPatch.Contains("private static void Prefix", StringComparison.Ordinal) &&
+            lifecycle.Contains("private static Exception? Finalizer", StringComparison.Ordinal) &&
+            placementHandlers.Contains("state.WorldDropCompleted && liveWorldDrop", StringComparison.Ordinal) &&
+            placementHandlers.Contains("TryDiscardIncompleteInventorySlotsWorldDrop", StringComparison.Ordinal) &&
+            placementHandlers.Contains("Restored equipment after a drop exception before world creation", StringComparison.Ordinal),
+            "equipment drop exceptions must require exact ItemDrop completion and discard partial spawns before restoring ownership");
     }
 
     public static void InventoryLoadPreservationTreatsQuickslotRowsAsTailCells()
@@ -2604,6 +3160,32 @@ internal static class Tests
         Assert.Equal(3, c);
     }
 
+    public static void DynamicTooltipRefreshStaysBoundedAndChangeDriven()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string state = File.ReadAllText(Path.Combine(repositoryRoot, "TooltipState.cs"));
+        string pinned = File.ReadAllText(Path.Combine(repositoryRoot, "PinnedTooltipPanels.cs"));
+        string lifecycle = File.ReadAllText(Path.Combine(repositoryRoot, "PluginLifecycle.cs"));
+        string quickHud = File.ReadAllText(Path.Combine(repositoryRoot, "InventoryQuickSlotsHud.cs"));
+
+        Assert.True(
+            state.Contains(
+                "private const float DynamicTooltipTextRefreshInterval = 1f;",
+                StringComparison.Ordinal),
+            "dynamic tooltip rebuilding must remain low-frequency");
+        Assert.True(
+            lifecycle.Contains("RefreshActiveDynamicTooltipText();", StringComparison.Ordinal) &&
+            pinned.Contains("panel.gameObject.activeInHierarchy", StringComparison.Ordinal) &&
+            pinned.Contains("string.Equals(text.text, nextText, StringComparison.Ordinal)", StringComparison.Ordinal) &&
+            CountSourceOccurrences(pinned, "resetScroll: false") >= 2,
+            "only visible changed pinned text should be applied without resetting scroll");
+        Assert.True(
+            quickHud.Contains("marker.NextTooltipRefreshTime", StringComparison.Ordinal) &&
+            quickHud.Contains("now >= marker.NextTooltipRefreshTime", StringComparison.Ordinal) &&
+            quickHud.Contains("SetQuickHotkeyBarTooltip", StringComparison.Ordinal),
+            "Quick HUD must refresh external tooltip state on the same bounded cadence");
+    }
+
     public static void ContainerTransferSumsMovedAmountsAndCallbacks()
     {
         FakeTransferContainer anchor = new("anchor", valid: true, moved: 2);
@@ -3163,24 +3745,102 @@ internal static class Tests
             "socketed items with different custom data must not be treated as the same item");
     }
 
-    public static void BeingSpoiledSignedClocksRemainStackCompatible()
+    public static void MultiUserTransferPreservesOnlyWholeIntentionalOverStacks()
     {
-        StackMetadataPolicy.SetWorldTicksProvider(() => 1_000L);
+        Assert.True(
+            MultiUserContainerTransferCore.CanTransferAmount(
+                sourceStack: 50,
+                nominalMaxStack: 20,
+                amount: 50),
+            "a deliberate over-stack must remain movable as one exact stack");
+        Assert.True(
+            MultiUserContainerTransferCore.CanTransferAmount(
+                sourceStack: 50,
+                nominalMaxStack: 20,
+                amount: 20),
+            "an over-stack may still be reduced by a nominally valid amount");
+        Assert.False(
+            MultiUserContainerTransferCore.CanTransferAmount(
+                sourceStack: 50,
+                nominalMaxStack: 20,
+                amount: 30),
+            "a partial transfer must not create another over-stack");
+        Assert.False(
+            MultiUserContainerTransferCore.CanTransferAmount(
+                sourceStack: 50,
+                nominalMaxStack: 20,
+                amount: 51),
+            "a transfer may never exceed its exact source stack");
+        Assert.False(
+            MultiUserContainerTransferCore.CanTransferAmount(
+                sourceStack: MultiUserContainerTransferCore.MaximumSerializedStack + 1,
+                nominalMaxStack: 20,
+                amount: 20),
+            "the absolute serialized stack bound must remain enforced");
+    }
+
+    public static void MultiUserOverStackValidationStaysWiredEndToEnd()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string mutation = File.ReadAllText(
+            Path.Combine(repositoryRoot, "MultiUserContainerInventoryMutation.cs"));
+        string operations = File.ReadAllText(
+            Path.Combine(repositoryRoot, "MultiUserContainerOperations.cs"));
+        string protocol = File.ReadAllText(
+            Path.Combine(repositoryRoot, "MultiUserContainerProtocol.cs"));
+        string codec = File.ReadAllText(
+            Path.Combine(repositoryRoot, "MultiUserContainerItemCodec.cs"));
+
+        Assert.True(
+            CountSourceOccurrences(
+                mutation,
+                "MultiUserContainerTransferCore.CanTransferAmount(") >= 4,
+            "add, destination search, remove, and move must share the over-stack transfer rule");
+        Assert.True(
+            operations.Contains(
+                "MultiUserContainerTransferCore.CanTransferAmount(",
+                StringComparison.Ordinal),
+            "request creation must enforce the same transfer rule");
+        Assert.True(
+            protocol.Contains(
+                "MultiUserContainerTransferCore.CanTransferAmount(",
+                StringComparison.Ordinal),
+            "the authoritative request validator must enforce the same transfer rule");
+        Assert.True(
+            mutation.Contains(
+                "item.m_stack > MultiUserContainerTransferCore.MaximumSerializedStack",
+                StringComparison.Ordinal) &&
+            !mutation.Contains(
+                "item.m_stack > item.m_shared.m_maxStackSize",
+                StringComparison.Ordinal),
+            "mutation validation must accept existing over-stacks while keeping the absolute bound");
+        Assert.True(
+            codec.Contains(
+                "MultiUserContainerTransferCore.MaximumSerializedStack",
+                StringComparison.Ordinal),
+            "wire decoding and runtime validation must share one absolute stack bound");
+    }
+
+    public static void RegisteredStackMetadataRemainsStackCompatible()
+    {
+        const string key = "tests.stack.compatibility";
+        Assert.True(
+            StackMetadataPolicy.Register(
+                key,
+                (destinationValue, sourceValue) => sourceValue ?? destinationValue),
+            "a new custom-data policy must register successfully");
+
         MultiUserContainerItemSnapshot incoming = CreateMultiUserItemSnapshot(
             stack: 3,
             customData:
             [
-                new KeyValuePair<string, string>(
-                    StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey,
-                    "1600")
+                new KeyValuePair<string, string>(key, "incoming")
             ]);
         MultiUserContainerItemSnapshot target = CreateMultiUserItemSnapshot(
             stack: 5,
             customData:
             [
-                new KeyValuePair<string, string>(
-                    StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey,
-                    "-400")
+                new KeyValuePair<string, string>(key, "target")
             ]);
 
         Assert.True(
@@ -3188,54 +3848,97 @@ internal static class Tests
                 incoming,
                 target,
                 requiredStack: 1),
-            "running and paused clocks must remain stack compatible when world time is available");
+            "registered custom-data values may differ without blocking a stack merge");
         Assert.False(
             MultiUserContainerTransferCore.IsExactMatch(
                 incoming,
                 target,
                 requiredStack: 1),
-            "optimistic concurrency snapshots must still compare the stored expiry exactly");
+            "optimistic concurrency snapshots must still compare registered values exactly");
 
-        StackMetadataPolicy.SetWorldTicksProvider(() => null);
-        Assert.False(
-            MultiUserContainerTransferCore.CanStackTogether(
-                incoming,
-                target,
-                requiredStack: 1),
-            "cross-state clocks must not merge before a common server clock is available");
-
-        MultiUserContainerItemSnapshot anotherRunning = CreateMultiUserItemSnapshot(
-            stack: 1,
-            customData:
-            [
-                new KeyValuePair<string, string>(
-                    StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey,
-                    "1200")
-            ]);
         Assert.True(
-            MultiUserContainerTransferCore.CanStackTogether(
-                incoming,
-                anotherRunning,
-                requiredStack: 1),
-            "two running clocks remain comparable without reading world time");
+            StackMetadataPolicy.CanParticipateInAutomaticStacking(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    [key] = "value"
+                }),
+            "a custom-data item is eligible for automatic stacking when every key is registered");
+    }
+
+    public static void StackMetadataCompatibilityPredicateFailsClosed()
+    {
+        const string key = "tests.stack.compatibility-predicate";
+        Assert.True(
+            StackMetadataPolicy.Register(
+                key,
+                (destinationValue, sourceValue) => sourceValue ?? destinationValue,
+                (leftValue, rightValue) =>
+                    leftValue != "blocked" && rightValue != "blocked"),
+            "the compatibility-aware policy must register successfully");
+
+        Dictionary<string, string> canonicalLeft = new(StringComparer.Ordinal)
+        {
+            [key] = "left"
+        };
+        Dictionary<string, string> canonicalRight = new(StringComparer.Ordinal)
+        {
+            [key] = "right"
+        };
+        Dictionary<string, string> blocked = new(StringComparer.Ordinal)
+        {
+            [key] = "blocked"
+        };
+
+        Assert.True(
+            StackMetadataPolicy.AreCompatible(canonicalLeft, canonicalRight),
+            "the predicate may authorize differing registered values");
+        Assert.False(
+            StackMetadataPolicy.AreCompatible(canonicalLeft, blocked),
+            "either argument order must be able to reject a merge");
+
+        const string throwingKey = "tests.stack.throwing-predicate";
+        Assert.True(
+            StackMetadataPolicy.Register(
+                throwingKey,
+                (destinationValue, sourceValue) => destinationValue ?? sourceValue,
+                (_, _) => throw new InvalidOperationException("test")),
+            "the throwing test policy must register successfully");
+        Assert.False(
+            StackMetadataPolicy.AreCompatible(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    [throwingKey] = "left"
+                },
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    [throwingKey] = "right"
+                }),
+            "a throwing third-party predicate must fail closed");
     }
 
     public static void StackMetadataPolicyPreservesOtherCustomDataIdentity()
     {
+        const string key = "tests.stack.identity";
+        Assert.True(
+            StackMetadataPolicy.Register(
+                key,
+                (destinationValue, sourceValue) => sourceValue ?? destinationValue),
+            "the identity test policy must register successfully");
+
         Dictionary<string, string> ruby = new(StringComparer.Ordinal)
         {
-            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "900",
+            [key] = "older",
             ["Jewelcrafting.Sockets"] = "Ruby"
         };
         Dictionary<string, string> emerald = new(StringComparer.Ordinal)
         {
-            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "400",
+            [key] = "newer",
             ["Jewelcrafting.Sockets"] = "Emerald"
         };
 
         Assert.False(
             StackMetadataPolicy.AreCompatible(ruby, emerald),
-            "only the BeingSpoiled expiry key may differ");
+            "only registered custom-data fields may differ");
 
         MultiUserContainerItemSnapshot rubySnapshot = CreateMultiUserItemSnapshot(
             customData: ruby);
@@ -3249,186 +3952,69 @@ internal static class Tests
             "multi-user stacking must not weaken socket/custom-data identity");
     }
 
-    public static void BeingSpoiledSignedClockMergePreservesDestinationState()
+    public static void StackMetadataMergeLeavesSourceUnchanged()
     {
-        StackMetadataPolicy.SetWorldTicksProvider(() => 1_000L);
-
-        Dictionary<string, string> runningDestination = new(StringComparer.Ordinal)
-        {
-            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "1600"
-        };
-        Dictionary<string, string> pausedSource = new(StringComparer.Ordinal)
-        {
-            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "-400"
-        };
-
+        const string key = "tests.stack.destination-only";
         Assert.True(
-            StackMetadataPolicy.MergeInto(runningDestination, pausedSource),
-            "a shorter paused source must update a running destination");
-        Assert.Equal(
-            "1400",
-            runningDestination[StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey]);
+            StackMetadataPolicy.Register(
+                key,
+                (destinationValue, sourceValue) => sourceValue ?? destinationValue),
+            "the destination-only merge policy must register successfully");
 
-        Dictionary<string, string> pausedDestination = new(StringComparer.Ordinal)
-        {
-            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "-600"
-        };
-        Dictionary<string, string> runningSource = new(StringComparer.Ordinal)
-        {
-            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "1300"
-        };
-        StackMetadataPolicy.MergeInto(pausedDestination, runningSource);
-        Assert.Equal(
-            "-300",
-            pausedDestination[StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey]);
-
-        runningSource[StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "900";
-        StackMetadataPolicy.MergeInto(pausedDestination, runningSource);
-        Assert.Equal(
-            "1000",
-            pausedDestination[StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey]);
-
-        Dictionary<string, string> pausedPairDestination = new(StringComparer.Ordinal)
-        {
-            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "-900"
-        };
-        StackMetadataPolicy.MergeInto(pausedPairDestination, pausedSource);
-        Assert.Equal(
-            "-400",
-            pausedPairDestination[StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey]);
-
-        Dictionary<string, string> runningPairDestination = new(StringComparer.Ordinal)
-        {
-            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "1900"
-        };
-        Dictionary<string, string> runningPairSource = new(StringComparer.Ordinal)
-        {
-            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "1400"
-        };
-        StackMetadataPolicy.MergeInto(runningPairDestination, runningPairSource);
-        Assert.Equal(
-            "1400",
-            runningPairDestination[StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey]);
-    }
-
-    public static void BeingSpoiledSignedClockValidatesMissingAndMalformedValues()
-    {
-        StackMetadataPolicy.SetWorldTicksProvider(() => 1_000L);
-
-        Dictionary<string, string> cleanDestination = new(StringComparer.Ordinal);
-        Dictionary<string, string> pausedSource = new(StringComparer.Ordinal)
-        {
-            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "-400"
-        };
-        StackMetadataPolicy.MergeInto(cleanDestination, pausedSource);
-        Assert.Equal(
-            "-400",
-            cleanDestination[StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey]);
-
-        Dictionary<string, string> malformedDestination = new(StringComparer.Ordinal)
-        {
-            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "not-ticks"
-        };
-        Assert.False(
-            StackMetadataPolicy.AreCompatible(malformedDestination, pausedSource),
-            "a future or malformed destination format must not merge with a signed clock");
-        StackMetadataPolicy.MergeInto(malformedDestination, pausedSource);
-        Assert.Equal(
-            "not-ticks",
-            malformedDestination[StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey]);
-
-        Dictionary<string, string> malformedSource = new(StringComparer.Ordinal)
-        {
-            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "+400"
-        };
-        Dictionary<string, string> invalidSourceDestination = new(StringComparer.Ordinal);
-        StackMetadataPolicy.MergeInto(invalidSourceDestination, malformedSource);
-        Assert.False(
-            invalidSourceDestination.ContainsKey(
-                StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey),
-            "non-canonical Int64 strings must not propagate to another stack");
-
-        Dictionary<string, string> nonPositiveSource = new(StringComparer.Ordinal)
-        {
-            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "0"
-        };
-        StackMetadataPolicy.MergeInto(invalidSourceDestination, nonPositiveSource);
-        Assert.False(
-            invalidSourceDestination.ContainsKey(
-                StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey),
-            "zero is not a valid BeingSpoiled expiry and must not propagate");
-
-        nonPositiveSource[StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] =
-            long.MinValue.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        StackMetadataPolicy.MergeInto(invalidSourceDestination, nonPositiveSource);
-        Assert.False(
-            invalidSourceDestination.ContainsKey(
-                StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey),
-            "long.MinValue cannot be negated into paused remaining ticks");
-
-        Dictionary<string, string> validDestination = new(StringComparer.Ordinal)
-        {
-            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "-900"
-        };
-        StackMetadataPolicy.MergeInto(validDestination, nonPositiveSource);
-        Assert.Equal(
-            "-900",
-            validDestination[StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey]);
-
-        Assert.True(
-            StackMetadataPolicy.TryParseCanonicalBeingSpoiledClock("-1", out long parsed) && parsed == -1L,
-            "negative non-MinValue clocks are valid paused durations");
-    }
-
-    public static void BeingSpoiledPartialMergeLeavesSourceClockUnchanged()
-    {
-        StackMetadataPolicy.SetWorldTicksProvider(() => 1_000L);
         Dictionary<string, string> destination = new(StringComparer.Ordinal)
         {
-            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "1600"
+            [key] = "destination"
         };
         Dictionary<string, string> partiallyConsumedSource = new(StringComparer.Ordinal)
         {
-            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "-400"
+            [key] = "source"
         };
 
-        StackMetadataPolicy.MergeInto(destination, partiallyConsumedSource);
-
-        Assert.Equal(
-            "1400",
-            destination[StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey]);
-        Assert.Equal(
-            "-400",
-            partiallyConsumedSource[StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey]);
+        Assert.True(
+            StackMetadataPolicy.MergeInto(destination, partiallyConsumedSource),
+            "the registered callback must be applied to the destination");
+        Assert.Equal("source", destination[key]);
+        Assert.Equal("source", partiallyConsumedSource[key]);
     }
 
-    public static void BeingSpoiledRegistrationReplacesOnlyTheFallback()
+    public static void StackMetadataRegistrationIsFirstWins()
     {
-        Assert.True(
-            StackMetadataPolicy.Register(
-                StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey,
-                (destinationValue, sourceValue) =>
-                    destinationValue == null && sourceValue == null ? null : "-77"),
-            "BeingSpoiled must be able to replace the built-in fallback regardless of load order");
+        const string key = "tests.stack.first-wins";
+        Assert.False(
+            StackMetadataPolicy.Register(" ", (_, _) => "invalid"),
+            "blank custom-data keys must be rejected");
+        Assert.False(
+            StackMetadataPolicy.Register(key, null!),
+            "null merge callbacks must be rejected");
         Assert.False(
             StackMetadataPolicy.Register(
-                StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey,
+                "tests.stack.null-predicate",
+                (destinationValue, sourceValue) => destinationValue ?? sourceValue,
+                null!),
+            "null compatibility callbacks must be rejected");
+        Assert.True(
+            StackMetadataPolicy.Register(
+                key,
                 (destinationValue, sourceValue) =>
-                    destinationValue == null && sourceValue == null ? null : "-55"),
-            "the first authoritative registration must remain installed");
+                    destinationValue == null && sourceValue == null ? null : "first"),
+            "the first policy for a key must register successfully");
+        Assert.False(
+            StackMetadataPolicy.Register(
+                key,
+                (destinationValue, sourceValue) =>
+                    destinationValue == null && sourceValue == null ? null : "second"),
+            "a duplicate registration must not replace the first callback");
 
         Dictionary<string, string> destination = new(StringComparer.Ordinal)
         {
-            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "1200"
+            [key] = "destination"
         };
         Dictionary<string, string> source = new(StringComparer.Ordinal)
         {
-            [StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey] = "-400"
+            [key] = "source"
         };
         StackMetadataPolicy.MergeInto(destination, source);
-        Assert.Equal(
-            "-77",
-            destination[StackMetadataPolicy.BeingSpoiledExpiryWorldTicksKey]);
+        Assert.Equal("first", destination[key]);
     }
 
     public static void MultiUserItemSnapshotRejectsInsufficientStack()
@@ -3541,6 +4127,91 @@ internal static class Tests
             runtime.Contains("request resend failed; retrying", StringComparison.Ordinal) &&
             runtime.Contains("new ZPackage(pending.RequestBytes)", StringComparison.Ordinal),
             "bounded resend failures must preserve the serialized pending request without aborting the Update cycle");
+    }
+
+    public static void MultiUserUncertainWorldDeliveryRetainsRecoveryOwnership()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string source = File.ReadAllText(
+            Path.Combine(repositoryRoot, "MultiUserContainerOperations.cs"));
+        string handlers = File.ReadAllText(
+            Path.Combine(repositoryRoot, "InventoryPatchHandlers.cs"));
+        string lifecycle = File.ReadAllText(
+            Path.Combine(repositoryRoot, "InventoryLifecyclePatches.cs"));
+        string shutdown = ReadSourceSection(
+            source,
+            "internal static void ShutdownMultiUserContainerRuntime",
+            "private static bool IsMultiUserContainerRequestVisibleInInventory");
+        string delivery = ReadSourceSection(
+            source,
+            "DeliverMultiUserContainerItemToWorld(ItemData? item, int amount)",
+            "private static void ShowMultiUserContainerNotReady");
+
+        int beginScope = delivery.IndexOf(
+            "BeginMultiUserContainerWorldDropCreation(item)",
+            StringComparison.Ordinal);
+        int createWorldItem = delivery.IndexOf(
+            "ItemDrop.DropItem(",
+            StringComparison.Ordinal);
+        int endScope = delivery.IndexOf(
+            "EndMultiUserContainerWorldDropCreation(creationScope)",
+            StringComparison.Ordinal);
+        int partialDiscard = delivery.IndexOf(
+            "TryDiscardIncompleteInventorySlotsWorldDrop(partial)",
+            StringComparison.Ordinal);
+        int uncertainResult = delivery.IndexOf(
+            "return MultiUserContainerWorldDeliveryResult.Uncertain;",
+            Math.Max(0, partialDiscard),
+            StringComparison.Ordinal);
+        Assert.True(
+            beginScope >= 0 &&
+            createWorldItem > beginScope &&
+            endScope > createWorldItem &&
+            partialDiscard > endScope &&
+            uncertainResult > partialDiscard &&
+            delivery.Contains(
+                "return MultiUserContainerWorldDeliveryResult.DefinitelyNotSpawned;",
+                StringComparison.Ordinal),
+            "an exact ItemDrop call scope must discard an observed partial spawn before permitting local recovery");
+        Assert.True(
+            delivery.Contains(
+                "OnItemDropAwakeForMultiUserContainerWorldDelivery",
+                StringComparison.Ordinal) &&
+            delivery.Contains("scope.Candidate = itemDrop", StringComparison.Ordinal) &&
+            handlers.Contains(
+                "OnItemDropAwakeForMultiUserContainerWorldDelivery(itemDrop);",
+                StringComparison.Ordinal) &&
+            lifecycle.Contains("[HarmonyPriority(Priority.First)]", StringComparison.Ordinal) &&
+            lifecycle.Contains("private static void Prefix(ItemDrop __instance)", StringComparison.Ordinal),
+            "the Priority.First ItemDrop Awake path must publish the exact-call candidate to multi-user recovery");
+
+        int retainOwnership = shutdown.IndexOf(
+            "bool retainUncertainRecoveryOwnership",
+            StringComparison.Ordinal);
+        int completePending = shutdown.IndexOf(
+            "CompletePendingMultiUserContainerTransfer(",
+            Math.Max(0, retainOwnership),
+            StringComparison.Ordinal);
+        Assert.True(
+            retainOwnership >= 0 &&
+            completePending > retainOwnership &&
+            shutdown.Contains(
+                "MultiUserContainerWorldDeliveryResult.Uncertain",
+                StringComparison.Ordinal) &&
+            shutdown.Contains(
+                "pending.WorldDeliveryResult !=",
+                StringComparison.Ordinal) &&
+            shutdown.Contains("else if (pending != null)", StringComparison.Ordinal) &&
+            shutdown.Contains("remains unacknowledged", StringComparison.Ordinal) &&
+            shutdown.Contains(
+                "TryPreservePendingMultiUserContainerRecoveryForShutdown",
+                StringComparison.Ordinal) &&
+            shutdown.Contains(
+                "SelectNonOverlappingPreservationCell",
+                StringComparison.Ordinal) &&
+            shutdown.IndexOf("inventory.m_inventory.Add(item)", StringComparison.Ordinal) <
+            shutdown.IndexOf("inventory.Changed()", StringComparison.Ordinal),
+            "shutdown must retain uncertain response ownership and durably preserve definitely-unspawned recovery items without creating a duplicate");
     }
 
     public static void InventoryActionsCurrentContainerTransfersNotifyOnlyAfterMovement()

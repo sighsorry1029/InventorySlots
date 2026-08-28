@@ -20,15 +20,14 @@ public sealed partial class InventorySlotsPlugin
     internal static bool TryGetSlotAtGridPos(Inventory inventory, Vector2i pos, out SlotDefinition? slot)
     {
         slot = null;
-        int width = inventory.GetWidth();
-        int fixedRegularRows = GetFixedRegularRows();
-        if (pos.y < fixedRegularRows)
-        {
-            return false;
-        }
-
-        int index = (pos.y - fixedRegularRows) * width + pos.x;
-        if (index < 0 || index >= SlotDefinitions.Count)
+        if (inventory == null ||
+            !InventorySlotSafetyCore.TryMapGridPositionToSlotIndex(
+                inventory.GetWidth(),
+                GetFixedRegularRows(),
+                SlotDefinitions.Count,
+                pos.x,
+                pos.y,
+                out int index))
         {
             return false;
         }
@@ -51,6 +50,16 @@ public sealed partial class InventorySlotsPlugin
         }
 
         return false;
+    }
+
+    private static bool TryResolveCurrentSlotDefinition(
+        SlotDefinition? previous,
+        out SlotDefinition? current)
+    {
+        current = null;
+        return previous != null &&
+               TryGetSlotById(previous.Id, out current) &&
+               current != null;
     }
 
     private static List<SlotDefinition> GetCustomPanelSlots(Player? player = null, Inventory? inventory = null)
@@ -125,11 +134,26 @@ public sealed partial class InventorySlotsPlugin
         return InventoryDefinitions.QuickSlotDefinitionCache.TryGetValue(quickSlotIndex, out slot);
     }
 
-    private static Vector2i GetSlotGridPos(Inventory inventory, SlotDefinition slot)
+    private static bool TryGetSlotGridPos(
+        Inventory? inventory,
+        SlotDefinition? slot,
+        out Vector2i pos)
     {
+        pos = default;
+        if (inventory == null || slot == null)
+        {
+            return false;
+        }
+
         int index = SlotDefinitions.IndexOf(slot);
         int width = inventory.GetWidth();
-        return new Vector2i(index % width, GetFixedRegularRows() + index / width);
+        if (index < 0 || width <= 0)
+        {
+            return false;
+        }
+
+        pos = new Vector2i(index % width, GetFixedRegularRows() + index / width);
+        return true;
     }
 
     private static List<SlotDefinition> GetCachedCustomPanelSlots()
@@ -617,18 +641,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool PlayerHasAcceptedEquippedItem(Player player, SlotDefinition slot)
     {
-        Humanoid humanoid = player;
-        ItemData? item = slot.Id switch
-        {
-            "helmet" => humanoid.m_helmetItem,
-            "chest" => humanoid.m_chestItem,
-            "legs" => humanoid.m_legItem,
-            "cape" => humanoid.m_shoulderItem,
-            "trinket" => humanoid.m_trinketItem,
-            "utility" => humanoid.m_utilityItem,
-            _ => null
-        };
-
+        ItemData? item = GetBuiltInEquipmentSlotItem(player, slot);
         return item != null && slot.Accepts(item);
     }
 

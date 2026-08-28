@@ -131,15 +131,15 @@ public sealed partial class InventorySlotsPlugin
         RectTransform parent = panel.parent as RectTransform ?? ResolveInventoryPinnedTooltipParent(gui);
         Vector2 size = GetPinnedTooltipPanelSize(parent);
         Vector2 position = GetPinnedTooltipPosition(parent, slot, size, InventoryPinnedTooltipFixedOffset);
-        SetCenteredRect(parent, panel, position, size);
+        SetCenteredRectLayout(panel, position, size);
         ConfigurePinnedTooltipPanelBackground(panel);
         panel.gameObject.SetActive(true);
         RaiseInventoryPinnedTooltips();
         PinnedTooltips.Inventory.Items[slot] = item;
         PinnedTooltips.Inventory.Grids[slot] = grid;
         PinnedTooltips.Inventory.Positions[slot] = pos;
-        bool hasJewelcraftingTooltip = UpdateInventoryPinnedJewelcraftingTooltip(panel, item, grid);
-        SetInventoryPinnedTooltipTextReservedSpace(panel, hasJewelcraftingTooltip);
+        UpdateInventoryPinnedJewelcraftingTooltip(panel, item, grid);
+        SetInventoryPinnedTooltipTextReservedSpace(panel);
 
         if (PinnedTooltips.Inventory.Icons[slot] != null)
         {

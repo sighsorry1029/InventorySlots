@@ -84,6 +84,27 @@ internal sealed class MultiUserContainerItemSnapshot
 
 internal static class MultiUserContainerTransferCore
 {
+    internal const int MaximumSerializedStack = 1_000_000;
+
+    /// <summary>
+    /// Accepts a nominal stack-sized transfer, or an existing intentional
+    /// over-stack only when the entire source stack moves as one unit. This keeps
+    /// 1:1 replacement stacks movable without allowing a partial transfer to
+    /// create a new over-stack.
+    /// </summary>
+    public static bool CanTransferAmount(
+        int sourceStack,
+        int nominalMaxStack,
+        int amount)
+    {
+        return sourceStack > 0 &&
+               sourceStack <= MaximumSerializedStack &&
+               nominalMaxStack > 0 &&
+               amount > 0 &&
+               amount <= sourceStack &&
+               (amount <= nominalMaxStack || amount == sourceStack);
+    }
+
     public static bool MatchesExpectedStackState(
         int expectedStack,
         int? actualStack)

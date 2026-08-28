@@ -86,6 +86,15 @@ public sealed partial class InventorySlotsPlugin
             return true;
         }
 
+        if (IsRemovedInventorySlotsTailItem(player, inventory, item))
+        {
+            // A YAML reorder can move a still-valid custom slot while leaving its
+            // equipped item in the old tail cell. Let the canonical validation
+            // pass move that item to the slot's new cell instead of stripping a
+            // valid marker and treating it as a removed slot.
+            return true;
+        }
+
         if (IsLegacyExtraSlotsItem(item) &&
             item.m_gridPos.y >= GetFixedRegularRows() &&
             !TryGetSlotAtGridPos(inventory, item.m_gridPos, out _))
@@ -107,6 +116,28 @@ public sealed partial class InventorySlotsPlugin
                item.m_gridPos.y >= 0;
     }
 
+    private static bool IsUndefinedInventorySlotsTailCell(
+        Inventory inventory,
+        Vector2i pos)
+    {
+        return inventory != null &&
+               pos.x >= 0 &&
+               pos.x < inventory.GetWidth() &&
+               pos.y >= GetFixedRegularRows() &&
+               pos.y < inventory.GetHeight() &&
+               !TryGetSlotAtGridPos(inventory, pos, out _) &&
+               !IsExternalReservedCell(pos, includeRestockableSlots: true);
+    }
+
+    private static bool IsRemovedInventorySlotsTailItem(
+        Player player,
+        Inventory inventory,
+        ItemData item)
+    {
+        return IsUndefinedInventorySlotsTailCell(inventory, item.m_gridPos) &&
+               !TryGetCanonicalEquippedSlot(player, inventory, item, out _);
+    }
+
     private static bool IsLegacyExtraSlotsItem(ItemData item)
     {
         return item.m_customData != null &&
@@ -123,6 +154,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         return ShouldPreserveForeignSlotHeight(item, expectedFullHeight) ||
+               IsRemovedInventorySlotsTailItem(player, inventory, item) ||
                warnLockedRows && GetInventoryCellKind(player, inventory, item.m_gridPos) == InventoryCellKind.RegularLocked;
     }
 
@@ -172,6 +204,8 @@ public sealed partial class InventorySlotsPlugin
         string source = IsLegacyExtraSlotsItem(item) ? "ExtraSlots" : "foreign inventory";
         string reason = ShouldPreserveForeignSlotHeight(item, expectedFullHeight)
             ? "outside the InventorySlots grid"
+            : IsRemovedInventorySlotsTailItem(player, inventory, item)
+                ? "in a removed InventorySlots tail slot"
             : GetInventoryCellKind(player, inventory, item.m_gridPos) == InventoryCellKind.RegularLocked
                 ? "in a locked hidden inventory row"
                 : "in a foreign slot position";

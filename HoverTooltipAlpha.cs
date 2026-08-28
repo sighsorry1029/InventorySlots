@@ -124,13 +124,6 @@ public sealed partial class InventorySlotsPlugin
             IsVneiCraftingTransform(source));
     }
 
-    private static HoverTooltipSourceKind ResolveHoverTooltipSourceKind(Transform? source)
-    {
-        return source == null || IsUnityNull(source)
-            ? HoverTooltipSourceKind.None
-            : HoverTooltipSourceCore.Classify(false, IsInventorySlotsCraftingTooltipSource(source), IsVneiCraftingTransform(source));
-    }
-
     private static bool IsInventorySlotsCraftingTooltipSource(Transform? source) =>
         source != null &&
         !IsUnityNull(source) &&

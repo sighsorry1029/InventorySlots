@@ -1,5 +1,6 @@
 using System;
 using HarmonyLib;
+using UnityEngine;
 using ItemData = ItemDrop.ItemData;
 
 namespace InventorySlots;
@@ -189,13 +190,103 @@ internal static class InventoryMoveInventoryToGravePatch
 [HarmonyPatch(typeof(Humanoid), "DropItem")]
 internal static class HumanoidDropInventorySlotsItemPatch
 {
-    private static void Prefix(Humanoid __instance, Inventory inventory, ItemData item, int amount, out SlotDefinition? __state)
+    private static bool Prefix(
+        Humanoid __instance,
+        Inventory inventory,
+        ItemData item,
+        int amount,
+        out HumanoidDropInventorySlotsState? __state)
     {
-        __state = InventorySlotsPlugin.PrepareHumanoidDropInventorySlotsItem(__instance, inventory, item, amount);
+        __state = InventorySlotsPlugin.PrepareHumanoidDropInventorySlotsItem(
+            __instance,
+            inventory,
+            item,
+            amount,
+            out bool abortDrop);
+        return !abortDrop;
     }
 
-    private static void Postfix(Humanoid __instance, Inventory inventory, ItemData item, bool __result, SlotDefinition? __state)
+    private static void Postfix(
+        Humanoid __instance,
+        Inventory inventory,
+        ItemData item,
+        bool __result,
+        HumanoidDropInventorySlotsState? __state)
     {
-        InventorySlotsPlugin.RestoreHumanoidDropInventorySlotsItem(__instance, inventory, item, __result, __state);
+        InventorySlotsPlugin.CompleteHumanoidDropInventorySlotsItem(
+            __instance,
+            inventory,
+            item,
+            __result,
+            __state);
+    }
+
+    private static Exception? Finalizer(
+        Humanoid __instance,
+        Inventory inventory,
+        ItemData item,
+        HumanoidDropInventorySlotsState? __state,
+        Exception? __exception)
+    {
+        InventorySlotsPlugin.CompleteHumanoidDropInventorySlotsItem(
+            __instance,
+            inventory,
+            item,
+            result: false,
+            state: __state,
+            exception: __exception);
+        return __exception;
+    }
+}
+
+[HarmonyPatch(
+    typeof(ItemDrop),
+    nameof(ItemDrop.DropItem),
+    typeof(ItemData),
+    typeof(int),
+    typeof(Vector3),
+    typeof(Quaternion))]
+internal static class ItemDropCreateInventorySlotsDropPatch
+{
+    private static void Prefix(
+        ItemData item,
+        int amount,
+        out InventorySlotsItemDropCreationScope? __state)
+    {
+        __state = InventorySlotsPlugin.BeginInventorySlotsItemDropCreation(
+            item,
+            amount);
+    }
+
+    private static void Postfix(
+        ItemDrop? __result,
+        InventorySlotsItemDropCreationScope? __state)
+    {
+        InventorySlotsPlugin.CompleteInventorySlotsItemDropCreation(
+            __state,
+            __result,
+            exception: null);
+    }
+
+    private static Exception? Finalizer(
+        ItemDrop? __result,
+        InventorySlotsItemDropCreationScope? __state,
+        Exception? __exception)
+    {
+        InventorySlotsPlugin.CompleteInventorySlotsItemDropCreation(
+            __state,
+            __result,
+            __exception);
+        return __exception;
+    }
+}
+
+[HarmonyPatch(typeof(ItemDrop), "Awake")]
+internal static class ItemDropAwakeInventorySlotsDropPatch
+{
+    [HarmonyPriority(Priority.First)]
+    private static void Prefix(ItemDrop __instance)
+    {
+        InventorySlotsPlugin.OnItemDropAwakeForInventorySlotsDrop(__instance);
     }
 }

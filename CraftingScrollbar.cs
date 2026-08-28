@@ -45,7 +45,7 @@ public sealed partial class InventorySlotsPlugin
             marker.Initialized = true;
         }
 
-        SetCraftingTopLeftRect(gui.m_crafting, rect, GetCraftingRecipeScrollbarPosition(gui, grid), new Vector2(16f, CraftingRecipeIconRows * CraftingRecipeGridCellSpace - 6f));
+        SetTopLeftRectLayout(gui.m_crafting, rect, GetCraftingRecipeScrollbarPosition(gui, grid), new Vector2(16f, CraftingRecipeIconRows * CraftingRecipeGridCellSpace - 6f));
         SetCraftingRecipeScrollbarGraphicsVisible(rect, visible: true);
         scrollbar.direction = Scrollbar.Direction.BottomToTop;
         scrollbar.size = Mathf.Clamp01(1f / pageCount);

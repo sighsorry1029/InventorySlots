@@ -128,7 +128,11 @@ public sealed partial class InventorySlotsPlugin
 
     private static void ActivateQuickSlotHotkey(Player player, Inventory inventory, SlotDefinition slot)
     {
-        Vector2i pos = GetSlotGridPos(inventory, slot);
+        if (!TryGetSlotGridPos(inventory, slot, out Vector2i pos))
+        {
+            return;
+        }
+
         ItemData? item = inventory.GetItemAt(pos.x, pos.y);
         if (item != null && slot.Accepts(item))
         {

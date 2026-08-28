@@ -614,10 +614,9 @@ public sealed partial class InventorySlotsPlugin
 
         if (quickPanel != null)
         {
-            bool hasEquipmentPanel = customPanel != null && customPanel.gameObject.activeSelf;
-            float equipmentPanelRows = hasEquipmentPanel ? CustomSlotPanelRows : 0f;
-            float quickPanelYOffset = -(equipmentPanelRows + (hasEquipmentPanel ? EquipmentPanelGapRows : 0f)) * playerGrid.m_elementSpace;
-            Vector3 quickPanelTargetPosition = sidePanelBasePosition + new Vector3(0f, quickPanelYOffset, 0f) + (Vector3)InventoryPanels.QuickSlotsPanelRuntimeOffset;
+            Vector3 quickPanelTargetPosition =
+                sidePanelBasePosition +
+                (Vector3)InventoryPanels.QuickSlotsPanelRuntimeOffset;
             PositionQuickSlotPanel(playerGrid, quickPanel, quickPanelTargetPosition, playerGrid.m_elementSpace);
             handledDraggedPanel |= InventoryPanels.DraggingQuickSlotsPanelOffset;
         }

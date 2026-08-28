@@ -14,9 +14,10 @@ public sealed partial class InventorySlotsPlugin
         destination = new Vector2i(-1, -1);
         if (!IsValidMultiUserContainerInventory(inventory) ||
             !IsValidMultiUserContainerMutationItem(incoming) ||
-            amount <= 0 ||
-            amount > incoming.m_stack ||
-            amount > incoming.m_shared.m_maxStackSize)
+            !MultiUserContainerTransferCore.CanTransferAmount(
+                incoming.m_stack,
+                incoming.m_shared.m_maxStackSize,
+                amount))
         {
             return false;
         }
@@ -75,9 +76,10 @@ public sealed partial class InventorySlotsPlugin
     {
         if (!IsValidMultiUserContainerCoordinate(inventory, targetPosition) ||
             !IsValidMultiUserContainerMutationItem(incoming) ||
-            amount <= 0 ||
-            amount > incoming.m_stack ||
-            amount > incoming.m_shared.m_maxStackSize ||
+            !MultiUserContainerTransferCore.CanTransferAmount(
+                incoming.m_stack,
+                incoming.m_shared.m_maxStackSize,
+                amount) ||
             expectedTargetStack < 0)
         {
             return false;
@@ -150,8 +152,10 @@ public sealed partial class InventorySlotsPlugin
         if (!IsValidMultiUserContainerCoordinate(inventory, sourcePosition) ||
             !IsValidMultiUserContainerMutationItem(expected) ||
             expected.m_gridPos != sourcePosition ||
-            amount <= 0 ||
-            amount > expected.m_stack)
+            !MultiUserContainerTransferCore.CanTransferAmount(
+                expected.m_stack,
+                expected.m_shared.m_maxStackSize,
+                amount))
         {
             return false;
         }
@@ -210,8 +214,10 @@ public sealed partial class InventorySlotsPlugin
             !IsValidMultiUserContainerCoordinate(inventory, targetPosition) ||
             !IsValidMultiUserContainerMutationItem(expected) ||
             expected.m_gridPos != sourcePosition ||
-            amount <= 0 ||
-            amount > expected.m_stack ||
+            !MultiUserContainerTransferCore.CanTransferAmount(
+                expected.m_stack,
+                expected.m_shared.m_maxStackSize,
+                amount) ||
             expectedTargetStack < 0)
         {
             return false;
@@ -428,6 +434,86 @@ public sealed partial class InventorySlotsPlugin
         return true;
     }
 
+    private static bool TryApplyMultiUserContainerRequestToInventory(
+        Inventory? inventory,
+        MultiUserContainerRequest? request,
+        out ItemData? responseItem,
+        out MultiUserContainerFailure failure)
+    {
+        responseItem = null;
+        failure = MultiUserContainerFailure.InvalidRequest;
+        if (request == null)
+        {
+            return false;
+        }
+
+        bool success;
+        MultiUserContainerFailure mutationFailure;
+        switch (request.Operation)
+        {
+            case MultiUserContainerOperation.Add:
+                success = TryApplyMultiUserContainerAdd(
+                    inventory!,
+                    request.Item,
+                    request.Amount,
+                    request.TargetPosition,
+                    request.ExpectedTargetStack);
+                mutationFailure = MultiUserContainerFailure.DestinationChanged;
+                break;
+            case MultiUserContainerOperation.Remove:
+                success = TryApplyMultiUserContainerRemove(
+                    inventory!,
+                    request.Item,
+                    request.Amount,
+                    request.SourcePosition,
+                    out ItemData removed);
+                responseItem = success ? removed : null;
+                mutationFailure = MultiUserContainerFailure.ItemChanged;
+                break;
+            case MultiUserContainerOperation.Move:
+                success = TryApplyMultiUserContainerMove(
+                    inventory!,
+                    request.Item,
+                    request.Amount,
+                    request.SourcePosition,
+                    request.TargetPosition,
+                    request.ExpectedTargetStack);
+                mutationFailure = MultiUserContainerFailure.DestinationChanged;
+                break;
+            case MultiUserContainerOperation.Exchange:
+                success = TryApplyMultiUserContainerExchange(
+                    inventory!,
+                    request.Item,
+                    request.CounterpartItem!,
+                    request.SourcePosition,
+                    out ItemData displaced);
+                responseItem = success ? displaced : null;
+                mutationFailure = MultiUserContainerFailure.ItemChanged;
+                break;
+            case MultiUserContainerOperation.Swap:
+                success = TryApplyMultiUserContainerSwap(
+                    inventory!,
+                    request.Item,
+                    request.CounterpartItem!,
+                    request.SourcePosition,
+                    request.TargetPosition);
+                mutationFailure = MultiUserContainerFailure.DestinationChanged;
+                break;
+            default:
+                return false;
+        }
+
+        failure = success
+            ? MultiUserContainerFailure.None
+            : mutationFailure;
+        if (!success)
+        {
+            responseItem = null;
+        }
+
+        return success;
+    }
+
     private static bool IsValidMultiUserContainerInventory(Inventory? inventory) =>
         inventory != null &&
         inventory.m_inventory != null &&
@@ -452,8 +538,8 @@ public sealed partial class InventorySlotsPlugin
             item.m_dropPrefab == null ||
             string.IsNullOrWhiteSpace(item.m_dropPrefab.name) ||
             item.m_stack <= 0 ||
+            item.m_stack > MultiUserContainerTransferCore.MaximumSerializedStack ||
             item.m_shared.m_maxStackSize <= 0 ||
-            item.m_stack > item.m_shared.m_maxStackSize ||
             item.m_quality <= 0 ||
             item.m_variant < 0 ||
             item.m_worldLevel < 0 ||

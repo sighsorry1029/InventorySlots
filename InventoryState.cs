@@ -81,7 +81,7 @@ public sealed partial class InventorySlotsPlugin
         public float QuickSlotPanelIntroDuration = QuickSlotPanelIntroFallbackDuration;
         public float QuickSlotPanelOutroStartTime = -1f;
         public float QuickSlotPanelOutroDuration = QuickSlotPanelIntroFallbackDuration;
-        public float QuickSlotHudElementSpace = 70f;
+        public float QuickSlotHudElementSpace = ClientStateCore.DefaultQuickSlotsHudElementSpace;
         public readonly ContainerHoldActionState ContainerRestockHold = new();
         public readonly ContainerHoldActionState ContainerQuickStackHold = new();
         public bool QuickSlotPanelIntroActive;

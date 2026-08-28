@@ -155,6 +155,108 @@ public sealed partial class InventorySlotsPlugin
         RaiseInventoryPinnedTooltips();
     }
 
+    private static void RefreshActiveDynamicTooltipText()
+    {
+        float now = Time.unscaledTime;
+        if (PinnedTooltips.NextDynamicTextRefreshTime > 0f &&
+            now < PinnedTooltips.NextDynamicTextRefreshTime)
+        {
+            return;
+        }
+
+        PinnedTooltips.NextDynamicTextRefreshTime = now + DynamicTooltipTextRefreshInterval;
+        RefreshActiveInventoryPinnedTooltipText();
+        RefreshActiveCraftingPinnedTooltipText();
+    }
+
+    private static void RefreshActiveInventoryPinnedTooltipText()
+    {
+        for (int slot = 0; slot < PinnedTooltips.Inventory.Panels.Length; slot++)
+        {
+            RectTransform? panel = PinnedTooltips.Inventory.Panels[slot];
+            TMP_Text? text = PinnedTooltips.Inventory.Texts[slot];
+            if (panel == null ||
+                IsUnityNull(panel) ||
+                !panel.gameObject.activeInHierarchy ||
+                text == null ||
+                IsUnityNull(text))
+            {
+                continue;
+            }
+
+            ItemDrop.ItemData? item = GetLiveInventoryPinnedTooltipItem(slot);
+            if (item?.m_shared == null)
+            {
+                continue;
+            }
+
+            string nextText = BuildInventoryPinnedTooltipText(item);
+            if (string.Equals(text.text, nextText, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            text.text = nextText;
+            ApplyPinnedTooltipDynamicTextLayout(
+                panel,
+                text,
+                slot,
+                InventoryPinnedTooltipFixedOffset,
+                topReserved: 102f,
+                bottomReserved: 18f,
+                resetScroll: false);
+        }
+    }
+
+    private static void RefreshActiveCraftingPinnedTooltipText()
+    {
+        InventoryGui? gui = InventoryGui.instance;
+        if (gui == null || IsUnityNull(gui))
+        {
+            return;
+        }
+
+        for (int slot = 0; slot < PinnedTooltips.Crafting.Panels.Length; slot++)
+        {
+            RectTransform? panel = PinnedTooltips.Crafting.Panels[slot];
+            TMP_Text? text = PinnedTooltips.Crafting.Texts[slot];
+            int index = PinnedTooltips.Crafting.RecipeIndices[slot];
+            if (panel == null ||
+                IsUnityNull(panel) ||
+                !panel.gameObject.activeInHierarchy ||
+                text == null ||
+                IsUnityNull(text) ||
+                index < 0 ||
+                !TryGetCraftingRecipePair(gui, index, out InventoryGui.RecipeDataPair pair))
+            {
+                continue;
+            }
+
+            string nextText = BuildCraftingPinnedTooltipText(pair);
+            if (string.Equals(text.text, nextText, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            text.text = nextText;
+            PinnedTooltipPanelUiCache? cache = panel.GetComponent<PinnedTooltipPanelUiCache>();
+            float bottomReserved = cache != null &&
+                                   !IsUnityNull(cache) &&
+                                   cache.TextBottomReserved > 1f
+                ? cache.TextBottomReserved
+                : 92f;
+            ApplyPinnedTooltipDynamicTextLayout(
+                panel,
+                text,
+                slot,
+                CraftingPinnedTooltipFixedOffset,
+                topReserved: 102f,
+                bottomReserved,
+                maxTextViewportHeight: GetPinnedTooltipMaxTextViewportHeight(panel, 102f, bottomReserved),
+                resetScroll: false);
+        }
+    }
+
     private static void InvalidatePinnedTooltipUi()
     {
         ApplyPinnedTooltipSlotLimit();
@@ -889,7 +991,7 @@ public sealed partial class InventorySlotsPlugin
         float minimumUsableHeight = topReserved + bottomReserved + 72f;
         Vector2 size = GetPinnedTooltipPanelSize(parent, desiredHeight, minimumUsableHeight);
         Vector2 position = GetPinnedTooltipPosition(parent, slot, size, groupOffset);
-        SetCenteredRect(panel.parent as RectTransform ?? panel, panel, position, size);
+        SetCenteredRectLayout(panel, position, size);
 
         RectTransform scrollView = cache.TextScrollView!;
         RectTransform viewport = cache.TextViewport!;
@@ -903,7 +1005,7 @@ public sealed partial class InventorySlotsPlugin
             {
                 size = GetPinnedTooltipPanelSize(parent, cappedPanelHeight, minimumUsableHeight);
                 position = GetPinnedTooltipPosition(parent, slot, size, groupOffset);
-                SetCenteredRect(panel.parent as RectTransform ?? panel, panel, position, size);
+                SetCenteredRectLayout(panel, position, size);
             }
         }
 
@@ -1119,8 +1221,4 @@ public sealed partial class InventorySlotsPlugin
         cache.BackgroundSignature = signature;
     }
 
-    private static void SetCenteredRect(RectTransform parent, RectTransform rect, Vector2 anchoredPosition, Vector2 size)
-    {
-        SetCenteredRectLayout(rect, anchoredPosition, size);
-    }
 }

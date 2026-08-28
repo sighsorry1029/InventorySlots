@@ -33,7 +33,7 @@ public sealed partial class InventorySlotsPlugin
             if (updateLayout)
             {
                 RectTransform craftRect = (RectTransform)gui.m_craftButton.transform;
-                SetCraftingTopLeftRect(gui.m_crafting, craftRect, craftPosition, craftButtonSize);
+                SetTopLeftRectLayout(gui.m_crafting, craftRect, craftPosition, craftButtonSize);
             }
         }
 
@@ -41,7 +41,7 @@ public sealed partial class InventorySlotsPlugin
         {
             if (updateLayout)
             {
-                SetCraftingTopLeftRect(gui.m_crafting, progressRect, craftPosition, craftButtonSize);
+                SetTopLeftRectLayout(gui.m_crafting, progressRect, craftPosition, craftButtonSize);
                 gui.m_craftProgressBar?.SetWidth(craftButtonSize.x);
             }
         }
@@ -50,7 +50,7 @@ public sealed partial class InventorySlotsPlugin
         {
             if (updateLayout)
             {
-                SetCraftingTopLeftRect(gui.m_crafting, countRect, countPosition, countInputSize);
+                SetTopLeftRectLayout(gui.m_crafting, countRect, countPosition, countInputSize);
             }
 
             countRect.gameObject.SetActive(gui.m_selectedRecipe.Recipe != null && gui.m_selectedRecipe.ItemData == null);
@@ -61,7 +61,7 @@ public sealed partial class InventorySlotsPlugin
         {
             if (updateLayout)
             {
-                SetCraftingTopLeftRect(gui.m_crafting, upgradeProgressionRect, countPosition, countInputSize);
+                SetTopLeftRectLayout(gui.m_crafting, upgradeProgressionRect, countPosition, countInputSize);
             }
 
             UpdateCraftingUpgradeProgression(gui);
@@ -114,7 +114,7 @@ public sealed partial class InventorySlotsPlugin
             }
 
             rect.gameObject.SetActive(true);
-            SetCraftingTopLeftRect(gui.m_crafting, rect, requirementPosition + new Vector2(i * CraftingRecipeGridCellSpace, 0f), new Vector2(CraftingRecipeGridCellSize, CraftingRecipeGridCellSize));
+            SetTopLeftRectLayout(gui.m_crafting, rect, requirementPosition + new Vector2(i * CraftingRecipeGridCellSpace, 0f), new Vector2(CraftingRecipeGridCellSize, CraftingRecipeGridCellSize));
             ConfigureCompactCraftingRequirement(gui, rect, visibleRequirements[i], quality, craftMultiplier);
         }
     }
