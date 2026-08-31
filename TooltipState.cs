@@ -45,8 +45,27 @@ public sealed partial class InventorySlotsPlugin
     {
         public RectTransform? HotbarSwitchHudHint;
         public TMP_Text? HotbarSwitchHudHintText;
+        public string HotbarSwitchHudLayoutText = "";
+        public int HotbarSwitchHudLayoutFontId;
+        public int HotbarSwitchHudLayoutRootId;
+        public int HotbarSwitchHudLayoutTextId;
         public RectTransform? FeatureGuideHudHint;
+        public TMP_Text? FeatureGuideHudTitleText;
         public TMP_Text? FeatureGuideHudHintText;
+        public RectTransform? FeatureGuideToggle;
+        public Image? FeatureGuideToggleIcon;
+        public Canvas? FeatureGuideToggleCanvas;
+        public GraphicRaycaster? FeatureGuideToggleRaycaster;
+        public int FeatureGuideToggleInputHandlerId;
+        public Sprite? TriangleUiSprite;
+        public string FeatureGuideExpandedText = "";
+        public string FeatureGuideMeasuredText = "";
+        public int FeatureGuideMeasuredFontId;
+        public float FeatureGuideNaturalWidth = 500f;
+        public float FeatureGuideTitleWidth;
+        public float FeatureGuideTitleHeight = 18f;
+        public float FeatureGuideWrappedWidth = -1f;
+        public float FeatureGuideWrappedHeight = 176f;
         public float NextFeatureGuideTextRefreshTime;
         public RectTransform? InventoryWheelHint;
         public TMP_Text? InventoryWheelHintText;

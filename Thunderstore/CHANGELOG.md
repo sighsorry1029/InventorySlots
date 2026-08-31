@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.4
+
+- Improved the feature guide with a darker size-to-content background and screen-aware placement for better readability across languages and resolutions.
+- Added a collapse control whose state persists in client UI state. Its guarded toggle remains clickable while the inventory is open without intercepting item drags or modal dialogs.
+- Reworked the hotbar switch hint into a stable single-line arrow and localized key label positioned after the actual eighth hotbar slot. Duplicate HUD objects and redundant per-frame text layout are removed, preventing overlap, flicker, and missing text after HUD recreation.
+
 ## 1.4.3
 
 - Expanded the default `ResourceMap.yml` with 22 additional vanilla resources, keys, crops, mushrooms, and trophies from Black Forest through Ashlands. `SerpentMeat` remains in the Ocean tier, and redundant later entries for `Resin` and `BoneFragments` were removed without changing their effective tiers. Existing generated resource maps are not overwritten and must be merged manually or regenerated to receive the additions.

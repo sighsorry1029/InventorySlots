@@ -61,6 +61,7 @@ public sealed partial class InventorySlotsPlugin
             ClearCustomEquipmentVisuals();
             SetHintActive(TooltipUi.HotbarSwitchHudHint, false);
             SetHintActive(TooltipUi.FeatureGuideHudHint, false);
+            UpdateFeatureGuideToggleInputLayer();
             return;
         }
 
@@ -143,5 +144,6 @@ public sealed partial class InventorySlotsPlugin
         CraftingController.MarkGroupRailDirty();
         ClearCraftingEnglishLocalizationCaches();
         CraftingController.MarkRecipeGridLayoutDirty();
+        InvalidateFeatureGuideTextAndMeasurements();
     }
 }

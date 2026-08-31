@@ -107,9 +107,8 @@ public sealed partial class InventorySlotsPlugin : BaseUnityPlugin
     private const string ClientUiConfigSection = "5 - Client UI";
     private const string ClientKeysConfigSection = "6 - Client Keys";
     private const string ControllerInputConfigSection = "7 - Controller Input";
-    private static readonly Vector2 HotbarSwitchHintOffset = new(-50f, -32f);
+    private static readonly Vector2 HotbarSwitchHintOffset = new(0f, -32f);
     private static readonly Color HotbarSwitchHintColor = new(174f / 255f, 224f / 255f, 1f, 1f);
-    private const float HotbarSwitchHintSize = 64f;
     private const float HotbarSwitchHintFontSize = 16f;
     private static readonly Vector2 InventoryWheelHintOffset = new(0f, -32f);
     private static readonly Color InventoryWheelHintColor = new(174f / 255f, 224f / 255f, 1f, 1f);

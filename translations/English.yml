@@ -45,7 +45,7 @@ inventoryslots_container_not_ready: Container is not ready.
 inventoryslots_multi_user_chest_use_empty_slot: Use an empty slot or a matching stack.
 inventoryslots_hold_to_restock: Hold to restock
 inventoryslots_reclaim_blocked: Blocked
-inventoryslots_hotbar_switch_hint: "Switch\n[{key}]"
+inventoryslots_hotbar_switch_hint: "Switch [{key}]"
 inventoryslots_feature_guide: "<b>InventorySlots quick guide</b>\n<color=#FFA94D>[{tooltipKey}]</color> over an inventory or chest item, or a crafting recipe: Pin tooltip\n<color=#FFA94D>[{favoriteKey}]</color> over an inventory slot or crafting recipe: Toggle favorite\nWhile looking at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching items nearby (favorite slots excluded)\nWhile looking at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill items in favorite slots from nearby chests\nPer-item restock targets: <color=#FFA94D>F1 → InventorySlots → 3 - Restock</color>\nCustom slots and rules: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>\nHide this guide now: <color=#FFA94D>F1 → InventorySlots → Show Feature Guide → Off</color>"
 inventoryslots_quick_slot_format: "Quick {index}"
 inventoryslots_clear_favorites_hint_format: "{key}: clear favorites"
