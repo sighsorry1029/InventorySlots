@@ -35,6 +35,7 @@ BlackForest:
   - BjornPaw
   - RoundLog
   - Thistle
+  - TrophyFrostTroll
 Swamp:
   - Iron
   - Ooze
@@ -48,11 +49,13 @@ Swamp:
   - Turnip
   - WitheredBone
   - CuredSquirrelHamstring
+  - CryptKey
+  - TrophyAbomination
 Ocean:
   - Chitin
-  - Resin
   - SerpentScale
   - SerpentMeat
+  - TrophySerpent
 Mountain:
   - Silver
   - Crystal
@@ -64,13 +67,17 @@ Mountain:
   - WolfHairBundle
   - WolfMeat
   - WolfPelt
+  - Wishbone
+  - FreezeGland
+  - Onion
+  - TrophyHatchling
+  - TrophyFenring
 Plains:
   - UndeadBjornRibcage
   - BlackMetal
   - DragonTear
   - Barley
   - BarleyFlour
-  - BoneFragments
   - ChickenEgg
   - ChickenMeat
   - Flax
@@ -80,6 +87,10 @@ Plains:
   - LoxPelt
   - Needle
   - Tar
+  - Cloudberry
+  - TrophyBjornUndead
+  - TrophyGoblin
+  - TrophyLox
 Mistlands:
   - Eitr
   - Bilebag
@@ -87,6 +98,7 @@ Mistlands:
   - BlackMarble
   - BugMeat
   - Carapace
+  - DvergrKey
   - DvergrKeyFragment
   - DvergrNeedle
   - GiantBloodSack
@@ -99,6 +111,9 @@ Mistlands:
   - Wisp
   - YagluthDrop
   - YggdrasilWood
+  - MushroomMagecap
+  - MushroomJotunPuffs
+  - RoyalJelly
 AshLands:
   - FlametalNew
   - AskBladder
@@ -122,3 +137,8 @@ AshLands:
   - SulfurStone
   - VoltureEgg
   - VoltureMeat
+  - MushroomSmokePuff
+  - Vineberry
+  - Fiddleheadfern
+  - TrophySeekerQueen
+  - TrophyCharredMelee

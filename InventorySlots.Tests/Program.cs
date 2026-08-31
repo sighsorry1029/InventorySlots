@@ -314,6 +314,54 @@ internal static class Tests
         Assert.Equal(7, tiers["flametalnew"]);
         Assert.Equal(0, tiers["resin"]);
         Assert.Equal(0, tiers["bonefragments"]);
+        Assert.Equal(3, tiers["serpentmeat"]);
+
+        Assert.Equal(1, tiers["trophyfrosttroll"]);
+
+        foreach (string resource in new[]
+                 {
+                     "cryptkey", "trophyabomination"
+                 })
+        {
+            Assert.Equal(2, tiers[resource]);
+        }
+
+        Assert.Equal(3, tiers["trophyserpent"]);
+
+        foreach (string resource in new[]
+                 {
+                     "wishbone", "freezegland", "onion", "trophyhatchling", "trophyfenring"
+                 })
+        {
+            Assert.Equal(4, tiers[resource]);
+        }
+
+        foreach (string resource in new[]
+                 {
+                     "cloudberry", "trophybjornundead", "trophygoblin", "trophylox"
+                 })
+        {
+            Assert.Equal(5, tiers[resource]);
+        }
+
+        foreach (string resource in new[]
+                 {
+                     "dvergrkey", "mushroommagecap", "mushroomjotunpuffs", "royaljelly"
+                 })
+        {
+            Assert.Equal(6, tiers[resource]);
+        }
+
+        foreach (string resource in new[]
+                 {
+                     "mushroomsmokepuff", "vineberry", "fiddleheadfern", "trophyseekerqueen", "trophycharredmelee"
+                 })
+        {
+            Assert.Equal(7, tiers[resource]);
+        }
+
+        Assert.Equal(1, CountSourceOccurrences(InventorySlotsPlugin.DefaultResourceMapYaml, "  - Resin"));
+        Assert.Equal(1, CountSourceOccurrences(InventorySlotsPlugin.DefaultResourceMapYaml, "  - BoneFragments"));
     }
 
     public static void MalformedResourceMapsAreRejected()

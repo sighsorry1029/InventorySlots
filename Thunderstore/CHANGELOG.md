@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.3
+
+- Expanded the default `ResourceMap.yml` with 22 additional vanilla resources, keys, crops, mushrooms, and trophies from Black Forest through Ashlands. `SerpentMeat` remains in the Ocean tier, and redundant later entries for `Resin` and `BoneFragments` were removed without changing their effective tiers. Existing generated resource maps are not overwritten and must be merged manually or regenerated to receive the additions.
+
 ## 1.4.2
 
 - Added a localized feature guide beside the hotbar with live key bindings, highlighted controls and configuration paths, and a client-only `Show Feature Guide` toggle.
