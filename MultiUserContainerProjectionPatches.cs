@@ -24,33 +24,33 @@ internal static class InventoryGridMultiUserContainerProjectionPatch
     }
 
     [HarmonyPriority(Priority.First)]
-    private static void Prefix(ref Inventory inventory, out ProjectionState __state)
+    private static void Prefix(ref Inventory inventory, out ProjectionState? __state)
     {
-        __state = new ProjectionState();
+        __state = null;
         if (!InventorySlotsPlugin.TryGetMultiUserContainerProjection(inventory, out Inventory projection))
         {
             return;
         }
 
-        __state.RealInventory = inventory;
+        __state = new ProjectionState { RealInventory = inventory };
         inventory = projection;
     }
 
     [HarmonyPriority(Priority.Last)]
-    private static void Postfix(InventoryGrid __instance, ProjectionState __state)
+    private static void Postfix(InventoryGrid __instance, ProjectionState? __state)
     {
         RestoreRealInventory(__instance, __state);
     }
 
-    private static Exception? Finalizer(InventoryGrid __instance, ProjectionState __state, Exception? __exception)
+    private static Exception? Finalizer(InventoryGrid __instance, ProjectionState? __state, Exception? __exception)
     {
         RestoreRealInventory(__instance, __state);
         return __exception;
     }
 
-    private static void RestoreRealInventory(InventoryGrid grid, ProjectionState state)
+    private static void RestoreRealInventory(InventoryGrid grid, ProjectionState? state)
     {
-        if (state.Restored || state.RealInventory == null)
+        if (state == null || state.Restored || state.RealInventory == null)
         {
             return;
         }

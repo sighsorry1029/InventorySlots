@@ -43,9 +43,88 @@ public sealed partial class InventorySlotsPlugin
 
         UpdateCraftingActionControls(gui, countRect, upgradeProgressionRect, craftPosition, countPosition, craftButtonSize, countInputSize, updateLayout);
         UpdateCraftingStationAndWarningControls(gui, grid, requiredStationPosition, updateLayout);
-        UpdateCraftingRequirementStrip(gui, requirementPosition, visibleRequirements, updateLayout);
+        UpdateCraftingRequirementStrip(gui, requirementPosition, visibleRequirements);
 
         CraftingController.StoreBottomControlsSignature(layoutSignature);
+    }
+
+    private static void UpdateCraftingActionControls(
+        InventoryGui gui,
+        RectTransform? countRect,
+        RectTransform? upgradeProgressionRect,
+        Vector2 craftPosition,
+        Vector2 countPosition,
+        Vector2 craftButtonSize,
+        Vector2 countInputSize,
+        bool updateLayout)
+    {
+        if (_craftingCountInputRect != null && countRect == null)
+        {
+            _craftingCountInputRect.gameObject.SetActive(false);
+        }
+
+        if (_craftingUpgradeProgressionRect != null && upgradeProgressionRect == null)
+        {
+            _craftingUpgradeProgressionRect.gameObject.SetActive(false);
+        }
+
+        if (gui.m_craftButton != null)
+        {
+            gui.m_craftButton.gameObject.SetActive(gui.m_selectedRecipe.Recipe != null && gui.m_craftTimer < 0f);
+            if (updateLayout)
+            {
+                RectTransform craftRect = (RectTransform)gui.m_craftButton.transform;
+                SetTopLeftRectLayout(gui.m_crafting, craftRect, craftPosition, craftButtonSize);
+            }
+        }
+
+        if (gui.m_craftProgressPanel is RectTransform progressRect)
+        {
+            if (updateLayout)
+            {
+                SetTopLeftRectLayout(gui.m_crafting, progressRect, craftPosition, craftButtonSize);
+                gui.m_craftProgressBar?.SetWidth(craftButtonSize.x);
+            }
+        }
+
+        if (countRect != null)
+        {
+            if (updateLayout)
+            {
+                SetTopLeftRectLayout(gui.m_crafting, countRect, countPosition, countInputSize);
+            }
+
+            countRect.gameObject.SetActive(gui.m_selectedRecipe.Recipe != null && gui.m_selectedRecipe.ItemData == null);
+            UpdateCraftingCountInputState(gui);
+        }
+
+        if (upgradeProgressionRect != null)
+        {
+            if (updateLayout)
+            {
+                SetTopLeftRectLayout(gui.m_crafting, upgradeProgressionRect, countPosition, countInputSize);
+            }
+
+            UpdateCraftingUpgradeProgression(gui);
+        }
+
+        UpdateCraftingCraftButtonLabel(gui);
+        UpdateJewelcraftingSocketCraftButtonState(gui);
+        UpdateCraftingProgressLabel(gui);
+    }
+
+    private static void UpdateCraftingStationAndWarningControls(InventoryGui gui, RectTransform grid, Vector2 requiredStationPosition, bool updateLayout)
+    {
+        if (ShouldShowCraftingStatusHud(gui))
+        {
+            LayoutCraftingStatusHud(gui, grid, updateLayout);
+        }
+        else
+        {
+            HideCraftingSocketWarning();
+        }
+
+        UpdateCraftingRequiredStationLevel(gui, requiredStationPosition, updateLayout);
     }
 
     private static void HideCraftingRedesignBottomControls(InventoryGui gui)
@@ -368,13 +447,15 @@ public sealed partial class InventorySlotsPlugin
 
             RectTransform viewport = new GameObject("Text Area", typeof(RectTransform), typeof(RectMask2D)).GetComponent<RectTransform>();
             viewport.SetParent(_craftingCountInputRect, false);
-            SetStretchRectLayout(viewport, new Vector2(22f, 3f), new Vector2(-4f, -3f));
             CraftingUi.CountInputViewport = viewport;
 
             RectTransform textRect = CreateTextRect("Text", viewport, out TMP_Text text);
             SetStretchRectLayout(textRect, Vector2.zero, Vector2.zero);
 
             text.fontSize = 22f;
+            text.enableAutoSizing = true;
+            text.fontSizeMin = 14f;
+            text.fontSizeMax = 22f;
             text.alignment = TextAlignmentOptions.Center;
             text.color = Color.white;
             text.textWrappingMode = TextWrappingModes.NoWrap;
@@ -386,7 +467,7 @@ public sealed partial class InventorySlotsPlugin
             _craftingCountInput.contentType = TMP_InputField.ContentType.IntegerNumber;
             _craftingCountInput.characterValidation = TMP_InputField.CharacterValidation.Integer;
             _craftingCountInput.lineType = TMP_InputField.LineType.SingleLine;
-            _craftingCountInput.characterLimit = 2;
+            _craftingCountInput.characterLimit = 3;
             _craftingCountInput.SetTextWithoutNotify("1");
             _craftingCountInput.onEndEdit.AddListener(value => SetCraftingCount(ParseCraftingCount(value)));
         }
@@ -481,18 +562,21 @@ public sealed partial class InventorySlotsPlugin
 
     private static void EnsureCraftingCountWheelIcon(RectTransform countRect, bool locked)
     {
+        // Keep the full three-digit text area fixed while centering the icon in the space to its left.
+        const float textLeftInset = 28f;
         RectTransform icon = EnsureHintImage(countRect, CraftingCountWheelIconName);
         icon.anchorMin = new Vector2(0f, 0.5f);
         icon.anchorMax = new Vector2(0f, 0.5f);
-        icon.pivot = new Vector2(0f, 0.5f);
-        icon.anchoredPosition = new Vector2(5f, 0f);
-        icon.sizeDelta = new Vector2(13f, 19f);
+        icon.pivot = new Vector2(0.5f, 0.5f);
+        icon.anchoredPosition = new Vector2(textLeftInset * 0.5f, 0f);
+        icon.sizeDelta = new Vector2(13f, 19f) * (MouseWheelHintScale * 1.2f);
         icon.localScale = Vector3.one;
         icon.localRotation = Quaternion.identity;
         icon.SetAsLastSibling();
 
         Image image = icon.GetComponent<Image>();
         image.sprite = GetMouseWheelHintSprite();
+        image.enabled = image.sprite != null;
         image.type = Image.Type.Simple;
         image.preserveAspect = true;
         image.raycastTarget = false;
@@ -507,7 +591,7 @@ public sealed partial class InventorySlotsPlugin
 
         if (viewport != null && !IsUnityNull(viewport))
         {
-            SetStretchRectLayout(viewport, new Vector2(22f, 3f), new Vector2(-4f, -3f));
+            SetStretchRectLayout(viewport, new Vector2(textLeftInset, 3f), new Vector2(-2f, -3f));
         }
     }
 

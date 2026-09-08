@@ -3119,8 +3119,14 @@ internal static class Tests
 
         string fastPathSource = File.ReadAllText(Path.Combine(repositoryRoot, "CraftingFrameFastPath.cs"));
         string redesignSource = File.ReadAllText(Path.Combine(repositoryRoot, "CraftingRedesign.cs"));
-        Assert.True(fastPathSource.Contains("PrepareCraftingTooltipScrollInput(gui);", StringComparison.Ordinal) &&
-                    redesignSource.Contains("PrepareCraftingTooltipScrollInput(gui);", StringComparison.Ordinal),
+        string gridInputSource = File.ReadAllText(Path.Combine(repositoryRoot, "CraftingGridInteraction.cs"));
+        string wheelInput = ReadSourceSection(
+            gridInputSource,
+            "private static bool HandleCraftingRecipeWheelInput",
+            "private static bool HandleCraftingRecipeGridWheel");
+        Assert.True(fastPathSource.Contains("HandleCraftingRecipeWheelInput(gui, grid)", StringComparison.Ordinal) &&
+                    redesignSource.Contains("HandleCraftingRecipeWheelInput(gui, grid)", StringComparison.Ordinal) &&
+                    wheelInput.Contains("PrepareCraftingTooltipScrollInput(gui);", StringComparison.Ordinal),
             "both crafting frame paths must measure the current tooltip before routing wheel input");
     }
 

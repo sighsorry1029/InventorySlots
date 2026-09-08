@@ -40,6 +40,17 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
+        if (Hud.IsUserHidden() || !Hud.instance.IsVisible())
+        {
+            if (!IsUnityNull(InventoryPanels.QuickSlotsHotkeyBarRect) &&
+                InventoryPanels.QuickSlotsHotkeyBarRect!.gameObject.activeSelf)
+            {
+                InventoryPanels.QuickSlotsHotkeyBarRect.gameObject.SetActive(false);
+            }
+
+            return;
+        }
+
         List<SlotDefinition> quickSlots = GetQuickPanelSlots(player);
         if (quickSlots.Count == 0)
         {

@@ -1453,24 +1453,34 @@ public sealed partial class InventorySlotsPlugin
 
     private static void PruneMultiUserContainerOwnerResponseCaches()
     {
+        if (MultiUserContainerOwnerStates.Count == 0)
+        {
+            return;
+        }
+
         float cutoff = Time.unscaledTime - MultiUserContainerOwnerResponseCacheLifetime;
-        List<Container> deadContainers = new();
+        List<Container>? deadContainers = null;
         foreach (KeyValuePair<Container, MultiUserContainerOwnerState> ownerEntry in MultiUserContainerOwnerStates)
         {
             Container container = ownerEntry.Key;
             if (container == null || IsUnityNull(container))
             {
-                deadContainers.Add(container!);
+                (deadContainers ??= new()).Add(container!);
                 continue;
             }
 
-            List<MultiUserContainerOwnerRequestKey> expired = new();
+            List<MultiUserContainerOwnerRequestKey>? expired = null;
             foreach (KeyValuePair<MultiUserContainerOwnerRequestKey, MultiUserContainerOwnerResponse> responseEntry in ownerEntry.Value.Responses)
             {
                 if (responseEntry.Value.CreatedAt < cutoff)
                 {
-                    expired.Add(responseEntry.Key);
+                    (expired ??= new()).Add(responseEntry.Key);
                 }
+            }
+
+            if (expired == null)
+            {
+                continue;
             }
 
             foreach (MultiUserContainerOwnerRequestKey key in expired)
@@ -1487,6 +1497,11 @@ public sealed partial class InventorySlotsPlugin
 
                 ownerEntry.Value.Responses.Remove(key);
             }
+        }
+
+        if (deadContainers == null)
+        {
+            return;
         }
 
         foreach (Container container in deadContainers)
@@ -1624,9 +1639,7 @@ public sealed partial class InventorySlotsPlugin
         Container? container,
         ZDO zdo)
     {
-        ObservePendingMultiUserContainerOwner(
-            pending,
-            zdo.GetOwner());
+        pending.ObserveOwner(zdo.GetOwner());
         if (!TryReadMultiUserContainerDurableReceipt(
                 zdo,
                 pending.Request.RequesterPlayerId,

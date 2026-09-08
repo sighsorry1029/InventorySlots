@@ -17,13 +17,6 @@ internal enum SlotKind
     Quick
 }
 
-internal enum PendingSlotUnequipDestination
-{
-    PlayerInventory,
-    Container,
-    DropOutside
-}
-
 internal enum PlayerStatPanelKind
 {
     Armor,
@@ -54,38 +47,6 @@ internal sealed class SlotDefinition
     public bool Accepts(ItemData? item) => _accepts(item);
 }
 
-internal sealed class PendingSlotEquip
-{
-    public PendingSlotEquip(SlotDefinition slot, float createdAt)
-    {
-        Slot = slot;
-        CreatedAt = createdAt;
-    }
-
-    public SlotDefinition Slot { get; }
-    public float CreatedAt { get; }
-}
-
-internal sealed class PendingSlotUnequip
-{
-    public PendingSlotUnequip(SlotDefinition sourceSlot, PendingSlotUnequipDestination destination, Inventory? targetInventory, Vector2i targetPos, int amount, float createdAt)
-    {
-        SourceSlot = sourceSlot;
-        Destination = destination;
-        TargetInventory = targetInventory;
-        TargetPos = targetPos;
-        Amount = amount;
-        CreatedAt = createdAt;
-    }
-
-    public SlotDefinition SourceSlot { get; }
-    public PendingSlotUnequipDestination Destination { get; }
-    public Inventory? TargetInventory { get; }
-    public Vector2i TargetPos { get; }
-    public int Amount { get; }
-    public float CreatedAt { get; }
-}
-
 internal sealed class InventoryPanelDragMarker : MonoBehaviour
 {
     public string PanelName { get; set; } = "";
@@ -103,11 +64,7 @@ internal sealed class PinnedTooltipPanelUiCache : MonoBehaviour
 {
     public Image? Background { get; set; }
     public TMP_Text? BodyText { get; set; }
-    public RectTransform? TextScrollView { get; set; }
-    public RectTransform? TextViewport { get; set; }
-    public RectTransform? TextContent { get; set; }
-    public ScrollRect? TextScrollRect { get; set; }
-    public Scrollbar? TextScrollbar { get; set; }
+    public ScrollableTooltipBodyState TextScrollBody { get; } = new();
     public float TextWidth { get; set; }
     public float TextContentHeight { get; set; }
     public float TextViewportHeight { get; set; }

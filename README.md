@@ -26,13 +26,13 @@ Crafting stations are redesigned into an icon-grid browser with search, group fi
 Mark favorite recipes and resize the crafting grid with mouse-wheel zoom.
 
 ![](https://i.ibb.co/Y7586d2w/sortingandmulticraft.gif) <br>
-Sort recipes by group and resource tier, then craft multiple items from the same station flow.
+Sort recipes by group and resource tier, then queue up to 999 crafting operations from the same station flow. Each operation still checks materials, inventory space, and the crafting station.
 
 ![](https://i.ibb.co/bMjbRm73/recipeandgrid.gif) <br>
 Recipe hover and pinned tooltips stay usable while changing grid size and browsing the crafting station.
 
 ![](https://i.ibb.co/tPDH0MPc/upgradebenefit.png) <br>
-Upgrade views show the stat changes gained from upgrading gear, with upgrade favorites kept separate from crafting favorites.
+Upgrade views show the stat changes gained from upgrading gear, highlighting upgraded values in yellow in hover and pinned tooltips, with upgrade favorites kept separate from crafting favorites.
 
 ### Scrollable Tooltips And Comparisons
 
@@ -91,7 +91,7 @@ Jewelcrafting sockets and gem tooltip content are supported in InventorySlots to
 - Container tools: quick stack, take stacks, favorite restock, player/container sort, and safer tombstone take-all behavior.
 - Crafting browser: icon grid, search, group filters, recipe favorites, recipe sorting, grid zoom, and multicraft.
 - Tooltips: scrollable hover tooltips and pinned comparison panels for inventory, containers, crafting, quick slots, and supported modded tabs.
-- Compatibility support for EpicLoot, Jewelcrafting, backpacks, RustyBags, Magic Supremacy, BetterArchery, MultiUserChest, ServerCharacters, TooltipExpansion, and VNEI.
+- Compatibility support for EpicLoot, Jewelcrafting, backpacks, RustyBags, Magic Supremacy, BetterArchery, MultiUserChest, ServerCharacters, ServerManager, TooltipExpansion, and VNEI.
 - Optional multi-user access for standard player-built chests, with owner-authoritative transfers and Jewelcrafting-aware previews.
 
 ## Slot Model
@@ -105,6 +105,8 @@ InventorySlots reserves the maximum supported layout internally, then exposes on
 - Locked rows are hidden and blocked, but their coordinates remain stable.
 
 This makes the inventory safer for progression, multiplayer, tombstones, and compatibility code that may touch item positions.
+
+In multiplayer with ServerCharacters or ServerManager installed, InventorySlots leaves character recovery to that mod instead of saving or restoring its own extra-slot backup. Single-player backup behavior is unchanged.
 
 ## Progressive Rows
 

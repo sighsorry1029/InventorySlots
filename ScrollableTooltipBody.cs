@@ -283,27 +283,6 @@ internal static class ScrollableTooltipBody
         rect.localRotation = Quaternion.identity;
     }
 
-    public static ScrollableTooltipBodyState FromPinnedCache(PinnedTooltipPanelUiCache cache)
-    {
-        return new ScrollableTooltipBodyState
-        {
-            ScrollView = cache.TextScrollView,
-            Viewport = cache.TextViewport,
-            Content = cache.TextContent,
-            ScrollRect = cache.TextScrollRect,
-            Scrollbar = cache.TextScrollbar
-        };
-    }
-
-    public static void ApplyToPinnedCache(ScrollableTooltipBodyState state, PinnedTooltipPanelUiCache cache)
-    {
-        cache.TextScrollView = state.ScrollView;
-        cache.TextViewport = state.Viewport;
-        cache.TextContent = state.Content;
-        cache.TextScrollRect = state.ScrollRect;
-        cache.TextScrollbar = state.Scrollbar;
-    }
-
     private static void EnsureScrollbar(
         RectTransform panel,
         ScrollableTooltipBodyState state,

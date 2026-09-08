@@ -179,6 +179,7 @@ public sealed partial class InventoryActionsPlugin
         }
 
         EnsureFavoritesLoaded(player);
+        Color borderColor = GetFavoriteBorderColor();
         foreach (InventoryGrid.Element element in grid.m_elements)
         {
             if (element?.m_go == null || IsUnityNull(element.m_go))
@@ -193,38 +194,43 @@ public sealed partial class InventoryActionsPlugin
             }
 
             Vector2i pos = grid.GetButtonPos(element.m_go);
-            if (!IsFavoriteSlot(player, inventory, pos))
+            if (!CanFavoriteCell(inventory, pos) || !Runtime.FavoriteSlots.Contains(pos))
             {
                 HideFavoriteBorder(element);
                 continue;
             }
 
-            RectTransform? border = EnsureFavoriteBorder(element);
+            InventoryGridElementMarker marker = element.m_go.GetComponent<InventoryGridElementMarker>() ?? element.m_go.AddComponent<InventoryGridElementMarker>();
+            RectTransform? border = EnsureFavoriteBorder(element, marker);
             if (border == null)
             {
                 continue;
             }
 
-            InventoryGridElementMarker marker = element.m_go.GetComponent<InventoryGridElementMarker>() ?? element.m_go.AddComponent<InventoryGridElementMarker>();
-            if (marker.FavoriteBorderImages.Length == 0)
-            {
-                marker.FavoriteBorderImages = border.GetComponentsInChildren<Image>(true);
-            }
-
             foreach (Image image in marker.FavoriteBorderImages)
             {
-                image.color = GetFavoriteBorderColor();
+                if (image != null && image.color != borderColor)
+                {
+                    image.color = borderColor;
+                }
             }
 
-            border.gameObject.SetActive(true);
-            border.SetAsLastSibling();
+            if (!border.gameObject.activeSelf)
+            {
+                border.gameObject.SetActive(true);
+            }
+
+            if (border.GetSiblingIndex() != element.m_go.transform.childCount - 1)
+            {
+                border.SetAsLastSibling();
+            }
         }
     }
 
     private static Color GetFavoriteBorderColor() =>
         _favoriteBorderColor != null ? _favoriteBorderColor.Value : FavoriteBorderDefaultColor;
 
-    private static RectTransform? EnsureFavoriteBorder(InventoryGrid.Element element)
+    private static RectTransform? EnsureFavoriteBorder(InventoryGrid.Element element, InventoryGridElementMarker marker)
     {
         if (element?.m_go == null || IsUnityNull(element.m_go))
         {
@@ -232,7 +238,6 @@ public sealed partial class InventoryActionsPlugin
         }
 
         GameObject root = element.m_go;
-        InventoryGridElementMarker marker = root.GetComponent<InventoryGridElementMarker>() ?? root.AddComponent<InventoryGridElementMarker>();
         RectTransform? border = marker.FavoriteBorder != null && !IsUnityNull(marker.FavoriteBorder)
             ? marker.FavoriteBorder
             : null;
@@ -254,18 +259,36 @@ public sealed partial class InventoryActionsPlugin
             CreateFavoriteBorderSide(border, "Right", new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), new Vector2(FavoriteBorderThickness, 0f));
         }
 
-        border.anchorMin = Vector2.zero;
-        border.anchorMax = Vector2.one;
-        border.offsetMin = Vector2.zero;
-        border.offsetMax = Vector2.zero;
-        border.localScale = Vector3.one;
-        border.localRotation = Quaternion.identity;
-        marker.FavoriteBorder = border;
-        if (marker.FavoriteBorderImages.Length == 0)
+        if (border.parent != root.transform)
+        {
+            border.SetParent(root.transform, false);
+        }
+
+        if (border.anchorMin != Vector2.zero) border.anchorMin = Vector2.zero;
+        if (border.anchorMax != Vector2.one) border.anchorMax = Vector2.one;
+        if (border.offsetMin != Vector2.zero) border.offsetMin = Vector2.zero;
+        if (border.offsetMax != Vector2.zero) border.offsetMax = Vector2.zero;
+        if (border.localScale != Vector3.one) border.localScale = Vector3.one;
+        if (border.localRotation != Quaternion.identity) border.localRotation = Quaternion.identity;
+        bool refreshImages = marker.FavoriteBorder != border || marker.FavoriteBorderImages.Length == 0;
+        if (!refreshImages)
+        {
+            foreach (Image image in marker.FavoriteBorderImages)
+            {
+                if (image == null || !image.transform.IsChildOf(border))
+                {
+                    refreshImages = true;
+                    break;
+                }
+            }
+        }
+
+        if (refreshImages)
         {
             marker.FavoriteBorderImages = border.GetComponentsInChildren<Image>(true);
         }
 
+        marker.FavoriteBorder = border;
         return border;
     }
 

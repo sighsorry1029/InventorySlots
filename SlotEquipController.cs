@@ -6,6 +6,45 @@ using ItemData = ItemDrop.ItemData;
 
 namespace InventorySlots;
 
+internal enum PendingSlotUnequipDestination
+{
+    PlayerInventory,
+    Container,
+    DropOutside
+}
+
+internal sealed class PendingSlotEquip
+{
+    public PendingSlotEquip(SlotDefinition slot, float createdAt)
+    {
+        Slot = slot;
+        CreatedAt = createdAt;
+    }
+
+    public SlotDefinition Slot { get; }
+    public float CreatedAt { get; }
+}
+
+internal sealed class PendingSlotUnequip
+{
+    public PendingSlotUnequip(SlotDefinition sourceSlot, PendingSlotUnequipDestination destination, Inventory? targetInventory, Vector2i targetPos, int amount, float createdAt)
+    {
+        SourceSlot = sourceSlot;
+        Destination = destination;
+        TargetInventory = targetInventory;
+        TargetPos = targetPos;
+        Amount = amount;
+        CreatedAt = createdAt;
+    }
+
+    public SlotDefinition SourceSlot { get; }
+    public PendingSlotUnequipDestination Destination { get; }
+    public Inventory? TargetInventory { get; }
+    public Vector2i TargetPos { get; }
+    public int Amount { get; }
+    public float CreatedAt { get; }
+}
+
 public sealed partial class InventorySlotsPlugin
 {
     private static ItemData? FindItemForSlot(Player player, Inventory inventory, SlotDefinition slot)
@@ -706,6 +745,73 @@ public sealed partial class InventorySlotsPlugin
             hash = hash * 31 + GetItemCustomDataOrderIndependentHash(item);
             return hash;
         }
+    }
+
+    internal static void PrunePendingSlotActions(Player? player = null)
+    {
+        player ??= Player.m_localPlayer;
+        if (player == null)
+        {
+            ClearPendingSlotActions();
+            return;
+        }
+
+        Inventory inventory = ((Humanoid)player).GetInventory();
+        if (inventory == null)
+        {
+            ClearPendingSlotActions();
+            return;
+        }
+
+        foreach (var pair in InventorySafety.PendingSlotEquips.ToArray())
+        {
+            ItemData item = pair.Key;
+            PendingSlotEquip pending = pair.Value;
+            if (pending == null ||
+                IsPendingSlotActionExpired(pending.CreatedAt) ||
+                !inventory.ContainsItem(item) ||
+                !pending.Slot.Accepts(item) ||
+                !player.IsEquipActionQueued(item) && !item.m_equipped)
+            {
+                InventorySafety.PendingSlotEquips.Remove(item);
+            }
+        }
+
+        foreach (var pair in InventorySafety.PendingSlotUnequips.ToArray())
+        {
+            ItemData item = pair.Key;
+            PendingSlotUnequip pending = pair.Value;
+            if (pending == null ||
+                IsPendingSlotActionExpired(pending.CreatedAt) ||
+                !inventory.ContainsItem(item) ||
+                !pending.SourceSlot.Accepts(item) ||
+                !player.IsEquipActionQueued(item))
+            {
+                InventorySafety.PendingSlotUnequips.Remove(item);
+            }
+        }
+
+        foreach (var pair in InventorySafety.SlotUnequipToInventoryRequests.ToArray())
+        {
+            ItemData item = pair.Key;
+            if (IsPendingSlotActionExpired(pair.Value) || !inventory.ContainsItem(item) || !item.m_equipped)
+            {
+                InventorySafety.SlotUnequipToInventoryRequests.Remove(item);
+            }
+        }
+    }
+
+    internal static void ClearPendingSlotActions()
+    {
+        InventorySafety.PendingSlotEquips.Clear();
+        InventorySafety.PendingSlotUnequips.Clear();
+        InventorySafety.SlotUnequipToInventoryRequests.Clear();
+    }
+
+    private static bool IsPendingSlotActionExpired(float createdAt)
+    {
+        float timeout = Mathf.Max(5f, PendingSlotActionTimeout);
+        return Time.time - createdAt > timeout;
     }
 
     internal static bool TryCompletePendingSlotEquip(Humanoid humanoid, ItemData item, out bool result)

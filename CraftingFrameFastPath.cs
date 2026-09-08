@@ -56,12 +56,7 @@ public sealed partial class InventorySlotsPlugin
             return true;
         }
 
-        PrepareCraftingTooltipScrollInput(gui);
-        bool recipeWheelHandled =
-            HandleCraftingPinnedTooltipWheel() ||
-            HandleCraftingHoverTooltipWheel() ||
-            HandleCraftingRecipeGridZoomWheel(gui, grid) ||
-            HandleCraftingRecipeGridWheel(gui, grid);
+        bool recipeWheelHandled = HandleCraftingRecipeWheelInput(gui, grid);
         return recipeWheelHandled || CraftingController.HasFrameRebuildWork();
     }
 

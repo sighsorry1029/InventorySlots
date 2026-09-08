@@ -47,9 +47,6 @@ internal sealed class InventoryTrashButtonMarker : MonoBehaviour
 {
     public Image? Icon { get; set; }
     public bool TextSuppressed { get; set; }
-    public string LayoutSignature { get; set; } = "";
-    public bool LastCanTrash { get; set; }
-    public bool HasVisualState { get; set; }
 }
 
 internal sealed class InventoryGridElementMarker : MonoBehaviour

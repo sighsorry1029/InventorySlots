@@ -398,7 +398,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         PinnedTooltipPanelUiCache? cache = panel.GetComponent<PinnedTooltipPanelUiCache>();
-        RectTransform? content = cache != null && !IsUnityNull(cache) ? cache.TextContent : null;
+        RectTransform? content = cache != null && !IsUnityNull(cache) ? cache.TextScrollBody.Content : null;
         if (content == null || IsUnityNull(content))
         {
             return 0f;

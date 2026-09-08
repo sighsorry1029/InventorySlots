@@ -196,7 +196,9 @@
         <RemoveDir Directories="$(NexusPackageDir)" Condition="Exists('$(NexusPackageDir)')"/>
     </Target>
     <Target Name="CopyOutputDLL" AfterTargets="GetAssemblyVersion" Condition="'$(DeployToGame)' == 'true' AND '$(BuildPackage)' != 'true'">
-        <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(CopyOutputDLLPath)" Condition="'$(CopyOutputDLLPath)' != '' AND Exists('$(CopyOutputDLLPath)')"/>
+        <Error Text="CopyOutputDLLPath must be set when DeployToGame=true." Condition="'$(CopyOutputDLLPath)' == ''"/>
+        <MakeDir Directories="$(CopyOutputDLLPath)"/>
+        <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(CopyOutputDLLPath)"/>
         <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(CopyOutputDLLPath2)" Condition="'$(CopyOutputDLLPath2)' != '' AND Exists('$(CopyOutputDLLPath2)')"/>
         <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(CopyOutputDLLPath3)" Condition="'$(CopyOutputDLLPath3)' != '' AND Exists('$(CopyOutputDLLPath3)')"/>
     </Target>

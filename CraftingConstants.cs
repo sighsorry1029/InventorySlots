@@ -43,12 +43,12 @@ public sealed partial class InventorySlotsPlugin
     private const float CraftingRecipeGridCellSpace = 72f;
     private const float CraftingSocketWarningHeight = 58f;
     private const float CraftingRecipeGridZoomHintFixedSize = 16f;
-    private const float CraftingRecipeGridZoomHintFixedTextIconGap = 0f;
+    private const float CraftingRecipeGridZoomHintFixedTextIconGap = -8f;
     private const float CraftingSearchInputWidth = CraftingRecipeGridCellSpace + CraftingRecipeGridCellSize;
     private const int CraftingTooltipRecipeSlotCount = 5;
-    private const int CraftingQueueMaxCount = 99;
+    private const int CraftingQueueMaxCount = 999;
     private static readonly Vector2 CraftingRecipeGridFixedOffset = new(0f, -100f);
-    private static readonly Vector2 CraftingRecipeGridZoomHintFixedOffset = new(256f, -16f);
+    private static readonly Vector2 CraftingRecipeGridZoomHintFixedOffset = new(265f, -16f);
     private const float CraftingPanelBottomFixedExtension = 84f;
     private static readonly Vector2 CraftingRecipeScrollbarFixedOffset = new(4f, 0f);
     private static readonly Vector2 CraftingGroupRailFixedOffset = new(-66f, -96f);
@@ -58,6 +58,6 @@ public sealed partial class InventorySlotsPlugin
     private const float CraftingSortModeButtonGap = 4f;
     private static readonly Vector2 CraftingSortModeButtonsFixedOffset = new(0f, 4f);
     private static readonly Vector2 CraftingBottomControlsFixedOffset = new(0f, 8f);
-    private static readonly Vector2 CraftingCraftButtonFixedOffset = new(0f, -4f);
+    private static readonly Vector2 CraftingCraftButtonFixedOffset = new(2f, -4f);
     private static readonly Vector2 CraftingCountInputFixedOffset = new(0f, -4f);
 }

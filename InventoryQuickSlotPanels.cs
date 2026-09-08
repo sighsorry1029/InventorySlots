@@ -49,6 +49,13 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
+        // Vanilla hides the HUD by moving its root offscreen. Capturing against
+        // that root would cancel the hidden offset and persist the wrong position.
+        if (Hud.IsUserHidden() || !Hud.instance.IsVisible())
+        {
+            return;
+        }
+
         RectTransform? hudRoot = Hud.instance.m_rootObject.GetComponent<RectTransform>();
         if (hudRoot == null)
         {

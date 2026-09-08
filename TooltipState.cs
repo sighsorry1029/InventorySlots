@@ -73,6 +73,7 @@ public sealed partial class InventorySlotsPlugin
         public Material? DefaultFontMaterial;
         public Sprite? SolidUiSprite;
         public Sprite? MouseWheelHintSprite;
+        public GameObject? MouseWheelHintMissingSource;
     }
 
     private static class TooltipController

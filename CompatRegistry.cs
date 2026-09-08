@@ -8,6 +8,7 @@ namespace InventorySlots;
 public sealed partial class InventorySlotsPlugin
 {
     private const string ServerCharactersGuid = "org.bepinex.plugins.servercharacters";
+    private const string ServerManagerGuid = "sighsorry.ServerManager";
     private const string MultiUserChestGuid = "com.maxsch.valheim.MultiUserChest";
     private const string BetterArcheryGuid = "ishid4.mods.betterarchery";
     private const string AzuCraftyBoxesGuid = "Azumatt.AzuCraftyBoxes";
@@ -28,6 +29,8 @@ public sealed partial class InventorySlotsPlugin
     private const string HipLanternGuid = "shudnal.HipLantern";
 
     private static bool HasServerCharactersActive => !ZNet.IsSinglePlayer && HasPlugin(ServerCharactersGuid);
+    private static bool HasServerCharacterManagementActive =>
+        !ZNet.IsSinglePlayer && (HasPlugin(ServerCharactersGuid) || HasPlugin(ServerManagerGuid));
     private static bool HasExternalMultiUserChestActive => HasPlugin(MultiUserChestGuid);
     private static bool IsBuiltInMultiUserChestEnabled =>
         !HasExternalMultiUserChestActive &&

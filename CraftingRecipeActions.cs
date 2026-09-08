@@ -346,10 +346,10 @@ public sealed partial class InventorySlotsPlugin
             TryExtractDurabilityMaxValue(currentValue, out string currentDurabilityMax) &&
             TryExtractDurabilityMaxValue(upgradedValue, out string upgradedDurabilityMax))
         {
-            return $"{upgradedLabel}: <color=orange>{currentDurabilityMax} > {upgradedDurabilityMax}</color>";
+            return $"{upgradedLabel}: <color=orange>{currentDurabilityMax} > </color><color=yellow>{upgradedDurabilityMax}</color>";
         }
 
-        return $"{upgradedLabel}: <color=orange>{currentValue.Trim()} > {upgradedValue.Trim()}</color>";
+        return $"{upgradedLabel}: <color=orange>{currentValue.Trim()} > </color><color=yellow>{upgradedValue.Trim()}</color>";
     }
 
     private static bool IsDurabilityTooltipLabel(string label)

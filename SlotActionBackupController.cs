@@ -22,73 +22,6 @@ internal sealed class InventorySlotsBackup
 
 public sealed partial class InventorySlotsPlugin
 {
-    internal static void PrunePendingSlotActions(Player? player = null)
-    {
-        player ??= Player.m_localPlayer;
-        if (player == null)
-        {
-            ClearPendingSlotActions();
-            return;
-        }
-
-        Inventory inventory = ((Humanoid)player).GetInventory();
-        if (inventory == null)
-        {
-            ClearPendingSlotActions();
-            return;
-        }
-
-        foreach (var pair in InventorySafety.PendingSlotEquips.ToArray())
-        {
-            ItemData item = pair.Key;
-            PendingSlotEquip pending = pair.Value;
-            if (pending == null ||
-                IsPendingSlotActionExpired(pending.CreatedAt) ||
-                !inventory.ContainsItem(item) ||
-                !pending.Slot.Accepts(item) ||
-                !player.IsEquipActionQueued(item) && !item.m_equipped)
-            {
-                InventorySafety.PendingSlotEquips.Remove(item);
-            }
-        }
-
-        foreach (var pair in InventorySafety.PendingSlotUnequips.ToArray())
-        {
-            ItemData item = pair.Key;
-            PendingSlotUnequip pending = pair.Value;
-            if (pending == null ||
-                IsPendingSlotActionExpired(pending.CreatedAt) ||
-                !inventory.ContainsItem(item) ||
-                !pending.SourceSlot.Accepts(item) ||
-                !player.IsEquipActionQueued(item))
-            {
-                InventorySafety.PendingSlotUnequips.Remove(item);
-            }
-        }
-
-        foreach (var pair in InventorySafety.SlotUnequipToInventoryRequests.ToArray())
-        {
-            ItemData item = pair.Key;
-            if (IsPendingSlotActionExpired(pair.Value) || !inventory.ContainsItem(item) || !item.m_equipped)
-            {
-                InventorySafety.SlotUnequipToInventoryRequests.Remove(item);
-            }
-        }
-    }
-
-    internal static void ClearPendingSlotActions()
-    {
-        InventorySafety.PendingSlotEquips.Clear();
-        InventorySafety.PendingSlotUnequips.Clear();
-        InventorySafety.SlotUnequipToInventoryRequests.Clear();
-    }
-
-    private static bool IsPendingSlotActionExpired(float createdAt)
-    {
-        float timeout = Mathf.Max(5f, PendingSlotActionTimeout);
-        return Time.time - createdAt > timeout;
-    }
-
     internal static void SaveSlotBackup(Player player)
     {
         if (IsUnityNull(player) || player.m_isLoading || player != Player.m_localPlayer)
@@ -102,7 +35,7 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        if (HasServerCharactersActive)
+        if (HasServerCharacterManagementActive)
         {
             return;
         }
@@ -121,7 +54,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void TryRestoreSlotBackup(Player player)
     {
-        if (IsUnityNull(player) || HasServerCharactersActive || InventorySafety.RestoringSlotBackup)
+        if (IsUnityNull(player) || HasServerCharacterManagementActive || InventorySafety.RestoringSlotBackup)
         {
             return;
         }

@@ -12,6 +12,15 @@ public sealed partial class InventorySlotsPlugin
     private static readonly Color CraftingRecipeDefaultCraftableBackgroundColor = new(1f, 0.58f, 0.16f, 0.44f);
     private static readonly Color CraftingRecipeSelectedBackgroundColor = new(0.42f, 0.68f, 0.92f, 0.62f);
 
+    private static bool HandleCraftingRecipeWheelInput(InventoryGui gui, RectTransform grid)
+    {
+        PrepareCraftingTooltipScrollInput(gui);
+        return HandleCraftingPinnedTooltipWheel() ||
+               HandleCraftingHoverTooltipWheel() ||
+               HandleCraftingRecipeGridZoomWheel(gui, grid) ||
+               HandleCraftingRecipeGridWheel(gui, grid);
+    }
+
     private static bool HandleCraftingRecipeGridWheel(InventoryGui gui, RectTransform grid)
     {
         Vector2 mouse = GetUiMousePosition();
@@ -166,6 +175,8 @@ public sealed partial class InventorySlotsPlugin
         float textSize = CraftingRecipeGridZoomHintFixedSize;
         float iconHeight = Mathf.Clamp(textSize * 1.35f, 14f, 42f);
         float iconWidth = Mathf.Max(10f, iconHeight * 0.72f);
+        iconHeight *= MouseWheelHintScale;
+        iconWidth *= MouseWheelHintScale;
         float gap = CraftingRecipeGridZoomHintFixedTextIconGap;
         string label = $"{modifierText}+";
         float height = Mathf.Max(iconHeight, textSize * 1.45f);
@@ -217,6 +228,7 @@ public sealed partial class InventorySlotsPlugin
 
         Image image = icon.GetComponent<Image>();
         image.sprite = GetMouseWheelHintSprite();
+        image.enabled = image.sprite != null;
         image.type = Image.Type.Simple;
         image.preserveAspect = true;
         image.raycastTarget = false;

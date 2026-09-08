@@ -106,6 +106,20 @@ public sealed partial class InventorySlotsPlugin
         {
             AcknowledgementPending = false;
         }
+
+        public void ObserveOwner(long currentOwner)
+        {
+            if (currentOwner == 0L || currentOwner == Owner)
+            {
+                return;
+            }
+
+            Owner = currentOwner;
+            RequestOwners.Add(currentOwner);
+            SendAttempts = 0;
+            LastSentAt = float.MinValue;
+            AuthorityChangedOrReloaded = true;
+        }
     }
 
     private sealed class PendingMultiUserContainerLocalRecovery
@@ -1388,9 +1402,7 @@ public sealed partial class InventorySlotsPlugin
 
         ZDO? responseZdo = durableReceiptZdo ??
                            container?.m_nview?.GetZDO();
-        ObservePendingMultiUserContainerOwner(
-            pending,
-            responseZdo?.GetOwner() ?? 0L);
+        pending.ObserveOwner(responseZdo?.GetOwner() ?? 0L);
         if (!pending.RequestOwners.Contains(sender))
         {
             return;
@@ -1690,9 +1702,7 @@ public sealed partial class InventorySlotsPlugin
 
         if (currentOwner != pending.Owner)
         {
-            ObservePendingMultiUserContainerOwner(
-                pending,
-                currentOwner);
+            pending.ObserveOwner(currentOwner);
         }
 
         if (now - pending.StartedAt >= MultiUserContainerRequestTimeout &&
@@ -2102,31 +2112,11 @@ public sealed partial class InventorySlotsPlugin
         }
 
         long reboundOwner = zdo.GetOwner();
-        ObservePendingMultiUserContainerOwner(
-            pending,
-            reboundOwner);
+        pending.ObserveOwner(reboundOwner);
 
         pending.Projection = null;
         pending.LastSentAt = float.MinValue;
         _ = TryResolvePendingMultiUserContainerDurableReceipt(container);
-    }
-
-    private static void ObservePendingMultiUserContainerOwner(
-        PendingMultiUserContainerTransfer pending,
-        long currentOwner)
-    {
-        if (pending == null ||
-            currentOwner == 0L ||
-            currentOwner == pending.Owner)
-        {
-            return;
-        }
-
-        pending.Owner = currentOwner;
-        pending.RequestOwners.Add(currentOwner);
-        pending.SendAttempts = 0;
-        pending.LastSentAt = float.MinValue;
-        pending.AuthorityChangedOrReloaded = true;
     }
 
     internal static void SuspendPendingMultiUserContainer(

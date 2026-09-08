@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using TMPro;
 using UnityEngine;
@@ -9,6 +10,39 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
+    private static void UpdateCraftingRequirementStrip(InventoryGui gui, Vector2 requirementPosition, List<Requirement> visibleRequirements)
+    {
+        int quality = GetSelectedCraftingQuality(gui);
+        int craftMultiplier = GetEffectiveCraftingCount(gui);
+        HideCraftingVanillaRequirementSlots(gui);
+
+        int slotCount = Mathf.Max(CraftingVisibleRequirementSlots, CraftingRequirements.OwnedSlots.Count);
+        for (int i = 0; i < slotCount; i++)
+        {
+            if (i >= CraftingVisibleRequirementSlots || i >= visibleRequirements.Count)
+            {
+                if (i < CraftingRequirements.OwnedSlots.Count &&
+                    CraftingRequirements.OwnedSlots[i] is { } staleSlot &&
+                    !IsUnityNull(staleSlot))
+                {
+                    staleSlot.gameObject.SetActive(false);
+                }
+
+                continue;
+            }
+
+            RectTransform? rect = EnsureOwnedCraftingRequirementSlot(gui, i);
+            if (rect == null || IsUnityNull(rect))
+            {
+                continue;
+            }
+
+            rect.gameObject.SetActive(true);
+            SetTopLeftRectLayout(gui.m_crafting, rect, requirementPosition + new Vector2(i * CraftingRecipeGridCellSpace, 0f), new Vector2(CraftingRecipeGridCellSize, CraftingRecipeGridCellSize));
+            ConfigureCompactCraftingRequirement(gui, rect, visibleRequirements[i], quality, craftMultiplier);
+        }
+    }
+
     private static RectTransform? EnsureOwnedCraftingRequirementSlot(InventoryGui gui, int index)
     {
         if (gui.m_crafting == null || IsUnityNull(gui.m_crafting))
@@ -205,7 +239,7 @@ public sealed partial class InventorySlotsPlugin
 
         RectTransform hitbox = EnsureCraftingRequirementHitbox(rect, marker);
         DisableCompetingCraftingRequirementTooltips(rect, hitbox, marker);
-        ConfigureCraftingRequirementTooltip(gui, hitbox.gameObject, requirement, quality, craftMultiplier);
+        ConfigureCraftingRequirementTooltip(gui, hitbox.gameObject, requirement);
         marker.LayoutSignature = layoutSignature;
     }
 
@@ -346,7 +380,7 @@ public sealed partial class InventorySlotsPlugin
         return hitbox;
     }
 
-    private static void ConfigureCraftingRequirementTooltip(InventoryGui gui, GameObject target, Requirement requirement, int quality, int craftMultiplier)
+    private static void ConfigureCraftingRequirementTooltip(InventoryGui gui, GameObject target, Requirement requirement)
     {
         if (target == null || IsUnityNull(target) || requirement.m_resItem == null)
         {

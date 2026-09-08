@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.6
+
+- Increased the crafting queue limit to 999. The quantity field accepts three digits and adjusts its text size to fit, while each queued craft retains the existing material, inventory-space, and crafting-station checks.
+- Highlighted the upgraded values in yellow in both pinned and hover upgrade-comparison tooltips.
+- Fixed the Quick Slot HUD remaining visible when vanilla HUD visibility is disabled, including Ctrl+F3. Hidden HUD positions no longer overwrite the saved Quick Slot HUD anchor.
+- Replaced generated mouse-wheel graphics with Valheim's native wheel icon. Improved the inventory side hint, Alt+wheel hint, quantity-field icon, and shared crafting/upgrade/socket button alignment.
+- Simplified crafting wheel handling and tooltip scroll state, and reduced temporary allocations in pending container-operation cleanup and UI projection while preserving transfer validation and compatibility behavior.
+
+## 1.4.5
+
+- Disabled InventorySlots' extra-slot backup save and restore in multiplayer with ServerManager, matching the existing ServerCharacters policy. This prevents stale backup data from restoring items after a newer server inventory snapshot. Single-player recovery is unchanged.
+
 ## 1.4.4
 
 - Improved the feature guide with a darker size-to-content background and screen-aware placement for better readability across languages and resolutions.

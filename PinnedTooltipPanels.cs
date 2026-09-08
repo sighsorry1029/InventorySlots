@@ -648,19 +648,29 @@ public sealed partial class InventorySlotsPlugin
     private static RectTransform EnsurePinnedTooltipTextScrollContent(RectTransform panel, TMP_Text text)
     {
         PinnedTooltipPanelUiCache cache = panel.GetComponent<PinnedTooltipPanelUiCache>() ?? panel.gameObject.AddComponent<PinnedTooltipPanelUiCache>();
-        ScrollableTooltipBodyState state = ScrollableTooltipBody.FromPinnedCache(cache);
+        ScrollableTooltipBodyState state = cache.TextScrollBody;
         bool scrollRectEnabled = state.ScrollRect != null && !IsUnityNull(state.ScrollRect) && state.ScrollRect.enabled;
-        RectTransform content = ScrollableTooltipBody.Ensure(
-            panel,
-            text,
-            state,
-            GetSolidUiSprite(),
-            GetPinnedTooltipScrollSensitivity(),
-            scrollRectEnabled,
-            inertia: true,
-            handleRaycastTarget: true,
-            scrollbarRaycastTarget: true);
-        ScrollableTooltipBody.ApplyToPinnedCache(state, cache);
+        RectTransform content;
+        try
+        {
+            content = ScrollableTooltipBody.Ensure(
+                panel,
+                text,
+                state,
+                GetSolidUiSprite(),
+                GetPinnedTooltipScrollSensitivity(),
+                scrollRectEnabled,
+                inertia: true,
+                handleRaycastTarget: true,
+                scrollbarRaycastTarget: true);
+        }
+        finally
+        {
+            // Pinned panels own their text. Keep only the scroll hierarchy between
+            // calls, as the previous pinned cache did; hover restoration owns snapshots.
+            state.Text = null;
+            state.TextOriginalSnapshot = null;
+        }
 
         RectTransform textRect = text.rectTransform;
         textRect.gameObject.SetActive(true);
@@ -696,21 +706,21 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        if (cache.TextContent != null && !IsUnityNull(cache.TextContent))
+        if (cache.TextScrollBody.Content != null && !IsUnityNull(cache.TextScrollBody.Content))
         {
-            cache.TextContent.anchoredPosition = Vector2.zero;
+            cache.TextScrollBody.Content.anchoredPosition = Vector2.zero;
         }
 
-        if (cache.TextScrollRect != null && !IsUnityNull(cache.TextScrollRect))
+        if (cache.TextScrollBody.ScrollRect != null && !IsUnityNull(cache.TextScrollBody.ScrollRect))
         {
-            cache.TextScrollRect.verticalNormalizedPosition = 1f;
-            cache.TextScrollRect.velocity = Vector2.zero;
-            cache.TextScrollRect.StopMovement();
+            cache.TextScrollBody.ScrollRect.verticalNormalizedPosition = 1f;
+            cache.TextScrollBody.ScrollRect.velocity = Vector2.zero;
+            cache.TextScrollBody.ScrollRect.StopMovement();
         }
 
-        if (cache.TextScrollbar != null && !IsUnityNull(cache.TextScrollbar))
+        if (cache.TextScrollBody.Scrollbar != null && !IsUnityNull(cache.TextScrollBody.Scrollbar))
         {
-            SetPinnedTooltipScrollbarVisible(cache.TextScrollbar, visible: false);
+            SetPinnedTooltipScrollbarVisible(cache.TextScrollBody.Scrollbar, visible: false);
         }
 
         cache.TextLayoutSignature = "";
@@ -848,9 +858,9 @@ public sealed partial class InventorySlotsPlugin
         PinnedTooltipPanelUiCache? cache = panel.GetComponent<PinnedTooltipPanelUiCache>();
         if (cache == null ||
             IsUnityNull(cache) ||
-            cache.TextScrollRect == null ||
-            IsUnityNull(cache.TextScrollRect) ||
-            !cache.TextScrollRect.enabled ||
+            cache.TextScrollBody.ScrollRect == null ||
+            IsUnityNull(cache.TextScrollBody.ScrollRect) ||
+            !cache.TextScrollBody.ScrollRect.enabled ||
             cache.TextContentHeight <= cache.TextViewportHeight + PinnedTooltipScrollOverflowThreshold)
         {
             return false;
@@ -858,10 +868,10 @@ public sealed partial class InventorySlotsPlugin
 
         float maxScroll = Mathf.Max(1f, cache.TextContentHeight - cache.TextViewportHeight);
         float delta = wheel * GetPinnedTooltipScrollSensitivity() / maxScroll;
-        cache.TextScrollRect.verticalNormalizedPosition = Mathf.Clamp01(cache.TextScrollRect.verticalNormalizedPosition + delta);
-        if (cache.TextScrollbar != null && !IsUnityNull(cache.TextScrollbar))
+        cache.TextScrollBody.ScrollRect.verticalNormalizedPosition = Mathf.Clamp01(cache.TextScrollBody.ScrollRect.verticalNormalizedPosition + delta);
+        if (cache.TextScrollBody.Scrollbar != null && !IsUnityNull(cache.TextScrollBody.Scrollbar))
         {
-            cache.TextScrollbar.value = cache.TextScrollRect.verticalNormalizedPosition;
+            cache.TextScrollBody.Scrollbar.value = cache.TextScrollBody.ScrollRect.verticalNormalizedPosition;
         }
 
         return true;
@@ -872,14 +882,14 @@ public sealed partial class InventorySlotsPlugin
         PinnedTooltipPanelUiCache? cache = panel.GetComponent<PinnedTooltipPanelUiCache>();
         if (cache == null ||
             IsUnityNull(cache) ||
-            cache.TextScrollRect == null ||
-            IsUnityNull(cache.TextScrollRect) ||
-            cache.TextScrollbar == null ||
-            IsUnityNull(cache.TextScrollbar) ||
-            cache.TextViewport == null ||
-            IsUnityNull(cache.TextViewport) ||
-            cache.TextContent == null ||
-            IsUnityNull(cache.TextContent))
+            cache.TextScrollBody.ScrollRect == null ||
+            IsUnityNull(cache.TextScrollBody.ScrollRect) ||
+            cache.TextScrollBody.Scrollbar == null ||
+            IsUnityNull(cache.TextScrollBody.Scrollbar) ||
+            cache.TextScrollBody.Viewport == null ||
+            IsUnityNull(cache.TextScrollBody.Viewport) ||
+            cache.TextScrollBody.Content == null ||
+            IsUnityNull(cache.TextScrollBody.Content))
         {
             return;
         }
@@ -888,7 +898,7 @@ public sealed partial class InventorySlotsPlugin
         float preferredHeight = GetPinnedTooltipTextOnlyPreferredHeight(text, textWidth);
         float extraContentHeight = LayoutPinnedTooltipExtraScrollContent(panel, textWidth, preferredHeight);
         float contentHeight = preferredHeight + extraContentHeight + (cache.TextHasViewportCap ? CraftingPinnedTooltipTextScrollPadding : 0f);
-        float viewportHeight = cache.TextViewportHeight > 1f ? cache.TextViewportHeight : cache.TextViewport.rect.height;
+        float viewportHeight = cache.TextViewportHeight > 1f ? cache.TextViewportHeight : cache.TextScrollBody.Viewport.rect.height;
         if (viewportHeight < 1f)
         {
             return;
@@ -899,12 +909,12 @@ public sealed partial class InventorySlotsPlugin
         cache.TextContentHeight = contentHeight;
         bool needsScroll = contentHeight > viewportHeight + PinnedTooltipScrollOverflowThreshold;
         ApplyPinnedTooltipTextScrollGeometry(panel, text, cache, textWidth, contentHeight, viewportHeight, resetScroll: false, needsScroll);
-        cache.TextScrollRect.scrollSensitivity = GetPinnedTooltipScrollSensitivity();
-        SetPinnedTooltipScrollbarVisible(cache.TextScrollbar, needsScroll);
-        cache.TextScrollbar.size = needsScroll ? Mathf.Clamp01(viewportHeight / contentHeight) : 1f;
-        cache.TextScrollRect.verticalScrollbar = needsScroll ? cache.TextScrollbar : null;
-        cache.TextScrollRect.verticalScrollbarVisibility = needsScroll ? ScrollRect.ScrollbarVisibility.Permanent : ScrollRect.ScrollbarVisibility.AutoHide;
-        cache.TextScrollRect.enabled = needsScroll;
+        cache.TextScrollBody.ScrollRect.scrollSensitivity = GetPinnedTooltipScrollSensitivity();
+        SetPinnedTooltipScrollbarVisible(cache.TextScrollBody.Scrollbar, needsScroll);
+        cache.TextScrollBody.Scrollbar.size = needsScroll ? Mathf.Clamp01(viewportHeight / contentHeight) : 1f;
+        cache.TextScrollBody.ScrollRect.verticalScrollbar = needsScroll ? cache.TextScrollBody.Scrollbar : null;
+        cache.TextScrollBody.ScrollRect.verticalScrollbarVisibility = needsScroll ? ScrollRect.ScrollbarVisibility.Permanent : ScrollRect.ScrollbarVisibility.AutoHide;
+        cache.TextScrollBody.ScrollRect.enabled = needsScroll;
     }
 
     private static string GetPinnedTooltipRepairSignature(RectTransform panel, TMP_Text text, PinnedTooltipPanelUiCache cache)
@@ -912,7 +922,7 @@ public sealed partial class InventorySlotsPlugin
         Rect textRect = text.rectTransform.rect;
         float viewportHeight = cache.TextViewportHeight > 1f
             ? cache.TextViewportHeight
-            : cache.TextViewport != null && !IsUnityNull(cache.TextViewport) ? cache.TextViewport.rect.height : 0f;
+            : cache.TextScrollBody.Viewport != null && !IsUnityNull(cache.TextScrollBody.Viewport) ? cache.TextScrollBody.Viewport.rect.height : 0f;
         return $"{panel.rect.width:0.###}|{panel.rect.height:0.###}|{textRect.width:0.###}|{textRect.height:0.###}|{viewportHeight:0.###}|{cache.TextWidth:0.###}|{cache.TextTopReserved:0.###}|{cache.TextBottomReserved:0.###}|{cache.TextHasViewportCap}|{GetPinnedTooltipScrollSensitivity():0.###}|{panel.childCount}|{text.text?.Length ?? 0}|{text.text?.GetHashCode() ?? 0}";
     }
 
@@ -993,8 +1003,8 @@ public sealed partial class InventorySlotsPlugin
         Vector2 position = GetPinnedTooltipPosition(parent, slot, size, groupOffset);
         SetCenteredRectLayout(panel, position, size);
 
-        RectTransform scrollView = cache.TextScrollView!;
-        RectTransform viewport = cache.TextViewport!;
+        RectTransform scrollView = cache.TextScrollBody.ScrollView!;
+        RectTransform viewport = cache.TextScrollBody.Viewport!;
 
         float availableTextHeight = Mathf.Max(1f, size.y - topReserved - bottomReserved);
         if (hasTextViewportCap)
@@ -1018,35 +1028,35 @@ public sealed partial class InventorySlotsPlugin
         cache.TextRepairSignature = "";
         bool needsScroll = contentHeight > availableTextHeight + PinnedTooltipScrollOverflowThreshold;
         ApplyPinnedTooltipTextScrollGeometry(panel, text, cache, textWidth, contentHeight, availableTextHeight, resetScroll, needsScroll);
-        if (cache.TextScrollbar != null && !IsUnityNull(cache.TextScrollbar))
+        if (cache.TextScrollBody.Scrollbar != null && !IsUnityNull(cache.TextScrollBody.Scrollbar))
         {
-            RectTransform scrollbarRect = (RectTransform)cache.TextScrollbar.transform;
+            RectTransform scrollbarRect = (RectTransform)cache.TextScrollBody.Scrollbar.transform;
             LayoutPinnedTooltipTextScrollbar(scrollbarRect, topReserved, bottomReserved);
-            SetPinnedTooltipScrollbarVisible(cache.TextScrollbar, needsScroll);
-            cache.TextScrollbar.size = needsScroll ? Mathf.Clamp01(availableTextHeight / contentHeight) : 1f;
-            cache.TextScrollbar.value = resetScroll || !needsScroll
+            SetPinnedTooltipScrollbarVisible(cache.TextScrollBody.Scrollbar, needsScroll);
+            cache.TextScrollBody.Scrollbar.size = needsScroll ? Mathf.Clamp01(availableTextHeight / contentHeight) : 1f;
+            cache.TextScrollBody.Scrollbar.value = resetScroll || !needsScroll
                 ? 1f
-                : Mathf.Clamp01(cache.TextScrollRect != null && !IsUnityNull(cache.TextScrollRect) ? cache.TextScrollRect.verticalNormalizedPosition : cache.TextScrollbar.value);
+                : Mathf.Clamp01(cache.TextScrollBody.ScrollRect != null && !IsUnityNull(cache.TextScrollBody.ScrollRect) ? cache.TextScrollBody.ScrollRect.verticalNormalizedPosition : cache.TextScrollBody.Scrollbar.value);
         }
 
-        if (cache.TextScrollRect != null)
+        if (cache.TextScrollBody.ScrollRect != null)
         {
-            cache.TextScrollRect.scrollSensitivity = GetPinnedTooltipScrollSensitivity();
+            cache.TextScrollBody.ScrollRect.scrollSensitivity = GetPinnedTooltipScrollSensitivity();
             if (resetScroll || !needsScroll)
             {
-                cache.TextScrollRect.verticalNormalizedPosition = 1f;
+                cache.TextScrollBody.ScrollRect.verticalNormalizedPosition = 1f;
             }
-            cache.TextScrollRect.verticalScrollbar = needsScroll ? cache.TextScrollbar : null;
-            cache.TextScrollRect.verticalScrollbarVisibility = needsScroll ? ScrollRect.ScrollbarVisibility.Permanent : ScrollRect.ScrollbarVisibility.AutoHide;
-            cache.TextScrollRect.enabled = needsScroll;
+            cache.TextScrollBody.ScrollRect.verticalScrollbar = needsScroll ? cache.TextScrollBody.Scrollbar : null;
+            cache.TextScrollBody.ScrollRect.verticalScrollbarVisibility = needsScroll ? ScrollRect.ScrollbarVisibility.Permanent : ScrollRect.ScrollbarVisibility.AutoHide;
+            cache.TextScrollBody.ScrollRect.enabled = needsScroll;
         }
 
-        if (cache.TextScrollView != null && cache.TextScrollView.GetComponent<Image>() is { } scrollImage)
+        if (cache.TextScrollBody.ScrollView != null && cache.TextScrollBody.ScrollView.GetComponent<Image>() is { } scrollImage)
         {
             scrollImage.raycastTarget = false;
         }
 
-        if (cache.TextViewport != null && cache.TextViewport.GetComponent<Image>() is { } viewportImage)
+        if (cache.TextScrollBody.Viewport != null && cache.TextScrollBody.Viewport.GetComponent<Image>() is { } viewportImage)
         {
             viewportImage.raycastTarget = false;
         }
@@ -1113,27 +1123,27 @@ public sealed partial class InventorySlotsPlugin
 
     private static void ApplyPinnedTooltipTextScrollGeometry(RectTransform panel, TMP_Text text, PinnedTooltipPanelUiCache cache, float textWidth, float contentHeight, float viewportHeight, bool resetScroll, bool needsScroll)
     {
-        if (cache.TextScrollView == null ||
-            IsUnityNull(cache.TextScrollView) ||
-            cache.TextViewport == null ||
-            IsUnityNull(cache.TextViewport) ||
-            cache.TextContent == null ||
-            IsUnityNull(cache.TextContent))
+        if (cache.TextScrollBody.ScrollView == null ||
+            IsUnityNull(cache.TextScrollBody.ScrollView) ||
+            cache.TextScrollBody.Viewport == null ||
+            IsUnityNull(cache.TextScrollBody.Viewport) ||
+            cache.TextScrollBody.Content == null ||
+            IsUnityNull(cache.TextScrollBody.Content))
         {
             return;
         }
 
-        float oldNormalized = cache.TextScrollRect != null && !IsUnityNull(cache.TextScrollRect)
-            ? cache.TextScrollRect.verticalNormalizedPosition
+        float oldNormalized = cache.TextScrollBody.ScrollRect != null && !IsUnityNull(cache.TextScrollBody.ScrollRect)
+            ? cache.TextScrollBody.ScrollRect.verticalNormalizedPosition
             : 1f;
-        Vector2 oldContentPosition = cache.TextContent.anchoredPosition;
-        RectTransform scrollView = cache.TextScrollView;
+        Vector2 oldContentPosition = cache.TextScrollBody.Content.anchoredPosition;
+        RectTransform scrollView = cache.TextScrollBody.ScrollView;
         SetTopLeftRectLayout(scrollView, new Vector2(18f, -cache.TextTopReserved), new Vector2(textWidth, viewportHeight));
 
-        RectTransform viewport = cache.TextViewport;
+        RectTransform viewport = cache.TextScrollBody.Viewport;
         SetStretchRectLayout(viewport, Vector2.zero, Vector2.zero);
 
-        RectTransform content = cache.TextContent;
+        RectTransform content = cache.TextScrollBody.Content;
         SetTopLeftRectLayout(content, resetScroll || !needsScroll ? Vector2.zero : oldContentPosition, new Vector2(textWidth, contentHeight));
 
         RectTransform textRect = text.rectTransform;
@@ -1150,9 +1160,9 @@ public sealed partial class InventorySlotsPlugin
         LayoutRebuilder.ForceRebuildLayoutImmediate(viewport);
         LayoutRebuilder.ForceRebuildLayoutImmediate(scrollView);
         LayoutRebuilder.ForceRebuildLayoutImmediate(panel);
-        if (cache.TextScrollRect != null && !IsUnityNull(cache.TextScrollRect))
+        if (cache.TextScrollBody.ScrollRect != null && !IsUnityNull(cache.TextScrollBody.ScrollRect))
         {
-            cache.TextScrollRect.verticalNormalizedPosition = resetScroll || !needsScroll
+            cache.TextScrollBody.ScrollRect.verticalNormalizedPosition = resetScroll || !needsScroll
                 ? 1f
                 : Mathf.Clamp01(oldNormalized);
         }

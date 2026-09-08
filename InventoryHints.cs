@@ -16,6 +16,7 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
+    private const float MouseWheelHintScale = 2f;
     private const float FeatureGuideMaxContentWidth = 500f;
     private const float FeatureGuideMinimumSideContentWidth = 320f;
     private const float FeatureGuideFallbackContentHeight = 176f;
@@ -988,9 +989,27 @@ public sealed partial class InventorySlotsPlugin
 
         float configuredSize = InventoryWheelHintSize;
         float size = configuredSize > 0f ? Mathf.Clamp(configuredSize, 8f, 64f) : Mathf.Clamp(elementSpace * 0.34f, 18f, 28f);
-        float iconWidth = Mathf.Max(18f, size * 0.92f);
-        float iconHeight = Mathf.Max(28f, size * 1.32f);
-        TooltipUi.InventoryWheelHint.localPosition = origin + new Vector3(-iconWidth - 9f, -(BaseRows - 1) * elementSpace, 0f) + (Vector3)InventoryWheelHintOffset;
+        float iconWidth = Mathf.Max(18f, size * 0.92f) * MouseWheelHintScale;
+        float iconHeight = Mathf.Max(28f, size * 1.32f) * MouseWheelHintScale;
+        Vector3 hintPosition = origin + new Vector3(-iconWidth * 0.5f - 9f, -(BaseRows - 1) * elementSpace, 0f) + (Vector3)InventoryWheelHintOffset;
+        RectTransform? playerPanel = InventoryGui.instance != null ? InventoryGui.instance.m_player : null;
+        if (playerPanel != null)
+        {
+            RectTransform panelBackground = playerPanel.Find("Bkg") as RectTransform ?? playerPanel;
+            Canvas? canvas = TooltipUi.InventoryWheelHintText.canvas?.rootCanvas;
+            Camera? camera = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
+            Vector3 panelLeftWorld = panelBackground.TransformPoint(new Vector3(panelBackground.rect.xMin, panelBackground.rect.center.y, 0f));
+            float panelLeftScreen = RectTransformUtility.WorldToScreenPoint(camera, panelLeftWorld).x;
+            Vector2 hintScreenPosition = RectTransformUtility.WorldToScreenPoint(camera, playerGrid.m_gridRoot.TransformPoint(hintPosition));
+            // The hint pivot is its center. Place it halfway across the visible left margin.
+            hintScreenPosition.x = Mathf.Max(0f, panelLeftScreen) * 0.5f;
+            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(playerGrid.m_gridRoot, hintScreenPosition, camera, out Vector2 hintLocalPosition))
+            {
+                hintPosition.x = hintLocalPosition.x + InventoryWheelHintOffset.x;
+            }
+        }
+
+        TooltipUi.InventoryWheelHint.localPosition = hintPosition;
         TooltipUi.InventoryWheelHint.sizeDelta = new Vector2(iconWidth, iconHeight);
         TooltipUi.InventoryWheelHintText.text = "";
         TooltipUi.InventoryWheelHintText.fontSize = Mathf.Clamp(size * 0.55f, 12f, 18f);
@@ -1009,6 +1028,7 @@ public sealed partial class InventorySlotsPlugin
 
         Image iconImage = icon.GetComponent<Image>();
         iconImage.sprite = GetMouseWheelHintSprite();
+        iconImage.enabled = iconImage.sprite != null;
         iconImage.type = Image.Type.Simple;
         iconImage.preserveAspect = true;
         iconImage.color = color;
@@ -1028,73 +1048,37 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
-    private static Sprite GetMouseWheelHintSprite()
+    private static Sprite? GetMouseWheelHintSprite()
     {
         if (TooltipUi.MouseWheelHintSprite != null)
         {
             return TooltipUi.MouseWheelHintSprite;
         }
 
-        const int width = 96;
-        const int height = 128;
-        Color[] pixels = Enumerable.Repeat(Color.clear, width * height).ToArray();
-        float margin = 7f;
-        float stroke = 7f;
-        float centerX = width * 0.5f;
-        float radius = (width - margin * 2f) * 0.5f;
-        Vector2 capsuleA = new(centerX, margin + radius);
-        Vector2 capsuleB = new(centerX, height - margin - radius);
-
-        for (int y = 0; y < height; y++)
+        KeyHints? keyHints = KeyHints.instance;
+        GameObject? buildHints = keyHints != null ? keyHints.m_buildHints : null;
+        if (buildHints == null || buildHints == TooltipUi.MouseWheelHintMissingSource)
         {
-            for (int x = 0; x < width; x++)
-            {
-                Vector2 point = new(x + 0.5f, y + 0.5f);
-                float alpha = 0f;
-                float capsuleDistance = Mathf.Abs(DistanceToSegment(point, capsuleA, capsuleB) - radius);
-                alpha = Mathf.Max(alpha, StrokeAlpha(capsuleDistance, stroke));
-                alpha = Mathf.Max(alpha, StrokeAlpha(DistanceToSegment(point, new Vector2(margin + stroke * 0.45f, height * 0.49f), new Vector2(width - margin - stroke * 0.45f, height * 0.49f)), stroke * 0.55f));
-                alpha = Mathf.Max(alpha, StrokeAlpha(DistanceToSegment(point, new Vector2(centerX, height * 0.60f), new Vector2(centerX, height * 0.83f)), stroke * 0.55f));
-                alpha = Mathf.Max(alpha, StrokeAlpha(DistanceToSegment(point, new Vector2(centerX, height * 0.83f), new Vector2(centerX - width * 0.15f, height * 0.72f)), stroke * 0.55f));
-                alpha = Mathf.Max(alpha, StrokeAlpha(DistanceToSegment(point, new Vector2(centerX, height * 0.83f), new Vector2(centerX + width * 0.15f, height * 0.72f)), stroke * 0.55f));
-                alpha = Mathf.Max(alpha, StrokeAlpha(DistanceToSegment(point, new Vector2(centerX, height * 0.61f), new Vector2(centerX - width * 0.15f, height * 0.72f)), stroke * 0.55f));
-                alpha = Mathf.Max(alpha, StrokeAlpha(DistanceToSegment(point, new Vector2(centerX, height * 0.61f), new Vector2(centerX + width * 0.15f, height * 0.72f)), stroke * 0.55f));
+            return null;
+        }
 
-                if (alpha > 0f)
-                {
-                    pixels[y * width + x] = new Color(1f, 1f, 1f, alpha);
-                }
+        const string spriteName = "mousew_icon";
+        foreach (Image image in buildHints.GetComponentsInChildren<Image>(includeInactive: true))
+        {
+            Sprite? sprite = image.sprite;
+            if (sprite != null && string.Equals(sprite.name, spriteName, StringComparison.Ordinal))
+            {
+                // Borrow the vanilla asset; do not create or destroy its sprite/texture.
+                TooltipUi.MouseWheelHintSprite = sprite;
+                TooltipUi.MouseWheelHintMissingSource = null;
+                return sprite;
             }
         }
 
-        Texture2D texture = new(width, height, TextureFormat.RGBA32, false);
-        texture.name = "InventorySlots_MouseWheelHintTexture";
-        texture.wrapMode = TextureWrapMode.Clamp;
-        texture.filterMode = FilterMode.Bilinear;
-        texture.SetPixels(pixels);
-        texture.Apply();
-        TooltipUi.MouseWheelHintSprite = Sprite.Create(texture, new Rect(0f, 0f, width, height), new Vector2(0.5f, 0.5f), 100f);
-        TooltipUi.MouseWheelHintSprite.name = "InventorySlots_MouseWheelHintSprite";
-        return TooltipUi.MouseWheelHintSprite;
-    }
-
-    private static float StrokeAlpha(float distance, float strokeWidth)
-    {
-        float halfWidth = strokeWidth * 0.5f;
-        return Mathf.Clamp01(halfWidth + 1f - distance);
-    }
-
-    private static float DistanceToSegment(Vector2 point, Vector2 start, Vector2 end)
-    {
-        Vector2 segment = end - start;
-        float lengthSquared = Vector2.Dot(segment, segment);
-        if (lengthSquared <= 0.0001f)
-        {
-            return Vector2.Distance(point, start);
-        }
-
-        float t = Mathf.Clamp01(Vector2.Dot(point - start, segment) / lengthSquared);
-        return Vector2.Distance(point, start + segment * t);
+        // Retry after the vanilla UI is recreated, without rescanning a missing source every frame.
+        TooltipUi.MouseWheelHintMissingSource = buildHints;
+        Log.LogWarning($"Valheim's '{spriteName}' sprite was not found; the mouse-wheel hints will be hidden.");
+        return null;
     }
 
     private static TMP_Text EnsureHintText(RectTransform parent, string name, string value)
