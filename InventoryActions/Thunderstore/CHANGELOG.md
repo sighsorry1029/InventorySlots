@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.8
+
+- Reduced redundant UI updates by keeping the active Sort and Trash buttons enabled instead of toggling them off and on during each refresh.
+- Optimized favorite borders by reusing loaded favorite state and cached UI components, updating colors and layout only when needed, and recovering replaced border components.
+- Removed per-refresh trash-icon layout strings and redundant visual-state caches. The icon now checks its actual layout and color, preserving recovery from external UI changes.
+- Multiplayer servers and clients must update to the same InventoryActions version, as before.
+
 ## 1.0.7
 
 - Hardened area quick stack/restock completion and cancellation by finalizing handoff state before ownership-lease cleanup and inventory callbacks, preventing callback failures from leaving an action stuck or eligible for duplicate continuation.

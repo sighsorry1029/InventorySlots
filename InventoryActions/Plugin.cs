@@ -13,7 +13,7 @@ namespace InventoryActions;
 public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
 {
     internal const string ModName = "InventoryActions";
-    internal const string ModVersion = "1.0.7";
+    internal const string ModVersion = "1.0.8";
     internal const string Author = "sighsorry";
     internal const string ModGUID = $"{Author}.{ModName}";
     private const string ExternalMultiUserChestGuid = "com.maxsch.valheim.MultiUserChest";
