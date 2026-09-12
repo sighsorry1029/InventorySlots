@@ -17,7 +17,8 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        if (IsContainerAreaTransferActive())
+        if (TryHandleSharedContainerButton(Player.m_localPlayer, () => QuickStackCurrentContainer(Player.m_localPlayer))) return true;
+        if (IsContainerAreaTransferActive() && !IsReplayingSharedContainerInteraction)
         {
             ShowContainerNotReady();
             return true;
@@ -176,6 +177,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void QuickStackCurrentContainer(Player? player)
     {
+        if (TryHandleSharedContainerButton(player, () => QuickStackCurrentContainer(player))) return;
         if (!TryGetActionContext(player, out Player localPlayer, out Inventory playerInventory, out Container container, out _))
         {
             return;

@@ -41,6 +41,8 @@ public sealed partial class InventorySlotsPlugin
         AccessTools.FieldRefAccess<InventoryGui, Animator>("m_animator");
     private static readonly Action<Container> RefreshContainerAreaInventory =
         AccessTools.MethodDelegate<Action<Container>>(AccessTools.Method(typeof(Container), "CheckForChanges", Type.EmptyTypes));
+    private static readonly Func<Container, bool> LoadSharedContainerAreaInventory =
+        AccessTools.MethodDelegate<Func<Container, bool>>(AccessTools.Method(typeof(Container), "Load", Type.EmptyTypes));
     private static readonly Func<Container, long, bool> CheckContainerAreaAccess =
         AccessTools.MethodDelegate<Func<Container, long, bool>>(AccessTools.Method(typeof(Container), "CheckAccess", new[] { typeof(long) }));
     private static readonly Action<Inventory, bool, bool> NotifyContainerAreaInventory =
@@ -66,6 +68,12 @@ public sealed partial class InventorySlotsPlugin
         public ZDOID AnchorId;
         public bool QuickStack;
         public bool OpenAnchor;
+        public Func<bool>? Interaction;
+        public bool InteractionRunning;
+        public bool InteractionSucceeded;
+        public bool Completed;
+        public ContainerAreaActionKind Action => Interaction != null ? ContainerAreaActionKind.Interaction :
+            QuickStack ? ContainerAreaActionKind.QuickStack : ContainerAreaActionKind.Restock;
         public List<Container> Targets = null!;
         public int Next;
         public int Moved;
@@ -81,7 +89,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static bool IsContainerAreaTransferActive() => _containerAreaSession != null;
 
-    internal static bool IsContainerAreaEligible(Container container)
+    internal static bool IsContainerAreaEligible(Container container, bool requirePlayerPlaced = true)
     {
         ZNetView? view = GetContainerAreaView(container);
         if (view == null || !view.IsValid() || container.GetInventory() == null || container.GetType() != typeof(Container) ||
@@ -91,7 +99,7 @@ public sealed partial class InventorySlotsPlugin
             view.GetZDO().GetBool("MUC_Ignore", false))
             return false;
         Piece? piece = container.GetComponent<Piece>();
-        if (piece == null || !piece.IsPlacedByPlayer()) return false;
+        if (piece == null || requirePlayerPlaced && !piece.IsPlacedByPlayer()) return false;
         container.GetComponents(ContainerAreaComponents);
         foreach (Component component in ContainerAreaComponents)
         {
@@ -123,11 +131,29 @@ public sealed partial class InventorySlotsPlugin
         {
             Player = player, Inventory = inventory, Anchor = anchor,
             AnchorId = GetContainerAreaView(anchor)?.GetZDO()?.m_uid ?? ZDOID.None,
-            QuickStack = quickStack, OpenAnchor = quickStack && IsOpenContainerAreaAnchor(anchor)
+            QuickStack = quickStack, OpenAnchor = (quickStack || IsSharedContainerEnabled(anchor)) && IsOpenContainerAreaAnchor(anchor)
         };
         if (!CanUseContainerAreaTarget(session, anchor, requireOwner: false)) return false;
         session.Targets = GetActionContainers(player, anchor, quickStack, includeRemote: true);
         if (session.Targets.Count == 0) return false;
+        _containerAreaSession = session;
+        ContinueContainerAreaTransfer();
+        return true;
+    }
+
+    internal static bool TryStartSharedContainerInteraction(Player player, Container container, Func<bool> interaction)
+    {
+        if (_containerAreaSession != null || player == null || player != Player.m_localPlayer ||
+            container == null || interaction == null || !IsSharedContainerEnabled(container) ||
+            ContainerAreaPlayerLoading(player) || player.IsDead() || player.InCutscene() || player.IsTeleporting())
+            return false;
+        ContainerAreaSession session = new()
+        {
+            Player = player, Inventory = ((Humanoid)player).GetInventory(), Anchor = container,
+            AnchorId = GetContainerAreaView(container)?.GetZDO()?.m_uid ?? ZDOID.None,
+            OpenAnchor = true, Interaction = interaction, Targets = new List<Container> { container }
+        };
+        if (session.Inventory == null || !CanUseContainerAreaTarget(session, container, requireOwner: false)) return false;
         _containerAreaSession = session;
         ContinueContainerAreaTransfer();
         return true;
@@ -217,7 +243,7 @@ public sealed partial class InventorySlotsPlugin
         {
             _containerAreaSession = null;
             ContainerAreaHandoff.Cancel();
-            CompleteContainerAreaTransfer(session.Player, session.Anchor, session.QuickStack, session.Moved);
+            CompleteContainerAreaSession(session);
         }
     }
 
@@ -229,25 +255,24 @@ public sealed partial class InventorySlotsPlugin
         long token = 0;
         try
         {
-            bool openAnchor = target == session.Anchor && session.OpenAnchor && IsOpenContainerAreaAnchor(target);
+            bool openAnchor = target == session.Anchor && session.OpenAnchor && IsOpenContainerAreaAnchor(target) &&
+                              !IsSharedContainerEnabled(target);
             // The already-open vanilla anchor is authoritative. Loading/revision
             // checks for unattended chests must not discard this first target.
             if (!openAnchor && zdo != null)
             {
-                RefreshContainerAreaInventory(target);
+                RefreshContainerAreaTargetInventory(target);
                 if (!CanUseContainerAreaTarget(session, target, requireOwner: true) ||
                     ContainerAreaLoadedRevision(target) != zdo.DataRevision) return;
             }
             if (zdo != null && !HasExternalMultiUserChestActive)
             {
                 if (HasContainerAreaLease(zdo)) return;
-                identity = NewContainerAreaIdentity(zdo.m_uid, session.QuickStack);
+                identity = NewContainerAreaIdentity(zdo.m_uid, session.Action);
                 token = NewContainerAreaToken();
                 WriteContainerAreaLease(zdo, identity, ZNet.GetUID(), token, ContainerAreaTime() + ContainerAreaLeaseTicks);
             }
-            int moved = ExecuteContainerAreaTransfer(session.Player, session.Inventory, target, session.QuickStack);
-            if (moved > 0) FlushContainerAreaTransfer(session, target);
-            RecordContainerAreaTarget(session, target, moved);
+            ExecuteContainerAreaTargetAction(session, target);
         }
         catch (Exception error)
         {
@@ -262,7 +287,7 @@ public sealed partial class InventorySlotsPlugin
         if (!CanRequestContainerAreaOwnership(target) || !IsContainerAreaEligible(session.Anchor) ||
             session.AnchorId == ZDOID.None) return false;
         ZDO zdo = view.GetZDO();
-        ContainerAreaRequestIdentity identity = NewContainerAreaIdentity(zdo.m_uid, session.QuickStack);
+        ContainerAreaRequestIdentity identity = NewContainerAreaIdentity(zdo.m_uid, session.Action);
         if (!ContainerAreaHandoff.TryBegin(identity, zdo.GetOwner(), Time.unscaledTime + ContainerAreaResponseTimeout))
             return false;
         session.Pending = target;
@@ -302,7 +327,7 @@ public sealed partial class InventorySlotsPlugin
         session.Next++;
         try
         {
-            RefreshContainerAreaInventory(target);
+            RefreshContainerAreaTargetInventory(target);
             ZNetView? view = GetContainerAreaView(target);
             ZDO? zdo = view?.GetZDO();
             if (zdo == null || view == null || !view.IsOwner() ||
@@ -311,9 +336,7 @@ public sealed partial class InventorySlotsPlugin
                 ContainerAreaLoadedRevision(target) != zdo.DataRevision || ContainerAreaTime() > session.Expires ||
                 GetContainerAreaTokenStatus(zdo, identity, token, ZNet.GetUID()) != ContainerAreaGrantTokenStatus.Matching ||
                 !CanUseContainerAreaTarget(session, target, requireOwner: true)) return;
-            int moved = ExecuteContainerAreaTransfer(session.Player, session.Inventory, target, session.QuickStack);
-            if (moved > 0) FlushContainerAreaTransfer(session, target);
-            RecordContainerAreaTarget(session, target, moved);
+            ExecuteContainerAreaTargetAction(session, target);
         }
         catch (Exception error)
         {
@@ -327,6 +350,44 @@ public sealed partial class InventorySlotsPlugin
             session.PendingIdentity = default;
             session.Token = 0;
         }
+    }
+
+    private static void ExecuteContainerAreaTargetAction(ContainerAreaSession session, Container target)
+    {
+        if (session.Interaction == null)
+        {
+            int moved = ExecuteContainerAreaTransfer(session.Player, session.Inventory, target, session.QuickStack);
+            if (moved > 0) FlushContainerAreaTransfer(session, target);
+            RecordContainerAreaTarget(session, target, moved);
+            return;
+        }
+
+        // Next was advanced before invoking user-facing callbacks. A stale item
+        // selection or a partial callback failure never queues the action again.
+        session.InteractionRunning = true;
+        try { session.InteractionSucceeded = session.Interaction(); }
+        finally
+        {
+            FlushContainerAreaTransfer(session, target);
+            session.InteractionRunning = false;
+            // A synchronous original GUI action may close the window and cancel
+            // the session from its callback. Report only after its final outcome.
+            if (_containerAreaSession != session) CompleteContainerAreaSession(session);
+        }
+    }
+
+    private static void CompleteContainerAreaSession(ContainerAreaSession session)
+    {
+        if (session.Completed || session.InteractionRunning) return;
+        session.Completed = true;
+        if (session.Interaction != null)
+        {
+            if (!session.InteractionSucceeded && session.Player != null && session.Player == Player.m_localPlayer)
+                ShowContainerNotReady();
+            return;
+        }
+        if (session.Player != null)
+            CompleteContainerAreaTransfer(session.Player, session.Anchor, session.QuickStack, session.Moved);
     }
 
     private static void RecordContainerAreaTarget(ContainerAreaSession session, Container target, int moved)
@@ -367,8 +428,7 @@ public sealed partial class InventorySlotsPlugin
         if (session != null)
         {
             FinishPendingContainerAreaTarget(session);
-            if (session.Player != null && session.Moved > 0)
-                CompleteContainerAreaTransfer(session.Player, session.Anchor, session.QuickStack, session.Moved);
+            if (session.Interaction != null || session.Moved > 0) CompleteContainerAreaSession(session);
         }
         ContainerAreaHandoff.Cancel();
     }
@@ -412,7 +472,7 @@ public sealed partial class InventorySlotsPlugin
         {
             try
             {
-                RefreshContainerAreaInventory(container);
+                RefreshContainerAreaTargetInventory(container);
                 if (!view.IsOwner() || zdo.OwnerRevision != expectedRevision || ContainerAreaLoadedRevision(container) != zdo.DataRevision)
                     failure = ContainerAreaFailure.NotOwner;
                 else
@@ -469,14 +529,20 @@ public sealed partial class InventorySlotsPlugin
             candidate != null && GetContainerAreaView(candidate)?.GetZDO()?.m_uid == anchorId);
         if (anchor == null || !IsContainerAreaEligible(anchor) || !IsContainerAreaEligible(target))
             return ContainerAreaFailure.Unavailable;
+        bool interaction = identity.Action == ContainerAreaActionKind.Interaction;
+        bool sharedTarget = IsSharedContainerEnabled(target);
+        bool sharedAnchor = target == anchor ? sharedTarget : IsSharedContainerEnabled(anchor);
+        if (interaction && (target != anchor || !sharedTarget)) return ContainerAreaFailure.Unsupported;
         if ((requester.transform.position - anchor.transform.position).sqrMagnitude > ContainerAreaAnchorDistance * ContainerAreaAnchorDistance ||
-            (target.transform.position - anchor.transform.position).sqrMagnitude >
+            !interaction && (target.transform.position - anchor.transform.position).sqrMagnitude >
             Math.Pow(ContainerAreaRange(identity.Action == ContainerAreaActionKind.QuickStack), 2))
             return ContainerAreaFailure.OutOfRange;
         bool requesterOwnsAnchor = identity.Action == ContainerAreaActionKind.QuickStack &&
                                   GetContainerAreaView(anchor)?.GetZDO()?.GetOwner() == sender;
-        if (!ContainerAreaUsePolicy.AllowsInUseState(target == anchor, IsContainerInUse(target),
-                IsContainerInUse(anchor), requesterOwnsAnchor)) return ContainerAreaFailure.InUse;
+        // Shared viewers do not own a write lock. The token checked above and
+        // written before SetOwner serializes their actual inventory mutations.
+        if (!ContainerAreaUsePolicy.AllowsInUseState(target == anchor, !sharedTarget && IsContainerInUse(target),
+                !sharedAnchor && IsContainerInUse(anchor), requesterOwnsAnchor)) return ContainerAreaFailure.InUse;
         if (!HasContainerAreaRequesterAccess(playerId, anchor) || !HasContainerAreaRequesterAccess(playerId, target))
             return ContainerAreaFailure.NoAccess;
         return ContainerAreaFailure.None;
@@ -545,7 +611,7 @@ public sealed partial class InventorySlotsPlugin
             identity = new ContainerAreaRequestIdentity(request, target.UserID, target.ID, action);
             return version == ContainerAreaProtocol && request > 0 && playerId != 0 && owner != 0 &&
                    anchor != ZDOID.None && target != ZDOID.None &&
-                   action is ContainerAreaActionKind.QuickStack or ContainerAreaActionKind.Restock &&
+                   action is ContainerAreaActionKind.QuickStack or ContainerAreaActionKind.Restock or ContainerAreaActionKind.Interaction &&
                    package.GetPos() == package.Size();
         }
         catch (Exception error) when (error is System.IO.IOException || error is ArgumentException) { return false; }
@@ -556,7 +622,13 @@ public sealed partial class InventorySlotsPlugin
         if (session.Anchor == null || session.Player == null ||
             (session.Player.transform.position - session.Anchor.transform.position).sqrMagnitude >
             ContainerAreaAnchorDistance * ContainerAreaAnchorDistance) return false;
-        if (!InventoryGui.IsVisible()) return true;
+        if (session.Interaction != null)
+            return IsSharedContainerEnabled(session.Anchor) && IsOpenContainerAreaAnchor(session.Anchor);
+        InventoryGui? gui = InventoryGui.instance;
+        Animator? animator = gui != null ? ContainerAreaGuiAnimator(gui) : null;
+        // IsVisible lingers for two frames after Hide has cleared the current
+        // container. Area work may finish after that vanilla hold-to-stack hide.
+        if (animator == null || !animator.GetBool("visible")) return true;
         return session.OpenAnchor && IsOpenContainerAreaAnchor(session.Anchor);
     }
 
@@ -566,9 +638,12 @@ public sealed partial class InventorySlotsPlugin
             !HasContainerPlayerAccess(session.Player, session.Anchor, flashGuardStone: false) ||
             !HasContainerPlayerAccess(session.Player, target, flashGuardStone: false)) return false;
         bool anchor = target == session.Anchor;
+        if (session.Interaction != null && (!anchor || !IsSharedContainerEnabled(target))) return false;
         bool openAnchor = session.OpenAnchor && IsOpenContainerAreaAnchor(session.Anchor);
-        if (!ContainerAreaUsePolicy.AllowsInUseState(anchor, IsContainerInUse(target),
-                IsContainerInUse(session.Anchor), openAnchor)) return false;
+        bool sharedTarget = IsSharedContainerEnabled(target);
+        bool sharedAnchor = anchor ? sharedTarget : IsSharedContainerEnabled(session.Anchor);
+        if (!ContainerAreaUsePolicy.AllowsInUseState(anchor, !sharedTarget && IsContainerInUse(target),
+                !sharedAnchor && IsContainerInUse(session.Anchor), openAnchor)) return false;
         if (!anchor && (!IsContainerAreaEligible(target) ||
             (target.transform.position - session.Anchor.transform.position).sqrMagnitude >
             Math.Pow(ContainerAreaRange(session.QuickStack), 2))) return false;
@@ -583,7 +658,8 @@ public sealed partial class InventorySlotsPlugin
         InventoryGui? gui = InventoryGui.instance;
         Animator? animator = gui != null ? ContainerAreaGuiAnimator(gui) : null;
         return gui != null && animator != null && animator.GetBool("visible") &&
-               ContainerAreaGuiContainer(gui) == anchor && CanMutateContainerDirectly(anchor, allowLocalWithoutZNetView: true);
+               ContainerAreaGuiContainer(gui) == anchor && (IsSharedContainerEnabled(anchor) ||
+                   CanMutateContainerDirectly(anchor, allowLocalWithoutZNetView: true));
     }
 
     private static bool HasContainerAreaRequesterAccess(long playerId, Container container)
@@ -605,16 +681,26 @@ public sealed partial class InventorySlotsPlugin
 
     private static ZNetView? GetContainerAreaView(Container? container) =>
         container != null ? ContainerAreaView(container) : null;
+
+    private static void RefreshContainerAreaTargetInventory(Container container)
+    {
+        // CheckForChanges also updates the lid's network flag. That metadata
+        // write can advance DataRevision after Load recorded m_lastRevision.
+        // During shared handoff, load only the inventory and retain the strict
+        // revision check; ordinary GUI updates still maintain the lid visuals.
+        if (IsSharedContainerEnabled(container)) LoadSharedContainerAreaInventory(container);
+        else RefreshContainerAreaInventory(container);
+    }
+
     private static float ContainerAreaRange(bool quickStack) =>
         Math.Max(0f, quickStack ? _areaQuickStackRange?.Value ?? 0f : _areaRestockRange?.Value ?? 0f);
     private static long ContainerAreaTime() => ZNet.instance != null ? ZNet.instance.GetTime().Ticks : DateTime.UtcNow.Ticks;
     private static bool HasContainerAreaDataRevision(uint observed, uint required) => unchecked((int)(observed - required)) >= 0;
 
-    private static ContainerAreaRequestIdentity NewContainerAreaIdentity(ZDOID id, bool quickStack)
+    private static ContainerAreaRequestIdentity NewContainerAreaIdentity(ZDOID id, ContainerAreaActionKind action)
     {
         if (_nextContainerAreaRequest <= 0) _nextContainerAreaRequest = 1;
-        return new ContainerAreaRequestIdentity(_nextContainerAreaRequest++, id.UserID, id.ID,
-            quickStack ? ContainerAreaActionKind.QuickStack : ContainerAreaActionKind.Restock);
+        return new ContainerAreaRequestIdentity(_nextContainerAreaRequest++, id.UserID, id.ID, action);
     }
 
     private static long NewContainerAreaToken()

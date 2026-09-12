@@ -15,7 +15,8 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        if (IsContainerAreaTransferActive())
+        if (TryHandleSharedContainerButton(player, () => TryHandleSafeTakeAll(gui))) return true;
+        if (IsContainerAreaTransferActive() && !IsReplayingSharedContainerInteraction)
         {
             ShowContainerNotReady();
             return true;

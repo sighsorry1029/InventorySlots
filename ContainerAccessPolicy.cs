@@ -57,7 +57,7 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        return !IsContainerInUse(container);
+        return IsSharedContainerEnabled(container) || !IsContainerInUse(container);
     }
 
     private static bool IsAreaContainerCandidate(Player player, Container container, Container? currentContainer, Vector3 playerPosition, float rangeSq, out float distanceSq)

@@ -92,7 +92,7 @@ Jewelcrafting sockets and gem tooltip content are supported in InventorySlots to
 - Crafting browser: icon grid, search, group filters, recipe favorites, recipe sorting, grid zoom, and multicraft.
 - Tooltips: scrollable hover tooltips and pinned comparison panels for inventory, containers, crafting, quick slots, and supported modded tabs.
 - Compatibility support for EpicLoot, Jewelcrafting, backpacks, RustyBags, Magic Supremacy, BetterArchery, MultiUserChest, ServerCharacters, ServerManager, TooltipExpansion, and VNEI.
-- Vanilla chest access: one player opens a chest at a time, while area actions can request ownership of eligible unused chests.
+- Shared chest access: multiple players can view standard chests, while each item change waits for an approved ownership handoff. Sharing can be disabled.
 
 ## Slot Model
 
@@ -232,13 +232,13 @@ When hovering a container:
 
 Area ranges use the interacted container as the center. Setting a range to `0` disables nearby-container behavior for that action.
 
-Opening a chest follows vanilla's single-user access and ownership transfer. Area actions process containers one at a time. For an eligible unused chest owned by another player, InventorySlots requests authorization from its current owner and waits for ownership and the saved inventory state before moving items. A denied or timed-out request skips that target without moving its items. The chest already open by the requester can still receive that player's quick stack.
+`Enable Multi User Chest` allows multiple players to keep a standard player-built chest open. Viewing a chest does not grant permission to change it: drag/drop, stack/restock, take-all and sorting use an approved ownership handoff and wait for the current saved contents. A changed slot cancels a pending click instead of moving a different item. Area actions process chests one at a time, including eligible shared chests being viewed by another player. A denied or timed-out request does not move items for that target.
 
-The former built-in MultiUserChest implementation and its `Enable Multi User Chest` setting have been removed. Existing configuration entries and old chest receipt data are not used or deleted. The standalone MultiUserChest mod remains optional; InventorySlots leaves its chest opening behavior to that mod and excludes non-owned area targets while it is loaded.
+The setting defaults to On and preserves an existing saved On/Off value. Off retains vanilla exclusive opening and approved area transfers to unused chests. Changing it closes the inventory and cancels pending actions before reopening. The former remote item-transfer protocol, escrow and chest receipts are not used; old receipt data is left untouched. The standalone MultiUserChest mod takes precedence, and non-owned area targets are excluded while it is loaded.
 
 Finish pending inventory actions and exit normally before replacing the DLL. Restart the server and all clients with the same build so that area ownership requests use matching implementations.
 
-Container actions respect container access, wards, tombstones, ships, in-use containers, and ownership constraints.
+Container actions retain access and ward restrictions. Tombstones, ships and unsupported container types keep their existing behavior. Shared access does not coordinate direct inventory writes by other mods or make separate character/world saves atomic across crashes. Dedicated-server multiplayer behavior still requires in-game validation; see [implementation and verification notes](docs/SharedContainerReview.md).
 
 Restock target limits can cap favorite restock targets per item:
 

@@ -2,7 +2,7 @@ using System;
 
 namespace InventorySlots;
 
-internal enum ContainerAreaActionKind { QuickStack = 1, Restock = 2 }
+internal enum ContainerAreaActionKind { QuickStack = 1, Restock = 2, Interaction = 3 }
 internal enum ContainerAreaHandoffPhase { Idle, AwaitingResponse, AwaitingOwnership, Executing }
 internal enum ContainerAreaObservedOwner { Unknown, ExpectedResponder, LocalRequester, Other }
 internal enum ContainerAreaGrantTokenStatus { Missing, Matching, Other }
@@ -59,7 +59,7 @@ internal sealed class ContainerAreaHandoffCore
     {
         if (Phase != ContainerAreaHandoffPhase.Idle || identity.RequestId <= 0 ||
             identity.ContainerUserId == 0 || identity.ContainerObjectId == 0 ||
-            identity.Action is not (ContainerAreaActionKind.QuickStack or ContainerAreaActionKind.Restock) ||
+            identity.Action is not (ContainerAreaActionKind.QuickStack or ContainerAreaActionKind.Restock or ContainerAreaActionKind.Interaction) ||
             expectedResponderUid == 0)
             return false;
         Identity = identity;

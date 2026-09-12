@@ -38,6 +38,7 @@ public sealed partial class InventorySlotsPlugin
     private void Update()
     {
         ProcessYamlHotReload();
+        ApplySharedContainerConfigurationChange();
 
         if (IsDedicatedServer)
         {
@@ -129,6 +130,9 @@ public sealed partial class InventorySlotsPlugin
         ShutdownItemRules();
         ShutdownEpicLootCompatibility();
         CancelContainerAreaTransfer();
+        SharedContainerLocalViewers.Clear();
+        if (_enableSharedContainers != null)
+            _enableSharedContainers.SettingChanged -= OnSharedContainerSettingChanged;
         ShutdownContainerPreview();
         LocalizationManager.Localizer.OnLocalizationComplete -= HandleLocalizationComplete;
         StopYamlWatcher();

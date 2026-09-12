@@ -22,6 +22,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void RestockFromCurrentContainer(Player? player)
     {
+        if (TryHandleSharedContainerButton(player, () => RestockFromCurrentContainer(player))) return;
         if (!TryGetActionContext(player, out Player localPlayer, out Inventory playerInventory, out Container container, out _))
         {
             return;

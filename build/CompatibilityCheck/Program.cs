@@ -196,6 +196,54 @@ if (Types(mod.MainModule.Types).Any(t => t.FullName == "InventorySlots.Inventory
     CheckReflectedMethod("PrivateArea", "IsInside", "System.Boolean", false, "UnityEngine.Vector3", "System.Single");
     CheckReflectedMethod("PrivateArea", "GetPermittedPlayers",
         "System.Collections.Generic.List`1<System.Collections.Generic.KeyValuePair`2<System.Int64,System.String>>", false);
+
+    var runtimeFields = Types(mod.MainModule.Types)
+        .Where(t => t.FullName == "InventorySlots.InventorySlotsPlugin")
+        .SelectMany(t => t.Fields).Select(f => f.Name).ToHashSet(StringComparer.Ordinal);
+    if (runtimeFields.Contains("LoadSharedContainerAreaInventory"))
+        CheckReflectedMethod("Container", "Load", "System.Boolean", false);
+
+    if (runtimeFields.Contains("SharedContainerLocalInUse"))
+    {
+        CheckReflectedField("Container", "m_inUse", "System.Boolean", false);
+        CheckReflectedMethod("Container", "UpdateUseVisual", "System.Void", false);
+        // Generic Harmony validation already checks field names and injection
+        // types. Also pin the instance/storage shape used by shared viewer patches.
+        CheckReflectedField("Container", "m_open", "UnityEngine.GameObject", false);
+        CheckReflectedField("Container", "m_closed", "UnityEngine.GameObject", false);
+        CheckReflectedField("Container", "m_openEffects", "EffectList", false);
+        CheckReflectedField("Container", "m_closeEffects", "EffectList", false);
+    }
+
+    if (runtimeFields.Contains("SharedGuiContainerGrid"))
+    {
+        CheckReflectedField("InventoryGui", "m_containerGrid", "InventoryGrid", false);
+        CheckReflectedField("InventoryGui", "m_dragItem", "ItemDrop/ItemData", false);
+        CheckReflectedField("InventoryGui", "m_dragInventory", "Inventory", false);
+        CheckReflectedField("InventoryGui", "m_dragGo", "UnityEngine.GameObject", false);
+        CheckReflectedField("InventoryGui", "m_dragAmount", "System.Int32", false);
+        CheckReflectedField("InventoryGui", "m_splitItem", "ItemDrop/ItemData", false);
+        CheckReflectedField("InventoryGui", "m_splitInventory", "Inventory", false);
+        CheckReflectedField("InventoryGui", "m_firstContainerUpdate", "System.Boolean", false);
+        CheckReflectedField("InventoryGui", "m_containerHoldTime", "System.Single", false);
+        CheckReflectedField("InventoryGui", "m_containerHoldState", "System.Int32", false);
+        CheckReflectedField("InventoryGui", "m_containerHoldPlaceStackDelay", "System.Single", false);
+        CheckReflectedField("InventoryGui", "m_containerHoldExitDelay", "System.Single", false);
+        CheckReflectedField("InventoryGui", "m_waitForContainerStack", "System.Boolean", false);
+        CheckReflectedMethod("InventoryGui", "SetupDragItem", "System.Void", false,
+            "ItemDrop/ItemData", "Inventory", "System.Int32");
+        CheckReflectedMethod("InventoryGui", "CloseContainer", "System.Void", false);
+        CheckReflectedMethod("InventoryGui", "OnSplitCancel", "System.Void", false);
+        CheckReflectedMethod("InventoryGui", "OnSelectedItem", "System.Void", false,
+            "InventoryGrid", "ItemDrop/ItemData", "Vector2i", "InventoryGrid/Modifier");
+        CheckReflectedMethod("InventoryGui", "OnRightClickItem", "System.Void", false,
+            "InventoryGrid", "ItemDrop/ItemData", "Vector2i");
+        CheckReflectedMethod("InventoryGui", "OnDropOutside", "System.Void", false);
+        // TargetMethods selects both overloads for refreshing a selected item
+        // after reload; the generic Harmony parser deliberately lists it as dynamic.
+        CheckReflectedMethod("Inventory", "Load", "System.Void", false, "ZPackage");
+        CheckReflectedMethod("Inventory", "Load", "System.Void", false, "ZPackage", "System.Boolean");
+    }
 }
 string Hash(string path) => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
 var attributes = mod.CustomAttributes.Where(a => a.AttributeType.Name == "IgnoresAccessChecksToAttribute").Select(a => (string)a.ConstructorArguments[0].Value).ToArray();
@@ -213,7 +261,7 @@ var report = new
     failures = failures.Distinct().ToArray(), manual,
     limitations = new[] { "Static contract check; no game/Unity/Mono or multiplayer execution.",
         "Existing nonpublic calls still use the publicizer runtime strategy and require target-runtime validation.",
-        "Reflection checks cover the listed area-handoff contracts only; other dynamic targets/reflection and other mods' patch composition require separate review." }
+        "Reflection checks cover the listed area-handoff and shared-container GUI contracts only; other dynamic targets/reflection and other mods' patch composition require separate review." }
 };
 Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(args[3]))!);
 File.WriteAllText(args[3], JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }));

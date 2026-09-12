@@ -2,13 +2,14 @@ using HarmonyLib;
 
 namespace InventorySlots;
 
-// Keep vanilla's exclusive open/stack/take-all behavior. A short area handoff
-// lease only prevents another request from stealing ownership before it finishes.
+// Shared viewers do not acquire write ownership. Every mutation still uses a
+// short handoff lease. With sharing disabled, vanilla exclusive use is preserved.
 [HarmonyPatch(typeof(Container), "RPC_RequestOpen")]
 internal static class ContainerOpenAreaLeasePatch
 {
     [HarmonyPriority(Priority.First)]
-    private static bool Prefix(Container __instance, long uid) =>
+    private static bool Prefix(Container __instance, long uid, long playerID) =>
+        !InventorySlotsPlugin.TryHandleSharedContainerRequest(__instance, uid, playerID, "RPC_OpenResponse") &&
         !InventorySlotsPlugin.TryRejectContainerRequestDuringAreaLease(__instance, uid, "RPC_OpenResponse");
 }
 
@@ -16,7 +17,8 @@ internal static class ContainerOpenAreaLeasePatch
 internal static class ContainerStackAreaLeasePatch
 {
     [HarmonyPriority(Priority.First)]
-    private static bool Prefix(Container __instance, long uid) =>
+    private static bool Prefix(Container __instance, long uid, long playerID) =>
+        !InventorySlotsPlugin.TryHandleSharedContainerRequest(__instance, uid, playerID, "RPC_StackResponse") &&
         !InventorySlotsPlugin.TryRejectContainerRequestDuringAreaLease(__instance, uid, "RPC_StackResponse");
 }
 
@@ -24,7 +26,8 @@ internal static class ContainerStackAreaLeasePatch
 internal static class ContainerTakeAllAreaLeasePatch
 {
     [HarmonyPriority(Priority.First)]
-    private static bool Prefix(Container __instance, long uid) =>
+    private static bool Prefix(Container __instance, long uid, long playerID) =>
+        !InventorySlotsPlugin.TryHandleSharedContainerRequest(__instance, uid, playerID, "RPC_TakeAllResponse") &&
         !InventorySlotsPlugin.TryRejectContainerRequestDuringAreaLease(__instance, uid, "RPC_TakeAllResponse");
 }
 
@@ -40,6 +43,9 @@ internal static class ContainerStackAllFavoriteProtectionPatch
 [HarmonyPatch(typeof(Container), "RPC_TakeAllResponse")]
 internal static class ContainerTakeAllResponsInventorySlotsPatch
 {
+    private static bool Prefix(Container __instance, bool granted) =>
+        !InventorySlotsPlugin.TryHandleSharedContainerTakeAllResponse(__instance, granted);
+
     private static void Postfix(Container __instance, bool granted)
     {
         InventorySlotsPlugin.OnContainerTakeAllResponse(__instance, granted);

@@ -260,7 +260,7 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        if (IsContainerAreaTransferActive())
+        if (IsContainerAreaTransferActive() && !IsReplayingSharedContainerInteraction)
         {
             ShowContainerNotReady();
             return false;

@@ -24,7 +24,8 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        if (IsContainerAreaTransferActive())
+        if (TryHandleSharedContainerButton(player, () => SortCurrentContainer(player))) return;
+        if (IsContainerAreaTransferActive() && !IsReplayingSharedContainerInteraction)
         {
             ShowContainerNotReady();
             return;
@@ -88,6 +89,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         RegisterContainerRpcs(container);
+        RegisterSharedContainer(container);
         RegisterContainerAreaOwnershipRpcs(container);
     }
 
@@ -95,6 +97,8 @@ public sealed partial class InventorySlotsPlugin
     {
         if (container != null)
         {
+            SharedContainerEligibility.Remove(container);
+            SharedContainerLocalViewers.Remove(container);
             UnregisterContainerAreaOwnershipRpcs(container);
             ClearPendingContainerSortRequest(container);
             InventoryContainers.KnownContainers.Remove(container);

@@ -135,6 +135,11 @@ TestRunner.Run(
     ("InventorySlots area handoff stops on owner token and policy changes", Tests.ContainerAreaHandoffStopsOnOwnerTokenAndPolicyChanges),
     ("InventorySlots area handoff cancellation and unload are terminal", Tests.ContainerAreaHandoffCancellationAndUnloadAreTerminal),
     ("InventorySlots area handoff keeps the open quick stack anchor scoped", Tests.ContainerAreaHandoffKeepsOpenQuickStackAnchorScoped),
+    ("Shared interaction executes only the current peer grant", Tests.SharedInteractionExecutesOnlyCurrentPeerGrant),
+    ("Shared interaction waits for reordered grant and inventory state", Tests.SharedInteractionWaitsForReorderedGrantAndInventoryState),
+    ("Shared interaction rejects unrelated late and cancelled grants", Tests.SharedInteractionRejectsUnrelatedLateAndCancelledGrants),
+    ("Shared interaction runtime keeps callbacks behind authoritative state", Tests.SharedInteractionRuntimeKeepsCallbacksBehindAuthoritativeState),
+    ("Shared container GUI keeps stale selections and hold callbacks safe", Tests.SharedContainerGuiKeepsStaleSelectionsAndHoldCallbacksSafe),
     ("InventoryActions success FX stays bounded and once per action", Tests.InventoryActionsContainerActionSuccessFxStaysBoundedAndOncePerAction),
     ("InventoryActions success FX uses transient Everybody RPC", Tests.InventoryActionsContainerActionSuccessFxUsesTransientEverybodyRpc),
     ("InventoryActions success FX stays local guarded and self cleaning", Tests.InventoryActionsContainerActionSuccessFxStaysLocalGuardedAndSelfCleaning),
@@ -4029,6 +4034,213 @@ internal static class Tests
 
     private static ContainerAreaRequestIdentity ContainerAreaIdentity(int requestId = 1) =>
         new(requestId, 10L, 20U, ContainerAreaActionKind.QuickStack);
+
+    public static void SharedInteractionExecutesOnlyCurrentPeerGrant()
+    {
+        ContainerAreaRequestIdentity requestA = new(1, 10L, 20U, ContainerAreaActionKind.Interaction);
+        ContainerAreaRequestIdentity requestB = new(2, 10L, 20U, ContainerAreaActionKind.Interaction);
+        ContainerAreaHandoffCore playerA = new();
+        ContainerAreaHandoffCore playerB = new();
+        Assert.True(playerA.TryBegin(requestA, 40L, 2f), "player A should await its own grant");
+        Assert.True(playerB.TryBegin(requestB, 40L, 2f), "player B should await its own grant");
+        _ = playerA.ReceiveResponse(requestA, 40L, true, 99L, 1f, 3f);
+        _ = playerB.ReceiveResponse(requestB, 40L, true, 100L, 1.1f, 3f);
+
+        // A previously granted requester observes ownership moving to B before execution.
+        // This exercises the consumer gate, not the network owner's grant arbitration.
+        int authorizedExecutions = 0;
+        ContainerAreaHandoffDecision decisionA = playerA.Observe(
+            1.2f, true, ContainerAreaObservedOwner.Other, false,
+            ContainerAreaGrantTokenStatus.Other, stateSynchronized: true, canExecute: true);
+        Assert.Equal(ContainerAreaHandoffDecision.OwnerChanged, decisionA);
+        if (decisionA == ContainerAreaHandoffDecision.Execute) authorizedExecutions++;
+        ContainerAreaHandoffDecision decisionB = playerB.Observe(
+            1.2f, true, ContainerAreaObservedOwner.LocalRequester, true,
+            ContainerAreaGrantTokenStatus.Matching, stateSynchronized: true, canExecute: true);
+        Assert.Equal(ContainerAreaHandoffDecision.Execute, decisionB);
+        if (decisionB == ContainerAreaHandoffDecision.Execute) authorizedExecutions++;
+        Assert.Equal(1, authorizedExecutions);
+
+        Assert.Equal(ContainerAreaHandoffDecision.None,
+            playerA.ReceiveResponse(requestA, 40L, true, 99L, 1.3f, 10f));
+        Assert.Equal(ContainerAreaHandoffDecision.None,
+            playerB.ReceiveResponse(requestB, 40L, true, 100L, 1.3f, 10f));
+        Assert.Equal(ContainerAreaHandoffDecision.None,
+            playerB.Observe(1.4f, true, ContainerAreaObservedOwner.LocalRequester, true,
+                ContainerAreaGrantTokenStatus.Matching, stateSynchronized: true, canExecute: true));
+        Assert.False(playerB.TryBegin(requestA, 40L, 5f),
+            "a callback in progress must not allow a second interaction to start");
+        playerB.CompleteExecution();
+        Assert.Equal(ContainerAreaHandoffPhase.Idle, playerB.Phase);
+        Assert.Equal(ContainerAreaHandoffDecision.None,
+            playerB.Observe(1.5f, true, ContainerAreaObservedOwner.LocalRequester, true,
+                ContainerAreaGrantTokenStatus.Matching, stateSynchronized: true, canExecute: true));
+    }
+
+    public static void SharedInteractionWaitsForReorderedGrantAndInventoryState()
+    {
+        foreach (bool stateBeforeResponse in new[] { false, true })
+        {
+            ContainerAreaRequestIdentity identity = new(1, 10L, 20U, ContainerAreaActionKind.Interaction);
+            ContainerAreaHandoffCore core = new();
+            Assert.True(core.TryBegin(identity, 40L, 2f), "an interaction request should be supported");
+            if (stateBeforeResponse)
+            {
+                Assert.Equal(ContainerAreaHandoffDecision.None,
+                    core.Observe(0.5f, true, ContainerAreaObservedOwner.LocalRequester, true,
+                        ContainerAreaGrantTokenStatus.Matching, stateSynchronized: true, canExecute: true));
+            }
+            Assert.Equal(ContainerAreaHandoffDecision.None,
+                core.ReceiveResponse(identity, 40L, true, 99L, 1f, 3f));
+            Assert.Equal(ContainerAreaHandoffDecision.None,
+                core.Observe(1.1f, true, ContainerAreaObservedOwner.ExpectedResponder, false,
+                    ContainerAreaGrantTokenStatus.Matching, stateSynchronized: true, canExecute: true));
+            Assert.Equal(ContainerAreaHandoffDecision.None,
+                core.Observe(1.2f, true, ContainerAreaObservedOwner.LocalRequester, true,
+                    ContainerAreaGrantTokenStatus.Missing, stateSynchronized: true, canExecute: true));
+            Assert.Equal(ContainerAreaHandoffDecision.None,
+                core.Observe(1.3f, true, ContainerAreaObservedOwner.LocalRequester, true,
+                    ContainerAreaGrantTokenStatus.Matching, stateSynchronized: false, canExecute: true));
+            Assert.Equal(ContainerAreaHandoffPhase.AwaitingOwnership, core.Phase);
+            Assert.Equal(ContainerAreaHandoffDecision.Execute,
+                core.Observe(1.4f, true, ContainerAreaObservedOwner.LocalRequester, true,
+                    ContainerAreaGrantTokenStatus.Matching, stateSynchronized: true, canExecute: true));
+        }
+    }
+
+    public static void SharedInteractionRejectsUnrelatedLateAndCancelledGrants()
+    {
+        ContainerAreaRequestIdentity identity = new(1, 10L, 20U, ContainerAreaActionKind.Interaction);
+        ContainerAreaHandoffCore core = new();
+        Assert.True(core.TryBegin(identity, 40L, 2f), "an interaction request should begin");
+        Assert.Equal(ContainerAreaHandoffDecision.None,
+            core.ReceiveResponse(ContainerAreaIdentity(), 40L, true, 99L, 1f, 3f));
+        Assert.Equal(ContainerAreaHandoffDecision.None,
+            core.ReceiveResponse(identity, 41L, true, 99L, 1f, 3f));
+        Assert.Equal(ContainerAreaHandoffPhase.AwaitingResponse, core.Phase);
+        Assert.Equal(ContainerAreaHandoffDecision.Timeout,
+            core.ReceiveResponse(identity, 40L, true, 99L, 2f, 3f));
+        Assert.Equal(ContainerAreaHandoffDecision.None,
+            core.Observe(2.1f, true, ContainerAreaObservedOwner.LocalRequester, true,
+                ContainerAreaGrantTokenStatus.Matching, stateSynchronized: true, canExecute: true));
+
+        ContainerAreaRequestIdentity next = new(2, 10L, 20U, ContainerAreaActionKind.Interaction);
+        Assert.True(core.TryBegin(next, 40L, 5f), "a fresh request can start after timeout");
+        _ = core.ReceiveResponse(next, 40L, true, 100L, 3f, 6f);
+        core.Cancel();
+        Assert.Equal(ContainerAreaHandoffDecision.None,
+            core.ReceiveResponse(next, 40L, true, 100L, 3.1f, 100f));
+        Assert.Equal(ContainerAreaHandoffDecision.None,
+            core.Observe(3.2f, true, ContainerAreaObservedOwner.LocalRequester, true,
+                ContainerAreaGrantTokenStatus.Matching, stateSynchronized: true, canExecute: true));
+        Assert.Equal(ContainerAreaHandoffPhase.Idle, core.Phase);
+        Assert.Equal(0L, core.GrantToken);
+    }
+
+    public static void SharedInteractionRuntimeKeepsCallbacksBehindAuthoritativeState()
+    {
+        string source = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "ContainerAreaOwnership.cs"));
+        string granted = ReadSourceSection(source,
+            "private static void ExecuteGrantedContainerAreaTarget",
+            "private static void ExecuteContainerAreaTargetAction");
+        int advance = granted.IndexOf("session.Next++;", StringComparison.Ordinal);
+        int refresh = granted.IndexOf("RefreshContainerAreaTargetInventory(target)", StringComparison.Ordinal);
+        int execute = granted.IndexOf("ExecuteContainerAreaTargetAction(session, target)", StringComparison.Ordinal);
+        Assert.True(advance >= 0 && refresh > advance && execute > refresh,
+            "the granted target must advance and reload before invoking its one-shot callback");
+        string validation = granted.Substring(refresh, execute - refresh);
+        Assert.True(validation.Contains("!view.IsOwner()", StringComparison.Ordinal) &&
+            validation.Contains("zdo.OwnerRevision != session.OwnerRevision", StringComparison.Ordinal) &&
+            validation.Contains("ContainerAreaLoadedRevision(target) != zdo.DataRevision", StringComparison.Ordinal) &&
+            validation.Contains("ContainerAreaGrantTokenStatus.Matching", StringComparison.Ordinal) &&
+            validation.Contains("CanUseContainerAreaTarget(session, target, requireOwner: true)", StringComparison.Ordinal),
+            "GUI callbacks must use the refreshed inventory and still-valid owner, generation, grant and access checks");
+
+        string action = ReadSourceSection(source,
+            "private static void ExecuteContainerAreaTargetAction",
+            "private static void CompleteContainerAreaSession");
+        int invoke = action.IndexOf("session.Interaction()", StringComparison.Ordinal);
+        int cleanup = action.IndexOf("finally", StringComparison.Ordinal);
+        int flush = action.IndexOf("FlushContainerAreaTransfer(session, target)", StringComparison.Ordinal);
+        Assert.Equal(1, CountSourceOccurrences(action, "session.Interaction()"));
+        // The area's non-GUI branch also flushes. Locate the callback's own finally.
+        Assert.True(invoke >= 0 && cleanup > invoke &&
+            action.IndexOf("FlushContainerAreaTransfer(session, target)", cleanup, StringComparison.Ordinal) > cleanup &&
+            flush >= 0,
+            "a stale/failed GUI callback must not be retried and must flush its final state");
+        string context = ReadSourceSection(source,
+            "private static bool ContainerAreaSessionContextValid",
+            "private static bool CanUseContainerAreaTarget");
+        Assert.True(context.Contains("session.Interaction != null", StringComparison.Ordinal) &&
+            context.Contains("IsOpenContainerAreaAnchor(session.Anchor)", StringComparison.Ordinal),
+            "the pending GUI action must stay bound to its currently visible chest");
+        Assert.True(context.Contains("animator.GetBool(\"visible\")", StringComparison.Ordinal) &&
+            !context.Contains("InventoryGui.IsVisible()", StringComparison.Ordinal),
+            "ordinary area work must survive vanilla's hidden-frame IsVisible tail after hold-to-stack closes the GUI");
+
+        string access = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "SharedContainerAccess.cs"));
+        string enabled = ReadSourceSection(access,
+            "internal static bool IsSharedContainerEnabled",
+            "private static void RegisterSharedContainer");
+        string registration = ReadSourceSection(access,
+            "private static void RegisterSharedContainer",
+            "private static void OnSharedContainerSettingChanged");
+        Assert.True(access.Contains("ConditionalWeakTable<Container, Piece>", StringComparison.Ordinal) &&
+            registration.Contains("requirePlayerPlaced: false", StringComparison.Ordinal) &&
+            enabled.Contains("piece.IsPlacedByPlayer()", StringComparison.Ordinal),
+            "Awake must cache only structure; SetCreator happens later and player placement eligibility must remain live");
+        string settingCallback = ReadSourceSection(access,
+            "private static void OnSharedContainerSettingChanged",
+            "private static void ApplySharedContainerConfigurationChange");
+        string applyMode = ReadSourceSection(access,
+            "private static void ApplySharedContainerConfigurationChange",
+            "private static bool TryHandleSharedContainerButton");
+        int cancel = applyMode.IndexOf("CancelContainerAreaTransfer();", StringComparison.Ordinal);
+        int hide = applyMode.IndexOf("InventoryGui.instance.Hide();", StringComparison.Ordinal);
+        int clearViewers = applyMode.IndexOf("SharedContainerLocalViewers.Clear();", StringComparison.Ordinal);
+        int publishMode = applyMode.IndexOf("_sharedContainersActive =", StringComparison.Ordinal);
+        Assert.True(enabled.Contains("_sharedContainersActive", StringComparison.Ordinal) &&
+            !enabled.Contains("_enableSharedContainers", StringComparison.Ordinal) &&
+            !settingCallback.Contains("_sharedContainersActive", StringComparison.Ordinal) &&
+            cancel >= 0 && hide > cancel && clearViewers > hide && publishMode > clearViewers,
+            "a setting change must close pending actions and old viewers before publishing the new access mode");
+    }
+
+    public static void SharedContainerGuiKeepsStaleSelectionsAndHoldCallbacksSafe()
+    {
+        string source = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "SharedContainerGui.cs"));
+        string replay = ReadSourceSection(source,
+            "private static bool ReplaySharedContainerGuiAction",
+            "private static bool MatchesSharedContainerSlot");
+        int identity = replay.IndexOf("MatchesSharedContainerSlot", StringComparison.Ordinal);
+        int invalid = replay.IndexOf("if (!valid)", StringComparison.Ordinal);
+        int invoke = replay.IndexOf("return ReplaySharedContainerInteraction", StringComparison.Ordinal);
+        Assert.True(identity >= 0 && invalid > identity && invoke > invalid &&
+            replay.Contains("_sharedContainerGuiEpoch != action.Epoch", StringComparison.Ordinal) &&
+            replay.Contains("SharedGuiDragItem(gui) = dragItem!", StringComparison.Ordinal) &&
+            replay.Contains("SharedContainerItemsMatch(action.DragItem, SharedGuiDragItem(gui))", StringComparison.Ordinal),
+            "after a remote reload, replay must revalidate selection identity and replace stale drag references before invoking vanilla");
+
+        string update = ReadSourceSection(source,
+            "internal static bool TryUpdateSharedContainerGui",
+            "internal static void InvalidateSharedContainerGuiActions");
+        int latch = update.IndexOf("SharedGuiHoldState(gui) = 1;", StringComparison.Ordinal);
+        int stack = update.IndexOf("container.StackAll();", StringComparison.Ordinal);
+        Assert.True(latch >= 0 && stack > latch &&
+            CountSourceOccurrences(update, "container.StackAll();") == 1 &&
+            update.Contains("SharedGuiWaitForStack(gui) = false;", StringComparison.Ordinal),
+            "hold E must latch once before the vanilla StackAll callback and release the cursor wait on key release");
+
+        string access = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "SharedContainerAccess.cs"));
+        int responseStart = access.IndexOf("internal static class ContainerSharedStackResponsePatch", StringComparison.Ordinal);
+        Assert.True(responseStart >= 0, "shared stack responses must be intercepted");
+        string response = access.Substring(responseStart);
+        const string dispatch = "InventorySlotsPlugin.TryHandleContainerStackAll(__instance);";
+        int dispatchIndex = response.IndexOf(dispatch, StringComparison.Ordinal);
+        Assert.True(dispatchIndex >= 0 &&
+            response.Substring(dispatchIndex + dispatch.Length).TrimStart().StartsWith("return false;", StringComparison.Ordinal),
+            "a granted shared response must suppress vanilla even when the approved handoff cannot start");
+    }
 
     private static ContainerAreaHandoffCore GrantedContainerAreaCore(ContainerAreaRequestIdentity identity)
     {
