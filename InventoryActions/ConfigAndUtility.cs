@@ -40,17 +40,10 @@ public sealed partial class InventoryActionsPlugin
     private static ConfigEntry<KeyboardShortcut> _favoriteModifierKey = null!;
     private static ConfigEntry<KeyboardShortcut> _containerRestockKey = null!;
     private static ConfigEntry<string> _sortButtonPositionOffset = null!;
-    private static ConfigEntry<string> _trashButtonPositionOffset = null!;
-    private static ConfigEntry<string> _restockRulesButtonPositionOffset = null!;
-    private static ConfigEntry<string> _autoPickupButtonPositionOffset = null!;
+    private static ConfigEntry<Toggle> _showRestockRulesButton = null!;
+    private static ConfigEntry<Toggle> _showAutoPickupRulesButton = null!;
     private static string? _cachedSortButtonPositionOffsetText;
     private static Vector2 _cachedSortButtonPositionOffset;
-    private static string? _cachedTrashButtonPositionOffsetText;
-    private static Vector2 _cachedTrashButtonPositionOffset;
-    private static string? _cachedRestockRulesButtonPositionOffsetText;
-    private static Vector2 _cachedRestockRulesButtonPositionOffset;
-    private static string? _cachedAutoPickupButtonPositionOffsetText;
-    private static Vector2 _cachedAutoPickupButtonPositionOffset;
     private static ConfigEntry<string> _restockTargetStackLimitsConfig = null!;
     private static ConfigEntry<string> _autoPickupExcludedItemsConfig = null!;
     private static readonly Color FavoriteBorderDefaultColor = new(0.1f, 0.55f, 1f, 0.95f);
@@ -105,27 +98,12 @@ public sealed partial class InventoryActionsPlugin
                     CustomDrawer = DrawButtonPositionOffsetConfig
                 }),
             synchronizedSetting: false);
-        _trashButtonPositionOffset = ConfigEntry(
-            ClientConfigSection,
-            "Trash Button Position",
-            "x: 0 y: 0",
-            new ConfigDescription(
-                "Client-only position offset for the inventory trash button. Format: x: 0 y: 0. Positive x moves right; positive y moves up.",
-                null,
-                new ConfigurationManagerAttributes
-                {
-                    Order = 830,
-                    CustomDrawer = DrawButtonPositionOffsetConfig
-                }),
-            synchronizedSetting: false);
-
-        _restockRulesButtonPositionOffset = ConfigEntry(ClientConfigSection, "Restock Rules Button Position", "x: 0 y: 0",
-            new ConfigDescription("Client-only position offset for the restock rules icon. Independent of the trash button. Positive x moves right; positive y moves up. Applies immediately.",
-                null, new ConfigurationManagerAttributes { Order = 820, CustomDrawer = DrawButtonPositionOffsetConfig }), synchronizedSetting: false);
-        _autoPickupButtonPositionOffset = ConfigEntry(ClientConfigSection, "Auto Pickup Exclude Button Position", "x: 0 y: 0",
-            new ConfigDescription("Client-only position offset for the auto pickup exclusion icon. Independent of the trash and restock icons. Positive x moves right; positive y moves up. Applies immediately.",
-                null, new ConfigurationManagerAttributes { Order = 810, CustomDrawer = DrawButtonPositionOffsetConfig }), synchronizedSetting: false);
-
+        _showRestockRulesButton = ConfigEntry(ClientConfigSection, "Show Restock Rules Button", Toggle.On,
+            new ConfigDescription("Show the restock rules icon below the player inventory. Hiding it does not disable saved restock limits. Applies immediately; hiding an open editor discards its unsaved draft.",
+                null, new ConfigurationManagerAttributes { Order = 820 }), synchronizedSetting: false);
+        _showAutoPickupRulesButton = ConfigEntry(ClientConfigSection, "Show Auto Pickup Exclude Button", Toggle.On,
+            new ConfigDescription("Show the automatic pickup exclusion icon below the player inventory. Hiding it does not disable saved exclusions. Applies immediately; hiding an open editor discards its unsaved draft.",
+                null, new ConfigurationManagerAttributes { Order = 810 }), synchronizedSetting: false);
         _restockTargetStackLimitsConfig = ConfigEntry(
             RestockConfigSection,
             "Restock Target Stack Limits",
@@ -165,15 +143,6 @@ public sealed partial class InventoryActionsPlugin
 
     private static Vector2 GetSortButtonPositionOffset() => GetConfiguredButtonPositionOffset(
         _sortButtonPositionOffset, ref _cachedSortButtonPositionOffsetText, ref _cachedSortButtonPositionOffset);
-
-    private static Vector2 GetTrashButtonPositionOffset() => GetConfiguredButtonPositionOffset(
-        _trashButtonPositionOffset, ref _cachedTrashButtonPositionOffsetText, ref _cachedTrashButtonPositionOffset);
-
-    private static Vector2 GetRestockRulesButtonPositionOffset() => GetConfiguredButtonPositionOffset(
-        _restockRulesButtonPositionOffset, ref _cachedRestockRulesButtonPositionOffsetText, ref _cachedRestockRulesButtonPositionOffset);
-
-    private static Vector2 GetAutoPickupButtonPositionOffset() => GetConfiguredButtonPositionOffset(
-        _autoPickupButtonPositionOffset, ref _cachedAutoPickupButtonPositionOffsetText, ref _cachedAutoPickupButtonPositionOffset);
 
     private static Vector2 GetConfiguredButtonPositionOffset(
         ConfigEntry<string>? entry, ref string? cachedText, ref Vector2 cachedOffset)

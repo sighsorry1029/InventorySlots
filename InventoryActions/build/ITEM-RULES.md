@@ -112,6 +112,8 @@ dotnet build InventoryActions/build/RuleIlSmoke/RuleIlSmoke.csproj -c Debug
 
 ## Toolbar appearance and downward dropdown — 2026-09-13
 
+Historical step: the column-layout update below supersedes its manual offsets.
+
 Starting at `ff3921d`, this UI-only update keeps item registration, config rule text,
 automatic pickup filtering and all inventory/network mutation policies unchanged.
 
@@ -162,3 +164,74 @@ bridge and pinning, independent offsets with purchased rows/UI scaling, downward
 scrolling near screen edges, live offsets during quantity editing, controller
 shortcuts and touch drops. The existing rule-persistence and multiplayer behavior
 was not rerun in a game session for this appearance change.
+
+## Automatic column layout and ExtraSlots — 2026-09-13
+
+Starting at `a060ac1`, the three bottom buttons now share the same grid-relative
+column/bottom calculation as InventorySlots' trash placement. Standard width 8
+uses trash column 8, exclusions column 7, restock column 6. Hiding exclusions
+moves restock to column 7; hiding trash does not change the reserved columns.
+For other widths these remain the rightmost three columns. Sort placement is
+separate. Changes to the number of regular rows move all bottom buttons together.
+
+The old Trash/Restock Rules/Auto Pickup Exclude Button Position bindings and caches
+are removed. Old keys left in a cfg by BepInEx are ignored, not migrated into item
+rules or used for positioning. Sort Button Position is retained.
+`2 - Client / Show Restock Rules Button` and `Show Auto Pickup Exclude Button` are
+unsynced and default On. They control visibility only; saved exclusion filtering
+and favorite-stack restock limits remain effective. Off closes the corresponding
+popup, discards its draft and releases its input/backdrop state. Hidden buttons
+are excluded from hover and click handling. Toggling the other icon repositions
+an open popup without rebuilding its rows or discarding its draft.
+
+Popup input fields and button faces now use opaque warm brown, with a gold input
+border and brighter hover/focus. Native button frames and cream text are retained.
+Nominal sRGB contrast from the code colors is approximately 9.0:1 normally and
+6.0:1 on hover/focus; game rendering was not measured. Inset faces do not intercept
+raycasts, and the outside-click backdrop remains transparent.
+
+ExtraSlots analysis used the supplied original DLL (not publicized):
+
+- Path: `C:/Users/blizz/AppData/Roaming/com.kesomannen.gale/valheim/profiles/inventorys/BepInEx/plugins/shudnal-ExtraSlots/ExtraSlots.dll`.
+- Version 1.2.3.0; GUID `shudnal.ExtraSlots`; SHA-256
+  `0DB53DDD5FDA6BE9C95E1BA13248A0E177CA400B28BF77D7DDCAFCDE28C71117`.
+- `Slots.InventoryHeightFull` includes 40 reserved equipment/quick/food/ammo slots:
+  five hidden storage rows at width 8. `Inventory.GetHeight()` alone therefore
+  puts the buttons five rows too low. `API.GetInventoryHeightPlayer()` is public,
+  static, returns int and takes no parameters; it reports only regular rows.
+- `EquipmentPanel.InventoryGrid_UpdateGui_UpdateSlotsOnDirty` positions the special
+  elements separately and restores grid height to regular rows. It runs during
+  `InventoryGrid.UpdateGui`, before InventoryActions' `InventoryGui.Update` postfix.
+  No extra Harmony ordering or patches to ExtraSlots are necessary.
+- ILSpyCmd 9.1.0.7988 `--disable-updatecheck -t` on `ExtraSlots.API`, `Slots`,
+  `EquipmentPanel`, `InventoryInteraction` and `ExtraSlots`, and `-il -t ExtraSlots.API`
+  provided the evidence. Analysis was read from stdout; no game assets were recopied.
+
+The implementation adds a soft dependency and resolves that public API once as a
+`Func<int>`. The plugin instance and delegate, not the row value, are cached.
+Layout reads the current value, only for the local player's inventory, clamped
+to its actual height. Behaviour.enabled is deliberately not used: ExtraSlots'
+static patches persist when its component is disabled. Destroyed/missing plugins
+use the normal height; API failure logs once and also falls back. Dedicated servers
+skip this UI integration. No ExtraSlots DLL is referenced at compile time or bundled.
+Only sort/trash/rules UI placement changes; item eligibility, storage and network
+ownership logic are outside this patch.
+
+Verification for this step:
+
+- Baseline and final Debug/deploy builds passed with zero warnings/errors.
+- Compiled `CompatibilitySmoke --ui-layout`: 41 checks passed using original client
+  DLLs and real ConfigEntry instances. Covers all four visibility combinations,
+  reserved columns, explicit 4/6/9-row positions, changed cell/button size and
+  retained sort offset behavior. No Unity objects or user config writes.
+- Original client/server static checks: each 490 direct references, 28 Harmony
+  targets, zero failures; the existing ServerSync manual-review entry remains.
+- Final merged DLL and Steam plugins copy SHA-256:
+  `FD8774B256D046E126DE4147A583DCF25BBCD271B735E2BD2B5B96CFD0C58B4F`.
+- Reports: ignored `artifacts/item-rule-columns-20260913-{client,server}.json`.
+
+Not executed: actual Unity/game rendering, live toggle during draft editing,
+ExtraSlots absent/present sessions, purchased-row and ExtraSlots live-row changes,
+UI scale/controller/touch checks, multiplayer. API signature and control flow
+inspection are not a substitute for these runtime checks. No version bump,
+Release package, ExtraSlots DLL modification or push was performed.

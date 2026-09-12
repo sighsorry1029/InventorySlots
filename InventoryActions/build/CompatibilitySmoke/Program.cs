@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
@@ -14,8 +15,8 @@ internal static class Program
 
     private static int Main(string[] args)
     {
-        if (args.Length != 3 && (args.Length != 4 || args[3] != "--button-offsets"))
-            throw new ArgumentException("Usage: <final InventoryActions.dll> <original Managed> <BepInEx core> [--button-offsets]");
+        if (args.Length != 3 && (args.Length != 4 || (args[3] != "--button-offsets" && args[3] != "--ui-layout")))
+            throw new ArgumentException("Usage: <final InventoryActions.dll> <original Managed> <BepInEx core> [--ui-layout]");
         string[] roots = { Path.GetDirectoryName(Path.GetFullPath(args[0]))!, Path.GetFullPath(args[1]), Path.GetFullPath(args[2]) };
         AppDomain.CurrentDomain.AssemblyResolve += (_, request) =>
         {
@@ -36,7 +37,7 @@ internal static class Program
             threading.GetField("_invokeLock", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(queue, new object());
             threading.GetField("<Instance>k__BackingField", BindingFlags.NonPublic | BindingFlags.Static)!.SetValue(null, queue);
             plugin = Assembly.LoadFrom(Path.GetFullPath(args[0])).GetType("InventoryActions.InventoryActionsPlugin", true)!;
-            if (args.Length == 4) RunButtonPositionChecks();
+            if (args.Length == 4) RunUiLayoutChecks();
             else Run();
             System.Console.WriteLine($"PASS {checks} isolated checks against actual mod and original game assemblies. CLR {Environment.Version}; no Unity/game execution.");
             return 0;
@@ -59,10 +60,9 @@ internal static class Program
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static void RunButtonPositionChecks()
+    private static void RunUiLayoutChecks()
     {
         CheckOffset("unbound sort", "GetSortButtonPositionOffset", 0f, 0f);
-        CheckOffset("unbound trash", "GetTrashButtonPositionOffset", 0f, 0f);
 
         // Exercise actual config entries and compiled getters without opening UI
         // or writing the user's configuration. No Unity objects are constructed.
@@ -71,16 +71,12 @@ internal static class Program
             SaveOnConfigSet = false
         };
         ConfigEntry<string> sort = config.Bind("test", "sort", "x: 1.25 y: -2", "");
-        ConfigEntry<string> trash = config.Bind("test", "trash", "[8; 9]", "");
         FieldInfo sortField = plugin.GetField("_sortButtonPositionOffset", BindingFlags.NonPublic | BindingFlags.Static)!;
-        FieldInfo trashField = plugin.GetField("_trashButtonPositionOffset", BindingFlags.NonPublic | BindingFlags.Static)!;
         sortField.SetValue(null, sort);
-        trashField.SetValue(null, trash);
 
         for (int i = 0; i < 3; i++)
         {
             CheckOffset("stable sort " + i, "GetSortButtonPositionOffset", 1.25f, -2f);
-            CheckOffset("independent trash " + i, "GetTrashButtonPositionOffset", 8f, 9f);
         }
 
         sort.Value = "X=-4 Y=2.5";
@@ -92,7 +88,6 @@ internal static class Program
         }
         sort.Value = "x: 1.25 y: -2";
         CheckOffset("valid config after invalid input", "GetSortButtonPositionOffset", 1.25f, -2f);
-        CheckOffset("sort changes leave trash independent", "GetTrashButtonPositionOffset", 8f, 9f);
 
         ConfigEntry<string> replacement = config.Bind("test", "replacement", sort.Value, "");
         sortField.SetValue(null, replacement);
@@ -104,34 +99,39 @@ internal static class Program
         sortField.SetValue(null, replacement);
         CheckOffset("restore same entry after unbind", "GetSortButtonPositionOffset", 0f, 7f);
 
-        // The two rule buttons must not inherit or share the trash/sort caches.
-        foreach (string name in new[] { "RestockRules", "AutoPickup" })
+        // Real config entries exercise all live visibility combinations. They
+        // do not touch saved item rules or require any Unity object instances.
+        Type toggle = plugin.GetNestedType("Toggle")!;
+        MethodInfo bind = typeof(ConfigFile).GetMethods().Single(m => m.Name == "Bind" && m.IsGenericMethod &&
+            m.GetParameters().Length == 4 && m.GetParameters()[0].ParameterType == typeof(string) &&
+            m.GetParameters()[3].ParameterType == typeof(ConfigDescription)).MakeGenericMethod(toggle);
+        ConfigEntryBase restock = (ConfigEntryBase)bind.Invoke(config, new object[] { "test", "restock", Enum.Parse(toggle, "On"), new ConfigDescription("") })!;
+        ConfigEntryBase exclude = (ConfigEntryBase)bind.Invoke(config, new object[] { "test", "exclude", Enum.Parse(toggle, "On"), new ConfigDescription("") })!;
+        plugin.GetField("_showRestockRulesButton", BindingFlags.NonPublic | BindingFlags.Static)!.SetValue(null, restock);
+        plugin.GetField("_showAutoPickupRulesButton", BindingFlags.NonPublic | BindingFlags.Static)!.SetValue(null, exclude);
+        foreach (bool showRestock in new[] { false, true })
+        foreach (bool showExclude in new[] { false, true })
         {
-            string getter = "Get" + name + "ButtonPositionOffset";
-            string fieldName = name == "RestockRules" ? "_restockRulesButtonPositionOffset" : "_autoPickupButtonPositionOffset";
-            FieldInfo field = plugin.GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Static)!;
-            CheckOffset(name + " unbound", getter, 0f, 0f);
-            ConfigEntry<string> entry = config.Bind("test", name, "x: -12.5 y: 24", "");
-            field.SetValue(null, entry);
-            CheckOffset(name + " configured", getter, -12.5f, 24f);
-            entry.Value = "x: 30 y: -16";
-            CheckOffset(name + " live edit", getter, 30f, -16f);
-            CheckOffset(name + " leaves sort independent", "GetSortButtonPositionOffset", 0f, 7f);
-            CheckOffset(name + " leaves trash independent", "GetTrashButtonPositionOffset", 8f, 9f);
-            entry.Value = "invalid";
-            CheckOffset(name + " invalid input", getter, 0f, 0f);
-            entry.Value = "x: -12.5 y: 24";
-            CheckOffset(name + " restored", getter, -12.5f, 24f);
-            field.SetValue(null, null);
-            CheckOffset(name + " unbound after populated", getter, 0f, 0f);
-            field.SetValue(null, entry);
-            CheckOffset(name + " rebound", getter, -12.5f, 24f);
+            restock.BoxedValue = Enum.Parse(toggle, showRestock ? "On" : "Off");
+            exclude.BoxedValue = Enum.Parse(toggle, showExclude ? "On" : "Off");
+            string state = $"restock {showRestock}, exclude {showExclude}";
+            Check(state + ": restock visibility", (bool)Call("IsItemRuleButtonEnabled", true)! == showRestock);
+            Check(state + ": exclude visibility", (bool)Call("IsItemRuleButtonEnabled", false)! == showExclude);
+            Check(state + ": restock uses column " + (showExclude ? 6 : 7), (int)Call("GetItemRuleColumnsFromRight", true)! == (showExclude ? 2 : 1));
+            Check(state + ": exclude reserves column 7", (int)Call("GetItemRuleColumnsFromRight", false)! == 1);
         }
-        config["test", "AutoPickup"].BoxedValue = "x: 51 y: -7";
-        CheckOffset("auto pickup distinct position", "GetAutoPickupButtonPositionOffset", 51f, -7f);
-        CheckOffset("auto pickup edits leave restock independent", "GetRestockRulesButtonPositionOffset", -12.5f, 24f);
-    }
 
+        // Exact column centers and the bottom edge for base/purchased/expanded
+        // row counts. These values are GUI coordinates before the grid transform.
+        foreach ((int rows, float bottom) in new[] { (4, -288f), (6, -428f), (9, -638f) })
+        foreach ((int fromRight, float left) in new[] { (0, 500f), (1, 430f), (2, 360f) })
+        {
+            Vector3 actual = (Vector3)Call("CalculateInventoryBottomButtonPosition", 8, rows, 70f, 50f, fromRight)!;
+            Check($"{rows} rows, column {8 - fromRight} center/bottom", actual.x == left && actual.y == bottom && actual.z == 0f);
+        }
+        Vector3 resized = (Vector3)Call("CalculateInventoryBottomButtonPosition", 8, 5, 90f, 58f, 0)!;
+        Check("changed slot/button size stays centered", resized.x == 646f && resized.y == -458f);
+    }
     private static void CheckOffset(string name, string getter, float x, float y)
     {
         Vector2 value = (Vector2)Call(getter)!;

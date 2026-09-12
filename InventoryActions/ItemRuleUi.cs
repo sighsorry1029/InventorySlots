@@ -20,9 +20,16 @@ public sealed partial class InventoryActionsPlugin
     internal static bool IsItemRuleInputBlocked() =>
         (_itemRuleEditor != null && _itemRuleEditor.Pinned) || _itemRuleInputClosedFrame == Time.frameCount;
 
+    private static bool IsItemRuleButtonEnabled(bool restock) =>
+        (restock ? _showRestockRulesButton : _showAutoPickupRulesButton)?.Value == Toggle.On;
+
+    private static int GetItemRuleColumnsFromRight(bool restock) =>
+        restock && IsItemRuleButtonEnabled(false) ? 2 : 1;
+
     private static void UpdateItemRuleUi(InventoryGui gui)
     {
         if (_instance == null || !_instance.isActiveAndEnabled || IsDedicatedServer || gui.m_takeAllButton == null || gui.m_playerGrid.m_gridRoot == null) return;
+        if (!IsItemRuleButtonEnabled(true) && !IsItemRuleButtonEnabled(false)) { _itemRuleEditor?.Hide(); return; }
         if (_itemRuleEditor == null || _itemRuleEditor.Owner != gui)
         {
             DestroyItemRuleUi();
@@ -50,7 +57,6 @@ public sealed partial class InventoryActionsPlugin
     // rebuilds list rows only on opening or a deliberate edit, never every frame.
     private sealed class ItemRuleEditor : MonoBehaviour
     {
-        private const float Gap = 8f;
         private const float RowHeight = 38f;
         internal InventoryGui Owner = null!;
         internal bool Pinned { get; private set; }
@@ -136,21 +142,23 @@ public sealed partial class InventoryActionsPlugin
         internal void PositionToolbar()
         {
             if (!CanShow) { Hide(); return; }
+            if (Open && !IsItemRuleButtonEnabled(_restock)) Close();
             InventoryGrid grid = Owner.m_playerGrid;
             float size = Mathf.Clamp(Mathf.Max(1f, grid.m_elementSpace) * 0.72f, 42f, 58f);
-            Vector3 origin = GetGridOrigin(grid);
-            int rows = GetDisplayedPlayerRows(grid);
-            float sortSize = GetContainerSortButtonSize(Owner);
-            Vector3 trashPosition = origin + new Vector3(
-                GetInventorySortPanelPosition(grid, sortSize, rows).x - origin.x + (sortSize - size) * 0.5f,
-                -Mathf.Max(1, rows) * Mathf.Max(1f, grid.m_elementSpace) - TrashPanelGap, 0f);
-            Vector3 world = grid.m_gridRoot.TransformPoint(trashPosition - new Vector3(2 * (size + Gap) + 4f, 0f));
-            _toolbar.localPosition = _root.InverseTransformPoint(world);
-            _toolbar.sizeDelta = new Vector2(2 * size + Gap, size);
-            Vector2 restockOffset = GetRestockRulesButtonPositionOffset();
-            Vector2 excludeOffset = GetAutoPickupButtonPositionOffset();
-            Frame((RectTransform)_restockButton.transform, restockOffset.x, restockOffset.y, size, size);
-            Frame((RectTransform)_excludeButton.transform, size + Gap + excludeOffset.x, excludeOffset.y, size, size);
+            // A zero-size toolbar shares the GUI origin. Convert each grid anchor
+            // separately so row growth and grid transforms affect every button.
+            _toolbar.localPosition = Vector3.zero;
+            Place(_restockButton, true);
+            Place(_excludeButton, false);
+            void Place(Button button, bool restock)
+            {
+                bool enabled = IsItemRuleButtonEnabled(restock);
+                button.gameObject.SetActive(enabled);
+                if (!enabled) return;
+                Frame((RectTransform)button.transform, 0, 0, size, size);
+                Vector3 position = GetInventoryBottomButtonPosition(grid, size, GetItemRuleColumnsFromRight(restock));
+                button.transform.localPosition = _root.InverseTransformPoint(grid.m_gridRoot.TransformPoint(position));
+            }
             ConfigureInventoryActionIcon(_restockButton, size, _restockIcon);
             ConfigureInventoryActionIcon(_excludeButton, size, _excludeIcon);
             bool acceptsHeldItem = CanRegisterHeldItem();
@@ -163,7 +171,7 @@ public sealed partial class InventoryActionsPlugin
 
         private void PositionPopup()
         {
-            // Follow the selected button, including its independent live offset.
+            // Follow the selected button as rows or enabled buttons change.
             // Prefer a downward dropdown; shrink the list before screen-edge clamping.
             Rect bounds = _root.rect;
             RectTransform button = (RectTransform)(_restock ? _restockButton : _excludeButton).transform;
@@ -251,12 +259,15 @@ public sealed partial class InventoryActionsPlugin
         {
             if (!CanShow || Player.m_localPlayer == null || Player.m_localPlayer.m_isLoading)
             { Hide(); return; }
+            if (Open && !IsItemRuleButtonEnabled(_restock)) Close();
+            if (!IsItemRuleButtonEnabled(true) && !IsItemRuleButtonEnabled(false)) { Hide(); return; }
             if (Owner.m_splitDialog != null && Owner.m_splitDialog.IsActive)
             { Close(); return; }
             if (Open && Pinned && (ZInput.GetKeyDown(KeyCode.Escape) || ZInput.GetButtonDown("JoyButtonB")))
             { Close(); return; }
             if (Open && !_editing && !string.Equals(_snapshot, Setting.Value, StringComparison.Ordinal)) LoadList(_restock, Pinned);
-            bool? hovered = Contains((RectTransform)_restockButton.transform) ? true : Contains((RectTransform)_excludeButton.transform) ? false : null;
+            bool? hovered = IsItemRuleButtonEnabled(true) && _restockButton.gameObject.activeInHierarchy && Contains((RectTransform)_restockButton.transform) ? true
+                : IsItemRuleButtonEnabled(false) && _excludeButton.gameObject.activeInHierarchy && Contains((RectTransform)_excludeButton.transform) ? false : null;
             if (Pinned) return;
             if (HasHeldTrashCandidate(Owner)) { if (Open) Close(); return; }
             if (hovered != _hoverMode) { _hoverMode = hovered; _hoverStarted = Time.unscaledTime; }
@@ -275,6 +286,7 @@ public sealed partial class InventoryActionsPlugin
 
         private void ClickTool(bool restock)
         {
+            if (!IsItemRuleButtonEnabled(restock)) return;
             if (Owner.m_splitDialog != null && Owner.m_splitDialog.IsActive) return;
             if (HasHeldTrashCandidate(Owner)) { RegisterHeldItem(restock); return; }
             if (_editing) return;
@@ -283,6 +295,7 @@ public sealed partial class InventoryActionsPlugin
 
         private void LoadList(bool restock, bool pin)
         {
+            if (!IsItemRuleButtonEnabled(restock)) return;
             CloseInventoryTrashConfirmDialog();
             _restock = restock; _snapshot = Setting.Value;
             _entries = ItemRuleConfigCore.Read(_snapshot, restock);
@@ -468,7 +481,8 @@ public sealed partial class InventoryActionsPlugin
         {
             RectTransform rect = Rect("Quantity", parent, new Vector2(58, 32), Vector2.zero);
             rect.gameObject.SetActive(false);
-            Image image = rect.gameObject.AddComponent<Image>(); image.color = new Color(0.08f, 0.07f, 0.08f, 1);
+            Image border = rect.gameObject.AddComponent<Image>(); border.color = new Color(0.62f, 0.46f, 0.27f, 1);
+            Image image = ControlFace(rect, 2f);
             RectTransform textArea = Rect("TextArea", rect, Vector2.zero, Vector2.zero); Stretch(textArea);
             textArea.offsetMin = new Vector2(4, 2); textArea.offsetMax = new Vector2(-4, -2);
             textArea.gameObject.AddComponent<RectMask2D>();
@@ -476,6 +490,7 @@ public sealed partial class InventoryActionsPlugin
             value.alignment = TextAlignmentOptions.MidlineRight;
             TMP_InputField input = rect.gameObject.AddComponent<TMP_InputField>();
             input.targetGraphic = image; input.textViewport = textArea; input.textComponent = value;
+            input.colors = ControlColors;
             input.contentType = TMP_InputField.ContentType.IntegerNumber;
             input.characterLimit = 10; input.lineType = TMP_InputField.LineType.SingleLine;
             input.text = entry.Amount; input.customCaretColor = true; input.caretColor = _text;
@@ -541,12 +556,36 @@ public sealed partial class InventoryActionsPlugin
             Image image = rect.gameObject.AddComponent<Image>();
             Image? source = Owner.m_takeAllButton.GetComponent<Image>();
             image.sprite = source?.sprite; image.type = source != null ? source.type : Image.Type.Simple;
-            image.color = new Color(0.42f, 0.37f, 0.32f, 1);
+            image.color = Color.white;
             Button button = rect.gameObject.AddComponent<Button>(); button.targetGraphic = image;
             button.onClick.AddListener(action);
-            if (text.Length > 0) { TMP_Text label = Text(rect, "Label", text, 16); Stretch(label.rectTransform); label.alignment = TextAlignmentOptions.Center; }
+            if (text.Length > 0)
+            {
+                // Warm inset over the native frame, avoiding its near-black face.
+                // The empty-text outside-click backdrop stays fully transparent.
+                button.targetGraphic = ControlFace(rect, 6f); button.colors = ControlColors;
+                TMP_Text label = Text(rect, "Label", text, 16); Stretch(label.rectTransform); label.alignment = TextAlignmentOptions.Center;
+            }
             return button;
         }
+
+        private Image ControlFace(RectTransform parent, float inset)
+        {
+            RectTransform face = Rect("Face", parent, Vector2.zero, Vector2.zero); Stretch(face);
+            face.offsetMin = new Vector2(inset, inset); face.offsetMax = new Vector2(-inset, -inset);
+            Image image = face.gameObject.AddComponent<Image>(); image.raycastTarget = false;
+            return image;
+        }
+
+        private static ColorBlock ControlColors => new()
+        {
+            normalColor = new Color(0.32f, 0.24f, 0.16f, 1),
+            highlightedColor = new Color(0.44f, 0.34f, 0.22f, 1),
+            selectedColor = new Color(0.44f, 0.34f, 0.22f, 1),
+            pressedColor = new Color(0.25f, 0.18f, 0.11f, 1),
+            disabledColor = new Color(0.25f, 0.22f, 0.18f, 1),
+            colorMultiplier = 1f, fadeDuration = 0.08f
+        };
         private Sprite CreateRuleIcon(bool restock)
         {
             // White line art on transparency, tinted with exactly the same colors as trash.

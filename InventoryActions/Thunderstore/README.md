@@ -18,13 +18,17 @@ Take stacks pulls only matching stackable items that are not favorited.
 ![](https://i.ibb.co/yFQWpxjF/restocklimit.png) <br>
 Client restock limits can cap favorite restock targets per prefab, such as `Stone: 10` or `Coins: 500`.
 
-Two item-rule icons sit to the left of the trash button:
+Two item-rule icons sit below the player inventory, to the left of the trash button:
 
 - **Restock limits:** drop an item from your inventory on the icon to enter its target quantity. Save registers the rule; cancel leaves it unchanged. The item stays in your inventory. Limits apply to Alt+E favorite-stack restock, not the opened-container Take stacks button; 0 prevents restocking and quantities are capped at the item's maximum stack.
 - **Auto pickup exclusions:** dropping an inventory item immediately registers its prefab and opens the list. Repeating it shows the existing entry. Excluded types stay on the ground when you walk near them; manual E pickup still works. This does not delete items or change quick stack/restock.
 - Hover an icon for a list preview, or click to pin it. The wooden dropdown opens below that icon and shows up to six rows, with scrolling when space is limited. At the screen edge the panel is kept on-screen so its controls remain reachable. Edit quantities/remove rules and use Save or Cancel. Escape discards the draft. Restock registration opens a quantity editor before saving.
 
-The restock parcel/return-arrow and excluded-pickup icons use the trash button's native background, muted gray color and golden highlight when holding an inventory item that can be registered. They remain clickable with empty hands. Under `2 - Client`, `Restock Rules Button Position` and `Auto Pickup Exclude Button Position` independently adjust each icon, for example `x: -10 y: 5` moves it left 10 and up 5 UI units. In-game changes apply immediately and the dropdown follows its icon. Defaults are `x: 0 y: 0`; changing `Trash Button Position` moves only trash.
+The restock parcel/return-arrow and excluded-pickup icons use the trash button's native background, muted gray color and golden highlight when holding an inventory item that can be registered. They remain clickable with empty hands. Popup buttons and quantity fields have warm brown faces with brighter hover/focus feedback and cream text.
+
+In the standard eight-column inventory, trash is centered below column 8, auto pickup exclusions below column 7, and restock below column 6. All follow the last regular inventory row as it grows. Under `2 - Client`, `Show Restock Rules Button` and `Show Auto Pickup Exclude Button` default to On and can be changed live. Hiding the exclusion icon moves restock to column 7. Hiding an icon closes its editor and discards an unsaved draft, but **does not disable any saved rules**. The three bottom icons use automatic placement; their old position settings are no longer used. The separate `Sort Button Position` setting remains available.
+
+ExtraSlots is optional. When installed, its public inventory-height API provides the regular row count, excluding hidden equipment/quick-slot storage rows. This keeps buttons aligned through purchased rows and ExtraSlots row changes without changing stored items or slot permissions.
 
 Both lists use the existing client config: `3 - Restock / Restock Target Stack Limits` and `2 - Client / Auto Pickup Excluded Items`. They are not server-synced and apply to all characters using that config. In-game/Configuration Manager changes apply immediately; editing the cfg on disk requires a config reload or game restart. Rules do not add item metadata. Unresolved mod items remain in the list. Removing a restock entry can reveal a remaining internal/localized-name rule; it does not necessarily restore the default maximum.
 

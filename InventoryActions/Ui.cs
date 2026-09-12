@@ -175,14 +175,7 @@ public sealed partial class InventoryActionsPlugin
         Runtime.TrashPanel.localScale = Vector3.one;
         Runtime.TrashPanel.localRotation = Quaternion.identity;
 
-        int rows = GetDisplayedPlayerRows(playerGrid);
-        float sortButtonSize = GetContainerSortButtonSize(gui);
-        Vector3 sortPanelPosition = GetInventorySortPanelPosition(playerGrid, sortButtonSize, rows);
-        Vector3 gridOrigin = GetGridOrigin(playerGrid);
-        Runtime.TrashPanel.localPosition = gridOrigin + new Vector3(
-            sortPanelPosition.x - gridOrigin.x + (sortButtonSize - buttonSize) * 0.5f,
-            -Mathf.Max(1, rows) * elementSpace - TrashPanelGap,
-            0f) + (Vector3)GetTrashButtonPositionOffset();
+        Runtime.TrashPanel.localPosition = GetInventoryBottomButtonPosition(playerGrid, buttonSize, 0);
 
         Button? trashButton = EnsureActionButton(Runtime.TrashPanel, gui.m_takeAllButton, TrashButtonName, "", TryClickInventoryTrashPanel);
         DisableActionPanelChildren(Runtime.TrashPanel, trashButton);
@@ -221,8 +214,31 @@ public sealed partial class InventoryActionsPlugin
             0f);
     }
 
-    private static int GetDisplayedPlayerRows(InventoryGrid playerGrid) =>
-        Mathf.Max(1, playerGrid.m_inventory != null ? playerGrid.m_inventory.GetHeight() : VanillaPlayerRows);
+    private static int GetDisplayedPlayerRows(InventoryGrid playerGrid)
+    {
+        int rows = Mathf.Max(1, playerGrid.m_inventory != null ? playerGrid.m_inventory.GetHeight() : VanillaPlayerRows);
+        // ExtraSlots appends hidden equipment/storage rows to the same inventory.
+        // Use its public display height only for the local player's UI.
+        if (_extraSlotsPlugin != null && _extraSlotsPlayerRows != null && Player.m_localPlayer != null &&
+            playerGrid.m_inventory == GetPlayerInventory(Player.m_localPlayer))
+        {
+            try { return Mathf.Clamp(_extraSlotsPlayerRows(), 1, rows); }
+            catch (Exception error)
+            {
+                _extraSlotsPlayerRows = null; // Report once; do not throw on every UI frame.
+                Log.LogWarning($"ExtraSlots inventory row lookup failed: {error.Message}");
+            }
+        }
+        return rows;
+    }
+
+    private static Vector3 GetInventoryBottomButtonPosition(InventoryGrid grid, float buttonSize, int columnsFromRight) =>
+        GetGridOrigin(grid) + CalculateInventoryBottomButtonPosition(GetInventoryGridWidth(grid), GetDisplayedPlayerRows(grid),
+            Mathf.Max(1f, grid.m_elementSpace), buttonSize, columnsFromRight);
+
+    private static Vector3 CalculateInventoryBottomButtonPosition(int columns, int rows, float spacing, float size, int columnsFromRight) =>
+        new((Mathf.Max(0, columns - 1 - columnsFromRight) + 0.5f) * spacing - size * 0.5f,
+            -Mathf.Max(1, rows) * spacing - TrashPanelGap, 0f);
 
     private static int GetInventoryGridWidth(InventoryGrid playerGrid) =>
         Mathf.Max(1, playerGrid.m_inventory != null ? playerGrid.m_inventory.GetWidth() : PlayerInventoryWidth);

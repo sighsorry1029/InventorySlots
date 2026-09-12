@@ -10,6 +10,7 @@ namespace InventoryActions;
 [BepInIncompatibility("sighsorry.InventorySlots")]
 [BepInIncompatibility("goldenrevolver.quick_stack_store")]
 [BepInDependency(ExternalMultiUserChestGuid, BepInDependency.DependencyFlags.SoftDependency)]
+[BepInDependency(ExtraSlotsGuid, BepInDependency.DependencyFlags.SoftDependency)]
 public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
 {
     internal const string ModName = "InventoryActions";
@@ -17,6 +18,9 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
     internal const string Author = "sighsorry";
     internal const string ModGUID = $"{Author}.{ModName}";
     private const string ExternalMultiUserChestGuid = "com.maxsch.valheim.MultiUserChest";
+    private const string ExtraSlotsGuid = "shudnal.ExtraSlots";
+    private static BaseUnityPlugin? _extraSlotsPlugin;
+    private static System.Func<int>? _extraSlotsPlayerRows;
 
     private const int PlayerInventoryWidth = 8;
     private const int VanillaPlayerRows = 4;
@@ -69,6 +73,7 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
         _instance = this;
         LocalizationManager.Localizer.Load(this);
         BindConfigs();
+        InitializeExtraSlotsUiCompatibility();
         _harmony.PatchAll();
         Log.LogInfo($"{ModName} loaded.");
     }
@@ -96,6 +101,8 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
 
     private void OnDestroy()
     {
+        _extraSlotsPlugin = null;
+        _extraSlotsPlayerRows = null;
         DestroyItemRuleUi();
         _autoPickupExcludedItemsConfig.SettingChanged -= RefreshAutoPickupExclusions;
         _autoPickupExcludedItems.Clear();
@@ -103,6 +110,26 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
         CloseInventoryTrashConfirmDialog();
         // Keep inventory action patches installed during runtime teardown to avoid item-move logic changing mid-session.
         Config.Save();
+    }
+
+    private static void InitializeExtraSlotsUiCompatibility()
+    {
+        if (IsDedicatedServer || !Chainloader.PluginInfos.TryGetValue(ExtraSlotsGuid, out PluginInfo plugin) || plugin.Instance == null) return;
+        try
+        {
+            // Resolve the optional public API once, but read its live row count on each layout.
+            System.Type? api = plugin.Instance.GetType().Assembly.GetType("ExtraSlots.API");
+            System.Reflection.MethodInfo? method = api?.GetMethod("GetInventoryHeightPlayer",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static, null, System.Type.EmptyTypes, null);
+            if (method == null || method.ReturnType != typeof(int))
+            {
+                Log.LogWarning("ExtraSlots public inventory-height API is unavailable; using normal inventory height for buttons.");
+                return;
+            }
+            _extraSlotsPlayerRows = (System.Func<int>)System.Delegate.CreateDelegate(typeof(System.Func<int>), method);
+            _extraSlotsPlugin = plugin.Instance;
+        }
+        catch (System.Exception error) { Log.LogWarning($"ExtraSlots UI compatibility initialization failed: {error.Message}"); }
     }
 
 }
