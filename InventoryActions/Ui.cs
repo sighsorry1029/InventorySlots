@@ -320,7 +320,7 @@ public sealed partial class InventoryActionsPlugin
             buttonMarker.Initialized = true;
         }
 
-        SetActionButtonLabel(button, label);
+        SetActionButtonLabel(button, buttonMarker, label);
         return button;
     }
 
@@ -353,9 +353,8 @@ public sealed partial class InventoryActionsPlugin
         return panel;
     }
 
-    private static void SetActionButtonLabel(Button button, string label)
+    private static void SetActionButtonLabel(Button button, InventoryActionButtonMarker marker, string label)
     {
-        InventoryActionButtonMarker marker = button.gameObject.GetComponent<InventoryActionButtonMarker>() ?? button.gameObject.AddComponent<InventoryActionButtonMarker>();
         string signature = label;
         if (marker.AutoSizeInitialized && string.Equals(marker.LabelSignature, signature, StringComparison.Ordinal))
         {
