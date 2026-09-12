@@ -1,11 +1,11 @@
 {
   "candidate": "C:\\Users\\blizz\\RiderProjects\\InventorySlots\\InventoryActions\\bin\\Release\\InventoryActions.dll",
-  "sha256": "c94b14aa73771a45772a7f3726e89fac887ea8421e9c6292e672e7dfaa41ef18",
-  "originalManaged": "C:\\Users\\blizz\\.codex\\references\\valheim\\snapshots\\client-b25185596-windows-x64-20260909T131109Z\\original\\valheim_Data\\Managed",
+  "sha256": "157667d9fc4220bec14ccacf5f3cf35564cac8dec3fb3c9aaa4894f8cf576a20",
+  "originalManaged": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Valheim\\valheim_Data\\Managed",
   "fingerprints": [
     {
       "name": "assembly_valheim.dll",
-      "sha256": "a5130f5a957ab51cb6538f5412cbe57b43f927f4a679918bff199b5c905d01bc"
+      "sha256": "27a766a8d23a7bd8b6a54fb9ad0452a96c305fb3629b39c40527c09a1c393a84"
     },
     {
       "name": "assembly_utils.dll",
@@ -16,8 +16,8 @@
       "sha256": "96376c4e4864d54d09034bde3b00fd4ed095d75bab5ec65a5d6440c61d143463"
     }
   ],
-  "directGameReferences": 387,
-  "patchCount": 23,
+  "directGameReferences": 512,
+  "patchCount": 29,
   "patches": [
     "InventoryActions.InventoryGuiSafeTakeAllPatch -\u003E System.Void InventoryGui::OnTakeAll()",
     "InventoryActions.InventoryGuiPlaceStacksPatch -\u003E System.Void InventoryGui::OnStackAll()",
@@ -35,6 +35,12 @@
     "InventoryActions.ContainerStackDuringAreaLeaseInventoryActionsPatch -\u003E System.Void Container::RPC_RequestStack(System.Int64,System.Int64)",
     "InventoryActions.ContainerTakeAllDuringAreaLeaseInventoryActionsPatch -\u003E System.Void Container::RPC_RequestTakeAll(System.Int64,System.Int64)",
     "InventoryActions.InventoryGridFavoriteLeftClickPatch -\u003E System.Void InventoryGrid::OnLeftDown(UIInputHandler)",
+    "InventoryActions.AutoPickupExclusionPatch -\u003E System.Void Player::AutoPickup(System.Single)",
+    "InventoryActions.ItemRuleEditorInputPatch -\u003E System.Boolean Chat::HasFocus()",
+    "InventoryActions.ItemRuleEditorDestroyPatch -\u003E System.Void InventoryGui::OnDestroy()",
+    "InventoryActions.ItemRuleEditorGamepadPatch -\u003E System.Void InventoryGui::UpdateGamepad()",
+    "InventoryActions.ItemRuleEditorGridGamepadPatch -\u003E System.Void InventoryGrid::UpdateGamepad()",
+    "InventoryActions.ItemRuleEditorButtonShortcutPatch -\u003E System.Boolean UIGamePad::ButtonPressed()",
     "ServerSync.ConfigSync/SnatchCurrentlyHandlingRPC -\u003E System.Void ZRpc::HandlePackage(ZPackage)",
     "ServerSync.ConfigSync/RegisterRPCPatch -\u003E System.Void ZNet::Awake()",
     "ServerSync.ConfigSync/RegisterClientRPCPatch -\u003E System.Void ZNet::OnNewConnection(ZNetPeer)",
@@ -43,6 +49,8 @@
     "ServerSync.ConfigSync/PreventSavingServerInfo -\u003E System.String BepInEx.Configuration.ConfigEntryBase::GetSerializedValue()",
     "ServerSync.ConfigSync/PreventConfigRereadChangingValues -\u003E System.Void BepInEx.Configuration.ConfigEntryBase::SetSerializedValue(System.String)"
   ],
+  "reflectedGameContractCount": 0,
+  "reflectedContracts": [],
   "existingNonpublicAccessCount": 30,
   "runtimeAccessAttributes": [
     "assembly_guiutils",
@@ -56,6 +64,6 @@
   "limitations": [
     "Static contract check; no game/Unity/Mono or multiplayer execution.",
     "Existing nonpublic calls still use the publicizer runtime strategy and require target-runtime validation.",
-    "Dynamic targets, arbitrary reflection and other mods\u0027 patch composition require separate review."
+    "Reflection checks cover the listed area-handoff and shared-container GUI contracts only; other dynamic targets/reflection and other mods\u0027 patch composition require separate review."
   ]
 }

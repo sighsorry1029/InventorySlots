@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.11
+
+- Restored the configurable built-in multi-user chest feature for standard player-built chests. Multiple players may keep a chest open for viewing, while drag/drop, stack/restock, take-all, sorting, and nearby-container actions wait for an approved ownership handoff and fresh inventory state before changing items. Stale selections, denied or timed-out requests, ownership/token changes, and duplicate responses fail without moving items.
+- Added client-side Restock and Auto Pickup Exclude controls below the player inventory. Dropping an item registers its rule without moving it; restock quantities and removals save immediately, and excluded items remain available through manual pickup.
+- Kept the rule buttons aligned with the last visible regular inventory row, including native purchased rows. Either button can be hidden independently, and Restock shifts into the adjacent position when Auto Pickup Exclude is hidden.
+- Updated rule panels to use Valheim's Craft button and inventory-slot visuals, reduced their width, kept them below native dialogs, and fixed missing LiberationSans font warnings by assigning an existing game font before activating generated text.
+- Retained the standalone MultiUserChest compatibility boundary: when that mod is active it controls shared opening, and InventorySlots does not start non-owner area transfers through its own protocol.
+
 ## 1.4.10
 
 - Fixed the mouse cursor remaining captured after a built-in multi-user container opened while the Use key was held. The remote-container update path now releases Valheim's stack-wait state together with the hold state, matching the vanilla container lifecycle.

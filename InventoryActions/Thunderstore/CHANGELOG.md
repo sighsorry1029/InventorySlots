@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.12
+
+- Added client-side Restock and Auto Pickup Exclude controls below the player inventory. Dropping an item registers its rule without moving it; valid restock quantities and removals save immediately, while excluded items remain available through manual pickup.
+- Positioned Restock, Auto Pickup Exclude, and Trash under the last regular inventory row as vanilla pocket upgrades or the optional ExtraSlots mod add rows. The two new controls can be hidden independently, and Restock shifts toward Trash when exclusions are hidden.
+- Added wooden downward-opening rule lists with scrolling and screen-edge clamping. The panels use Valheim's Craft button and inventory-slot visuals, remain below native dialogs, and no longer require Save or Cancel buttons.
+- Fixed repeated missing LiberationSans font warnings by assigning an initialized Valheim font before activating generated text. Invalid quantities restore the last saved value, while config conflicts and save failures leave the previous rule active.
+- Reduced redundant per-frame UI work and retained existing favorite, quick stack, restock, sorting, trash, ownership-handoff, and optional MultiUserChest policies.
+
 ## 1.0.11
 
 - Fixed vanilla Hold E quick stack skipping the container being interacted with. The opened container is now processed first, then any remaining eligible items are extended to nearby containers.
