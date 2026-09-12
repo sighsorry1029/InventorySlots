@@ -62,7 +62,7 @@ internal static class RestockTargetLimitCore
         return fallback;
     }
 
-    private static string NormalizeResourceToken(string? token)
+    internal static string NormalizeResourceToken(string? token)
     {
         if (string.IsNullOrWhiteSpace(token))
         {

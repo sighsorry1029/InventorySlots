@@ -46,6 +46,7 @@ public sealed partial class InventoryActionsPlugin
     private static string? _cachedTrashButtonPositionOffsetText;
     private static Vector2 _cachedTrashButtonPositionOffset;
     private static ConfigEntry<string> _restockTargetStackLimitsConfig = null!;
+    private static ConfigEntry<string> _autoPickupExcludedItemsConfig = null!;
     private static readonly Color FavoriteBorderDefaultColor = new(0.1f, 0.55f, 1f, 0.95f);
     private static readonly char[] ButtonPositionOffsetSeparators = { ' ', '\t', '\r', '\n', ':', '=', ',', ';', '(', ')', '[', ']' };
     private static readonly Dictionary<string, ButtonPositionOffsetEditorState> ButtonPositionOffsetEditorStates = new(StringComparer.Ordinal);
@@ -127,6 +128,10 @@ public sealed partial class InventoryActionsPlugin
             synchronizedSetting: false);
         _restockTargetStackLimitsConfig.SettingChanged += (_, _) => RefreshRestockTargetStackLimits();
         RefreshRestockTargetStackLimits();
+        _autoPickupExcludedItemsConfig = ConfigEntry(ClientConfigSection, "Auto Pickup Excluded Items", "",
+            "Client-only prefab names excluded from automatic pickup, separated by commas, semicolons or new lines. Empty preserves normal pickup. Manual E pickup remains available. Applies to all characters using this config; does not delete items or change restock rules.", synchronizedSetting: false);
+        _autoPickupExcludedItemsConfig.SettingChanged += RefreshAutoPickupExclusions;
+        RefreshAutoPickupExclusions(null, EventArgs.Empty);
     }
 
     private static ConfigEntry<T> ConfigEntry<T>(string group, string name, T value, string description, bool synchronizedSetting = true)

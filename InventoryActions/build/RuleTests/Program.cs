@@ -1,0 +1,35 @@
+using System;
+using System.Linq;
+using InventoryActions;
+
+int checks = 0;
+void Check(string name, bool result) { if (!result) throw new Exception(name); checks++; }
+const string raw = "# personal limits\r\nStone = 10 # keep note\r\nWood: 30; $item_stone: 8, UnknownModItem: 999\r\n";
+var entries = ItemRuleConfigCore.Read(raw, true);
+Check("four editable rows", entries.Count == 4);
+Check("no-op preserves exact text", ItemRuleConfigCore.Write(raw, entries, true) == raw);
+entries[0].Amount = "0";
+string changed = ItemRuleConfigCore.Write(raw, entries, true);
+Check("edited zero and comment preserved", changed.Contains("Stone: 0 # keep note"));
+Check("unrelated aliases and unknown mod item survive", changed.Contains("Wood: 30; $item_stone: 8, UnknownModItem: 999\r\n"));
+Check("last normalized duplicate retains priority", RestockTargetLimitCore.ResolveTargetStackLimit(RestockTargetLimitCore.Parse(changed), new[] { "Stone", "$item_stone" }, 50) == 8);
+entries[2].Amount = "0";
+Check("zero in effective entry blocks restock", RestockTargetLimitCore.ResolveTargetStackLimit(RestockTargetLimitCore.Parse(ItemRuleConfigCore.Write(raw, entries, true)), new[] { "Stone" }, 50) == 0);
+entries[2].Amount = "8";
+entries[0].Removed = true;
+changed = ItemRuleConfigCore.Write(raw, entries, true);
+Check("deletion preserves remaining alias policy", RestockTargetLimitCore.ResolveTargetStackLimit(RestockTargetLimitCore.Parse(changed), new[] { "Stone", "$item_stone" }, 50) == 8);
+entries.Add(new ItemRuleConfigCore.Entry { Start = -1, Key = "Resin", Amount = "5" });
+changed = ItemRuleConfigCore.Write(raw, entries, true);
+Check("new row readable", RestockTargetLimitCore.Parse(changed).ContainsKey("resin"));
+Check("unknown maximum clamped only during resolution", RestockTargetLimitCore.ResolveTargetStackLimit(RestockTargetLimitCore.Parse(raw), new[] { "UnknownModItem" }, 50) == 50);
+var excluded = ItemRuleConfigCore.ParseExclusions("# note\nResin; Stone(Clone), resin\nmod-item:variant");
+Check("exclusions deduplicate", excluded.Count == 3);
+Check("prefab matching case insensitive", excluded.Contains("RESIN"));
+Check("clone suffix stripped", excluded.Contains("Stone"));
+Check("exclusion identity keeps punctuation", excluded.Contains("mod-item:variant") && !excluded.Contains("moditemvariant"));
+Check("empty config preserves pickup", ItemRuleConfigCore.ParseExclusions("").Count == 0);
+var excludes = ItemRuleConfigCore.Read("Resin # comment\nStone", false);
+excludes[0].Removed = true;
+Check("remove exclusion", ItemRuleConfigCore.ParseExclusions(ItemRuleConfigCore.Write("Resin # comment\nStone", excludes, false)).SetEquals(new[] { "Stone" }));
+Console.WriteLine($"PASS: {checks} item rule config checks");

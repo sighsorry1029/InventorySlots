@@ -95,6 +95,7 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
 
     private void OnDestroy()
     {
+        _autoPickupExcludedItemsConfig.SettingChanged -= RefreshAutoPickupExclusions;
         CancelAreaContainerTransfer();
         CloseInventoryTrashConfirmDialog();
         // Keep inventory action patches installed during runtime teardown to avoid item-move logic changing mid-session.
