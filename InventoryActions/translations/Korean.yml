@@ -31,6 +31,8 @@ inventoryactions_rules_pinned: 고정
 inventoryactions_rules_empty: 등록된 아이템 없음
 inventoryactions_rules_registered: 등록됨
 inventoryactions_rules_saved: 저장됨
-inventoryactions_rules_conflict: 설정이 변경되었습니다. 취소 후 다시 편집해 주세요.
+inventoryactions_rules_conflict: 설정이 변경되었습니다. 입력을 마치면 다시 불러옵니다.
 inventoryactions_rules_invalid: 표시된 범위 내에서 0 이상의 수량을 입력해 주세요.
 inventoryactions_rules_save_failed: 설정을 저장하지 못했습니다.
+inventoryactions_rules_autosave: 변경 사항은 자동으로 저장됩니다
+inventoryactions_rules_restored: 마지막으로 저장한 수량으로 복원했습니다

@@ -31,6 +31,8 @@ inventoryactions_rules_pinned: Pinned
 inventoryactions_rules_empty: No registered items
 inventoryactions_rules_registered: Registered
 inventoryactions_rules_saved: Saved
-inventoryactions_rules_conflict: Config changed. Cancel to reload before saving.
+inventoryactions_rules_conflict: Config changed. Finish editing to reload.
 inventoryactions_rules_invalid: Enter a valid non-negative quantity within the shown limit.
 inventoryactions_rules_save_failed: Could not save config.
+inventoryactions_rules_autosave: Changes save automatically
+inventoryactions_rules_restored: Last saved quantity restored

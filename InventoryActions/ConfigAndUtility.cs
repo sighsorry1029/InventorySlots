@@ -100,10 +100,10 @@ public sealed partial class InventoryActionsPlugin
                 }),
             synchronizedSetting: false);
         _showRestockRulesButton = ConfigEntry(ClientConfigSection, "Show Restock Rules Button", Toggle.On,
-            new ConfigDescription("Show the restock rules icon below the player inventory. Hiding it does not disable saved restock limits. Applies immediately; hiding an open editor discards its unsaved draft.",
+            new ConfigDescription("Show the restock rules icon below the player inventory. Hiding it does not disable saved restock limits. Applies immediately and closes its editor. Valid edits save immediately.",
                 null, new ConfigurationManagerAttributes { Order = 820 }), synchronizedSetting: false);
         _showAutoPickupRulesButton = ConfigEntry(ClientConfigSection, "Show Auto Pickup Exclude Button", Toggle.On,
-            new ConfigDescription("Show the automatic pickup exclusion icon below the player inventory. Hiding it does not disable saved exclusions. Applies immediately; hiding an open editor discards its unsaved draft.",
+            new ConfigDescription("Show the automatic pickup exclusion icon below the player inventory. Hiding it does not disable saved exclusions. Applies immediately and closes its editor. Valid edits save immediately.",
                 null, new ConfigurationManagerAttributes { Order = 810 }), synchronizedSetting: false);
         _restockTargetStackLimitsConfig = ConfigEntry(
             RestockConfigSection,

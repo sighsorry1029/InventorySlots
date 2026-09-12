@@ -44,4 +44,36 @@ registeredAgain.Add(new ItemRuleConfigCore.Entry { Start = -1, Key = "Resin", Am
 string final = ItemRuleConfigCore.Write(deleted, registeredAgain, true);
 Check("save delete reload register has fresh spans", RestockTargetLimitCore.Parse(final)["resin"] == 15);
 Check("multi-save preserves other rules", final.Contains("Wood: 30; $item_stone: 8, UnknownModItem: 999"));
+
+// Live inputs retain their Entry object across saves. Exercise shifted spans,
+// duplicate keys and a newly appended row without rebuilding the editor.
+string live = "# limits\r\nStone = 9 # first\r\nStone: 8; UnknownModItem: invalid\r\n";
+var liveEntries = ItemRuleConfigCore.Read(live, true);
+var first = liveEntries[0];
+var duplicate = liveEntries[1];
+void CommitLive()
+{
+    live = ItemRuleConfigCore.Write(live, liveEntries, true);
+    var saved = ItemRuleConfigCore.Read(live, true);
+    ItemRuleConfigCore.AcceptSaved(liveEntries, saved);
+    Check("rebased no-op preserves saved bytes", ItemRuleConfigCore.Write(live, liveEntries, true) == live);
+}
+foreach (string amount in new[] { "10", "1000", "2" })
+{
+    first.Amount = amount; CommitLive();
+    Check("focused entry identity survives", ReferenceEquals(first, liveEntries[0]));
+    Check("duplicate entry remains separate", ReferenceEquals(duplicate, liveEntries[1]) && duplicate.Amount == "8");
+}
+Check("comments CRLF and invalid untouched row survive", live == "# limits\r\nStone: 2 # first\r\nStone: 8; UnknownModItem: invalid\r\n");
+first.Removed = true; CommitLive();
+duplicate.Amount = "12"; CommitLive();
+Check("delete then edit duplicate changes the surviving row", liveEntries.Count == 2 && RestockTargetLimitCore.Parse(live)["stone"] == 12);
+var added = new ItemRuleConfigCore.Entry { Start = -1, Key = "Resin", Amount = "5" };
+liveEntries.Add(added); CommitLive();
+added.Amount = "50"; CommitLive();
+Check("registered row updates without a second append", liveEntries.Count(e => e.Key == "Resin") == 1 && RestockTargetLimitCore.Parse(live)["resin"] == 50);
+Check("registered entry identity and saved span retained", ReferenceEquals(added, liveEntries.Last()) && added.Start >= 0);
+added.Removed = true; CommitLive();
+liveEntries.Add(new ItemRuleConfigCore.Entry { Start = -1, Key = "Resin", Amount = "6" }); CommitLive();
+Check("delete and re-register uses a new valid span", liveEntries.Count(e => e.Key == "Resin") == 1 && RestockTargetLimitCore.Parse(live)["resin"] == 6);
 Console.WriteLine($"PASS: {checks} item rule config checks");

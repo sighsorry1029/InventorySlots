@@ -63,6 +63,20 @@ internal static class ItemRuleConfigCore
         return result.ToString();
     }
 
+    // Call only after saving and validating the surviving rows against Read(next).
+    // Keep Entry identities held by focused inputs, but replace every text span:
+    // digit counts, deletions and new rows can all shift the following entries.
+    internal static void AcceptSaved(List<Entry> entries, IReadOnlyList<Entry> saved)
+    {
+        entries.RemoveAll(entry => entry.Removed);
+        for (int i = 0; i < entries.Count; i++)
+        {
+            entries[i].Start = saved[i].Start;
+            entries[i].Length = saved[i].Length;
+            entries[i].Comment = saved[i].Comment;
+        }
+    }
+
     private static string Format(Entry entry, bool restock) =>
         restock ? entry.Key + ": " + entry.Amount : entry.Key;
 

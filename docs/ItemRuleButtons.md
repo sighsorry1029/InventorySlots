@@ -5,6 +5,9 @@ automatic pickup exclusions to InventorySlots. Existing uncommitted shared-conta
 work is outside this change. No version, Release package, network policy or game
 support range changes are included.
 
+These sections record successive changes. The final "Native controls and live
+editing" section supersedes the earlier Save/Cancel workflow and parchment colors.
+
 ## Player-facing behavior
 
 - Restock and Auto Pickup Exclude use the same gray/gold icons, brighter controls
@@ -174,3 +177,61 @@ Steam plugins copies match by SHA-256:
 
 Reports: ignored `artifacts/item-rule-colors-20260913-*-*.json`.
 No Release package, version change, push or actual game session was performed.
+
+## Native controls and live editing — 2026-09-13
+
+Starting point: main, `9605d2f`. Both mods compile this change from the same shared
+source. The existing uncommitted shared-container work remains separate.
+
+- Fix the reported LiberationSans warnings by adding TMP components while their
+  objects are inactive, assigning the existing game font/shared material, then
+  activating them. If the Take All font is unavailable, use another initialized
+  InventoryGui text; defer construction if no game font is ready. No default TMP
+  font, embedded font asset or shared native material is modified.
+- Panel buttons borrow Craft's image, SpriteSwap states, font and material.
+  They retain their own actions and enabled text color, even when Craft itself
+  is disabled by missing ingredients. No crafting or controller behavior is cloned.
+- Quantity inputs borrow the inventory slot Image and its Button ColorTint.
+  This includes the normal gray-black tint and approximately 0.502 alpha; copying
+  only the original white Image would not reproduce the grid's appearance.
+- Maximum panel width is 300 UI units (previously 360). The 40-unit footer area
+  and Cancel/Save buttons are removed. Existing row height, tooltip names,
+  downward positioning, screen clamping and dialog layer are preserved.
+- Valid quantities save and notify existing config consumers on each edit.
+  Incomplete/invalid input is never placed into the saved model; losing focus
+  restores the last saved quantity. Escape closes without undoing valid edits.
+  Selecting text and saving do not rebuild rows or replace their Entry objects.
+- Drop registration immediately saves a new entry using the existing restock
+  target; Restock then focuses its quantity editor, Exclude shows its list.
+  Repeated registration preserves the existing configured value. Removal saves
+  immediately. Registration still does not move or consume inventory items.
+- Every successful save updates the text spans held by existing row objects.
+  This prevents repeated typing, deletions and appends from overwriting adjacent
+  rules. Surviving keys/order are validated before writing; duplicates, comments,
+  aliases and unrelated invalid entries retain their existing behavior.
+- External config changes reject stale edits. Failed saves restore the config,
+  its consumers and the edited field; failed removals keep the row. Valid rules
+  remain active when the editor closes or its button is hidden. English/Korean
+  guide text, status text and setting descriptions reflect automatic saving.
+
+Validation:
+
+- Both baseline and final Debug builds with DeployToGame=true succeeded with
+  zero warnings/errors; final merged DLLs match their Steam plugins copies.
+- Shared rule core: 37 checks passed for each host namespace, including 9/10/1000/2
+  size changes, Entry identity, duplicate keys, deletion then adjacent editing,
+  append/edit/delete/re-register, CRLF/comments and untouched invalid rows.
+- Real BepInEx config store: 13 checks passed for each namespace, including stale
+  snapshots, IO failure, consumer rollback and retry, using isolated test configs.
+- Original 1.0.12 client/server static checks: Slots 1013 references, 133 Harmony
+  targets, 40 reflected contracts; Actions 512 references, 29 targets. Zero failures
+  for each role; existing manual-review counts remain 8/1. Reports are in ignored
+  `artifacts/item-rule-live-20260913`.
+- Final DLL SHA-256: Slots `879E1E001190B5DE3BEB676B82400EA956EE201CA14BE7E27371D0D1F0BB30AB`;
+  Actions `C525D938D789B215947CB2E09B2583E649927393533DEF4BB6F1B850E0DF72CB`.
+
+Actual Unity/game execution was not performed. Check both mods for font-warning
+recurrence, Korean/fallback text, Craft disabled while rule actions remain usable,
+input contrast over wood, continuous typing/selection/Escape, config persistence
+after restart, screen-edge dropdowns and split-dialog overlap. No performance
+measurement, version change, Release package or push was performed.

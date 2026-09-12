@@ -58,7 +58,7 @@ public sealed partial class InventoryActionsPlugin
             rect.anchorMin = Vector2.zero; rect.anchorMax = Vector2.one;
             rect.offsetMin = rect.offsetMax = Vector2.zero;
             _itemRuleEditor = root.AddComponent<ItemRuleEditor>();
-            _itemRuleEditor.Initialize(gui);
+            if (!_itemRuleEditor.Initialize(gui)) { DestroyItemRuleUi(); return; }
         }
         _itemRuleEditor.PositionToolbar(gridOrigin, visibleRows);
     }
@@ -154,11 +154,13 @@ public sealed partial class InventoryActionsPlugin
         new((Mathf.Max(0, columns - 1 - columnsFromRight) + 0.5f) * spacing - size * 0.5f,
             -Mathf.Max(1, rows) * spacing - 8f, 0f);
 
-    // One GUI-owned component owns the toolbar, draft and event listeners. It
-    // rebuilds list rows only on opening or a deliberate edit, never every frame.
+    // One GUI-owned component owns the toolbar and event listeners. Quantity
+    // saves keep the existing rows and input focus; list changes rebuild rows.
     private sealed class ItemRuleEditor : MonoBehaviour
     {
         private const float RowHeight = 38f;
+        private const float PopupWidth = 300f;
+        private const float PopupChromeHeight = 116f;
         internal InventoryGui Owner = null!;
         internal bool Pinned { get; private set; }
         private RectTransform _root = null!, _toolbar = null!, _popup = null!, _content = null!, _viewport = null!;
@@ -167,17 +169,16 @@ public sealed partial class InventoryActionsPlugin
         private Sprite? _ruleButtonSprite;
         private int _visibleRowCount = 1;
         private TMP_Text _title = null!, _scope = null!, _status = null!;
-        private RectTransform _footer = null!;
         private TMP_FontAsset _font = null!;
+        private Material _fontMaterial = null!;
         private readonly List<Button> _rowButtons = new();
         private readonly List<TMP_InputField> _fields = new();
         private readonly List<Sprite> _ownedIcons = new();
         private readonly Dictionary<string, ItemData?> _resolved = new(StringComparer.Ordinal);
-        private readonly HashSet<ItemRuleConfigCore.Entry> _changed = new();
         private List<ItemRuleConfigCore.Entry> _entries = new();
         private ItemRuleConfigCore.Entry? _registration;
         private string _snapshot = "";
-        private bool _restock = true, _editing;
+        private bool _restock = true;
         private int _registrationMax;
         private float _hoverStarted = -1f, _outsideStarted = -1f;
         private bool? _hoverMode;
@@ -206,13 +207,18 @@ public sealed partial class InventoryActionsPlugin
         private static bool IsDialogActive(Component? dialog) => dialog != null && dialog.gameObject.activeInHierarchy;
         private string L(string key, string fallback) => LocalizeUi("$" + ModName.ToLowerInvariant() + "_rules_" + key, fallback);
 
-        internal void Initialize(InventoryGui gui)
+        internal bool Initialize(InventoryGui gui)
         {
             Owner = gui;
             _animator = gui.GetComponent<Animator>();
             _root = (RectTransform)transform;
             _camera = gui.GetComponentInParent<Canvas>()?.worldCamera;
-            _font = gui.m_takeAllButton.GetComponentInChildren<TMP_Text>(true)?.font ?? TMP_Settings.defaultFontAsset;
+            TMP_Text? fontSource = gui.m_takeAllButton.GetComponentInChildren<TMP_Text>(true);
+            if (fontSource == null || fontSource.font == null)
+                fontSource = gui.GetComponentsInChildren<TMP_Text>(true).FirstOrDefault(text => text.font != null);
+            if (fontSource == null) return false; // Wait until the game's own font is ready.
+            _font = fontSource.font;
+            _fontMaterial = fontSource?.fontSharedMaterial ?? _font.material;
             _toolbar = Rect("Toolbar", _root, Vector2.zero, Vector2.zero);
             _restockButton = RuleButton(ModName + "_RestockRules", true);
             _excludeButton = RuleButton(ModName + "_AutoPickupRules", false);
@@ -220,34 +226,30 @@ public sealed partial class InventoryActionsPlugin
             _restockButton.gameObject.AddComponent<UIDragHandler>().m_onReleasedOn = _ => ClickTool(true);
             _excludeButton.gameObject.AddComponent<UIDragHandler>().m_onReleasedOn = _ => ClickTool(false);
             _restockIcon = CreateRuleIcon(true); _excludeIcon = CreateRuleIcon(false);
-            _backdrop = Button(_root, "Outside", "", () => { if (!_editing) Close(); });
+            _backdrop = Button(_root, "Outside", "", Close);
             Stretch((RectTransform)_backdrop.transform);
             _backdrop.GetComponent<Image>().color = Color.clear;
             _backdrop.gameObject.SetActive(false);
-            _popup = Rect("Popup", _root, new Vector2(360f, 160f), Vector2.zero);
+            _popup = Rect("Popup", _root, new Vector2(PopupWidth, 160f), Vector2.zero);
             Image background = _popup.gameObject.AddComponent<Image>();
             background.color = new Color(0.15f, 0.13f, 0.14f, 0.99f);
             ApplyWoodenPanelStyle(background);
             _title = Text(_popup, "Title", "", 19f);
-            Frame(_title.rectTransform, 12, -10, 336, 28);
+            Frame(_title.rectTransform, 12, -10, PopupWidth - 24, 28);
             _scope = Text(_popup, "Scope", "", 13f);
-            Frame(_scope.rectTransform, 12, -39, 336, 34);
-            _viewport = Rect("Viewport", _popup, new Vector2(336, 38), new Vector2(12, -78));
+            Frame(_scope.rectTransform, 12, -39, PopupWidth - 24, 34);
+            _viewport = Rect("Viewport", _popup, new Vector2(PopupWidth - 24, 38), new Vector2(12, -78));
             _viewport.gameObject.AddComponent<Image>().color = Color.clear;
             _viewport.gameObject.AddComponent<RectMask2D>();
-            _content = Rect("Content", _viewport, new Vector2(336, 38), Vector2.zero);
+            _content = Rect("Content", _viewport, new Vector2(PopupWidth - 24, 38), Vector2.zero);
             _scroll = _viewport.gameObject.AddComponent<ScrollRect>();
             _scroll.viewport = _viewport; _scroll.content = _content;
             _scroll.horizontal = false; _scroll.vertical = true;
             _scroll.movementType = ScrollRect.MovementType.Clamped;
             _scroll.inertia = false; _scroll.scrollSensitivity = 30f;
             _status = Text(_popup, "Status", "", 12f);
-            _footer = Rect("Footer", _popup, new Vector2(336, 34), Vector2.zero);
-            Button cancel = Button(_footer, "Cancel", L("cancel", "Cancel"), Cancel);
-            Button save = Button(_footer, "Save", L("save", "Save"), () => Save());
-            Frame((RectTransform)cancel.transform, 160, 0, 80, 32);
-            Frame((RectTransform)save.transform, 248, 0, 88, 32);
             _popup.gameObject.SetActive(false);
+            return true;
         }
 
         internal void PositionToolbar(Vector3 gridOrigin, int visibleRows)
@@ -290,11 +292,11 @@ public sealed partial class InventoryActionsPlugin
             float x = anchor.x - _popup.rect.width;
             float y = anchor.y - 6f;
             float available = y - bounds.yMin - 8f;
-            float viewHeight = Mathf.Min(Mathf.Min(6, _visibleRowCount) * RowHeight, Mathf.Max(RowHeight, available - 156f));
+            float viewHeight = Mathf.Min(Mathf.Min(6, _visibleRowCount) * RowHeight, Mathf.Max(RowHeight, available - PopupChromeHeight));
             ResizePopupViewport(viewHeight);
             x = Mathf.Clamp(x, bounds.xMin + 8, Mathf.Max(bounds.xMin + 8, bounds.xMax - _popup.rect.width - 8));
             // Extreme offsets can leave less than one editable row and its buttons.
-            // Keep those controls reachable instead of clipping Save/Cancel off-screen.
+            // Keep the editable row and status reachable at the screen edge.
             y = Mathf.Clamp(y, bounds.yMin + _popup.rect.height + 8, Mathf.Max(bounds.yMin + _popup.rect.height + 8, bounds.yMax - 8));
             _popup.localPosition = new Vector3(x, y, 0);
         }
@@ -303,10 +305,9 @@ public sealed partial class InventoryActionsPlugin
         {
             if (Mathf.Abs(_viewport.rect.height - height) < 0.1f) return;
             float inner = _popup.rect.width - 24f;
-            _popup.sizeDelta = new Vector2(_popup.rect.width, 156f + height);
+            _popup.sizeDelta = new Vector2(_popup.rect.width, PopupChromeHeight + height);
             Frame(_viewport, 12, -78, inner, height);
             Frame(_status.rectTransform, 12, -82 - height, inner, 30);
-            Frame(_footer, 12, -116 - height, inner, 34);
             Vector2 scroll = _content.anchoredPosition;
             scroll.y = Mathf.Clamp(scroll.y, 0, Mathf.Max(0, _content.rect.height - height));
             _content.anchoredPosition = scroll;
@@ -316,7 +317,7 @@ public sealed partial class InventoryActionsPlugin
         {
             Player? player = Player.m_localPlayer;
             ItemData? item = Owner.m_dragItem;
-            return !_editing && HasHeldTrashCandidate(Owner) && player != null && item?.m_shared != null && item.m_dropPrefab != null &&
+            return HasHeldTrashCandidate(Owner) && player != null && item?.m_shared != null && item.m_dropPrefab != null &&
                 Owner.m_dragInventory == ((Humanoid)player).GetInventory() && Owner.m_dragInventory.ContainsItem(item) &&
                 (Owner.m_splitDialog == null || !Owner.m_splitDialog.IsActive);
         }
@@ -380,7 +381,7 @@ public sealed partial class InventoryActionsPlugin
             { Close(); return; }
             if (Open && Pinned && (ZInput.GetKeyDown(KeyCode.Escape) || ZInput.GetButtonDown("JoyButtonB")))
             { Close(); return; }
-            if (Open && !_editing && !string.Equals(_snapshot, Setting.Value, StringComparison.Ordinal)) LoadList(_restock, Pinned);
+            if (Open && !string.Equals(_snapshot, Setting.Value, StringComparison.Ordinal) && !_fields.Any(field => field.isFocused)) LoadList(_restock, Pinned);
             bool? hovered = IsItemRuleButtonEnabled(true) && _restockButton.gameObject.activeInHierarchy && Contains((RectTransform)_restockButton.transform) ? true
                 : IsItemRuleButtonEnabled(false) && _excludeButton.gameObject.activeInHierarchy && Contains((RectTransform)_excludeButton.transform) ? false : null;
             if (Pinned) return;
@@ -403,7 +404,6 @@ public sealed partial class InventoryActionsPlugin
         {
             if (!CanShow || HasBlockingDialog || !IsItemRuleButtonEnabled(restock)) return;
             if (HasHeldTrashCandidate(Owner)) { RegisterHeldItem(restock); return; }
-            if (_editing) return;
             LoadList(restock, true);
         }
 
@@ -413,8 +413,8 @@ public sealed partial class InventoryActionsPlugin
             CloseInventoryTrashConfirmDialog();
             _restock = restock; _snapshot = Setting.Value;
             _entries = ItemRuleConfigCore.Read(_snapshot, restock);
-            _changed.Clear(); _resolved.Clear(); _registration = null;
-            _editing = false; Pinned = pin;
+            _resolved.Clear(); _registration = null;
+            Pinned = pin;
             _popup.gameObject.SetActive(true); _backdrop.gameObject.SetActive(pin);
             Render();
         }
@@ -438,54 +438,52 @@ public sealed partial class InventoryActionsPlugin
             }
             _resolved[entry.Key] = item;
             Owner.SetupDragItem(null, null, 0); // Registration reads identity; no inventory mutation.
+            if (added && !Save())
+            {
+                _entries.Remove(entry);
+                return;
+            }
             if (restock)
             {
                 _registration = entry; _registrationMax = Mathf.Max(0, item.m_shared.m_maxStackSize);
-                entry.Amount = GetRestockTargetStack(item).ToString(CultureInfo.InvariantCulture);
-                BeginEdit(entry); Render();
+                Pin(); Render();
                 if (_fields.Count > 0) { _fields[0].Select(); _fields[0].ActivateInputField(); }
             }
             else
             {
-                if (added) { BeginEdit(entry); if (!Save()) return; }
-                else Render();
+                Render();
                 _status.text = L("registered", "Registered") + ": " + GetLocalizedItemName(item);
                 ScrollTo(entry.Key);
             }
         }
 
-        private void BeginEdit(ItemRuleConfigCore.Entry? entry = null)
+        private void Pin()
         {
-            if (entry != null) _changed.Add(entry);
-            _editing = true; Pinned = true; _backdrop.gameObject.SetActive(true);
-            _footer.gameObject.SetActive(true); _status.text = L("editing", "Editing");
+            Pinned = true; _backdrop.gameObject.SetActive(true);
         }
 
         private bool Save()
         {
             if (!string.Equals(Setting.Value, _snapshot, StringComparison.Ordinal))
-            { _status.text = L("conflict", "Config changed. Cancel to reload before saving."); return false; }
-            foreach (ItemRuleConfigCore.Entry entry in _changed.Where(e => !e.Removed))
-            {
-                if (_restock && (!int.TryParse(entry.Amount, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value) || value < 0 ||
-                    (entry == _registration && value > _registrationMax)))
-                { _status.text = L("invalid", "Enter a valid non-negative quantity."); return false; }
-            }
+            { _status.text = L("conflict", "Config changed. Finish editing to reload."); return false; }
+            string next = ItemRuleConfigCore.Write(_snapshot, _entries, _restock);
+            List<ItemRuleConfigCore.Entry> saved = ItemRuleConfigCore.Read(next, _restock);
+            // Validate before touching the config: a prefab containing config
+            // delimiters must not save successfully and then break span rebasing.
+            if (!_entries.Where(entry => !entry.Removed).Select(entry => entry.Key).SequenceEqual(saved.Select(entry => entry.Key)))
+            { _status.text = L("save_failed", "Could not save config."); return false; }
             try
             {
-                if (!ItemRuleConfigStore.Save(Setting, _snapshot, ItemRuleConfigCore.Write(_snapshot, _entries, _restock)))
-                { _status.text = L("conflict", "Config changed. Cancel to reload before saving."); return false; }
+                if (next != _snapshot && !ItemRuleConfigStore.Save(Setting, _snapshot, next))
+                { _status.text = L("conflict", "Config changed. Finish editing to reload."); return false; }
             }
             catch (Exception error)
             { Log.LogWarning("Could not save item rules: " + error.Message); _status.text = L("save_failed", "Could not save config."); return false; }
-            string? registeredKey = _registration?.Key;
-            LoadList(_restock, true);
-            if (registeredKey != null) ScrollTo(registeredKey);
+            ItemRuleConfigCore.AcceptSaved(_entries, saved);
+            _snapshot = next;
             _status.text = L("saved", "Saved");
             return true;
         }
-
-        private void Cancel() => LoadList(_restock, true);
 
         private void ScrollTo(string key)
         {
@@ -523,7 +521,7 @@ public sealed partial class InventoryActionsPlugin
             foreach (TMP_InputField field in _fields)
             {
                 if (field == null) continue;
-                field.onValueChanged.RemoveAllListeners(); field.onSelect.RemoveAllListeners(); field.onSubmit.RemoveAllListeners();
+                field.onValueChanged.RemoveAllListeners(); field.onSelect.RemoveAllListeners(); field.onEndEdit.RemoveAllListeners();
                 field.DeactivateInputField();
             }
             foreach (Button button in _rowButtons) if (button != null) button.onClick.RemoveAllListeners();
@@ -534,12 +532,12 @@ public sealed partial class InventoryActionsPlugin
         private void Render()
         {
             ClearRows();
-            float width = Mathf.Clamp(_root.rect.width - 16f, 260f, 360f);
+            float width = Mathf.Clamp(_root.rect.width - 16f, 260f, PopupWidth);
             float inner = width - 24f;
             List<ItemRuleConfigCore.Entry> visible = _registration != null ? new() { _registration } : _entries.Where(e => !e.Removed).ToList();
             _visibleRowCount = Mathf.Max(1, visible.Count);
             float viewHeight = Mathf.Max(1, Mathf.Min(6, visible.Count)) * RowHeight;
-            _popup.sizeDelta = new Vector2(width, 78 + viewHeight + 78);
+            _popup.sizeDelta = new Vector2(width, PopupChromeHeight + viewHeight);
             Frame(_title.rectTransform, 12, -10, inner, 28);
             Frame(_scope.rectTransform, 12, -39, inner, 34);
             _title.text = _restock ? L("restock_title", "Restock limits") : L("exclude_title", "Auto pickup exclusions");
@@ -550,11 +548,7 @@ public sealed partial class InventoryActionsPlugin
             _content.sizeDelta = new Vector2(inner, Mathf.Max(1, visible.Count) * RowHeight);
             _content.anchoredPosition = Vector2.zero;
             Frame(_status.rectTransform, 12, -82 - viewHeight, inner, 30);
-            Frame(_footer, 12, -116 - viewHeight, inner, 34);
-            RectTransform cancel = (RectTransform)_footer.GetChild(0), save = (RectTransform)_footer.GetChild(1);
-            Frame(cancel, inner - 176, 0, 80, 32); Frame(save, inner - 88, 0, 88, 32);
-            _footer.gameObject.SetActive(_editing);
-            _status.text = _editing ? L("editing", "Editing") : Pinned ? L("pinned", "Pinned") : L("preview", "Preview");
+            _status.text = L("autosave", "Changes save automatically");
             if (visible.Count == 0)
             {
                 TMP_Text empty = Text(_content, "Empty", L("empty", "No registered items"), 16);
@@ -583,7 +577,11 @@ public sealed partial class InventoryActionsPlugin
                 if (_registration == null)
                 {
                     Button remove = Button(row, "Remove", _restock ? "×" : L("remove", "Remove"), () =>
-                    { entry.Removed = true; BeginEdit(); Render(); });
+                    {
+                        Pin(); entry.Removed = true;
+                        if (Save()) Render();
+                        else entry.Removed = false;
+                    });
                     Frame((RectTransform)remove.transform, inner - (_restock ? 30 : 68), -2, _restock ? 30 : 68, 32);
                     _rowButtons.Add(remove);
                 }
@@ -595,23 +593,41 @@ public sealed partial class InventoryActionsPlugin
         {
             RectTransform rect = Rect("Quantity", parent, new Vector2(58, 32), Vector2.zero);
             rect.gameObject.SetActive(false);
-            Image border = rect.gameObject.AddComponent<Image>(); border.color = new Color(0.30f, 0.23f, 0.15f, 1);
-            Image image = ControlFace(rect, 2f);
+            Image image = rect.gameObject.AddComponent<Image>();
+            Image? slot = Owner.m_playerGrid.m_elementPrefab.GetComponent<Image>();
+            if (slot != null) CopyImageStyle(slot, image);
             RectTransform textArea = Rect("TextArea", rect, Vector2.zero, Vector2.zero); Stretch(textArea);
             textArea.offsetMin = new Vector2(4, 2); textArea.offsetMax = new Vector2(-4, -2);
             textArea.gameObject.AddComponent<RectMask2D>();
             TMP_Text value = Text(textArea, "Text", entry.Amount, 17); Stretch(value.rectTransform);
-            value.alignment = TextAlignmentOptions.MidlineRight; value.color = ControlTextColor;
+            value.alignment = TextAlignmentOptions.MidlineRight;
             TMP_InputField input = rect.gameObject.AddComponent<TMP_InputField>();
             input.targetGraphic = image; input.textViewport = textArea; input.textComponent = value;
-            input.colors = InputColors;
+            input.colors = Owner.m_playerGrid.m_elementPrefab.GetComponent<Button>()?.colors ?? InputColors;
             input.contentType = TMP_InputField.ContentType.IntegerNumber;
             input.characterLimit = 10; input.lineType = TMP_InputField.LineType.SingleLine;
-            input.text = entry.Amount; input.customCaretColor = true; input.caretColor = ControlTextColor;
+            input.restoreOriginalTextOnEscape = false; // Escape closes; valid edits are already saved.
+            input.text = entry.Amount; input.customCaretColor = true; input.caretColor = _text;
             input.selectionColor = new Color(0.30f, 0.48f, 0.62f, 0.55f);
-            input.onSelect.AddListener(_ => BeginEdit());
-            input.onValueChanged.AddListener(text => { entry.Amount = text; BeginEdit(entry); });
-            input.onSubmit.AddListener(_ => { if (_editing && !ZInput.GetKeyDown(KeyCode.Escape)) Save(); });
+            input.onSelect.AddListener(_ => Pin());
+            input.onValueChanged.AddListener(text =>
+            {
+                Pin();
+                // An empty/invalid edit buffer must never disable restock or be
+                // written to config. Keep the last successfully saved quantity.
+                if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int amount) || amount < 0 ||
+                    (entry == _registration && amount > _registrationMax))
+                { _status.text = L("invalid", "Enter a valid non-negative quantity."); return; }
+                string previous = entry.Amount;
+                entry.Amount = text;
+                if (!Save()) { entry.Amount = previous; input.SetTextWithoutNotify(previous); }
+            });
+            input.onEndEdit.AddListener(text =>
+            {
+                if (text == entry.Amount) return;
+                input.SetTextWithoutNotify(entry.Amount);
+                _status.text = L("restored", "Last saved quantity restored");
+            });
             _fields.Add(input);
             rect.gameObject.SetActive(true);
             return input;
@@ -620,10 +636,10 @@ public sealed partial class InventoryActionsPlugin
         internal void Close()
         {
             if (Pinned) _itemRuleInputClosedFrame = Time.frameCount;
-            Pinned = false; _editing = false; _registration = null;
+            Pinned = false; _registration = null;
             _hoverMode = null; _hoverStarted = _outsideStarted = -1f;
             if (_popup == null) return;
-            ClearRows(); _entries.Clear(); _changed.Clear(); _resolved.Clear();
+            ClearRows(); _entries.Clear(); _resolved.Clear();
             _popup.gameObject.SetActive(false); _backdrop.gameObject.SetActive(false);
         }
 
@@ -660,56 +676,60 @@ public sealed partial class InventoryActionsPlugin
         private TMP_Text Text(Transform parent, string name, string value, float size)
         {
             RectTransform rect = Rect(name, parent, Vector2.zero, Vector2.zero);
+            // TMP loads its default font in Awake. Assign the game's font before
+            // activation, otherwise Valheim searches for absent LiberationSans.
+            rect.gameObject.SetActive(false);
             TextMeshProUGUI label = rect.gameObject.AddComponent<TextMeshProUGUI>();
-            label.font = _font; label.fontSize = size; label.color = _text; label.text = value;
+            label.font = _font; label.fontSharedMaterial = _fontMaterial;
+            label.fontSize = size; label.color = _text; label.text = value;
             label.raycastTarget = false; label.alignment = TextAlignmentOptions.MidlineLeft;
+            rect.gameObject.SetActive(true);
             return label;
         }
         private Button Button(Transform parent, string name, string text, UnityEngine.Events.UnityAction action)
         {
             RectTransform rect = Rect(name, parent, new Vector2(80, 32), Vector2.zero);
             Image image = rect.gameObject.AddComponent<Image>();
-            Image? source = Owner.m_takeAllButton.GetComponent<Image>();
-            image.sprite = source?.sprite; image.type = source != null ? source.type : Image.Type.Simple;
-            image.color = Color.white;
             Button button = rect.gameObject.AddComponent<Button>(); button.targetGraphic = image;
             button.onClick.AddListener(action);
             if (text.Length > 0)
             {
-                // Muted parchment/tan faces contrast with both the wooden panel
-                // and dark text without using white or saturated yellow surfaces.
-                // The empty-text outside-click backdrop stays fully transparent.
-                button.targetGraphic = ControlFace(rect, 6f); button.colors = ControlColors;
-                TMP_Text label = Text(rect, "Label", text, 16); Stretch(label.rectTransform); label.alignment = TextAlignmentOptions.Center; label.color = ControlTextColor;
+                // Borrow Craft's visuals only, without its click action, controller
+                // shortcut, interactability or crafting-specific components.
+                Button source = Owner.m_craftButton != null ? Owner.m_craftButton : Owner.m_takeAllButton;
+                if (source.image != null) CopyImageStyle(source.image, image);
+                button.spriteState = source.spriteState; button.colors = source.colors; button.transition = source.transition;
+                button.navigation = new Navigation { mode = Navigation.Mode.None };
+                TMP_Text label = Text(rect, "Label", text, 16); Stretch(label.rectTransform); label.alignment = TextAlignmentOptions.Center;
+                TMP_Text? sourceLabel = source.GetComponentInChildren<TMP_Text>(true);
+                if (sourceLabel != null && sourceLabel.font != null)
+                {
+                    label.font = sourceLabel.font; label.fontSharedMaterial = sourceLabel.fontSharedMaterial;
+                    // Craft's live label can be dimmed by missing ingredients;
+                    // that state does not describe this enabled rule action.
+                    label.fontStyle = sourceLabel.fontStyle;
+                }
             }
             return button;
         }
 
-        private Image ControlFace(RectTransform parent, float inset)
+        private static void CopyImageStyle(Image source, Image target)
         {
-            RectTransform face = Rect("Face", parent, Vector2.zero, Vector2.zero); Stretch(face);
-            face.offsetMin = new Vector2(inset, inset); face.offsetMax = new Vector2(-inset, -inset);
-            Image image = face.gameObject.AddComponent<Image>(); image.raycastTarget = false;
-            return image;
+            target.sprite = source.sprite; target.type = source.type;
+            target.material = source.material; target.color = source.color;
+            target.pixelsPerUnitMultiplier = source.pixelsPerUnitMultiplier;
+            target.fillCenter = source.fillCenter; target.preserveAspect = source.preserveAspect;
         }
 
-        private static readonly Color ControlTextColor = new(0.14f, 0.10f, 0.065f, 1);
-        private static ColorBlock ControlColors => new()
-        {
-            normalColor = new Color(0.75f, 0.65f, 0.48f, 1),
-            highlightedColor = new Color(0.84f, 0.75f, 0.58f, 1),
-            selectedColor = new Color(0.84f, 0.75f, 0.58f, 1),
-            pressedColor = new Color(0.65f, 0.55f, 0.40f, 1),
-            disabledColor = new Color(0.61f, 0.56f, 0.47f, 1),
-            colorMultiplier = 1f, fadeDuration = 0.08f
-        };
+        // Fallback for UI mods without the native slot Button. The normal path
+        // copies the grid's actual ColorTint, including its translucent alpha.
         private static ColorBlock InputColors => new()
         {
-            normalColor = new Color(0.87f, 0.82f, 0.71f, 1),
-            highlightedColor = new Color(0.91f, 0.86f, 0.76f, 1),
-            selectedColor = new Color(0.93f, 0.89f, 0.80f, 1),
-            pressedColor = new Color(0.82f, 0.76f, 0.65f, 1),
-            disabledColor = new Color(0.68f, 0.65f, 0.57f, 1),
+            normalColor = new Color(0.132f, 0.132f, 0.132f, 0.502f),
+            highlightedColor = new Color(0.39f, 0.40f, 0.40f, 0.502f),
+            selectedColor = new Color(0.39f, 0.40f, 0.40f, 0.502f),
+            pressedColor = new Color(0.132f, 0.132f, 0.132f, 0.65f),
+            disabledColor = new Color(0.132f, 0.132f, 0.132f, 0.35f),
             colorMultiplier = 1f, fadeDuration = 0.08f
         };
         private Sprite CreateRuleIcon(bool restock)

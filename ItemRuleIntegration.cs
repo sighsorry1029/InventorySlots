@@ -12,10 +12,10 @@ public sealed partial class InventorySlotsPlugin
     private static void BindItemRuleConfigs()
     {
         _showRestockRulesButton = OrderedConfigEntry(ClientUiConfigSection, "Show Restock Rules Button", Toggle.On,
-            "Show the restock rules icon below the player inventory. Hiding it leaves saved restock limits active and discards an open unsaved draft. Applies immediately.",
+            "Show the restock rules icon below the player inventory. Hiding it leaves saved restock limits active and closes its editor. Valid edits save immediately.",
             order: 786, synchronizedSetting: false);
         _showAutoPickupRulesButton = OrderedConfigEntry(ClientUiConfigSection, "Show Auto Pickup Exclude Button", Toggle.On,
-            "Show the automatic pickup exclusion icon below the player inventory. Hiding it leaves saved exclusions active and discards an open unsaved draft. Applies immediately.",
+            "Show the automatic pickup exclusion icon below the player inventory. Hiding it leaves saved exclusions active and closes its editor. Valid edits save immediately.",
             order: 784, synchronizedSetting: false);
         _autoPickupExcludedItemsConfig = ConfigEntry(ClientConfigSection, "Auto Pickup Excluded Items", "",
             "Client-only prefab names excluded from automatic pickup, separated by commas, semicolons or new lines. Empty preserves normal pickup. Manual E pickup remains available. Applies to all characters using this config; does not delete items or change restock rules.",
