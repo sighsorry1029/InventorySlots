@@ -127,3 +127,24 @@ dotnet build InventoryActions/build/RuleConfigSmoke/RuleConfigSmoke.csproj -c De
    input focus, wheel, controller/touch, live config change during an unsaved draft.
 5. Client/host/dedicated-server multiplayer behavior. No game/Unity/Mono or
    multiplayer session was executed, and no performance improvement was measured.
+
+## Dialog layer correction — 2026-09-13
+
+The original 1.0.12 prefab puts Player, Info and Crafting before SplitDialog and
+the other inventory dialogs under `m_inventoryRoot`. ItemRules had instead been
+created directly under the GUI canvas and raised to its last sibling every frame,
+which rendered the toolbar above the complete native subtree. Both mods now create
+it under `m_inventoryRoot`, immediately before SplitDialog, and keep that order.
+The original parent rectangles have identical full-stretch bounds, preserving
+button coordinates and dropdown screen-edge clamping. The existing trash panel
+already belongs to PlayerGrid and needs no layer change; its cloned confirmation
+still renders above the controls.
+
+Native inventory dialogs and the mod's trash confirmation also close an open rule
+popup and prevent coordinate-based hover/click from reopening it underneath them.
+The toolbar stays in its normal layer; dialog activation/confirmation and item
+mutation are untouched. Both Debug/deploy builds passed with zero warnings/errors.
+Original client/server static checks passed: Slots 1007 references / 133 targets /
+40 reflected contracts, Actions 496 / 29 / 0; existing manual entries remain 8/1.
+Actual split/variant/trash confirmation overlaps, hover suppression and closing
+transitions still need an in-game check in each mod.

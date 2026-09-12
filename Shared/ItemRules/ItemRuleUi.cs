@@ -48,7 +48,12 @@ public sealed partial class InventoryActionsPlugin
         {
             DestroyItemRuleUi();
             GameObject root = new(ModName + "_ItemRules", typeof(RectTransform));
-            root.transform.SetParent(gui.transform, false);
+            // Native inventory panels and dialogs share m_inventoryRoot. A GUI
+            // canvas sibling would render above that entire subtree, including Split.
+            Transform parent = gui.m_inventoryRoot != null ? gui.m_inventoryRoot : gui.transform;
+            root.transform.SetParent(parent, false);
+            if (gui.m_splitDialog != null && gui.m_splitDialog.transform.parent == parent)
+                root.transform.SetSiblingIndex(gui.m_splitDialog.transform.GetSiblingIndex());
             RectTransform rect = (RectTransform)root.transform;
             rect.anchorMin = Vector2.zero; rect.anchorMax = Vector2.one;
             rect.offsetMin = rect.offsetMax = Vector2.zero;
@@ -189,6 +194,16 @@ public sealed partial class InventoryActionsPlugin
         // Use the same Animator obtained by vanilla Awake through the public API.
         private bool CanShow => _instance != null && _instance.isActiveAndEnabled && Owner != null && InventoryGui.IsVisible() &&
             (_animator == null || _animator.GetBool(VisibleParameter)) && !Menu.IsVisible() && !global::Console.IsVisible() && CanShowItemRules(Owner);
+        private bool HasBlockingDialog => IsDialogActive(Owner.m_splitDialog) ||
+            IsDialogActive(Owner.m_variantDialog) || IsDialogActive(Owner.m_skillsDialog) ||
+            IsDialogActive(Owner.m_textsDialog) || IsDialogActive(Owner.m_achievementsPanel) ||
+            (Owner.m_trophiesPanel != null && Owner.m_trophiesPanel.activeInHierarchy) ||
+#if INVENTORY_SLOTS
+            (_inventoryTrashConfirmDialog != null && _inventoryTrashConfirmDialog.activeInHierarchy);
+#else
+            (Runtime.TrashConfirmDialog != null && Runtime.TrashConfirmDialog.activeInHierarchy);
+#endif
+        private static bool IsDialogActive(Component? dialog) => dialog != null && dialog.gameObject.activeInHierarchy;
         private string L(string key, string fallback) => LocalizeUi("$" + ModName.ToLowerInvariant() + "_rules_" + key, fallback);
 
         internal void Initialize(InventoryGui gui)
@@ -238,7 +253,7 @@ public sealed partial class InventoryActionsPlugin
         internal void PositionToolbar(Vector3 gridOrigin, int visibleRows)
         {
             if (!CanShow) { Hide(); return; }
-            if (Open && !IsItemRuleButtonEnabled(_restock)) Close();
+            if (Open && (!IsItemRuleButtonEnabled(_restock) || HasBlockingDialog)) Close();
             InventoryGrid grid = Owner.m_playerGrid;
             float size = Mathf.Clamp(Mathf.Max(1f, grid.m_elementSpace) * 0.72f, 42f, 58f);
             // A zero-size toolbar shares the GUI origin. Convert each grid anchor
@@ -263,7 +278,6 @@ public sealed partial class InventoryActionsPlugin
             UpdateRuleButtonVisual(_excludeButton, acceptsHeldItem);
             _toolbar.gameObject.SetActive(true);
             if (Open) PositionPopup();
-            if (transform.GetSiblingIndex() != transform.parent.childCount - 1) transform.SetAsLastSibling();
         }
 
         private void PositionPopup()
@@ -360,7 +374,9 @@ public sealed partial class InventoryActionsPlugin
             { Hide(); return; }
             if (Open && !IsItemRuleButtonEnabled(_restock)) Close();
             if (!IsItemRuleButtonEnabled(true) && !IsItemRuleButtonEnabled(false)) { Hide(); return; }
-            if (Owner.m_splitDialog != null && Owner.m_splitDialog.IsActive)
+            // Hover uses screen coordinates, so native modal raycasts alone do
+            // not stop it from reopening a popup behind the dialog.
+            if (HasBlockingDialog)
             { Close(); return; }
             if (Open && Pinned && (ZInput.GetKeyDown(KeyCode.Escape) || ZInput.GetButtonDown("JoyButtonB")))
             { Close(); return; }
@@ -385,8 +401,7 @@ public sealed partial class InventoryActionsPlugin
 
         private void ClickTool(bool restock)
         {
-            if (!CanShow || !IsItemRuleButtonEnabled(restock)) return;
-            if (Owner.m_splitDialog != null && Owner.m_splitDialog.IsActive) return;
+            if (!CanShow || HasBlockingDialog || !IsItemRuleButtonEnabled(restock)) return;
             if (HasHeldTrashCandidate(Owner)) { RegisterHeldItem(restock); return; }
             if (_editing) return;
             LoadList(restock, true);
@@ -394,7 +409,7 @@ public sealed partial class InventoryActionsPlugin
 
         private void LoadList(bool restock, bool pin)
         {
-            if (!CanShow || !IsItemRuleButtonEnabled(restock)) return;
+            if (!CanShow || HasBlockingDialog || !IsItemRuleButtonEnabled(restock)) return;
             CloseInventoryTrashConfirmDialog();
             _restock = restock; _snapshot = Setting.Value;
             _entries = ItemRuleConfigCore.Read(_snapshot, restock);
