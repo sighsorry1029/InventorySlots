@@ -18,6 +18,14 @@ Take stacks pulls only matching stackable items that are not favorited.
 ![](https://i.ibb.co/yFQWpxjF/restocklimit.png) <br>
 Client restock limits can cap favorite restock targets per prefab, such as `Stone: 10` or `Coins: 500`.
 
+Two item-rule icons sit to the left of the trash button:
+
+- **Restock limits:** drop an item from your inventory on the icon to enter its target quantity. Save registers the rule; cancel leaves it unchanged. The item stays in your inventory. Limits apply to Alt+E favorite-stack restock, not the opened-container Take stacks button; 0 prevents restocking and quantities are capped at the item's maximum stack.
+- **Auto pickup exclusions:** dropping an inventory item immediately registers its prefab and opens the list. Repeating it shows the existing entry. Excluded types stay on the ground when you walk near them; manual E pickup still works. This does not delete items or change quick stack/restock.
+- Hover an icon for a list preview, or click to pin it. Edit quantities/remove rules and use Save or Cancel. Escape discards the draft. Lists scroll beyond six rows. Restock registration opens a quantity editor before saving.
+
+Both lists use the existing client config: `3 - Restock / Restock Target Stack Limits` and `2 - Client / Auto Pickup Excluded Items`. They are not server-synced and apply to all characters using that config. In-game/Configuration Manager changes apply immediately; editing the cfg on disk requires a config reload or game restart. Rules do not add item metadata. Unresolved mod items remain in the list. Removing a restock entry can reveal a remaining internal/localized-name rule; it does not necessarily restore the default maximum.
+
 - favorite player inventory slots with `LeftAlt + left click`
 - hold `E` while hovering a container to quick stack matching non-favorited stackable items
 - restock existing stacks from the current container

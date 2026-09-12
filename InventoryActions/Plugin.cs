@@ -83,6 +83,7 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
         Player? player = Player.m_localPlayer;
         if (player == null || IsUnityNull(player) || player!.m_isLoading)
         {
+            _itemRuleEditor?.Hide();
             CancelAreaContainerTransfer();
             ResetContainerHold(Runtime.AreaQuickStackHold);
             ResetContainerHold(Runtime.AreaRestockHold);
@@ -95,7 +96,9 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
 
     private void OnDestroy()
     {
+        DestroyItemRuleUi();
         _autoPickupExcludedItemsConfig.SettingChanged -= RefreshAutoPickupExclusions;
+        _autoPickupExcludedItems.Clear();
         CancelAreaContainerTransfer();
         CloseInventoryTrashConfirmDialog();
         // Keep inventory action patches installed during runtime teardown to avoid item-move logic changing mid-session.

@@ -17,3 +17,20 @@ inventoryactions_action_sort: Sort
 inventoryactions_action_result_format: "{action}: {count}"
 inventoryactions_container_not_ready: Container is not ready.
 inventoryactions_hold_to_restock: Hold to restock
+inventoryactions_rules_restock_title: Restock limits
+inventoryactions_rules_exclude_title: Auto pickup exclusions
+inventoryactions_rules_restock_scope: "Alt+E · target per favorite stack; 0 disables restock"
+inventoryactions_rules_exclude_scope: Manual E pickup is still available
+inventoryactions_rules_quantity: Target quantity
+inventoryactions_rules_cancel: Cancel
+inventoryactions_rules_save: Save
+inventoryactions_rules_remove: Remove
+inventoryactions_rules_editing: Editing
+inventoryactions_rules_preview: Preview
+inventoryactions_rules_pinned: Pinned
+inventoryactions_rules_empty: No registered items
+inventoryactions_rules_registered: Registered
+inventoryactions_rules_saved: Saved
+inventoryactions_rules_conflict: Config changed. Cancel to reload before saving.
+inventoryactions_rules_invalid: Enter a valid non-negative quantity within the shown limit.
+inventoryactions_rules_save_failed: Could not save config.

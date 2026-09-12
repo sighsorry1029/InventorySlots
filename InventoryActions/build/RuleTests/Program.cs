@@ -32,4 +32,12 @@ Check("empty config preserves pickup", ItemRuleConfigCore.ParseExclusions("").Co
 var excludes = ItemRuleConfigCore.Read("Resin # comment\nStone", false);
 excludes[0].Removed = true;
 Check("remove exclusion", ItemRuleConfigCore.ParseExclusions(ItemRuleConfigCore.Write("Resin # comment\nStone", excludes, false)).SetEquals(new[] { "Stone" }));
+var reloaded = ItemRuleConfigCore.Read(changed, true);
+reloaded.Last(e => e.Key == "Resin").Removed = true;
+string deleted = ItemRuleConfigCore.Write(changed, reloaded, true);
+var registeredAgain = ItemRuleConfigCore.Read(deleted, true);
+registeredAgain.Add(new ItemRuleConfigCore.Entry { Start = -1, Key = "Resin", Amount = "15" });
+string final = ItemRuleConfigCore.Write(deleted, registeredAgain, true);
+Check("save delete reload register has fresh spans", RestockTargetLimitCore.Parse(final)["resin"] == 15);
+Check("multi-save preserves other rules", final.Contains("Wood: 30; $item_stone: 8, UnknownModItem: 999"));
 Console.WriteLine($"PASS: {checks} item rule config checks");

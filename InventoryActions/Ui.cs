@@ -38,11 +38,13 @@ public sealed partial class InventoryActionsPlugin
         UpdateContainerActionButtons(gui);
         UpdatePlayerActionPanel(gui, gui.m_playerGrid, player);
         UpdateTrashPanel(gui, gui.m_playerGrid, player);
+        UpdateItemRuleUi(gui);
         UpdateFavoriteBorders(gui.m_playerGrid, player);
     }
 
     internal static void HideInventoryActionPanels()
     {
+        _itemRuleEditor?.Hide();
         SetActionPanelActive(Runtime.PlayerActionPanel, false);
         SetActionPanelActive(Runtime.TrashPanel, false);
         ReleaseContainerActionButtonLayout();

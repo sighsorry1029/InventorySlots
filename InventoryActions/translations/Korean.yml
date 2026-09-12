@@ -17,3 +17,20 @@ inventoryactions_action_sort: 정렬
 inventoryactions_action_result_format: "{action}: {count}"
 inventoryactions_container_not_ready: 컨테이너를 사용할 수 없습니다.
 inventoryactions_hold_to_restock: 누르고 있으면 보충
+inventoryactions_rules_restock_title: 보충 수량
+inventoryactions_rules_exclude_title: 자동 줍기 제외
+inventoryactions_rules_restock_scope: "Alt+E · 즐겨찾기 스택당 목표 수량 · 0은 보충 안 함"
+inventoryactions_rules_exclude_scope: E로 직접 줍기는 가능합니다
+inventoryactions_rules_quantity: 목표 수량
+inventoryactions_rules_cancel: 취소
+inventoryactions_rules_save: 저장
+inventoryactions_rules_remove: 해제
+inventoryactions_rules_editing: 편집 중
+inventoryactions_rules_preview: 미리보기
+inventoryactions_rules_pinned: 고정
+inventoryactions_rules_empty: 등록된 아이템 없음
+inventoryactions_rules_registered: 등록됨
+inventoryactions_rules_saved: 저장됨
+inventoryactions_rules_conflict: 설정이 변경되었습니다. 취소 후 다시 편집해 주세요.
+inventoryactions_rules_invalid: 표시된 범위 내에서 0 이상의 수량을 입력해 주세요.
+inventoryactions_rules_save_failed: 설정을 저장하지 못했습니다.
