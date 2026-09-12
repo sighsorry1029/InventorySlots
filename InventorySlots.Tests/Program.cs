@@ -5,9 +5,6 @@ TestRunner.Run(
     ("Native resize keeps the player panel root at its base size", Tests.NativeResizeKeepsPlayerPanelRootAtBaseSize),
     ("Container preview follows GUI lifecycle and cached hover state", Tests.ContainerPreviewFollowsGuiLifecycleAndCachedHoverState),
     ("Occupied locked rows remain visible without opening equipment storage", Tests.OccupiedLockedRowsRemainVisible),
-    ("Multi-user item identity preserves cheated state", Tests.MultiUserItemIdentityPreservesCheatedState),
-    ("Built-in multi-user open uses Valheim's registered response RPC", Tests.BuiltInMultiUserOpenUsesRegisteredResponseRpc),
-    ("Built-in multi-user remote container releases mouse capture wait", Tests.BuiltInMultiUserRemoteContainerReleasesMouseCaptureWait),
     ("Default YAML parses with expected sections", Tests.DefaultYamlParsesWithExpectedSections),
     ("Malformed YAML is rejected", Tests.MalformedYamlIsRejected),
     ("Null YAML slot entry is rejected", Tests.NullYamlSlotEntryIsRejected),
@@ -132,23 +129,20 @@ TestRunner.Run(
     ("Container action success FX stays bounded and once per action", Tests.ContainerActionSuccessFxStaysBoundedAndOncePerAction),
     ("Container action success FX uses transient Everybody RPC", Tests.ContainerActionSuccessFxUsesTransientEverybodyRpc),
     ("Container action success FX stays local guarded and self cleaning", Tests.ContainerActionSuccessFxStaysLocalGuardedAndSelfCleaning),
+    ("InventorySlots area handoff waits for grant ownership and saved inventory", Tests.ContainerAreaHandoffWaitsForGrantOwnershipAndSavedInventory),
+    ("InventorySlots area handoff rejects unrelated responses", Tests.ContainerAreaHandoffRejectsUnrelatedResponses),
+    ("InventorySlots area handoff deadlines survive duplicate grants", Tests.ContainerAreaHandoffDeadlinesSurviveDuplicateGrants),
+    ("InventorySlots area handoff stops on owner token and policy changes", Tests.ContainerAreaHandoffStopsOnOwnerTokenAndPolicyChanges),
+    ("InventorySlots area handoff cancellation and unload are terminal", Tests.ContainerAreaHandoffCancellationAndUnloadAreTerminal),
+    ("InventorySlots area handoff keeps the open quick stack anchor scoped", Tests.ContainerAreaHandoffKeepsOpenQuickStackAnchorScoped),
     ("InventoryActions success FX stays bounded and once per action", Tests.InventoryActionsContainerActionSuccessFxStaysBoundedAndOncePerAction),
     ("InventoryActions success FX uses transient Everybody RPC", Tests.InventoryActionsContainerActionSuccessFxUsesTransientEverybodyRpc),
     ("InventoryActions success FX stays local guarded and self cleaning", Tests.InventoryActionsContainerActionSuccessFxStaysLocalGuardedAndSelfCleaning),
-    ("Multi-user item snapshot ignores custom data order", Tests.MultiUserItemSnapshotIgnoresCustomDataOrder),
-    ("Multi-user item snapshot rejects socket data changes", Tests.MultiUserItemSnapshotRejectsSocketDataChanges),
-    ("Multi-user transfer preserves only whole intentional over-stacks", Tests.MultiUserTransferPreservesOnlyWholeIntentionalOverStacks),
-    ("Multi-user over-stack validation stays wired end to end", Tests.MultiUserOverStackValidationStaysWiredEndToEnd),
     ("Registered stack metadata remains stack compatible", Tests.RegisteredStackMetadataRemainsStackCompatible),
     ("Stack metadata compatibility predicate fails closed", Tests.StackMetadataCompatibilityPredicateFailsClosed),
     ("Stack metadata policy preserves other custom-data identity", Tests.StackMetadataPolicyPreservesOtherCustomDataIdentity),
     ("Stack metadata merge leaves source unchanged", Tests.StackMetadataMergeLeavesSourceUnchanged),
     ("Stack metadata registration is first-wins", Tests.StackMetadataRegistrationIsFirstWins),
-    ("Multi-user item snapshot rejects insufficient stack", Tests.MultiUserItemSnapshotRejectsInsufficientStack),
-    ("Multi-user item snapshot rejects identity field changes", Tests.MultiUserItemSnapshotRejectsIdentityFieldChanges),
-    ("Multi-user transfer requires exact pre-mutation stack state", Tests.MultiUserTransferRequiresExactPreMutationStackState),
-    ("Multi-user request preparation keeps escrow behind a published pending", Tests.MultiUserRequestPreparationKeepsEscrowBehindPublishedPending),
-    ("Multi-user uncertain world delivery retains recovery ownership", Tests.MultiUserUncertainWorldDeliveryRetainsRecoveryOwnership),
     ("InventoryActions current-container transfers notify only after movement", Tests.InventoryActionsCurrentContainerTransfersNotifyOnlyAfterMovement),
     ("InventoryActions container action core copy mirrors InventorySlots behavior", Tests.InventoryActionsContainerActionCoreCopyMirrorsInventorySlotsBehavior),
     ("InventoryActions open-anchor in-use policy stays scoped", Tests.InventoryActionsOpenAnchorInUsePolicyStaysScoped),
@@ -243,58 +237,6 @@ internal static class Tests
         Assert.Equal(8, InventorySlotSafetyCore.GetRecoveryDisplayRows(7, 7), "old eighth-row item must remain reachable");
         Assert.Equal(7, InventorySlotSafetyCore.GetRecoveryDisplayRows(7, 3), "ordinary occupied cells must not expand the grid");
         Assert.Equal(9, InventorySlotSafetyCore.GetRecoveryDisplayRows(7, 10), "display extent must stop before equipment coordinates");
-    }
-
-    public static void MultiUserItemIdentityPreservesCheatedState()
-    {
-        var clean = CreateMultiUserItemSnapshot();
-        var cheated = CreateMultiUserItemSnapshot(cheated: true);
-        Assert.False(MultiUserContainerTransferCore.IsExactMatch(clean, cheated, 1), "cheated source substitution must be rejected");
-        Assert.False(MultiUserContainerTransferCore.IsExactMatch(cheated, clean, 1), "cheated state cannot disappear in a receipt");
-        Assert.True(MultiUserContainerTransferCore.IsExactMatch(cheated, CreateMultiUserItemSnapshot(cheated: true), 1), "unchanged cheated item can transfer");
-        Assert.True(MultiUserContainerTransferCore.CanStackTogether(cheated, clean, 1), "stacking retains native propagation policy, distinct from exact identity");
-    }
-
-    public static void BuiltInMultiUserOpenUsesRegisteredResponseRpc()
-    {
-        string source = File.ReadAllText(
-            Path.Combine(FindRepositoryRoot(), "MultiUserContainerOperations.cs"));
-        string openHandler = ReadSourceSection(
-            source,
-            "internal static bool TryHandleMultiUserContainerOpen(",
-            "internal static bool TryUpdateMultiUserRemoteContainer(");
-
-        Assert.True(
-            openHandler.Contains(
-                "container.m_nview.InvokeRPC(sender, \"RPC_OpenResponse\", granted);",
-                StringComparison.Ordinal),
-            "the intercepted open request must reply through Container.Awake's registered RPC name");
-        Assert.False(
-            openHandler.Contains("\"OpenRespons\"", StringComparison.Ordinal),
-            "the obsolete unregistered response RPC must not return");
-    }
-
-    public static void BuiltInMultiUserRemoteContainerReleasesMouseCaptureWait()
-    {
-        string source = File.ReadAllText(
-            Path.Combine(FindRepositoryRoot(), "MultiUserContainerOperations.cs"));
-        int remoteUpdateStart = source.IndexOf(
-            "internal static bool TryUpdateMultiUserRemoteContainer(",
-            StringComparison.Ordinal);
-        Assert.True(remoteUpdateStart >= 0, "the remote-container update handler must remain available");
-
-        int releasedHoldState = source.IndexOf(
-            "gui.m_containerHoldState = -1;",
-            remoteUpdateStart,
-            StringComparison.Ordinal);
-        int releasedMouseCaptureWait = source.IndexOf(
-            "gui.m_waitForContainerStack = false;",
-            Math.Max(0, releasedHoldState),
-            StringComparison.Ordinal);
-
-        Assert.True(
-            releasedHoldState >= 0 && releasedMouseCaptureWait > releasedHoldState,
-            "the remote-container path must mirror vanilla and release the stack wait after Use is released");
     }
 
     public static void DefaultYamlParsesWithExpectedSections()
@@ -2348,7 +2290,6 @@ internal static class Tests
         string placementPatches = File.ReadAllText(Path.Combine(repositoryRoot, "InventoryPlacementPatches.cs"));
         string placementHandlers = File.ReadAllText(Path.Combine(repositoryRoot, "InventoryPatchHandlers.cs"));
         string placementPolicy = File.ReadAllText(Path.Combine(repositoryRoot, "InventoryPlacementPolicy.cs"));
-        string multiUser = File.ReadAllText(Path.Combine(repositoryRoot, "MultiUserContainerOperations.cs"));
         string foreignRecovery = File.ReadAllText(Path.Combine(repositoryRoot, "ForeignSlotRecovery.cs"));
         string integrity = File.ReadAllText(Path.Combine(repositoryRoot, "InventoryIntegrityValidation.cs"));
 
@@ -2415,23 +2356,6 @@ internal static class Tests
             swapGuard.IndexOf("fromInventory.m_inventory.Add(displaced", StringComparison.Ordinal) <
             swapGuard.IndexOf("fromInventory.Changed()", StringComparison.Ordinal),
             "Quick and locked-row swaps must commit both exact ownership legs before any Changed callback can consume the fallback");
-
-        string multiUserDestination = ReadSourceSection(
-            multiUser,
-            "private static bool TryFindLocalMultiUserContainerDestination",
-            "private static bool CanReceiveEntireMultiUserContainerItemAt");
-        string multiUserRecovery = ReadSourceSection(
-            multiUser,
-            "private static bool TrySecurePendingMultiUserContainerLocalRecovery",
-            "private static MultiUserContainerWorldDeliveryResult");
-        Assert.True(
-            multiUserDestination.Contains("TryFindSafeInsertCell", StringComparison.Ordinal) &&
-            multiUserRecovery.Contains("pending.ResponseApplied", StringComparison.Ordinal) &&
-            multiUserRecovery.Contains("terminalFailureEscrowNeedsDelivery", StringComparison.Ordinal) &&
-            multiUserRecovery.Contains("ReferenceEquals(recoveryItem, pending.LocalEscrow)", StringComparison.Ordinal) &&
-            multiUserRecovery.Contains("TryDeliverPendingMultiUserContainerRecoveryToWorld", StringComparison.Ordinal) &&
-            multiUserRecovery.Contains("MultiUserContainerWorldDeliveryResult.Uncertain", StringComparison.Ordinal),
-            "committed multi-user removals must use special slots or a causally tracked world fallback instead of a volatile-only queue");
 
         string canAdd = ReadSourceSection(
             placementPolicy,
@@ -3562,28 +3486,6 @@ internal static class Tests
             limiter.Contains("return played + 1;", StringComparison.Ordinal),
             "the VFX broadcaster must stop at the limit and count only emitted targets");
 
-        string batchSource = File.ReadAllText(
-                Path.Combine(repositoryRoot, "MultiUserContainerBatchOperations.cs"))
-            .Replace("\r\n", "\n", StringComparison.Ordinal);
-        string movedTarget = ReadSourceSection(
-            batchSource,
-            "private static void MarkMultiUserContainerAreaBatchTargetMoved(\n        MultiUserContainerBatchState batch,\n        MultiUserContainerBatchTarget target)",
-            "private static bool TryGetMultiUserContainerBatchContext");
-        int alreadyMovedGuard = movedTarget.IndexOf("if (target.MovedAny)", StringComparison.Ordinal);
-        int remoteVfx = movedTarget.IndexOf("TryBroadcastChangedContainerActionSuccessVfx", StringComparison.Ordinal);
-        Assert.True(
-            alreadyMovedGuard >= 0 && remoteVfx > alreadyMovedGuard,
-            "remote retries must not emit a second VFX for an already changed target");
-
-        int finishStart = batchSource.IndexOf("private static void FinishMultiUserContainerBatch", StringComparison.Ordinal);
-        Assert.True(finishStart >= 0, "multi-user batch completion source must exist");
-        string finish = batchSource.Substring(finishStart);
-        int clearBatch = finish.IndexOf("_multiUserContainerBatch = null;", StringComparison.Ordinal);
-        int remoteSfx = finish.IndexOf("ContainerActionSuccessSfxKind", StringComparison.Ordinal);
-        Assert.True(
-            clearBatch >= 0 && remoteSfx > clearBatch &&
-            CountSourceOccurrences(finish, "ContainerActionSuccessSfxKind") == 1,
-            "a completed remote area action must emit the anchor SFX exactly once after clearing batch state");
     }
 
     public static void ContainerActionSuccessFxUsesTransientEverybodyRpc()
@@ -3948,120 +3850,184 @@ internal static class Tests
             "InventoryActions one-shot SFX must stay local and self-cleaning");
     }
 
-    public static void MultiUserItemSnapshotIgnoresCustomDataOrder()
+    public static void ContainerAreaHandoffWaitsForGrantOwnershipAndSavedInventory()
     {
-        MultiUserContainerItemSnapshot expected = CreateMultiUserItemSnapshot(
-            stack: 3,
-            customData:
-            [
-                new KeyValuePair<string, string>("socket-1", "Ruby"),
-                new KeyValuePair<string, string>("socket-2", "Sapphire")
-            ]);
-        MultiUserContainerItemSnapshot actual = CreateMultiUserItemSnapshot(
-            stack: 5,
-            customData:
-            [
-                new KeyValuePair<string, string>("socket-2", "Sapphire"),
-                new KeyValuePair<string, string>("socket-1", "Ruby")
-            ]);
+        ContainerAreaHandoffCore core = new();
+        ContainerAreaRequestIdentity identity = ContainerAreaIdentity();
+        Assert.True(core.TryBegin(identity, 40L, 2f), "a first request should begin");
 
-        Assert.True(
-            MultiUserContainerTransferCore.IsExactMatch(expected, actual, requiredStack: 3),
-            "custom data insertion order must not change item identity");
+        // Network state can arrive before its response, and a response before the inventory.
+        Assert.Equal(ContainerAreaHandoffDecision.None,
+            core.Observe(0.5f, true, ContainerAreaObservedOwner.LocalRequester, true,
+                ContainerAreaGrantTokenStatus.Matching, stateSynchronized: true, canExecute: true));
+        Assert.Equal(ContainerAreaHandoffPhase.AwaitingResponse, core.Phase);
+        Assert.Equal(ContainerAreaHandoffDecision.None,
+            core.ReceiveResponse(identity, 40L, true, 99L, 1f, 3f));
+        Assert.Equal(ContainerAreaHandoffDecision.None,
+            core.Observe(1.1f, true, ContainerAreaObservedOwner.ExpectedResponder, false,
+                ContainerAreaGrantTokenStatus.Matching, stateSynchronized: true, canExecute: true));
+        Assert.Equal(ContainerAreaHandoffDecision.None,
+            core.Observe(1.2f, true, ContainerAreaObservedOwner.LocalRequester, false,
+                ContainerAreaGrantTokenStatus.Matching, stateSynchronized: true, canExecute: true));
+        Assert.Equal(ContainerAreaHandoffDecision.None,
+            core.Observe(1.3f, true, ContainerAreaObservedOwner.LocalRequester, true,
+                ContainerAreaGrantTokenStatus.Missing, stateSynchronized: true, canExecute: true));
+        Assert.Equal(ContainerAreaHandoffDecision.None,
+            core.Observe(1.4f, true, ContainerAreaObservedOwner.LocalRequester, true,
+                ContainerAreaGrantTokenStatus.Matching, stateSynchronized: false, canExecute: true));
+        Assert.Equal(ContainerAreaHandoffPhase.AwaitingOwnership, core.Phase);
+
+        Assert.Equal(ContainerAreaHandoffDecision.Execute,
+            core.Observe(1.5f, true, ContainerAreaObservedOwner.LocalRequester, true,
+                ContainerAreaGrantTokenStatus.Matching, stateSynchronized: true, canExecute: true));
+        Assert.Equal(ContainerAreaHandoffDecision.None,
+            core.Observe(1.6f, true, ContainerAreaObservedOwner.LocalRequester, true,
+                ContainerAreaGrantTokenStatus.Matching, stateSynchronized: true, canExecute: true));
+        Assert.Equal(ContainerAreaHandoffDecision.None,
+            core.ReceiveResponse(identity, 40L, true, 99L, 1.7f, 100f));
+        Assert.False(core.TryBegin(ContainerAreaIdentity(2), 40L, 5f),
+            "a second target cannot begin until the one execution completes");
+        core.CompleteExecution();
+        Assert.Equal(ContainerAreaHandoffPhase.Idle, core.Phase);
+        Assert.Equal(ContainerAreaHandoffDecision.None,
+            core.ReceiveResponse(identity, 40L, true, 99L, 1.8f, 100f));
     }
 
-    public static void MultiUserItemSnapshotRejectsSocketDataChanges()
+    public static void ContainerAreaHandoffRejectsUnrelatedResponses()
     {
-        MultiUserContainerItemSnapshot expected = CreateMultiUserItemSnapshot(
-            customData:
-            [
-                new KeyValuePair<string, string>("Jewelcrafting.Sockets", "Ruby")
-            ]);
-        MultiUserContainerItemSnapshot actual = CreateMultiUserItemSnapshot(
-            customData:
-            [
-                new KeyValuePair<string, string>("Jewelcrafting.Sockets", "Emerald")
-            ]);
+        ContainerAreaHandoffCore core = new();
+        ContainerAreaRequestIdentity identity = ContainerAreaIdentity();
+        Assert.True(core.TryBegin(identity, 40L, 5f), "a request should begin");
+        ContainerAreaRequestIdentity[] wrongIdentities =
+        [
+            ContainerAreaIdentity(2),
+            new(1, 11L, 20U, ContainerAreaActionKind.QuickStack),
+            new(1, 10L, 21U, ContainerAreaActionKind.QuickStack),
+            new(1, 10L, 20U, ContainerAreaActionKind.Restock)
+        ];
+        foreach (ContainerAreaRequestIdentity wrong in wrongIdentities)
+        {
+            Assert.Equal(ContainerAreaHandoffDecision.None,
+                core.ReceiveResponse(wrong, 40L, true, 99L, 1f, 3f));
+        }
+        Assert.Equal(ContainerAreaHandoffDecision.None,
+            core.ReceiveResponse(identity, 41L, true, 99L, 1f, 3f));
+        Assert.Equal(ContainerAreaHandoffPhase.AwaitingResponse, core.Phase);
+        Assert.Equal(ContainerAreaHandoffDecision.Denied,
+            core.ReceiveResponse(identity, 40L, false, 0L, 1f, 3f));
+        Assert.Equal(ContainerAreaHandoffPhase.Idle, core.Phase);
 
-        Assert.False(
-            MultiUserContainerTransferCore.IsExactMatch(expected, actual, requiredStack: 1),
-            "socketed items with different custom data must not be treated as the same item");
+        Assert.True(core.TryBegin(ContainerAreaIdentity(2), 40L, 5f),
+            "a denial should allow the next target");
+        Assert.Equal(ContainerAreaHandoffDecision.None,
+            core.ReceiveResponse(identity, 40L, true, 99L, 2f, 4f));
+        Assert.Equal(ContainerAreaHandoffPhase.AwaitingResponse, core.Phase);
+        Assert.Equal(ContainerAreaHandoffDecision.Denied,
+            core.ReceiveResponse(ContainerAreaIdentity(2), 40L, true, 0L, 2f, 4f));
     }
 
-    public static void MultiUserTransferPreservesOnlyWholeIntentionalOverStacks()
+    public static void ContainerAreaHandoffDeadlinesSurviveDuplicateGrants()
     {
-        Assert.True(
-            MultiUserContainerTransferCore.CanTransferAmount(
-                sourceStack: 50,
-                nominalMaxStack: 20,
-                amount: 50),
-            "a deliberate over-stack must remain movable as one exact stack");
-        Assert.True(
-            MultiUserContainerTransferCore.CanTransferAmount(
-                sourceStack: 50,
-                nominalMaxStack: 20,
-                amount: 20),
-            "an over-stack may still be reduced by a nominally valid amount");
-        Assert.False(
-            MultiUserContainerTransferCore.CanTransferAmount(
-                sourceStack: 50,
-                nominalMaxStack: 20,
-                amount: 30),
-            "a partial transfer must not create another over-stack");
-        Assert.False(
-            MultiUserContainerTransferCore.CanTransferAmount(
-                sourceStack: 50,
-                nominalMaxStack: 20,
-                amount: 51),
-            "a transfer may never exceed its exact source stack");
-        Assert.False(
-            MultiUserContainerTransferCore.CanTransferAmount(
-                sourceStack: MultiUserContainerTransferCore.MaximumSerializedStack + 1,
-                nominalMaxStack: 20,
-                amount: 20),
-            "the absolute serialized stack bound must remain enforced");
+        ContainerAreaRequestIdentity identity = ContainerAreaIdentity();
+        ContainerAreaHandoffCore responseTimeout = new();
+        Assert.True(responseTimeout.TryBegin(identity, 40L, 2f), "a request should begin");
+        Assert.Equal(ContainerAreaHandoffDecision.Timeout,
+            responseTimeout.ReceiveResponse(identity, 40L, true, 99L, 2f, 5f));
+        Assert.Equal(ContainerAreaHandoffDecision.None,
+            responseTimeout.ReceiveResponse(identity, 40L, true, 99L, 2.1f, 5f));
+
+        ContainerAreaHandoffCore granted = GrantedContainerAreaCore(identity);
+        Assert.Equal(ContainerAreaHandoffDecision.None,
+            granted.ReceiveResponse(identity, 40L, true, 99L, 2f, 100f));
+        Assert.Equal(ContainerAreaHandoffDecision.Timeout,
+            granted.Observe(3f, true, ContainerAreaObservedOwner.LocalRequester, true,
+                ContainerAreaGrantTokenStatus.Matching, stateSynchronized: false, canExecute: true));
+        Assert.Equal(ContainerAreaHandoffDecision.None,
+            granted.Observe(3.1f, true, ContainerAreaObservedOwner.LocalRequester, true,
+                ContainerAreaGrantTokenStatus.Matching, stateSynchronized: true, canExecute: true));
+        Assert.Equal(ContainerAreaHandoffPhase.Idle, granted.Phase);
     }
 
-    public static void MultiUserOverStackValidationStaysWiredEndToEnd()
+    public static void ContainerAreaHandoffStopsOnOwnerTokenAndPolicyChanges()
     {
-        string repositoryRoot = FindRepositoryRoot();
-        string mutation = File.ReadAllText(
-            Path.Combine(repositoryRoot, "MultiUserContainerInventoryMutation.cs"));
-        string operations = File.ReadAllText(
-            Path.Combine(repositoryRoot, "MultiUserContainerOperations.cs"));
-        string protocol = File.ReadAllText(
-            Path.Combine(repositoryRoot, "MultiUserContainerProtocol.cs"));
-        string codec = File.ReadAllText(
-            Path.Combine(repositoryRoot, "MultiUserContainerItemCodec.cs"));
+        ContainerAreaHandoffCore changedOwner = GrantedContainerAreaCore(ContainerAreaIdentity());
+        Assert.Equal(ContainerAreaHandoffDecision.OwnerChanged,
+            changedOwner.Observe(1.5f, true, ContainerAreaObservedOwner.Other, false,
+                ContainerAreaGrantTokenStatus.Missing, stateSynchronized: false, canExecute: false));
+        Assert.Equal(ContainerAreaHandoffPhase.Idle, changedOwner.Phase);
 
-        Assert.True(
-            CountSourceOccurrences(
-                mutation,
-                "MultiUserContainerTransferCore.CanTransferAmount(") >= 4,
-            "add, destination search, remove, and move must share the over-stack transfer rule");
-        Assert.True(
-            operations.Contains(
-                "MultiUserContainerTransferCore.CanTransferAmount(",
-                StringComparison.Ordinal),
-            "request creation must enforce the same transfer rule");
-        Assert.True(
-            protocol.Contains(
-                "MultiUserContainerTransferCore.CanTransferAmount(",
-                StringComparison.Ordinal),
-            "the authoritative request validator must enforce the same transfer rule");
-        Assert.True(
-            mutation.Contains(
-                "item.m_stack > MultiUserContainerTransferCore.MaximumSerializedStack",
-                StringComparison.Ordinal) &&
-            !mutation.Contains(
-                "item.m_stack > item.m_shared.m_maxStackSize",
-                StringComparison.Ordinal),
-            "mutation validation must accept existing over-stacks while keeping the absolute bound");
-        Assert.True(
-            codec.Contains(
-                "MultiUserContainerTransferCore.MaximumSerializedStack",
-                StringComparison.Ordinal),
-            "wire decoding and runtime validation must share one absolute stack bound");
+        ContainerAreaHandoffCore replacedGrant = GrantedContainerAreaCore(ContainerAreaIdentity());
+        Assert.Equal(ContainerAreaHandoffDecision.GrantReplaced,
+            replacedGrant.Observe(1.5f, true, ContainerAreaObservedOwner.LocalRequester, true,
+                ContainerAreaGrantTokenStatus.Other, stateSynchronized: true, canExecute: true));
+        Assert.Equal(ContainerAreaHandoffPhase.Idle, replacedGrant.Phase);
+
+        ContainerAreaHandoffCore policyChanged = GrantedContainerAreaCore(ContainerAreaIdentity());
+        Assert.Equal(ContainerAreaHandoffDecision.Unavailable,
+            policyChanged.Observe(1.5f, true, ContainerAreaObservedOwner.LocalRequester, true,
+                ContainerAreaGrantTokenStatus.Matching, stateSynchronized: true, canExecute: false));
+        Assert.Equal(ContainerAreaHandoffPhase.Idle, policyChanged.Phase);
+    }
+
+    public static void ContainerAreaHandoffCancellationAndUnloadAreTerminal()
+    {
+        foreach (bool afterGrant in new[] { false, true })
+        {
+            ContainerAreaRequestIdentity identity = ContainerAreaIdentity();
+            ContainerAreaHandoffCore cancelled = afterGrant
+                ? GrantedContainerAreaCore(identity) : new();
+            if (!afterGrant)
+            {
+                Assert.True(cancelled.TryBegin(identity, 40L, 2f), "a request should begin");
+            }
+            cancelled.Cancel();
+            Assert.Equal(ContainerAreaHandoffPhase.Idle, cancelled.Phase);
+            Assert.Equal(0L, cancelled.GrantToken);
+            Assert.Equal(ContainerAreaHandoffDecision.None,
+                cancelled.ReceiveResponse(identity, 40L, true, 99L, 1.5f, 3f));
+            Assert.Equal(ContainerAreaHandoffDecision.None,
+                cancelled.Observe(1.5f, true, ContainerAreaObservedOwner.LocalRequester, true,
+                    ContainerAreaGrantTokenStatus.Matching, stateSynchronized: true, canExecute: true));
+            Assert.True(cancelled.TryBegin(ContainerAreaIdentity(2), 40L, 5f),
+                "cancellation must permit a new action without accepting a stale old grant");
+
+            ContainerAreaHandoffCore unloaded = afterGrant
+                ? GrantedContainerAreaCore(identity) : new();
+            if (!afterGrant)
+            {
+                Assert.True(unloaded.TryBegin(identity, 40L, 2f), "a request should begin");
+            }
+            Assert.Equal(ContainerAreaHandoffDecision.Unloaded,
+                unloaded.Observe(1.5f, false, ContainerAreaObservedOwner.Unknown, false,
+                    ContainerAreaGrantTokenStatus.Missing, stateSynchronized: false, canExecute: false));
+            Assert.Equal(ContainerAreaHandoffPhase.Idle, unloaded.Phase);
+        }
+    }
+
+    public static void ContainerAreaHandoffKeepsOpenQuickStackAnchorScoped()
+    {
+        Assert.True(ContainerAreaUsePolicy.AllowsInUseState(true, true, true, true),
+            "the already open quick stack anchor must remain included");
+        Assert.True(ContainerAreaUsePolicy.AllowsInUseState(false, false, true, true),
+            "an open quick stack anchor may still reach unused nearby containers");
+        Assert.False(ContainerAreaUsePolicy.AllowsInUseState(false, true, true, true),
+            "the anchor exception must never authorize a different occupied chest");
+        Assert.False(ContainerAreaUsePolicy.AllowsInUseState(true, true, true, false),
+            "restock and ordinary actions must not inherit the open quick stack exception");
+        Assert.True(ContainerAreaUsePolicy.AllowsInUseState(false, false, false, false),
+            "unused containers remain eligible independently of the anchor exception");
+    }
+
+    private static ContainerAreaRequestIdentity ContainerAreaIdentity(int requestId = 1) =>
+        new(requestId, 10L, 20U, ContainerAreaActionKind.QuickStack);
+
+    private static ContainerAreaHandoffCore GrantedContainerAreaCore(ContainerAreaRequestIdentity identity)
+    {
+        ContainerAreaHandoffCore core = new();
+        Assert.True(core.TryBegin(identity, 40L, 2f), "a request should begin");
+        Assert.Equal(ContainerAreaHandoffDecision.None,
+            core.ReceiveResponse(identity, 40L, true, 99L, 1f, 3f));
+        return core;
     }
 
     public static void RegisteredStackMetadataRemainsStackCompatible()
@@ -4073,31 +4039,18 @@ internal static class Tests
                 (destinationValue, sourceValue) => sourceValue ?? destinationValue),
             "a new custom-data policy must register successfully");
 
-        MultiUserContainerItemSnapshot incoming = CreateMultiUserItemSnapshot(
-            stack: 3,
-            customData:
-            [
-                new KeyValuePair<string, string>(key, "incoming")
-            ]);
-        MultiUserContainerItemSnapshot target = CreateMultiUserItemSnapshot(
-            stack: 5,
-            customData:
-            [
-                new KeyValuePair<string, string>(key, "target")
-            ]);
+        Dictionary<string, string> incoming = new(StringComparer.Ordinal)
+        {
+            [key] = "incoming"
+        };
+        Dictionary<string, string> target = new(StringComparer.Ordinal)
+        {
+            [key] = "target"
+        };
 
         Assert.True(
-            MultiUserContainerTransferCore.CanStackTogether(
-                incoming,
-                target,
-                requiredStack: 1),
+            StackMetadataPolicy.AreCompatible(incoming, target),
             "registered custom-data values may differ without blocking a stack merge");
-        Assert.False(
-            MultiUserContainerTransferCore.IsExactMatch(
-                incoming,
-                target,
-                requiredStack: 1),
-            "optimistic concurrency snapshots must still compare registered values exactly");
 
         Assert.True(
             StackMetadataPolicy.CanParticipateInAutomaticStacking(
@@ -4183,16 +4136,6 @@ internal static class Tests
             StackMetadataPolicy.AreCompatible(ruby, emerald),
             "only registered custom-data fields may differ");
 
-        MultiUserContainerItemSnapshot rubySnapshot = CreateMultiUserItemSnapshot(
-            customData: ruby);
-        MultiUserContainerItemSnapshot emeraldSnapshot = CreateMultiUserItemSnapshot(
-            customData: emerald);
-        Assert.False(
-            MultiUserContainerTransferCore.CanStackTogether(
-                rubySnapshot,
-                emeraldSnapshot,
-                requiredStack: 1),
-            "multi-user stacking must not weaken socket/custom-data identity");
     }
 
     public static void StackMetadataMergeLeavesSourceUnchanged()
@@ -4258,203 +4201,6 @@ internal static class Tests
         };
         StackMetadataPolicy.MergeInto(destination, source);
         Assert.Equal("first", destination[key]);
-    }
-
-    public static void MultiUserItemSnapshotRejectsInsufficientStack()
-    {
-        MultiUserContainerItemSnapshot expected = CreateMultiUserItemSnapshot(stack: 5);
-        MultiUserContainerItemSnapshot insufficientActual = CreateMultiUserItemSnapshot(stack: 2);
-        MultiUserContainerItemSnapshot malformedExpected = CreateMultiUserItemSnapshot(stack: 2);
-        MultiUserContainerItemSnapshot sufficientActual = CreateMultiUserItemSnapshot(stack: 5);
-
-        Assert.False(
-            MultiUserContainerTransferCore.IsExactMatch(expected, insufficientActual, requiredStack: 3),
-            "the current item must still contain the requested amount");
-        Assert.False(
-            MultiUserContainerTransferCore.IsExactMatch(malformedExpected, sufficientActual, requiredStack: 3),
-            "the captured item must have contained the requested amount");
-    }
-
-    public static void MultiUserItemSnapshotRejectsIdentityFieldChanges()
-    {
-        MultiUserContainerItemSnapshot expected = CreateMultiUserItemSnapshot();
-        MultiUserContainerItemSnapshot[] mismatches =
-        [
-            CreateMultiUserItemSnapshot(prefabName: "ArmorFenringChest"),
-            CreateMultiUserItemSnapshot(quality: 4),
-            CreateMultiUserItemSnapshot(variant: 3),
-            CreateMultiUserItemSnapshot(worldLevel: 2),
-            CreateMultiUserItemSnapshot(crafterId: 99),
-            CreateMultiUserItemSnapshot(crafterName: "Other crafter"),
-            CreateMultiUserItemSnapshot(durability: 49.5f),
-            CreateMultiUserItemSnapshot(pickedUp: false)
-        ];
-
-        foreach (MultiUserContainerItemSnapshot mismatch in mismatches)
-        {
-            Assert.False(
-                MultiUserContainerTransferCore.IsExactMatch(expected, mismatch, requiredStack: 1),
-                "every serialized identity field must participate in exact matching");
-        }
-
-        float negativeZero = BitConverter.Int32BitsToSingle(unchecked((int)0x80000000));
-        MultiUserContainerItemSnapshot positiveZero = CreateMultiUserItemSnapshot(durability: 0f);
-        MultiUserContainerItemSnapshot negativeZeroSnapshot = CreateMultiUserItemSnapshot(durability: negativeZero);
-        Assert.False(
-            MultiUserContainerTransferCore.IsExactMatch(positiveZero, negativeZeroSnapshot, requiredStack: 1),
-            "durability must be compared by its serialized bit value");
-    }
-
-    public static void MultiUserTransferRequiresExactPreMutationStackState()
-    {
-        Assert.True(
-            MultiUserContainerTransferCore.MatchesExpectedStackState(0, null),
-            "an empty target must still be empty");
-        Assert.False(
-            MultiUserContainerTransferCore.MatchesExpectedStackState(0, 1),
-            "a retry must not reuse a target populated by the first application");
-        Assert.True(
-            MultiUserContainerTransferCore.MatchesExpectedStackState(5, 5),
-            "an unchanged populated stack must match");
-        Assert.False(
-            MultiUserContainerTransferCore.MatchesExpectedStackState(5, 3),
-            "a partially consumed source must reject a repeated removal");
-        Assert.False(
-            MultiUserContainerTransferCore.MatchesExpectedStackState(5, 7),
-            "a target changed by an earlier add must reject a repeated add");
-        Assert.False(
-            MultiUserContainerTransferCore.MatchesExpectedStackState(-1, null),
-            "negative sentinels are not valid mutation preconditions");
-    }
-
-    public static void MultiUserRequestPreparationKeepsEscrowBehindPublishedPending()
-    {
-        string source = File.ReadAllText(
-            Path.Combine(FindRepositoryRoot(), "MultiUserContainerOperations.cs"));
-        string preparation = ReadSourceSection(
-            source,
-            "private static bool TryStartPreparedMultiUserContainerRequest",
-            "private static MultiUserContainerRequest CreateMultiUserContainerRequest");
-
-        int publishPending = preparation.IndexOf(
-            "_pendingMultiUserContainerTransfer = pending;",
-            StringComparison.Ordinal);
-        int markPublished = preparation.IndexOf(
-            "pendingPublished = true;",
-            StringComparison.Ordinal);
-        int send = preparation.IndexOf(
-            "container.m_nview.InvokeRPC(",
-            StringComparison.Ordinal);
-        Assert.True(
-            publishPending >= 0 && markPublished > publishPending && send > markPublished,
-            "escrow must be represented by a published pending before the uncertain network send begins");
-
-        Assert.True(
-            preparation.Contains("if (!pendingPublished", StringComparison.Ordinal) &&
-            CountSourceOccurrences(
-                preparation,
-                "RestoreMultiUserContainerLocalEscrow(") == 1,
-            "all preparation failures must converge on one pre-publication escrow rollback");
-        Assert.True(
-            preparation.Contains(
-                "initial request send failed; retrying",
-                StringComparison.Ordinal) &&
-            preparation.Contains("return true;", StringComparison.Ordinal),
-            "an uncertain initial send must retain the pending for receipt polling and retry instead of restoring escrow");
-
-        string runtime = ReadSourceSection(
-            source,
-            "internal static void UpdateMultiUserContainerRuntime",
-            "internal static void ShutdownMultiUserContainerRuntime");
-        Assert.True(
-            runtime.Contains("request resend failed; retrying", StringComparison.Ordinal) &&
-            runtime.Contains("new ZPackage(pending.RequestBytes)", StringComparison.Ordinal),
-            "bounded resend failures must preserve the serialized pending request without aborting the Update cycle");
-    }
-
-    public static void MultiUserUncertainWorldDeliveryRetainsRecoveryOwnership()
-    {
-        string repositoryRoot = FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(repositoryRoot, "MultiUserContainerOperations.cs"));
-        string handlers = File.ReadAllText(
-            Path.Combine(repositoryRoot, "InventoryPatchHandlers.cs"));
-        string lifecycle = File.ReadAllText(
-            Path.Combine(repositoryRoot, "InventoryLifecyclePatches.cs"));
-        string shutdown = ReadSourceSection(
-            source,
-            "internal static void ShutdownMultiUserContainerRuntime",
-            "private static bool IsMultiUserContainerRequestVisibleInInventory");
-        string delivery = ReadSourceSection(
-            source,
-            "DeliverMultiUserContainerItemToWorld(ItemData? item, int amount)",
-            "private static void ShowMultiUserContainerNotReady");
-
-        int beginScope = delivery.IndexOf(
-            "BeginMultiUserContainerWorldDropCreation(item)",
-            StringComparison.Ordinal);
-        int createWorldItem = delivery.IndexOf(
-            "ItemDrop.DropItem(",
-            StringComparison.Ordinal);
-        int endScope = delivery.IndexOf(
-            "EndMultiUserContainerWorldDropCreation(creationScope)",
-            StringComparison.Ordinal);
-        int partialDiscard = delivery.IndexOf(
-            "TryDiscardIncompleteInventorySlotsWorldDrop(partial)",
-            StringComparison.Ordinal);
-        int uncertainResult = delivery.IndexOf(
-            "return MultiUserContainerWorldDeliveryResult.Uncertain;",
-            Math.Max(0, partialDiscard),
-            StringComparison.Ordinal);
-        Assert.True(
-            beginScope >= 0 &&
-            createWorldItem > beginScope &&
-            endScope > createWorldItem &&
-            partialDiscard > endScope &&
-            uncertainResult > partialDiscard &&
-            delivery.Contains(
-                "return MultiUserContainerWorldDeliveryResult.DefinitelyNotSpawned;",
-                StringComparison.Ordinal),
-            "an exact ItemDrop call scope must discard an observed partial spawn before permitting local recovery");
-        Assert.True(
-            delivery.Contains(
-                "OnItemDropAwakeForMultiUserContainerWorldDelivery",
-                StringComparison.Ordinal) &&
-            delivery.Contains("scope.Candidate = itemDrop", StringComparison.Ordinal) &&
-            handlers.Contains(
-                "OnItemDropAwakeForMultiUserContainerWorldDelivery(itemDrop);",
-                StringComparison.Ordinal) &&
-            lifecycle.Contains("[HarmonyPriority(Priority.First)]", StringComparison.Ordinal) &&
-            lifecycle.Contains("private static void Prefix(ItemDrop __instance)", StringComparison.Ordinal),
-            "the Priority.First ItemDrop Awake path must publish the exact-call candidate to multi-user recovery");
-
-        int retainOwnership = shutdown.IndexOf(
-            "bool retainUncertainRecoveryOwnership",
-            StringComparison.Ordinal);
-        int completePending = shutdown.IndexOf(
-            "CompletePendingMultiUserContainerTransfer(",
-            Math.Max(0, retainOwnership),
-            StringComparison.Ordinal);
-        Assert.True(
-            retainOwnership >= 0 &&
-            completePending > retainOwnership &&
-            shutdown.Contains(
-                "MultiUserContainerWorldDeliveryResult.Uncertain",
-                StringComparison.Ordinal) &&
-            shutdown.Contains(
-                "pending.WorldDeliveryResult !=",
-                StringComparison.Ordinal) &&
-            shutdown.Contains("else if (pending != null)", StringComparison.Ordinal) &&
-            shutdown.Contains("remains unacknowledged", StringComparison.Ordinal) &&
-            shutdown.Contains(
-                "TryPreservePendingMultiUserContainerRecoveryForShutdown",
-                StringComparison.Ordinal) &&
-            shutdown.Contains(
-                "SelectNonOverlappingPreservationCell",
-                StringComparison.Ordinal) &&
-            shutdown.IndexOf("inventory.m_inventory.Add(item)", StringComparison.Ordinal) <
-            shutdown.IndexOf("inventory.Changed()", StringComparison.Ordinal),
-            "shutdown must retain uncertain response ownership and durably preserve definitely-unspawned recovery items without creating a duplicate");
     }
 
     public static void InventoryActionsCurrentContainerTransfersNotifyOnlyAfterMovement()
@@ -5251,31 +4997,6 @@ internal static class Tests
         public bool Valid { get; }
         public int Moved { get; }
     }
-
-    private static MultiUserContainerItemSnapshot CreateMultiUserItemSnapshot(
-        string prefabName = "ArmorCarapaceChest",
-        int quality = 3,
-        int variant = 2,
-        int worldLevel = 1,
-        long crafterId = 42,
-        string crafterName = "Crafter",
-        float durability = 50f,
-        bool pickedUp = true,
-        int stack = 1,
-        IEnumerable<KeyValuePair<string, string>>? customData = null,
-        bool cheated = false) =>
-        new(
-            prefabName,
-            quality,
-            variant,
-            worldLevel,
-            crafterId,
-            crafterName,
-            durability,
-            pickedUp,
-            stack,
-            customData,
-            cheated);
 
     private static SortKey Key(
         int resourceTier = 0,
