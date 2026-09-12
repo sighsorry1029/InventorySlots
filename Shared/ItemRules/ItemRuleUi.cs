@@ -595,19 +595,20 @@ public sealed partial class InventoryActionsPlugin
         {
             RectTransform rect = Rect("Quantity", parent, new Vector2(58, 32), Vector2.zero);
             rect.gameObject.SetActive(false);
-            Image border = rect.gameObject.AddComponent<Image>(); border.color = new Color(0.62f, 0.46f, 0.27f, 1);
+            Image border = rect.gameObject.AddComponent<Image>(); border.color = new Color(0.30f, 0.23f, 0.15f, 1);
             Image image = ControlFace(rect, 2f);
             RectTransform textArea = Rect("TextArea", rect, Vector2.zero, Vector2.zero); Stretch(textArea);
             textArea.offsetMin = new Vector2(4, 2); textArea.offsetMax = new Vector2(-4, -2);
             textArea.gameObject.AddComponent<RectMask2D>();
             TMP_Text value = Text(textArea, "Text", entry.Amount, 17); Stretch(value.rectTransform);
-            value.alignment = TextAlignmentOptions.MidlineRight;
+            value.alignment = TextAlignmentOptions.MidlineRight; value.color = ControlTextColor;
             TMP_InputField input = rect.gameObject.AddComponent<TMP_InputField>();
             input.targetGraphic = image; input.textViewport = textArea; input.textComponent = value;
-            input.colors = ControlColors;
+            input.colors = InputColors;
             input.contentType = TMP_InputField.ContentType.IntegerNumber;
             input.characterLimit = 10; input.lineType = TMP_InputField.LineType.SingleLine;
-            input.text = entry.Amount; input.customCaretColor = true; input.caretColor = _text;
+            input.text = entry.Amount; input.customCaretColor = true; input.caretColor = ControlTextColor;
+            input.selectionColor = new Color(0.30f, 0.48f, 0.62f, 0.55f);
             input.onSelect.AddListener(_ => BeginEdit());
             input.onValueChanged.AddListener(text => { entry.Amount = text; BeginEdit(entry); });
             input.onSubmit.AddListener(_ => { if (_editing && !ZInput.GetKeyDown(KeyCode.Escape)) Save(); });
@@ -675,10 +676,11 @@ public sealed partial class InventoryActionsPlugin
             button.onClick.AddListener(action);
             if (text.Length > 0)
             {
-                // Warm inset over the native frame, avoiding its near-black face.
+                // Muted parchment/tan faces contrast with both the wooden panel
+                // and dark text without using white or saturated yellow surfaces.
                 // The empty-text outside-click backdrop stays fully transparent.
                 button.targetGraphic = ControlFace(rect, 6f); button.colors = ControlColors;
-                TMP_Text label = Text(rect, "Label", text, 16); Stretch(label.rectTransform); label.alignment = TextAlignmentOptions.Center;
+                TMP_Text label = Text(rect, "Label", text, 16); Stretch(label.rectTransform); label.alignment = TextAlignmentOptions.Center; label.color = ControlTextColor;
             }
             return button;
         }
@@ -691,13 +693,23 @@ public sealed partial class InventoryActionsPlugin
             return image;
         }
 
+        private static readonly Color ControlTextColor = new(0.14f, 0.10f, 0.065f, 1);
         private static ColorBlock ControlColors => new()
         {
-            normalColor = new Color(0.32f, 0.24f, 0.16f, 1),
-            highlightedColor = new Color(0.44f, 0.34f, 0.22f, 1),
-            selectedColor = new Color(0.44f, 0.34f, 0.22f, 1),
-            pressedColor = new Color(0.25f, 0.18f, 0.11f, 1),
-            disabledColor = new Color(0.25f, 0.22f, 0.18f, 1),
+            normalColor = new Color(0.75f, 0.65f, 0.48f, 1),
+            highlightedColor = new Color(0.84f, 0.75f, 0.58f, 1),
+            selectedColor = new Color(0.84f, 0.75f, 0.58f, 1),
+            pressedColor = new Color(0.65f, 0.55f, 0.40f, 1),
+            disabledColor = new Color(0.61f, 0.56f, 0.47f, 1),
+            colorMultiplier = 1f, fadeDuration = 0.08f
+        };
+        private static ColorBlock InputColors => new()
+        {
+            normalColor = new Color(0.87f, 0.82f, 0.71f, 1),
+            highlightedColor = new Color(0.91f, 0.86f, 0.76f, 1),
+            selectedColor = new Color(0.93f, 0.89f, 0.80f, 1),
+            pressedColor = new Color(0.82f, 0.76f, 0.65f, 1),
+            disabledColor = new Color(0.68f, 0.65f, 0.57f, 1),
             colorMultiplier = 1f, fadeDuration = 0.08f
         };
         private Sprite CreateRuleIcon(bool restock)

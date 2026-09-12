@@ -148,3 +148,29 @@ Original client/server static checks passed: Slots 1007 references / 133 targets
 40 reflected contracts, Actions 496 / 29 / 0; existing manual entries remain 8/1.
 Actual split/variant/trash confirmation overlaps, hover suppression and closing
 transitions still need an in-game check in each mod.
+
+## Muted control colors — 2026-09-13
+
+Both consumers use low-saturation parchment inputs and tan buttons with dark brown
+text. Input borders/carets are dark, and text selection uses translucent blue-gray.
+Hover/focus gently lightens each surface. Font, size, layout, wood background,
+native materials and sprites are unchanged. ControlFace stays white; only the
+Selectable tint supplies the surface color, avoiding a second multiplication.
+The transparent outside-click backdrop is unchanged.
+
+Nominal sRGB text contrast calculated from the actual source colors is 7.30:1 for
+normal buttons and 11.34:1 for normal inputs. All defined control states exceed
+4.5:1 (minimum 5.37:1). This is a color calculation, not a measurement of game
+rendering or comfort. Actual hover/focus/selection appearance still needs a game
+check, along with the dialog overlaps listed above.
+
+Final Debug/deploy builds passed with zero warnings/errors. Original client/server
+static checks passed: Slots 1008 references / 133 targets / 40 reflected contracts;
+Actions 497 / 29 / 0. Existing manual entries remain 8/1. Final merged DLLs and
+Steam plugins copies match by SHA-256:
+
+- Slots: `B1A43806A2E1AEFC8929360E4A6A3BC0ED3C8D80F7E7C35D121FA29DB0A61DA3`
+- Actions: `B605612C1983DB234B3A1F0E86C9E1FD5D5E231934FCFF964A832FB4F117F0B8`
+
+Reports: ignored `artifacts/item-rule-colors-20260913-*-*.json`.
+No Release package, version change, push or actual game session was performed.
