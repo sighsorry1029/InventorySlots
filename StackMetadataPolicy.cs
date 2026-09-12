@@ -131,17 +131,6 @@ internal static class StackMetadataPolicy
         return true;
     }
 
-    internal static bool AreCompatible(
-        IReadOnlyList<KeyValuePair<string, string>>? left,
-        IReadOnlyList<KeyValuePair<string, string>>? right)
-    {
-        Dictionary<string, string>? leftDictionary = ToDictionary(left);
-        Dictionary<string, string>? rightDictionary = ToDictionary(right);
-        return leftDictionary != null &&
-               rightDictionary != null &&
-               AreCompatible(leftDictionary, rightDictionary);
-    }
-
     /// <summary>
     /// Applies every registered merge policy to the destination without changing
     /// the source. This makes partial-stack transfers safe: a remaining source
@@ -240,28 +229,6 @@ internal static class StackMetadataPolicy
             // metadata must never relax stack identity.
             return false;
         }
-    }
-
-    private static Dictionary<string, string>? ToDictionary(
-        IReadOnlyList<KeyValuePair<string, string>>? entries)
-    {
-        Dictionary<string, string> result = new(StringComparer.Ordinal);
-        if (entries == null)
-        {
-            return result;
-        }
-
-        foreach (KeyValuePair<string, string> entry in entries)
-        {
-            if (result.ContainsKey(entry.Key))
-            {
-                return null;
-            }
-
-            result.Add(entry.Key, entry.Value);
-        }
-
-        return result;
     }
 
     private static Dictionary<string, MergePolicy> GetPoliciesSnapshot()
