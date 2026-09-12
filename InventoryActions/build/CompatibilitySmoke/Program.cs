@@ -103,6 +103,33 @@ internal static class Program
         CheckOffset("unbind after populated value", "GetSortButtonPositionOffset", 0f, 0f);
         sortField.SetValue(null, replacement);
         CheckOffset("restore same entry after unbind", "GetSortButtonPositionOffset", 0f, 7f);
+
+        // The two rule buttons must not inherit or share the trash/sort caches.
+        foreach (string name in new[] { "RestockRules", "AutoPickup" })
+        {
+            string getter = "Get" + name + "ButtonPositionOffset";
+            string fieldName = name == "RestockRules" ? "_restockRulesButtonPositionOffset" : "_autoPickupButtonPositionOffset";
+            FieldInfo field = plugin.GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Static)!;
+            CheckOffset(name + " unbound", getter, 0f, 0f);
+            ConfigEntry<string> entry = config.Bind("test", name, "x: -12.5 y: 24", "");
+            field.SetValue(null, entry);
+            CheckOffset(name + " configured", getter, -12.5f, 24f);
+            entry.Value = "x: 30 y: -16";
+            CheckOffset(name + " live edit", getter, 30f, -16f);
+            CheckOffset(name + " leaves sort independent", "GetSortButtonPositionOffset", 0f, 7f);
+            CheckOffset(name + " leaves trash independent", "GetTrashButtonPositionOffset", 8f, 9f);
+            entry.Value = "invalid";
+            CheckOffset(name + " invalid input", getter, 0f, 0f);
+            entry.Value = "x: -12.5 y: 24";
+            CheckOffset(name + " restored", getter, -12.5f, 24f);
+            field.SetValue(null, null);
+            CheckOffset(name + " unbound after populated", getter, 0f, 0f);
+            field.SetValue(null, entry);
+            CheckOffset(name + " rebound", getter, -12.5f, 24f);
+        }
+        config["test", "AutoPickup"].BoxedValue = "x: 51 y: -7";
+        CheckOffset("auto pickup distinct position", "GetAutoPickupButtonPositionOffset", 51f, -7f);
+        CheckOffset("auto pickup edits leave restock independent", "GetRestockRulesButtonPositionOffset", -12.5f, 24f);
     }
 
     private static void CheckOffset(string name, string getter, float x, float y)

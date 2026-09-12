@@ -56,6 +56,9 @@ public sealed partial class InventoryActionsPlugin
         internal bool Pinned { get; private set; }
         private RectTransform _root = null!, _toolbar = null!, _popup = null!, _content = null!, _viewport = null!;
         private Button _restockButton = null!, _excludeButton = null!, _backdrop = null!;
+        private Sprite _restockIcon = null!, _excludeIcon = null!;
+        private Sprite? _ruleButtonSprite;
+        private int _visibleRowCount = 1;
         private TMP_Text _title = null!, _scope = null!, _status = null!;
         private RectTransform _footer = null!;
         private TMP_FontAsset _font = null!;
@@ -94,11 +97,12 @@ public sealed partial class InventoryActionsPlugin
             _camera = gui.GetComponentInParent<Canvas>()?.worldCamera;
             _font = gui.m_takeAllButton.GetComponentInChildren<TMP_Text>(true)?.font ?? TMP_Settings.defaultFontAsset;
             _toolbar = Rect("Toolbar", _root, Vector2.zero, Vector2.zero);
-            _restockButton = Button(_toolbar, "Restock", "", () => ClickTool(true));
-            _excludeButton = Button(_toolbar, "Exclude", "", () => ClickTool(false));
+            _restockButton = RuleButton("InventoryActions_RestockRules", true);
+            _excludeButton = RuleButton("InventoryActions_AutoPickupRules", false);
+            _ruleButtonSprite = _restockButton.image.sprite;
             _restockButton.gameObject.AddComponent<UIDragHandler>().m_onReleasedOn = _ => ClickTool(true);
             _excludeButton.gameObject.AddComponent<UIDragHandler>().m_onReleasedOn = _ => ClickTool(false);
-            SetIcon(_restockButton, true); SetIcon(_excludeButton, false);
+            _restockIcon = CreateRuleIcon(true); _excludeIcon = CreateRuleIcon(false);
             _backdrop = Button(_root, "Outside", "", () => { if (!_editing) Close(); });
             Stretch((RectTransform)_backdrop.transform);
             _backdrop.GetComponent<Image>().color = Color.clear;
@@ -106,6 +110,7 @@ public sealed partial class InventoryActionsPlugin
             _popup = Rect("Popup", _root, new Vector2(360f, 160f), Vector2.zero);
             Image background = _popup.gameObject.AddComponent<Image>();
             background.color = new Color(0.15f, 0.13f, 0.14f, 0.99f);
+            ApplyWoodenPanelStyle(background);
             _title = Text(_popup, "Title", "", 19f);
             Frame(_title.rectTransform, 12, -10, 336, 28);
             _scope = Text(_popup, "Scope", "", 13f);
@@ -138,12 +143,19 @@ public sealed partial class InventoryActionsPlugin
             float sortSize = GetContainerSortButtonSize(Owner);
             Vector3 trashPosition = origin + new Vector3(
                 GetInventorySortPanelPosition(grid, sortSize, rows).x - origin.x + (sortSize - size) * 0.5f,
-                -Mathf.Max(1, rows) * Mathf.Max(1f, grid.m_elementSpace) - TrashPanelGap, 0f) + (Vector3)GetTrashButtonPositionOffset();
+                -Mathf.Max(1, rows) * Mathf.Max(1f, grid.m_elementSpace) - TrashPanelGap, 0f);
             Vector3 world = grid.m_gridRoot.TransformPoint(trashPosition - new Vector3(2 * (size + Gap) + 4f, 0f));
             _toolbar.localPosition = _root.InverseTransformPoint(world);
             _toolbar.sizeDelta = new Vector2(2 * size + Gap, size);
-            Frame((RectTransform)_restockButton.transform, 0, 0, size, size);
-            Frame((RectTransform)_excludeButton.transform, size + Gap, 0, size, size);
+            Vector2 restockOffset = GetRestockRulesButtonPositionOffset();
+            Vector2 excludeOffset = GetAutoPickupButtonPositionOffset();
+            Frame((RectTransform)_restockButton.transform, restockOffset.x, restockOffset.y, size, size);
+            Frame((RectTransform)_excludeButton.transform, size + Gap + excludeOffset.x, excludeOffset.y, size, size);
+            ConfigureInventoryActionIcon(_restockButton, size, _restockIcon);
+            ConfigureInventoryActionIcon(_excludeButton, size, _excludeIcon);
+            bool acceptsHeldItem = CanRegisterHeldItem();
+            UpdateRuleButtonVisual(_restockButton, acceptsHeldItem);
+            UpdateRuleButtonVisual(_excludeButton, acceptsHeldItem);
             _toolbar.gameObject.SetActive(true);
             if (Open) PositionPopup();
             if (transform.GetSiblingIndex() != transform.parent.childCount - 1) transform.SetAsLastSibling();
@@ -151,14 +163,87 @@ public sealed partial class InventoryActionsPlugin
 
         private void PositionPopup()
         {
-            // The overlay is outside inventory masks. Clamp its top-left against
-            // the GUI canvas, retaining a bridge across the 6px toolbar gap.
+            // Follow the selected button, including its independent live offset.
+            // Prefer a downward dropdown; shrink the list before screen-edge clamping.
             Rect bounds = _root.rect;
-            float x = _toolbar.localPosition.x + _toolbar.rect.width - _popup.rect.width;
-            float y = _toolbar.localPosition.y + _popup.rect.height + 6f;
+            RectTransform button = (RectTransform)(_restock ? _restockButton : _excludeButton).transform;
+            Vector3 anchor = _root.InverseTransformPoint(button.TransformPoint(new Vector3(button.rect.xMax, button.rect.yMin)));
+            float x = anchor.x - _popup.rect.width;
+            float y = anchor.y - 6f;
+            float available = y - bounds.yMin - 8f;
+            float viewHeight = Mathf.Min(Mathf.Min(6, _visibleRowCount) * RowHeight, Mathf.Max(RowHeight, available - 156f));
+            ResizePopupViewport(viewHeight);
             x = Mathf.Clamp(x, bounds.xMin + 8, Mathf.Max(bounds.xMin + 8, bounds.xMax - _popup.rect.width - 8));
+            // Extreme offsets can leave less than one editable row and its buttons.
+            // Keep those controls reachable instead of clipping Save/Cancel off-screen.
             y = Mathf.Clamp(y, bounds.yMin + _popup.rect.height + 8, Mathf.Max(bounds.yMin + _popup.rect.height + 8, bounds.yMax - 8));
             _popup.localPosition = new Vector3(x, y, 0);
+        }
+
+        private void ResizePopupViewport(float height)
+        {
+            if (Mathf.Abs(_viewport.rect.height - height) < 0.1f) return;
+            float inner = _popup.rect.width - 24f;
+            _popup.sizeDelta = new Vector2(_popup.rect.width, 156f + height);
+            Frame(_viewport, 12, -78, inner, height);
+            Frame(_status.rectTransform, 12, -82 - height, inner, 30);
+            Frame(_footer, 12, -116 - height, inner, 34);
+            Vector2 scroll = _content.anchoredPosition;
+            scroll.y = Mathf.Clamp(scroll.y, 0, Mathf.Max(0, _content.rect.height - height));
+            _content.anchoredPosition = scroll;
+        }
+
+        private bool CanRegisterHeldItem()
+        {
+            Player? player = Player.m_localPlayer;
+            ItemData? item = Owner.m_dragItem;
+            return !_editing && HasHeldTrashCandidate(Owner) && player != null && item?.m_shared != null && item.m_dropPrefab != null &&
+                Owner.m_dragInventory == GetPlayerInventory(player) && Owner.m_dragInventory.ContainsItem(item) &&
+                (Owner.m_splitDialog == null || !Owner.m_splitDialog.IsActive);
+        }
+
+        private void UpdateRuleButtonVisual(Button button, bool acceptsHeldItem)
+        {
+            // The icons share trash's appearance, not its hotbar/favorite deletion guards.
+            SetInventoryActionIconVisual(button, acceptsHeldItem);
+            // Vanilla uses SpriteSwap. Reuse trash's idle background while leaving
+            // hover/press feedback and empty-handed list access enabled.
+            Image background = button.image;
+            Sprite? sprite = !acceptsHeldItem && button.spriteState.disabledSprite != null
+                ? button.spriteState.disabledSprite : _ruleButtonSprite;
+            if (background.sprite != sprite) background.sprite = sprite;
+        }
+
+        private Button RuleButton(string name, bool restock)
+        {
+            Button button = EnsureActionButton(_toolbar, Owner.m_takeAllButton, name, "", () => ClickTool(restock))!;
+            // Retain the same native background hierarchy as trash, with only our action.
+            button.onClick = new Button.ButtonClickedEvent();
+            button.onClick.AddListener(() => ClickTool(restock));
+            button.interactable = true;
+            // Cloning Take All also clones its controller shortcut. The rule
+            // buttons must not react to JoyLStick or consume vanilla's input.
+            foreach (UIGamePad shortcut in button.GetComponentsInChildren<UIGamePad>(true))
+            {
+                shortcut.enabled = false;
+                if (shortcut.m_hint != null && shortcut.m_hint.transform.IsChildOf(button.transform)) shortcut.m_hint.SetActive(false);
+            }
+            UITooltip? tooltip = button.GetComponent<UITooltip>();
+            if (tooltip != null) tooltip.enabled = false; // The rule popup supplies the hover UI.
+            return button;
+        }
+
+        private void ApplyWoodenPanelStyle(Image target)
+        {
+            // Original Valheim 1.0.12's active split-dialog background: woodpanel_512x512 / litpanel.
+            Image? source = Owner.m_splitDialog != null ? Owner.m_splitDialog.transform.Find("win_bkg/border (1)")?.GetComponent<Image>() : null;
+            if (source == null || source.sprite == null) source = Owner.m_player != null ? Owner.m_player.Find("Bkg")?.GetComponent<Image>() : null;
+            if (source == null || source.sprite == null) source = Owner.m_crafting != null ? Owner.m_crafting.Find("Bkg")?.GetComponent<Image>() : null;
+            if (source == null || source.sprite == null) return;
+            target.sprite = source.sprite; target.type = source.type;
+            target.material = source.material; target.color = source.color;
+            target.pixelsPerUnitMultiplier = source.pixelsPerUnitMultiplier;
+            target.fillCenter = source.fillCenter; target.preserveAspect = source.preserveAspect;
         }
 
         private bool Contains(RectTransform rect) => RectTransformUtility.RectangleContainsScreenPoint(rect, Input.mousePosition, _camera);
@@ -211,8 +296,7 @@ public sealed partial class InventoryActionsPlugin
         {
             Player? player = Player.m_localPlayer;
             ItemData? item = Owner.m_dragItem;
-            if (_editing || player == null || item?.m_shared == null || item.m_dropPrefab == null ||
-                Owner.m_dragInventory != GetPlayerInventory(player) || !Owner.m_dragInventory.ContainsItem(item)) return;
+            if (!CanRegisterHeldItem() || player == null || item?.m_shared == null || item.m_dropPrefab == null) return;
             string key = ItemRuleConfigCore.PrefabKey(item.m_dropPrefab.name);
             if (key.Length == 0) return;
             LoadList(restock, true);
@@ -326,6 +410,7 @@ public sealed partial class InventoryActionsPlugin
             float width = Mathf.Clamp(_root.rect.width - 16f, 260f, 360f);
             float inner = width - 24f;
             List<ItemRuleConfigCore.Entry> visible = _registration != null ? new() { _registration } : _entries.Where(e => !e.Removed).ToList();
+            _visibleRowCount = Mathf.Max(1, visible.Count);
             float viewHeight = Mathf.Max(1, Mathf.Min(6, visible.Count)) * RowHeight;
             _popup.sizeDelta = new Vector2(width, 78 + viewHeight + 78);
             Frame(_title.rectTransform, 12, -10, inner, 28);
@@ -462,24 +547,50 @@ public sealed partial class InventoryActionsPlugin
             if (text.Length > 0) { TMP_Text label = Text(rect, "Label", text, 16); Stretch(label.rectTransform); label.alignment = TextAlignmentOptions.Center; }
             return button;
         }
-        private void SetIcon(Button button, bool restock)
+        private Sprite CreateRuleIcon(bool restock)
         {
-            Color32[] pixels = new Color32[64 * 64];
-            // Reuse the existing trash icon's small generated line-art approach.
+            // White line art on transparency, tinted with exactly the same colors as trash.
             Color[] drawing = new Color[64 * 64];
-            Color line = new(0.65f, 0.86f, 0.96f, 1);
-            void Draw(int x, int y, int xx, int yy) => DrawTrashLine(drawing, 64, x, y, xx, yy, 3, line);
+            void Draw(int x, int y, int xx, int yy) => DrawTrashLine(drawing, 64, x, y, xx, yy, 1, Color.white);
+            void Arc(float from, float to)
+            {
+                int x = Mathf.RoundToInt(32 + 22 * Mathf.Cos(from * Mathf.Deg2Rad));
+                int y = Mathf.RoundToInt(32 + 22 * Mathf.Sin(from * Mathf.Deg2Rad));
+                for (float angle = from + 5; angle <= to; angle += 5)
+                {
+                    int nextX = Mathf.RoundToInt(32 + 22 * Mathf.Cos(angle * Mathf.Deg2Rad));
+                    int nextY = Mathf.RoundToInt(32 + 22 * Mathf.Sin(angle * Mathf.Deg2Rad));
+                    Draw(x, y, nextX, nextY); x = nextX; y = nextY;
+                }
+            }
             if (restock)
-            { Draw(12, 39, 12, 52); Draw(12, 52, 52, 52); Draw(52, 52, 52, 39); Draw(32, 10, 32, 40); Draw(21, 29, 32, 40); Draw(32, 40, 43, 29); }
+            {
+                // Parcel surrounded by two return arrows; omit tiny details at HUD size.
+                Arc(-70, 90); Draw(32, 54, 38, 49); Draw(32, 54, 38, 59);
+                Arc(110, 270); Draw(32, 10, 26, 5); Draw(32, 10, 26, 15);
+                Draw(23, 27, 32, 22); Draw(32, 22, 41, 27); Draw(41, 27, 41, 38);
+                Draw(41, 38, 32, 43); Draw(32, 43, 23, 38); Draw(23, 38, 23, 27);
+                Draw(23, 27, 32, 32); Draw(32, 32, 41, 27); Draw(32, 32, 32, 43);
+            }
             else
-            { Draw(18, 37, 18, 22); Draw(25, 37, 25, 12); Draw(32, 36, 32, 10); Draw(39, 36, 39, 16); Draw(46, 29, 46, 43); Draw(18, 37, 26, 52); Draw(26, 52, 40, 52); Draw(40, 52, 46, 43); Draw(10, 54, 54, 10); }
-            for (int i = 0; i < pixels.Length; i++) pixels[i] = drawing[i];
-            Texture2D texture = new(64, 64, TextureFormat.RGBA32, false); texture.SetPixels32(pixels); texture.Apply();
+            {
+                // Upward pickup arrow above a tray, with an exclusion slash.
+                DrawTrashLine(drawing, 64, 16, 35, 16, 48, 2, Color.white);
+                DrawTrashLine(drawing, 64, 16, 48, 46, 48, 2, Color.white);
+                DrawTrashLine(drawing, 64, 46, 48, 46, 35, 2, Color.white);
+                DrawTrashLine(drawing, 64, 28, 40, 28, 17, 2, Color.white);
+                DrawTrashLine(drawing, 64, 20, 25, 28, 17, 2, Color.white);
+                DrawTrashLine(drawing, 64, 28, 17, 36, 25, 2, Color.white);
+                // Clear a gap around the slash so it stays legible over the arrow.
+                DrawTrashLine(drawing, 64, 13, 53, 51, 15, 3, Color.clear);
+                DrawTrashLine(drawing, 64, 13, 53, 51, 15, 1, Color.white);
+            }
+            Texture2D texture = new(64, 64, TextureFormat.RGBA32, false)
+            { name = restock ? "InventoryActions_RestockIcon" : "InventoryActions_ExcludeIcon", filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+            texture.SetPixels(drawing); texture.Apply(updateMipmaps: false, makeNoLongerReadable: true);
             Sprite sprite = Sprite.Create(texture, new Rect(0, 0, 64, 64), new Vector2(0.5f, 0.5f), 100);
             _ownedIcons.Add(sprite);
-            RectTransform rect = Rect("Icon", button.transform, Vector2.zero, Vector2.zero); Stretch(rect);
-            rect.offsetMin = new Vector2(5, 5); rect.offsetMax = new Vector2(-5, -5);
-            Image image = rect.gameObject.AddComponent<Image>(); image.sprite = sprite; image.preserveAspect = true; image.raycastTarget = false;
+            return sprite;
         }
     }
 }

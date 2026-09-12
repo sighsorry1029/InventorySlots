@@ -41,10 +41,16 @@ public sealed partial class InventoryActionsPlugin
     private static ConfigEntry<KeyboardShortcut> _containerRestockKey = null!;
     private static ConfigEntry<string> _sortButtonPositionOffset = null!;
     private static ConfigEntry<string> _trashButtonPositionOffset = null!;
+    private static ConfigEntry<string> _restockRulesButtonPositionOffset = null!;
+    private static ConfigEntry<string> _autoPickupButtonPositionOffset = null!;
     private static string? _cachedSortButtonPositionOffsetText;
     private static Vector2 _cachedSortButtonPositionOffset;
     private static string? _cachedTrashButtonPositionOffsetText;
     private static Vector2 _cachedTrashButtonPositionOffset;
+    private static string? _cachedRestockRulesButtonPositionOffsetText;
+    private static Vector2 _cachedRestockRulesButtonPositionOffset;
+    private static string? _cachedAutoPickupButtonPositionOffsetText;
+    private static Vector2 _cachedAutoPickupButtonPositionOffset;
     private static ConfigEntry<string> _restockTargetStackLimitsConfig = null!;
     private static ConfigEntry<string> _autoPickupExcludedItemsConfig = null!;
     private static readonly Color FavoriteBorderDefaultColor = new(0.1f, 0.55f, 1f, 0.95f);
@@ -113,6 +119,13 @@ public sealed partial class InventoryActionsPlugin
                 }),
             synchronizedSetting: false);
 
+        _restockRulesButtonPositionOffset = ConfigEntry(ClientConfigSection, "Restock Rules Button Position", "x: 0 y: 0",
+            new ConfigDescription("Client-only position offset for the restock rules icon. Independent of the trash button. Positive x moves right; positive y moves up. Applies immediately.",
+                null, new ConfigurationManagerAttributes { Order = 820, CustomDrawer = DrawButtonPositionOffsetConfig }), synchronizedSetting: false);
+        _autoPickupButtonPositionOffset = ConfigEntry(ClientConfigSection, "Auto Pickup Exclude Button Position", "x: 0 y: 0",
+            new ConfigDescription("Client-only position offset for the auto pickup exclusion icon. Independent of the trash and restock icons. Positive x moves right; positive y moves up. Applies immediately.",
+                null, new ConfigurationManagerAttributes { Order = 810, CustomDrawer = DrawButtonPositionOffsetConfig }), synchronizedSetting: false);
+
         _restockTargetStackLimitsConfig = ConfigEntry(
             RestockConfigSection,
             "Restock Target Stack Limits",
@@ -155,6 +168,12 @@ public sealed partial class InventoryActionsPlugin
 
     private static Vector2 GetTrashButtonPositionOffset() => GetConfiguredButtonPositionOffset(
         _trashButtonPositionOffset, ref _cachedTrashButtonPositionOffsetText, ref _cachedTrashButtonPositionOffset);
+
+    private static Vector2 GetRestockRulesButtonPositionOffset() => GetConfiguredButtonPositionOffset(
+        _restockRulesButtonPositionOffset, ref _cachedRestockRulesButtonPositionOffsetText, ref _cachedRestockRulesButtonPositionOffset);
+
+    private static Vector2 GetAutoPickupButtonPositionOffset() => GetConfiguredButtonPositionOffset(
+        _autoPickupButtonPositionOffset, ref _cachedAutoPickupButtonPositionOffsetText, ref _cachedAutoPickupButtonPositionOffset);
 
     private static Vector2 GetConfiguredButtonPositionOffset(
         ConfigEntry<string>? entry, ref string? cachedText, ref Vector2 cachedOffset)

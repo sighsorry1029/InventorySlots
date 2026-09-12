@@ -11,8 +11,10 @@ commit adds the GUI-owned editor, persistence failure recovery and validation.
 
 ## Behavior and ownership
 
-- Two icons are placed to the left of trash, following inventory height and the
-  existing trash position offset. They remain independent of the trash enable setting.
+- In this initial implementation, two icons were placed to the left of trash,
+  following inventory height and the existing trash position offset. The 2026-09-13
+  update below replaces that shared position offset. They remain independent of
+  the trash enable setting.
 - Restock drop reads an item from the local inventory and opens a quantity editor.
   Save registers the quantity; cancel leaves the config unchanged. Autopickup drop
   immediately registers the prefab and opens/scrolls to its entry. Duplicate drops
@@ -107,3 +109,56 @@ dotnet build InventoryActions/build/RuleIlSmoke/RuleIlSmoke.csproj -c Debug
    item move/split/use; no cursor loss after closing or reopening inventory.
 5. GUI teardown, death/loading, menu/console, config manager changes during a draft;
    optional UI/pickup mods may add their own input or Harmony paths and require live testing.
+
+## Toolbar appearance and downward dropdown — 2026-09-13
+
+Starting at `ff3921d`, this UI-only update keeps item registration, config rule text,
+automatic pickup filtering and all inventory/network mutation policies unchanged.
+
+- Restock is a parcel with two return arrows; excluded pickup is an upward arrow
+  and tray crossed by a slash. Both are cached 64-pixel procedural white sprites,
+  tinted and sized by the same helpers as trash. Their textures/sprites are still
+  owned and destroyed by the GUI editor; no image dependency was added.
+- Rule buttons now clone the same native Take All background as trash. Empty-handed
+  buttons use the native disabled sprite and gray icon while remaining clickable;
+  a valid held local-inventory item uses the normal sprite and golden icon. Native
+  hover/pressed sprites remain enabled. Trash's own eligibility guards are unchanged.
+  The clones' Take All click listeners and `UIGamePad` shortcuts/hints are disabled
+  or replaced so they cannot claim vanilla JoyLStick input.
+- The popup copies the active original 1.0.12 split-dialog background
+  (`win_bkg/border (1)`: `woodpanel_512x512`, sliced, shared `litpanel` material).
+  Player/crafting `Bkg` sprites are fallbacks. No native material or sprite is
+  destroyed. The source lookup happens only during editor initialization.
+- `2 - Client / Restock Rules Button Position` and
+  `2 - Client / Auto Pickup Exclude Button Position` are separate, unsynced offsets,
+  both defaulting to `x: 0 y: 0`. Positive X moves right and positive Y moves up.
+  They use the existing config drawer/parser and independent value caches. Trash
+  offset no longer shifts either rule button. In-game changes apply live; editing
+  the cfg on disk still requires a reload/restart.
+- The popup follows the actual selected button's bottom-right, opening downward.
+  Limited space reduces the viewport (at most six rows). If even one row plus the
+  editor controls cannot fit below an extreme button position, screen-edge clamping
+  shifts the panel enough to keep Save/Cancel reachable. Geometry changes preserve
+  the draft, input focus and valid scroll position without rebuilding rows.
+
+Verification for this update (separate from the preceding implementation):
+
+- Baseline and final Debug/deploy builds: zero warnings/errors.
+- Extended compiled-button-offset smoke: 40 checks passed on original client DLLs
+  with real BepInEx ConfigEntry instances, including independent live changes,
+  invalid input, unbinding and rebinding. No user config file was written.
+- Final original client and dedicated-server static checks: each 481 direct
+  references, 28 Harmony targets, zero failures. One existing ServerSync declaration
+  still needs manual review; these checks do not certify Unity/Mono execution.
+- Rendered the actual procedural icon geometry at enlarged and HUD scales for
+  visual inspection. This was a source rendering, not an in-game screenshot.
+- Final merged Debug DLL and Steam plugins copy share SHA-256
+  `52877501CF9C98B377CE189B0B914E4F1292D8BA5F30059E953E0448EDE30A20`.
+- Static reports: ignored `artifacts/item-rule-ui-20260913-{client,server}.json`.
+  No Release package, version bump or push was performed.
+
+Still requires actual game verification: native wood/gray/gold rendering, hover
+bridge and pinning, independent offsets with purchased rows/UI scaling, downward
+scrolling near screen edges, live offsets during quantity editing, controller
+shortcuts and touch drops. The existing rule-persistence and multiplayer behavior
+was not rerun in a game session for this appearance change.

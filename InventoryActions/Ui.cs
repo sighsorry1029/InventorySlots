@@ -192,7 +192,7 @@ public sealed partial class InventoryActionsPlugin
             ConfigureInventoryTrashButton(trashButton, buttonSize);
             bool canTrash = CanStartInventoryTrash(gui, player, showMessage: false);
             SetButtonInteractable(trashButton, HasHeldTrashCandidate(gui));
-            SetInventoryTrashButtonVisual(trashButton, canTrash);
+            SetInventoryActionIconVisual(trashButton, canTrash);
         }
 
         SetActionPanelActive(Runtime.TrashPanel, true);
@@ -585,6 +585,12 @@ public sealed partial class InventoryActionsPlugin
 
     private static void ConfigureInventoryTrashButton(Button button, float buttonSize)
     {
+        ConfigureInventoryActionIcon(button, buttonSize, GetInventoryTrashIconSprite());
+        SetTooltip(button, LocalizeUi("$inventoryactions_trash_title", "Trash"), LocalizeUi("$inventoryactions_trash_tooltip", "Drop a held inventory item here to delete it after confirmation."));
+    }
+
+    private static void ConfigureInventoryActionIcon(Button button, float buttonSize, Sprite sprite)
+    {
         InventoryTrashButtonMarker marker = button.GetComponent<InventoryTrashButtonMarker>() ?? button.gameObject.AddComponent<InventoryTrashButtonMarker>();
         if (!marker.TextSuppressed)
         {
@@ -616,9 +622,7 @@ public sealed partial class InventoryActionsPlugin
             }
         }
 
-        Sprite sprite = GetInventoryTrashIconSprite();
         float iconSize = Mathf.Max(18f, buttonSize * 0.58f);
-        SetTooltip(button, LocalizeUi("$inventoryactions_trash_title", "Trash"), LocalizeUi("$inventoryactions_trash_tooltip", "Drop a held inventory item here to delete it after confirmation."));
         RectTransform rect = (RectTransform)marker.Icon!.transform;
         Vector2 center = new(0.5f, 0.5f);
         Vector2 size = new(iconSize, iconSize);
@@ -650,12 +654,12 @@ public sealed partial class InventoryActionsPlugin
         marker.Icon.raycastTarget = false;
     }
 
-    private static void SetInventoryTrashButtonVisual(Button button, bool canTrash)
+    private static void SetInventoryActionIconVisual(Button button, bool acceptsHeldItem)
     {
         InventoryTrashButtonMarker? marker = button.GetComponent<InventoryTrashButtonMarker>();
         if (marker?.Icon != null && !IsUnityNull(marker.Icon))
         {
-            Color color = canTrash ? new Color(1f, 0.82f, 0.55f, 1f) : new Color(0.75f, 0.75f, 0.75f, 0.65f);
+            Color color = acceptsHeldItem ? new Color(1f, 0.82f, 0.55f, 1f) : new Color(0.75f, 0.75f, 0.75f, 0.65f);
             if (marker.Icon.color != color)
             {
                 marker.Icon.color = color;
