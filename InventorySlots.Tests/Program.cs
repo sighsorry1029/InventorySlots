@@ -710,28 +710,37 @@ internal static class Tests
 
     public static void CraftingTextStampSeparatesTextFields()
     {
-        CraftingTextStamp baseline = new("craft", "Run+[", "children=3", 18f);
-        CraftingTextStamp same = new("craft", "Run+[", "children=3", 18.0001f);
-        CraftingTextStamp changedText = new("craft", "Run+]", "children=3", 18.0001f);
-        CraftingTextStamp changedScope = new("progress", "Run+[", "children=3", 18.0001f);
-        CraftingTextStamp delimiterCollision = new("craft|Run+", "[", "children=3", 18.0001f);
+        CraftingTextStamp baseline = new("craft", "Run+[", 3, 18f);
+        CraftingTextStamp same = new("craft", "Run+[", 3, 18.0001f);
+        CraftingTextStamp changedText = new("craft", "Run+]", 3, 18.0001f);
+        CraftingTextStamp changedScope = new("progress", "Run+[", 3, 18.0001f);
+        CraftingTextStamp delimiterCollision = new("craft|Run+", "[", 3, 18.0001f);
+        CraftingTextStamp changedChildren = new("craft", "Run+[", 4, 18f);
 
         Assert.True(baseline.Equals(same), "tiny font-size jitter should not invalidate the text stamp");
         Assert.False(baseline.Equals(changedText), "label changes must invalidate the text stamp");
         Assert.False(baseline.Equals(changedScope), "cache scope changes must invalidate the text stamp");
         Assert.False(baseline.Equals(delimiterCollision), "field boundaries must not collapse through delimiter-like text");
+        Assert.False(baseline.Equals(changedChildren), "child count changes must invalidate cached text");
+        Assert.Equal(baseline.GetHashCode(), same.GetHashCode(), "equal text stamps must have equal hashes");
+        Assert.False(new CraftingTextStamp("craft", "").Equals(new CraftingTextStamp("craft", "", 0)), "an unspecified child count must differ from an empty hierarchy");
+        Assert.False(default(CraftingTextStamp).Equals(new CraftingTextStamp("", "", 0)), "an empty hierarchy still needs an initial text update");
     }
 
     public static void CraftingTextColorStampTracksColorState()
     {
-        CraftingTextColorStamp baseline = new(true, 1f, 0.8f, 0.2f, 1f, "children=3");
-        CraftingTextColorStamp same = new(true, 1f, 0.8001f, 0.2001f, 1f, "children=3");
-        CraftingTextColorStamp changedInteractable = new(false, 1f, 0.8001f, 0.2001f, 1f, "children=3");
-        CraftingTextColorStamp changedColor = new(true, 1f, 0.805f, 0.2001f, 1f, "children=3");
+        CraftingTextColorStamp baseline = new(true, 1f, 0.8f, 0.2f, 1f, 3);
+        CraftingTextColorStamp same = new(true, 1f, 0.8001f, 0.2001f, 1f, 3);
+        CraftingTextColorStamp changedInteractable = new(false, 1f, 0.8001f, 0.2001f, 1f, 3);
+        CraftingTextColorStamp changedColor = new(true, 1f, 0.805f, 0.2001f, 1f, 3);
+        CraftingTextColorStamp changedChildren = new(true, 1f, 0.8f, 0.2f, 1f, 4);
 
         Assert.True(baseline.Equals(same), "tiny color jitter should not invalidate the text color stamp");
         Assert.False(baseline.Equals(changedInteractable), "interactable changes must invalidate the text color stamp");
         Assert.False(baseline.Equals(changedColor), "visible color changes must invalidate the text color stamp");
+        Assert.False(baseline.Equals(changedChildren), "child count changes must invalidate cached colors");
+        Assert.Equal(baseline.GetHashCode(), same.GetHashCode(), "equal color stamps must have equal hashes");
+        Assert.False(default(CraftingTextColorStamp).Equals(new CraftingTextColorStamp(false, 0f, 0f, 0f, 0f, 0)), "an empty hierarchy still needs an initial color update");
     }
 
     public static void CraftingSimpleTooltipStampAvoidsDelimiterCollisions()

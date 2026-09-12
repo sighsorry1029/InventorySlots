@@ -516,26 +516,26 @@ internal readonly struct CraftingStatusHudStamp : IEquatable<CraftingStatusHudSt
 
 internal readonly struct CraftingTextStamp : IEquatable<CraftingTextStamp>
 {
-    public CraftingTextStamp(string scope, string text, string childSignature = "", float fontSizeMax = 0f)
+    public CraftingTextStamp(string scope, string text, int childCount = -1, float fontSizeMax = 0f)
     {
         IsValid = true;
         Scope = scope ?? "";
         Text = text ?? "";
-        ChildSignature = childSignature ?? "";
+        ChildCount = childCount;
         FontSizeMax = Quantize(fontSizeMax);
     }
 
     public bool IsValid { get; }
     private string Scope { get; }
     private string Text { get; }
-    private string ChildSignature { get; }
+    private int ChildCount { get; }
     private int FontSizeMax { get; }
 
     public bool Equals(CraftingTextStamp other) =>
         IsValid == other.IsValid &&
         string.Equals(Scope, other.Scope, StringComparison.Ordinal) &&
         string.Equals(Text, other.Text, StringComparison.Ordinal) &&
-        string.Equals(ChildSignature, other.ChildSignature, StringComparison.Ordinal) &&
+        ChildCount == other.ChildCount &&
         FontSizeMax == other.FontSizeMax;
 
     public override bool Equals(object? obj) =>
@@ -548,7 +548,7 @@ internal readonly struct CraftingTextStamp : IEquatable<CraftingTextStamp>
             int hash = IsValid ? 1 : 0;
             hash = hash * 397 ^ StringComparer.Ordinal.GetHashCode(Scope ?? "");
             hash = hash * 397 ^ StringComparer.Ordinal.GetHashCode(Text ?? "");
-            hash = hash * 397 ^ StringComparer.Ordinal.GetHashCode(ChildSignature ?? "");
+            hash = hash * 397 ^ ChildCount;
             hash = hash * 397 ^ FontSizeMax;
             return hash;
         }
@@ -558,7 +558,7 @@ internal readonly struct CraftingTextStamp : IEquatable<CraftingTextStamp>
 
 internal readonly struct CraftingTextColorStamp : IEquatable<CraftingTextColorStamp>
 {
-    public CraftingTextColorStamp(bool interactable, float colorR, float colorG, float colorB, float colorA, string childSignature)
+    public CraftingTextColorStamp(bool interactable, float colorR, float colorG, float colorB, float colorA, int childCount)
     {
         IsValid = true;
         Interactable = interactable;
@@ -566,7 +566,7 @@ internal readonly struct CraftingTextColorStamp : IEquatable<CraftingTextColorSt
         ColorG = Quantize(colorG);
         ColorB = Quantize(colorB);
         ColorA = Quantize(colorA);
-        ChildSignature = childSignature ?? "";
+        ChildCount = childCount;
     }
 
     public bool IsValid { get; }
@@ -575,7 +575,7 @@ internal readonly struct CraftingTextColorStamp : IEquatable<CraftingTextColorSt
     private int ColorG { get; }
     private int ColorB { get; }
     private int ColorA { get; }
-    private string ChildSignature { get; }
+    private int ChildCount { get; }
 
     public bool Equals(CraftingTextColorStamp other) =>
         IsValid == other.IsValid &&
@@ -584,7 +584,7 @@ internal readonly struct CraftingTextColorStamp : IEquatable<CraftingTextColorSt
         ColorG == other.ColorG &&
         ColorB == other.ColorB &&
         ColorA == other.ColorA &&
-        string.Equals(ChildSignature, other.ChildSignature, StringComparison.Ordinal);
+        ChildCount == other.ChildCount;
 
     public override bool Equals(object? obj) =>
         obj is CraftingTextColorStamp other && Equals(other);
@@ -599,7 +599,7 @@ internal readonly struct CraftingTextColorStamp : IEquatable<CraftingTextColorSt
             hash = hash * 397 ^ ColorG;
             hash = hash * 397 ^ ColorB;
             hash = hash * 397 ^ ColorA;
-            hash = hash * 397 ^ StringComparer.Ordinal.GetHashCode(ChildSignature ?? "");
+            hash = hash * 397 ^ ChildCount;
             return hash;
         }
     }

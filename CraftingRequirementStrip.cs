@@ -116,7 +116,7 @@ public sealed partial class InventorySlotsPlugin
         RectTransform nameRect = CreateTextRect("res_name", slot.transform, active: false);
         RectTransform amountRect = CreateTextRect("res_amount", slot.transform, out TMP_Text amountText);
         CraftingRequirementUiMarker marker = slot.AddComponent<CraftingRequirementUiMarker>();
-        marker.ChildSignature = slot.transform.childCount.ToString();
+        marker.ChildCount = slot.transform.childCount;
         marker.Name = nameRect;
         marker.Icon = icon;
         marker.IconImage = iconImage;
@@ -281,8 +281,8 @@ public sealed partial class InventorySlotsPlugin
     private static CraftingRequirementUiMarker GetCraftingRequirementUiMarker(RectTransform rect)
     {
         CraftingRequirementUiMarker marker = rect.GetComponent<CraftingRequirementUiMarker>() ?? rect.gameObject.AddComponent<CraftingRequirementUiMarker>();
-        string childSignature = rect.childCount.ToString();
-        if (string.Equals(marker.ChildSignature, childSignature, StringComparison.Ordinal) &&
+        int childCount = rect.childCount;
+        if (marker.ChildCount == childCount &&
             marker.Name != null &&
             marker.Icon != null &&
             marker.Amount != null &&
@@ -302,7 +302,7 @@ public sealed partial class InventorySlotsPlugin
         marker.BackgroundImages = FindCraftingRequirementBackgroundImages(rect);
         marker.CompetingTooltipSignature = "";
         marker.CompetingTooltips = Array.Empty<UITooltip>();
-        marker.ChildSignature = childSignature;
+        marker.ChildCount = childCount;
         marker.LayoutSignature = "";
         marker.AmountSignature = "";
         return marker;

@@ -842,7 +842,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         CraftingTextCacheState cache = GetCraftingTextCache(gui.m_craftButton.gameObject);
-        CraftingTextStamp stamp = new("craft", label, cache.ChildSignature);
+        CraftingTextStamp stamp = new("craft", label, cache.ChildCount);
         if (cache.LastTextStamp.Equals(stamp) &&
             TextCacheMatches(cache, label))
         {
@@ -904,7 +904,7 @@ public sealed partial class InventorySlotsPlugin
     {
         Color color = GetCraftingActionButtonTextStateColor(button, interactable);
         CraftingTextCacheState cache = GetCraftingTextCache(button.gameObject);
-        CraftingTextColorStamp stamp = new(interactable, color.r, color.g, color.b, color.a, cache.ChildSignature);
+        CraftingTextColorStamp stamp = new(interactable, color.r, color.g, color.b, color.a, cache.ChildCount);
         if (cache.LastColorStamp.Equals(stamp) &&
             TextColorCacheMatches(cache, color))
         {
@@ -1039,7 +1039,7 @@ public sealed partial class InventorySlotsPlugin
             label = FormatCraftingCountLabel("$inventoryslots_crafting_progress_count_format", "{label} x{count}", label, count);
         }
 
-        CraftingTextStamp stamp = new("progress", label, cache.ChildSignature);
+        CraftingTextStamp stamp = new("progress", label, cache.ChildCount);
         if (cache.LastTextStamp.Equals(stamp) &&
             TextCacheMatches(cache, label))
         {
@@ -1334,14 +1334,14 @@ public sealed partial class InventorySlotsPlugin
     private static CraftingTextCacheState GetCraftingTextCache(GameObject root)
     {
         CraftingTextCacheState cache = root.GetComponent<CraftingTextCacheState>() ?? root.AddComponent<CraftingTextCacheState>();
-        string childSignature = root.transform.childCount.ToString();
-        if (string.Equals(cache.ChildSignature, childSignature, StringComparison.Ordinal) &&
+        int childCount = root.transform.childCount;
+        if (cache.ChildCount == childCount &&
             !HasInvalidTextCache(cache))
         {
             return cache;
         }
 
-        cache.ChildSignature = childSignature;
+        cache.ChildCount = childCount;
         cache.LastTextStamp = default;
         cache.LastColorStamp = default;
         cache.ProgressBaseLabel = "";

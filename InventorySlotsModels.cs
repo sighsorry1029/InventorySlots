@@ -245,7 +245,7 @@ internal sealed class CraftingPinnedTooltipMarkerState : MonoBehaviour
 
 internal sealed class CraftingRequirementUiMarker : MonoBehaviour
 {
-    public string ChildSignature { get; set; } = "";
+    public int ChildCount { get; set; } = -1;
     public string LayoutSignature { get; set; } = "";
     public string AmountSignature { get; set; } = "";
     public Transform? Name { get; set; }
@@ -261,7 +261,7 @@ internal sealed class CraftingRequirementUiMarker : MonoBehaviour
 
 internal sealed class CraftingTextCacheState : MonoBehaviour
 {
-    public string ChildSignature { get; set; } = "";
+    public int ChildCount { get; set; } = -1;
     public CraftingTextStamp LastTextStamp { get; set; }
     public CraftingTextColorStamp LastColorStamp { get; set; }
     public string ProgressBaseLabel { get; set; } = "";
