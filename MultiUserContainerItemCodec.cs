@@ -8,7 +8,7 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
-    private const byte MultiUserContainerItemCodecVersion = 1;
+    private const byte MultiUserContainerItemCodecVersion = 2;
     private const int MultiUserContainerMaxPrefabNameBytes = 1024;
     private const int MultiUserContainerMaxCrafterNameBytes = 4 * 1024;
     private const int MultiUserContainerMaxCustomDataEntries = 1024;
@@ -70,6 +70,7 @@ public sealed partial class InventorySlotsPlugin
         WriteMultiUserContainerString(package, serializedItem.m_crafterName);
         package.Write(serializedItem.m_worldLevel);
         package.Write(serializedItem.m_pickedUp);
+        package.Write(serializedItem.m_cheated);
         package.Write(serializedItem.m_customData.Count);
 
         foreach (KeyValuePair<string, string> entry in serializedItem.m_customData)
@@ -139,7 +140,8 @@ public sealed partial class InventorySlotsPlugin
             snapshotItem.m_durability,
             snapshotItem.m_pickedUp,
             snapshotItem.m_stack,
-            snapshotItem.m_customData);
+            snapshotItem.m_customData,
+            snapshotItem.m_cheated);
     }
 
     private static bool TryReadMultiUserContainerItemCore(ZPackage package, out ItemData? item)
@@ -187,6 +189,7 @@ public sealed partial class InventorySlotsPlugin
 
         int worldLevel = package.ReadInt();
         bool pickedUp = package.ReadBool();
+        bool cheated = package.ReadBool();
         int customDataCount = package.ReadInt();
         if (!IsValidMultiUserContainerPrimitiveData(
                 stack,
@@ -250,6 +253,7 @@ public sealed partial class InventorySlotsPlugin
         decodedItem.m_crafterName = crafterName;
         decodedItem.m_worldLevel = worldLevel;
         decodedItem.m_pickedUp = pickedUp;
+        decodedItem.m_cheated = cheated;
         decodedItem.m_customData = customData;
         item = decodedItem;
         return true;

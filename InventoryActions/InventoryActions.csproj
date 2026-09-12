@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-    <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')"/>
+<Project Sdk="Microsoft.NET.Sdk">
     <Import Project="..\environment.props"/>
     <PropertyGroup>
         <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
@@ -9,7 +8,10 @@
         <OutputType>Library</OutputType>
         <RootNamespace>InventoryActions</RootNamespace>
         <AssemblyName>InventoryActions</AssemblyName>
-        <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+        <TargetFramework>net48</TargetFramework>
+        <EnableDefaultItems>false</EnableDefaultItems>
+        <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
         <FileAlignment>512</FileAlignment>
         <LangVersion>preview</LangVersion>
         <Nullable>enable</Nullable>
@@ -41,14 +43,17 @@
         <Reference Include="0Harmony">
             <HintPath>$(BepInExPath)\core\0Harmony.dll</HintPath>
         </Reference>
-        <Reference Include="assembly_guiutils">
-            <HintPath>$(PublicizedAssembliesPath)\assembly_guiutils_publicized.dll</HintPath>
+        <Reference Include="assembly_guiutils" Publicize="true">
+            <HintPath>$(CorlibPath)\assembly_guiutils.dll</HintPath>
+            <Private>false</Private>
         </Reference>
-        <Reference Include="assembly_utils">
-            <HintPath>$(PublicizedAssembliesPath)\assembly_utils_publicized.dll</HintPath>
+        <Reference Include="assembly_utils" Publicize="true">
+            <HintPath>$(CorlibPath)\assembly_utils.dll</HintPath>
+            <Private>false</Private>
         </Reference>
-        <Reference Include="assembly_valheim">
-            <HintPath>$(PublicizedAssembliesPath)\assembly_valheim_publicized.dll</HintPath>
+        <Reference Include="assembly_valheim" Publicize="true">
+            <HintPath>$(CorlibPath)\assembly_valheim.dll</HintPath>
+            <Private>false</Private>
         </Reference>
         <Reference Include="BepInEx">
             <HintPath>$(BepInExPath)\core\BepInEx.dll</HintPath>
@@ -66,6 +71,9 @@
         </Reference>
         <Reference Include="UnityEngine.CoreModule">
             <HintPath>$(CorlibPath)\UnityEngine.CoreModule.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine.AnimationModule">
+            <HintPath>$(CorlibPath)\UnityEngine.AnimationModule.dll</HintPath>
         </Reference>
         <Reference Include="UnityEngine.IMGUIModule">
             <HintPath>$(CorlibPath)\UnityEngine.IMGUIModule.dll</HintPath>
@@ -115,14 +123,14 @@
         </EmbeddedResource>
     </ItemGroup>
     <ItemGroup>
+        <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.2" PrivateAssets="all" />
         <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.44.1">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
         <PackageReference Include="YamlDotNet" Version="16.3.0"/>
     </ItemGroup>
-    <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>
-    <Target Name="GetAssemblyVersion" AfterTargets="$(AfterTargets)">
+    <Target Name="ReadModAssemblyVersion" AfterTargets="$(AfterTargets)">
         <GetAssemblyIdentity AssemblyFiles="$(TargetPath)">
             <Output TaskParameter="Assemblies" ItemName="Targets"/>
         </GetAssemblyIdentity>
@@ -141,7 +149,7 @@
             <ThunderstoreZip>$(ProjectDir)\Thunderstore\$(PackageName).zip</ThunderstoreZip>
         </PropertyGroup>
     </Target>
-    <Target Name="PackageRelease" AfterTargets="GetAssemblyVersion" Condition="'$(Configuration)' == 'Release' AND '$(BuildPackage)' == 'true'">
+    <Target Name="PackageRelease" AfterTargets="ReadModAssemblyVersion" Condition="'$(Configuration)' == 'Release' AND '$(BuildPackage)' == 'true'">
         <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;$ErrorActionPreference = 'Stop'; $p = '$(ProjectDir)\Thunderstore\manifest.json'; $text = Get-Content -Raw -LiteralPath $p; $updated = [regex]::Replace($text, '(\x22version_number\x22\s*:\s*\x22)[^\x22]+(\x22)', '${1}$(PackageVersion)${2}'); if ($updated -ne $text) { $enc = New-Object System.Text.UTF8Encoding $false; [System.IO.File]::WriteAllText($p, $updated, $enc) }&quot;"/>
         <RemoveDir Directories="$(PackageDir)" Condition="Exists('$(PackageDir)')"/>
         <MakeDir Directories="$(PackageDir)"/>
@@ -155,8 +163,10 @@
         <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;Compress-Archive -Path '$(PackageDir)\*' -DestinationPath '$(ThunderstoreZip)' -Force&quot;"/>
         <RemoveDir Directories="$(PackageDir)" Condition="Exists('$(PackageDir)')"/>
     </Target>
-    <Target Name="CopyOutputDLL" AfterTargets="GetAssemblyVersion" Condition="'$(DeployToGame)' == 'true' AND '$(BuildPackage)' != 'true'">
-        <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(CopyOutputDLLPath)" Condition="'$(CopyOutputDLLPath)' != '' AND Exists('$(CopyOutputDLLPath)')"/>
+    <Target Name="CopyOutputDLL" AfterTargets="ReadModAssemblyVersion" Condition="'$(DeployToGame)' == 'true' AND '$(BuildPackage)' != 'true'">
+        <Error Text="CopyOutputDLLPath must be set when DeployToGame=true." Condition="'$(CopyOutputDLLPath)' == ''"/>
+        <MakeDir Directories="$(CopyOutputDLLPath)"/>
+        <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(CopyOutputDLLPath)"/>
         <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(CopyOutputDLLPath2)" Condition="'$(CopyOutputDLLPath2)' != '' AND Exists('$(CopyOutputDLLPath2)')"/>
         <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(CopyOutputDLLPath3)" Condition="'$(CopyOutputDLLPath3)' != '' AND Exists('$(CopyOutputDLLPath3)')"/>
     </Target>

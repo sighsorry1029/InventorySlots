@@ -40,8 +40,21 @@ public sealed partial class InventorySlotsPlugin
         int width = inventory.GetWidth();
         const bool hideLockedRows = true;
         int totalRegularRows = usableRows;
+        foreach (ItemData item in inventory.GetAllItems())
+        {
+            if (item.m_gridPos.y >= usableRows && item.m_gridPos.y < fixedRows)
+            {
+                totalRegularRows = InventorySlotSafetyCore.GetRecoveryDisplayRows(totalRegularRows, item.m_gridPos.y);
+            }
+        }
         int viewportRows = GetInventoryViewportRows(totalRegularRows);
         viewportRows = UpdatePlayerInventoryScroll(playerGrid, viewportRows, totalRegularRows);
+        // Occupied locked rows must remain reachable; empty locked cells are
+        // still hidden and all insertion policies use usableRows, not this extent.
+        if (totalRegularRows > usableRows)
+        {
+            viewportRows = totalRegularRows;
+        }
         if (playerGrid.m_elements.Count == 0)
         {
             HideInventorySideHints();
@@ -65,8 +78,8 @@ public sealed partial class InventorySlotsPlugin
         RectTransform? quickPanel = quickPanelSlots.Count > 0 ? EnsureSlotPanel(playerGrid, QuickSlotPanelName, InventoryPanels.QuickSlotPanels) : DisableSlotPanel(playerGrid, QuickSlotPanelName, InventoryPanels.QuickSlotPanels);
         for (int i = 0; i < playerGrid.m_elements.Count; i++)
         {
-            InventoryGrid.Element element = playerGrid.m_elements[i];
-            if (IsUnityNull(element?.m_go))
+            InventoryElement element = playerGrid.m_elements[i];
+            if (IsUnityNull(element))
             {
                 continue;
             }
@@ -81,7 +94,7 @@ public sealed partial class InventorySlotsPlugin
                                   !ShouldShowLockedInventoryCellForRecovery(player, inventory, gridPos);
             if (hideLockedCell)
             {
-                element!.m_go.SetActive(false);
+                element!.gameObject.SetActive(false);
                 element.m_used = true;
                 HideFavoriteBorder(element);
                 HideInventoryPinnedTooltipBorder(element);
@@ -93,7 +106,7 @@ public sealed partial class InventorySlotsPlugin
                 int slotIndex = (y - fixedRows) * width + x;
                 if (slotIndex >= SlotDefinitions.Count)
                 {
-                    element!.m_go.SetActive(false);
+                    element!.gameObject.SetActive(false);
                     element.m_used = true;
                     UpdateSlotBindingLabel(element, null);
                     HideFavoriteBorder(element);
@@ -108,7 +121,7 @@ public sealed partial class InventorySlotsPlugin
                 int visibleIndex = visibleSlots.IndexOf(slot);
                 if (targetPanel == null || visibleIndex < 0)
                 {
-                    element!.m_go.SetActive(false);
+                    element!.gameObject.SetActive(false);
                     element.m_used = true;
                     UpdateSlotBindingLabel(element, null);
                     HideFavoriteBorder(element);
@@ -116,12 +129,12 @@ public sealed partial class InventorySlotsPlugin
                     continue;
                 }
 
-                RectTransform elementRect = (RectTransform)element!.m_go.transform;
+                RectTransform elementRect = (RectTransform)element!.gameObject.transform;
                 elementRect.SetParent(targetPanel, false);
                 elementRect.localScale = Vector3.one;
                 elementRect.localRotation = Quaternion.identity;
                 elementRect.localPosition = quickSlot ? GetQuickSlotPanelElementPosition(visibleIndex, playerGrid.m_elementSpace) : GetCustomSlotPanelElementPosition(visibleIndex, playerGrid.m_elementSpace);
-                element.m_go.SetActive(true);
+                element.gameObject.SetActive(true);
                 if (!element.m_used && element.m_tooltip != null)
                 {
                     element.m_tooltip.m_topic = "";
@@ -135,7 +148,7 @@ public sealed partial class InventorySlotsPlugin
             }
             else
             {
-                RectTransform elementRect = (RectTransform)element!.m_go.transform;
+                RectTransform elementRect = (RectTransform)element!.gameObject.transform;
                 if (elementRect.parent != playerGrid.m_gridRoot)
                 {
                     elementRect.SetParent(playerGrid.m_gridRoot, false);
@@ -143,7 +156,7 @@ public sealed partial class InventorySlotsPlugin
 
                 if (y >= viewportRows || y >= totalRegularRows)
                 {
-                    element.m_go.SetActive(false);
+                    element.gameObject.SetActive(false);
                     element.m_used = true;
                     HideFavoriteBorder(element);
                     HideInventoryPinnedTooltipBorder(element);
@@ -151,7 +164,7 @@ public sealed partial class InventorySlotsPlugin
                 }
 
                 elementRect.localPosition = origin + new Vector3(x * playerGrid.m_elementSpace, -y * playerGrid.m_elementSpace, 0f);
-                element.m_go.SetActive(true);
+                element.gameObject.SetActive(true);
                 UpdateFavoriteBorder(element, player, inventory, new Vector2i(x, y));
                 UpdateInventoryPinnedTooltipBorder(playerGrid, element, new Vector2i(x, y));
             }

@@ -221,7 +221,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static int GetUsableRegularRows(Player player)
     {
-        return BaseRows + CalculateUnlockedRows(player);
+        return InventorySlotSafetyCore.GetCombinedRegularRows(GetNativeInventoryRows(player), CalculateUnlockedRows(player));
     }
 
     private static int CalculateUnlockedRows(Player player)
@@ -251,7 +251,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static int GetMaxExtraRows()
     {
-        return _maxExtraRows == null ? MaxSupportedExtraRows : Mathf.Clamp(_maxExtraRows.Value, 0, MaxSupportedExtraRows);
+        return _maxExtraRows == null ? MaxProgressionExtraRows : Mathf.Clamp(_maxExtraRows.Value, 0, MaxProgressionExtraRows);
     }
 
     private static int GetQuickSlotCount()
@@ -344,6 +344,7 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
+        RefreshNativeInventoryRows(player);
         QuickSlotProgressionResetPendingPlayerId = GetPlayerId(player);
         QuickSlotProgressionResetWarningPlayerId = "";
         InvalidateQuickSlotProgressionPanelCache();

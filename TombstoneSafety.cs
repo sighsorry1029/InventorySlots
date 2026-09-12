@@ -36,10 +36,10 @@ public sealed partial class InventorySlotsPlugin
             changed = true;
         }
 
-        if (changed && reloadInventory)
+        if (changed && reloadInventory && container.m_nview != null && container.m_nview.IsValid())
         {
-            container.m_lastRevision = 0u;
-            container.m_lastDataString = "";
+            // Force a revision mismatch without bypassing Load's in-use guard.
+            container.m_lastRevision = unchecked(container.m_nview.GetZDO().DataRevision - 1u);
             container.Load();
         }
 

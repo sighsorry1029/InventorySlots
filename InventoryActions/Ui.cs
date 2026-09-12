@@ -1,4 +1,5 @@
 using System;
+using HarmonyLib;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
@@ -219,7 +220,7 @@ public sealed partial class InventoryActionsPlugin
     }
 
     private static int GetDisplayedPlayerRows(InventoryGrid playerGrid) =>
-        Mathf.Max(1, Math.Min(VanillaPlayerRows, playerGrid.m_inventory != null ? playerGrid.m_inventory.GetHeight() : VanillaPlayerRows));
+        Mathf.Max(1, playerGrid.m_inventory != null ? playerGrid.m_inventory.GetHeight() : VanillaPlayerRows);
 
     private static int GetInventoryGridWidth(InventoryGrid playerGrid) =>
         Mathf.Max(1, playerGrid.m_inventory != null ? playerGrid.m_inventory.GetWidth() : PlayerInventoryWidth);
@@ -420,9 +421,9 @@ public sealed partial class InventoryActionsPlugin
             return;
         }
 
-        foreach (InventoryGrid.Element element in playerGrid.m_elements)
+        foreach (InventoryElement element in playerGrid.m_elements)
         {
-            source = element?.m_go != null ? element.m_go.GetComponent<UITooltip>() : null;
+            source = element != null ? element.gameObject.GetComponent<UITooltip>() : null;
             if (source?.m_tooltipPrefab != null)
             {
                 tooltip.m_tooltipPrefab = source.m_tooltipPrefab;
@@ -835,10 +836,15 @@ public sealed partial class InventoryActionsPlugin
         return true;
     }
 
+    private static readonly AccessTools.FieldRef<SplitDialog, Button> TrashSplitOkButton =
+        AccessTools.FieldRefAccess<SplitDialog, Button>("m_splitOkButton");
+    private static readonly AccessTools.FieldRef<SplitDialog, Button> TrashSplitCancelButton =
+        AccessTools.FieldRefAccess<SplitDialog, Button>("m_splitCancelButton");
+
     private static void ShowInventoryTrashConfirmDialog(InventoryGui gui, Inventory inventory, ItemData item, int amount)
     {
         CloseInventoryTrashConfirmDialog();
-        if (gui == null || gui.m_splitPanel == null || inventory == null || item == null || amount <= 0)
+        if (gui == null || gui.m_splitDialog == null || inventory == null || item == null || amount <= 0)
         {
             return;
         }
@@ -847,61 +853,22 @@ public sealed partial class InventoryActionsPlugin
         Runtime.TrashPendingItem = item;
         Runtime.TrashPendingAmount = amount;
 
-        Runtime.TrashConfirmDialog = Object.Instantiate(gui.m_splitPanel.gameObject, gui.transform);
-        Runtime.TrashConfirmDialog.name = TrashConfirmDialogName;
-
-        Button? okButton = FindInventoryTrashConfirmButton(Runtime.TrashConfirmDialog, "win_bkg/Button_ok");
-        Button? cancelButton = FindInventoryTrashConfirmButton(Runtime.TrashConfirmDialog, "win_bkg/Button_cancel");
-        if (okButton == null || cancelButton == null)
-        {
-            CloseInventoryTrashConfirmDialog();
-            return;
-        }
-
-        okButton.onClick.RemoveAllListeners();
-        okButton.onClick.AddListener(new UnityAction(ConfirmInventoryTrashDelete));
-        SetInventoryTrashConfirmButtonText(okButton, LocalizeUi("$inventoryactions_trash_delete", "Delete"), new Color(1f, 0.25f, 0.12f, 1f));
-
-        cancelButton.onClick.RemoveAllListeners();
-        cancelButton.onClick.AddListener(new UnityAction(CloseInventoryTrashConfirmDialog));
-        SetInventoryTrashConfirmButtonText(cancelButton, LocalizeUi("$menu_cancel", "Cancel"), Color.white);
-
-        Transform? slider = Runtime.TrashConfirmDialog.transform.Find("win_bkg/Slider");
-        if (slider != null)
-        {
-            slider.gameObject.SetActive(false);
-        }
-
-        TMP_Text? text = Runtime.TrashConfirmDialog.transform.Find("win_bkg/Text")?.GetComponent<TMP_Text>();
-        if (text != null)
-        {
-            string itemName = LocalizeUi(item.m_shared.m_name, item.m_shared.m_name);
-            string format = LocalizeUi("$inventoryactions_trash_confirm_format", "Delete {item}?");
-            text.text = format.Replace("{item}", itemName);
-        }
-
-        TMP_Text? amountText = Runtime.TrashConfirmDialog.transform.Find("win_bkg/amount")?.GetComponent<TMP_Text>();
-        if (amountText != null)
-        {
-            amountText.text = $"{amount}/{Mathf.Max(1, item.m_shared.m_maxStackSize)}";
-        }
-
-        Image? icon = Runtime.TrashConfirmDialog.transform.Find("win_bkg/Icon_bkg/Icon")?.GetComponent<Image>();
-        if (icon != null)
-        {
-            icon.sprite = item.GetIcon();
-            icon.preserveAspect = true;
-        }
-
-        Runtime.TrashConfirmDialog.SetActive(true);
+        // The cloned component owns its button listeners and exposes completion events.
+        SplitDialog dialog = Object.Instantiate(gui.m_splitDialog, gui.transform);
+        Runtime.TrashConfirmDialog = dialog.gameObject;
+        dialog.name = TrashConfirmDialogName;
+        dialog.SplitAccepted += ConfirmInventoryTrashDelete;
+        dialog.SplitCanceled += CloseInventoryTrashConfirmDialog;
+        dialog.UpdateLimits(Mathf.Max(1, item.m_shared.m_maxStackSize), false);
+        dialog.SliderValue = amount;
+        dialog.m_splitSlider.gameObject.SetActive(false);
+        string itemName = LocalizeUi(item.m_shared.m_name, item.m_shared.m_name);
+        string format = LocalizeUi("$inventoryactions_trash_confirm_format", "Delete {item}?");
+        dialog.UpdateIcon(item.GetIcon(), format.Replace("{item}", itemName));
+        SetInventoryTrashConfirmButtonText(TrashSplitOkButton(dialog), LocalizeUi("$inventoryactions_trash_delete", "Delete"), new Color(1f, 0.25f, 0.12f, 1f));
+        SetInventoryTrashConfirmButtonText(TrashSplitCancelButton(dialog), LocalizeUi("$menu_cancel", "Cancel"), Color.white);
+        dialog.SetActive(true);
     }
-
-    private static Button? FindInventoryTrashConfirmButton(GameObject dialog, string path)
-    {
-        Transform transform = dialog.transform.Find(path);
-        return transform != null ? transform.GetComponent<Button>() : null;
-    }
-
     private static void SetInventoryTrashConfirmButtonText(Button button, string label, Color color)
     {
         foreach (TMP_Text text in button.GetComponentsInChildren<TMP_Text>(true))
@@ -976,7 +943,7 @@ public sealed partial class InventoryActionsPlugin
 
         gui.SetupDragItem(null, null, 0);
         gui.UpdateCraftingPanel(false);
-        inventory.Changed();
+        NotifyInventoryChanged(inventory);
         gui.m_moveItemEffects.Create(gui.transform.position, Quaternion.identity);
     }
 
@@ -992,6 +959,12 @@ public sealed partial class InventoryActionsPlugin
         Runtime.TrashPendingAmount = 0;
         if (Runtime.TrashConfirmDialog != null && !IsUnityNull(Runtime.TrashConfirmDialog))
         {
+            SplitDialog? dialog = Runtime.TrashConfirmDialog.GetComponent<SplitDialog>();
+            if (dialog != null)
+            {
+                dialog.SplitAccepted -= ConfirmInventoryTrashDelete;
+                dialog.SplitCanceled -= CloseInventoryTrashConfirmDialog;
+            }
             Object.Destroy(Runtime.TrashConfirmDialog);
         }
 

@@ -1,6 +1,13 @@
 using InventorySlots;
 
 TestRunner.Run(
+    ("Native pockets and three progression rows add independently", Tests.NativePocketsAndProgressionRowsAddIndependently),
+    ("Native resize keeps the player panel root at its base size", Tests.NativeResizeKeepsPlayerPanelRootAtBaseSize),
+    ("Container preview follows GUI lifecycle and cached hover state", Tests.ContainerPreviewFollowsGuiLifecycleAndCachedHoverState),
+    ("Occupied locked rows remain visible without opening equipment storage", Tests.OccupiedLockedRowsRemainVisible),
+    ("Multi-user item identity preserves cheated state", Tests.MultiUserItemIdentityPreservesCheatedState),
+    ("Built-in multi-user open uses Valheim's registered response RPC", Tests.BuiltInMultiUserOpenUsesRegisteredResponseRpc),
+    ("Built-in multi-user remote container releases mouse capture wait", Tests.BuiltInMultiUserRemoteContainerReleasesMouseCaptureWait),
     ("Default YAML parses with expected sections", Tests.DefaultYamlParsesWithExpectedSections),
     ("Malformed YAML is rejected", Tests.MalformedYamlIsRejected),
     ("Null YAML slot entry is rejected", Tests.NullYamlSlotEntryIsRejected),
@@ -33,6 +40,7 @@ TestRunner.Run(
     ("Crafting text stamp separates text fields", Tests.CraftingTextStampSeparatesTextFields),
     ("Crafting text color stamp tracks color state", Tests.CraftingTextColorStampTracksColorState),
     ("Crafting simple tooltip stamp avoids delimiter collisions", Tests.CraftingSimpleTooltipStampAvoidsDelimiterCollisions),
+    ("Crafting requirement visibility follows native upgrader station policy", Tests.CraftingRequirementVisibilityFollowsNativeUpgraderStationPolicy),
     ("Tier sort mode prioritizes higher resource tier", Tests.TierSortModePrioritizesHigherResourceTier),
     ("Group sort mode prioritizes configured group order", Tests.GroupSortModePrioritizesConfiguredGroupOrder),
     ("Tier sort mode clusters equipment sets by slot", Tests.TierSortModeClustersEquipmentSetsBySlot),
@@ -95,7 +103,7 @@ TestRunner.Run(
     ("Action cell policy restock targets include hotbar and quickslots", Tests.ActionCellPolicyRestockTargetsIncludeHotbarAndQuickslots),
     ("Action cell policy trash allows regular inventory only", Tests.ActionCellPolicyTrashAllowsRegularInventoryOnly),
     ("Inventory trash rejects quest items through final confirmation", Tests.InventoryTrashRejectsQuestItemsThroughFinalConfirmation),
-    ("InventoryActions uses its fixed vanilla cell policy directly", Tests.InventoryActionsUsesFixedVanillaCellPolicyDirectly),
+    ("InventoryActions uses loaded player rows including pockets", Tests.InventoryActionsUsesLoadedPlayerCellPolicyDirectly),
     ("InventoryActions tooltip guard owns only its buttons", Tests.InventoryActionsTooltipGuardOwnsOnlyItsButtons),
     ("Keep-on-death equipment prefers regular cell before unrelated special slot", Tests.KeepOnDeathEquipmentPrefersRegularCellBeforeUnrelatedSpecialSlot),
     ("Keep-on-death quickslot avoids unrelated special slot when packed", Tests.KeepOnDeathQuickslotAvoidsUnrelatedSpecialSlotWhenPacked),
@@ -143,6 +151,8 @@ TestRunner.Run(
     ("Multi-user uncertain world delivery retains recovery ownership", Tests.MultiUserUncertainWorldDeliveryRetainsRecoveryOwnership),
     ("InventoryActions current-container transfers notify only after movement", Tests.InventoryActionsCurrentContainerTransfersNotifyOnlyAfterMovement),
     ("InventoryActions container action core copy mirrors InventorySlots behavior", Tests.InventoryActionsContainerActionCoreCopyMirrorsInventorySlotsBehavior),
+    ("InventoryActions open-anchor in-use policy stays scoped", Tests.InventoryActionsOpenAnchorInUsePolicyStaysScoped),
+    ("InventoryActions open-container quick stack stays wired through area ownership", Tests.InventoryActionsOpenContainerQuickStackStaysWiredThroughAreaOwnership),
     ("Area ownership handoff executes a matching grant once", Tests.AreaOwnershipHandoffExecutesMatchingGrantOnce),
     ("Area ownership handoff ignores mismatched responses", Tests.AreaOwnershipHandoffIgnoresMismatchedResponses),
     ("Area ownership handoff rejects late responses", Tests.AreaOwnershipHandoffRejectsLateResponses),
@@ -161,6 +171,132 @@ TestRunner.Run(
 
 internal static class Tests
 {
+    public static void NativePocketsAndProgressionRowsAddIndependently()
+    {
+        for (int purchased = 0; purchased <= 2; purchased++)
+        {
+            for (int discovered = 0; discovered <= 3; discovered++)
+            {
+                Assert.Equal(4 + purchased + discovered,
+                    InventorySlotSafetyCore.GetCombinedRegularRows(4 + purchased, discovered),
+                    $"purchases={purchased}, discoveries={discovered}");
+            }
+        }
+        Assert.Equal(6, InventorySlotSafetyCore.GetCombinedRegularRows(6, 0), "disabling mod rows must not remove purchases");
+        Assert.Equal(9, InventorySlotSafetyCore.GetCombinedRegularRows(6, 5), "old mod maximum must not shift equipment coordinates");
+        Assert.Equal(9, InventorySlotSafetyCore.GetCombinedRegularRows(9, 3), "native inventorysize command must not expose equipment as ordinary cells");
+        Assert.Equal(4, InventorySlotSafetyCore.GetCombinedRegularRows(int.MinValue, int.MinValue), "malformed state must retain a usable base");
+    }
+
+    public static void NativeResizeKeepsPlayerPanelRootAtBaseSize()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string resizeSource = ReadSourceSection(
+            File.ReadAllText(Path.Combine(repositoryRoot, "InventoryRows.cs")),
+            "internal static void SetNativeInventoryPanelSize(",
+            "internal static void CompleteNativeInventoryResize(");
+        string uiSource = File.ReadAllText(Path.Combine(repositoryRoot, "InventoryUiController.cs"));
+
+        Assert.True(
+            resizeSource.Contains("RefreshNativeInventoryRows(player);", StringComparison.Ordinal) &&
+            resizeSource.Contains("gui.SetInventorySize(BaseRows);", StringComparison.Ordinal),
+            "a native purchase must refresh row ownership while restoring the serialized player-panel size");
+        Assert.False(
+            resizeSource.Contains("gui.SetInventorySize(GetUsableRegularRows(player));", StringComparison.Ordinal),
+            "native and mod rows must not resize the whole player panel root");
+        Assert.True(
+            uiSource.Contains("UpdatePlayerInventoryPanelBackground(viewportRows);", StringComparison.Ordinal),
+            "the visible-row background must remain owned by InventorySlots' viewport layout");
+    }
+
+    public static void ContainerPreviewFollowsGuiLifecycleAndCachedHoverState()
+    {
+        string source = File.ReadAllText(
+            Path.Combine(FindRepositoryRoot(), "ContainerPreview.cs"));
+
+        Assert.True(
+            source.Contains("[HarmonyPatch(typeof(InventoryGui), \"Awake\")]", StringComparison.Ordinal) &&
+            source.Contains("OnContainerPreviewGuiAwake(__instance);", StringComparison.Ordinal) &&
+            source.Contains("[HarmonyPatch(typeof(InventoryGui), \"OnDestroy\")]", StringComparison.Ordinal) &&
+            source.Contains("OnContainerPreviewGuiDestroyed(__instance);", StringComparison.Ordinal),
+            "preview ownership must reset when Valheim replaces the InventoryGui between worlds");
+        Assert.True(
+            source.Contains("[HarmonyPatch(typeof(Player), \"UpdateHover\")]", StringComparison.Ordinal) &&
+            source.Contains("GameObject ___m_hovering", StringComparison.Ordinal) &&
+            source.Contains("CacheContainerPreviewHover(hoverObject);", StringComparison.Ordinal),
+            "the preview target must follow Player.UpdateHover instead of repeatedly searching the hierarchy");
+        Assert.True(
+            source.Contains("grid.UpdateInventory(inventory, null, null);", StringComparison.Ordinal),
+            "the container grid must update through Valheim's public inventory refresh path");
+        Assert.False(
+            source.Contains("grid.m_inventory = inventory;", StringComparison.Ordinal) ||
+            source.Contains("grid.UpdateGui(null, null);", StringComparison.Ordinal),
+            "preview rendering must not bypass InventoryGrid.UpdateInventory bookkeeping");
+        Assert.True(
+            source.Contains("previewRoot.transform.IsChildOf(target.transform)", StringComparison.Ordinal),
+            "UI suppression must never deactivate an ancestor of the visible container panel");
+    }
+
+    public static void OccupiedLockedRowsRemainVisible()
+    {
+        Assert.Equal(9, InventorySlotSafetyCore.GetRecoveryDisplayRows(7, 8), "old ninth-row item must remain reachable");
+        Assert.Equal(8, InventorySlotSafetyCore.GetRecoveryDisplayRows(7, 7), "old eighth-row item must remain reachable");
+        Assert.Equal(7, InventorySlotSafetyCore.GetRecoveryDisplayRows(7, 3), "ordinary occupied cells must not expand the grid");
+        Assert.Equal(9, InventorySlotSafetyCore.GetRecoveryDisplayRows(7, 10), "display extent must stop before equipment coordinates");
+    }
+
+    public static void MultiUserItemIdentityPreservesCheatedState()
+    {
+        var clean = CreateMultiUserItemSnapshot();
+        var cheated = CreateMultiUserItemSnapshot(cheated: true);
+        Assert.False(MultiUserContainerTransferCore.IsExactMatch(clean, cheated, 1), "cheated source substitution must be rejected");
+        Assert.False(MultiUserContainerTransferCore.IsExactMatch(cheated, clean, 1), "cheated state cannot disappear in a receipt");
+        Assert.True(MultiUserContainerTransferCore.IsExactMatch(cheated, CreateMultiUserItemSnapshot(cheated: true), 1), "unchanged cheated item can transfer");
+        Assert.True(MultiUserContainerTransferCore.CanStackTogether(cheated, clean, 1), "stacking retains native propagation policy, distinct from exact identity");
+    }
+
+    public static void BuiltInMultiUserOpenUsesRegisteredResponseRpc()
+    {
+        string source = File.ReadAllText(
+            Path.Combine(FindRepositoryRoot(), "MultiUserContainerOperations.cs"));
+        string openHandler = ReadSourceSection(
+            source,
+            "internal static bool TryHandleMultiUserContainerOpen(",
+            "internal static bool TryUpdateMultiUserRemoteContainer(");
+
+        Assert.True(
+            openHandler.Contains(
+                "container.m_nview.InvokeRPC(sender, \"RPC_OpenResponse\", granted);",
+                StringComparison.Ordinal),
+            "the intercepted open request must reply through Container.Awake's registered RPC name");
+        Assert.False(
+            openHandler.Contains("\"OpenRespons\"", StringComparison.Ordinal),
+            "the obsolete unregistered response RPC must not return");
+    }
+
+    public static void BuiltInMultiUserRemoteContainerReleasesMouseCaptureWait()
+    {
+        string source = File.ReadAllText(
+            Path.Combine(FindRepositoryRoot(), "MultiUserContainerOperations.cs"));
+        int remoteUpdateStart = source.IndexOf(
+            "internal static bool TryUpdateMultiUserRemoteContainer(",
+            StringComparison.Ordinal);
+        Assert.True(remoteUpdateStart >= 0, "the remote-container update handler must remain available");
+
+        int releasedHoldState = source.IndexOf(
+            "gui.m_containerHoldState = -1;",
+            remoteUpdateStart,
+            StringComparison.Ordinal);
+        int releasedMouseCaptureWait = source.IndexOf(
+            "gui.m_waitForContainerStack = false;",
+            Math.Max(0, releasedHoldState),
+            StringComparison.Ordinal);
+
+        Assert.True(
+            releasedHoldState >= 0 && releasedMouseCaptureWait > releasedHoldState,
+            "the remote-container path must mirror vanilla and release the stack wait after Use is released");
+    }
+
     public static void DefaultYamlParsesWithExpectedSections()
     {
         YamlRoot root = InventorySlotsConfigCore.ParseYaml(InventorySlotsPlugin.DefaultYaml);
@@ -320,7 +456,7 @@ internal static class Tests
 
         foreach (string resource in new[]
                  {
-                     "cryptkey", "trophyabomination"
+                     "cryptkey", "trophyabomination", "writhanroots", "trophywrithan"
                  })
         {
             Assert.Equal(2, tiers[resource]);
@@ -346,7 +482,7 @@ internal static class Tests
 
         foreach (string resource in new[]
                  {
-                     "dvergrkey", "mushroommagecap", "mushroomjotunpuffs", "royaljelly"
+                     "dvergrkey", "mushroommagecap", "mushroomjotunpuffs", "royaljelly", "hook"
                  })
         {
             Assert.Equal(6, tiers[resource]);
@@ -354,7 +490,7 @@ internal static class Tests
 
         foreach (string resource in new[]
                  {
-                     "mushroomsmokepuff", "vineberry", "fiddleheadfern", "trophyseekerqueen", "trophycharredmelee"
+                     "mushroomsmokepuff", "vineberry", "fiddleheadfern", "trophyseekerqueen", "trophycharredmelee", "trophybloblava"
                  })
         {
             Assert.Equal(7, tiers[resource]);
@@ -362,6 +498,18 @@ internal static class Tests
 
         Assert.Equal(1, CountSourceOccurrences(InventorySlotsPlugin.DefaultResourceMapYaml, "  - Resin"));
         Assert.Equal(1, CountSourceOccurrences(InventorySlotsPlugin.DefaultResourceMapYaml, "  - BoneFragments"));
+
+        // Progression rewards, processed materials, molds, and conversion-only outputs
+        // need explicit entries; their display names are not necessarily prefab names.
+        foreach (string resource in new[]
+                 {
+                     "faderdrop", "faderember", "goldore", "gold", "frostwood", "nornthread",
+                     "frozenfuel", "oat", "oatflour", "spicedeepnorth", "moldsword",
+                     "armordeepnorthheavychest", "armordeepnorthheavylegs", "helmetdnheavy", "bloodgoldkey"
+                 })
+        {
+            Assert.Equal(8, tiers[resource]);
+        }
     }
 
     public static void MalformedResourceMapsAreRejected()
@@ -652,6 +800,43 @@ internal static class Tests
 
         Assert.True(baseline.Equals(same), "same tooltip topic and body should reuse the tooltip stamp");
         Assert.False(baseline.Equals(delimiterCollision), "topic and body must remain separate fields");
+    }
+
+    public static void CraftingRequirementVisibilityFollowsNativeUpgraderStationPolicy()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string bottomControls = File.ReadAllText(Path.Combine(repositoryRoot, "CraftingBottomControls.cs"));
+        string tooltipRows = File.ReadAllText(Path.Combine(repositoryRoot, "CraftingTooltipRecipeRows.cs"));
+        string visibility = ReadSourceSection(
+            bottomControls,
+            "private static List<Requirement> GetVisibleCraftingRequirements(",
+            "private static bool IsCraftingRequirementActiveForStation(");
+        string policy = ReadSourceSection(
+            bottomControls,
+            "private static bool IsCraftingRequirementActiveForStation(",
+            "private static bool ShouldShowCraftingStatusHud(");
+        string signature = ReadSourceSection(
+            tooltipRows,
+            "private static string GetCraftingTooltipRecipeRowSignature(",
+            "private static bool ApplyCraftingTooltipOverlayWidth(");
+        string selection = ReadSourceSection(
+            tooltipRows,
+            "private static bool TryGetCraftingTooltipRequirement(",
+            "private static RectTransform EnsureCraftingTooltipRecipeRow(");
+
+        Assert.True(
+            policy.Contains("station.m_upgrader == requirement.m_upgraderResource", StringComparison.Ordinal) &&
+            policy.Contains(": !requirement.m_upgraderResource;", StringComparison.Ordinal),
+            "the shared display policy must match Valheim's station/upgrader-resource contract");
+        Assert.True(
+            visibility.Contains("IsCraftingRequirementActiveForStation(requirement, currentStation)", StringComparison.Ordinal),
+            "the bottom requirement strip must exclude inactive upgrader resources");
+        Assert.True(
+            signature.Contains("IsCraftingRequirementActiveForStation(requirement, currentStation)", StringComparison.Ordinal),
+            "the tooltip signature must track only requirements visible at the current station");
+        Assert.True(
+            selection.Contains("IsCraftingRequirementActiveForStation(candidate, currentStation)", StringComparison.Ordinal),
+            "pinned and hover tooltip rows must use the same station policy");
     }
 
     public static void TierSortModePrioritizesHigherResourceTier()
@@ -1199,7 +1384,7 @@ internal static class Tests
             source,
             "private static void ApplyCustomEquipmentVisualStates",
             "internal static void ClearCustomEquipmentVisuals()");
-        int reentryShortCircuit = applySource.IndexOf("existing.Matches(visEquipment, state.PrefabName, state.Variant)", StringComparison.Ordinal);
+        int reentryShortCircuit = applySource.IndexOf("existing.Matches(visEquipment, state.PrefabName, state.Variant, state.Quality)", StringComparison.Ordinal);
         int registration = applySource.IndexOf("EquipmentVisuals.Visuals[key] = visual;", StringComparison.Ordinal);
         int attachment = applySource.IndexOf("TryInitializeCustomEquipmentVisual(visEquipment, state, visual)", StringComparison.Ordinal);
 
@@ -2039,7 +2224,7 @@ internal static class Tests
             placementPatches.Contains("typeof(Vector2i),", StringComparison.Ordinal) &&
             placementPatches.Contains("typeof(bool))]", StringComparison.Ordinal) &&
             placementPatches.Contains("BeginEquipmentSlotUpgradeReplacementAdd", StringComparison.Ordinal),
-            "only the exact eight-parameter positional AddItem overload may open the replacement scope");
+            "only the exact positional AddItem overload may open the replacement scope; the compiled target is verified against original metadata");
         Assert.True(
             findEmptyPatch.Contains("\"FindEmptySlot\", typeof(bool)", StringComparison.Ordinal) &&
             findEmptyPatch.Contains("[HarmonyPriority(Priority.First)]", StringComparison.Ordinal) &&
@@ -2598,7 +2783,7 @@ internal static class Tests
             "confirmation must rerun the quest-aware policy before deleting any amount");
     }
 
-    public static void InventoryActionsUsesFixedVanillaCellPolicyDirectly()
+    public static void InventoryActionsUsesLoadedPlayerCellPolicyDirectly()
     {
         string repositoryRoot = FindRepositoryRoot();
         string source = File.ReadAllText(
@@ -2617,8 +2802,8 @@ internal static class Tests
             "trash and regular container actions must exclude the hotbar");
         Assert.True(
             policy.Contains("!IsOutOfBounds(inventory, pos)", StringComparison.Ordinal) &&
-            policy.Contains("pos.y < Math.Min(VanillaPlayerRows, inventory.GetHeight())", StringComparison.Ordinal),
-            "InventoryActions must limit its standalone policy to loaded vanilla player rows");
+            !policy.Contains("VanillaPlayerRows", StringComparison.Ordinal),
+            "InventoryActions must include purchased rows within the loaded inventory bounds");
         Assert.False(
             policy.Contains("InventoryCellKind", StringComparison.Ordinal) ||
             policy.Contains("InventoryActionCellPolicyCore", StringComparison.Ordinal),
@@ -3568,10 +3753,11 @@ internal static class Tests
             movedGuard >= 0 && broadcast > movedGuard,
             "InventoryActions must broadcast VFX only after a positive confirmed move");
         Assert.Equal(
-            2,
+            3,
             CountSourceOccurrences(
                 ownershipSource,
-                "RecordAreaContainerTransfer(session, target, moved);"));
+                "RecordAreaContainerTransfer(session, target, moved);"),
+            "open-anchor, directly owned, and handed-off targets must all use the same bounded result recorder");
 
         string complete = ReadSourceSection(
             ownershipSource,
@@ -4277,7 +4463,7 @@ internal static class Tests
             Path.Combine(FindRepositoryRoot(), "InventoryActions", "Actions.cs"));
         string quickStack = ReadSourceSection(
             source,
-            "private static void QuickStackIntoContainers",
+            "private static bool QuickStackIntoContainers",
             "private static bool ShouldQuickStackItem");
         string restock = ReadSourceSection(
             source,
@@ -4287,7 +4473,7 @@ internal static class Tests
         foreach (string transfer in new[] { quickStack, restock })
         {
             int movedGuard = transfer.IndexOf("if (moved", StringComparison.Ordinal);
-            int changed = transfer.IndexOf("playerInventory.Changed();", StringComparison.Ordinal);
+            int changed = transfer.IndexOf("NotifyInventoryChanged(playerInventory);", StringComparison.Ordinal);
             Assert.True(
                 movedGuard >= 0 && changed > movedGuard,
                 "current-container transfers must notify the player inventory only after a positive move");
@@ -4351,7 +4537,7 @@ internal static class Tests
             "internal static void RegisterAreaOwnershipRpcs");
         int clearSession = cancel.IndexOf("_areaContainerTransfer = null;", StringComparison.Ordinal);
         int clearLease = cancel.IndexOf("ClearAreaOwnershipLeaseIfMatching(", StringComparison.Ordinal);
-        int notifyInventory = cancel.IndexOf("changedInventory.Changed();", StringComparison.Ordinal);
+        int notifyInventory = cancel.IndexOf("NotifyInventoryChanged(changedInventory);", StringComparison.Ordinal);
         Assert.True(
             clearSession >= 0 && clearLease > clearSession && notifyInventory > clearSession,
             "cancellation must clear the session before lease or inventory callbacks can throw");
@@ -4393,6 +4579,90 @@ internal static class Tests
                 ContainerActionCore.CompareGridOrder(leftX, leftY, rightX, rightY),
                 InventoryActions.ContainerActionCore.CompareGridOrder(leftX, leftY, rightX, rightY));
         }
+    }
+
+    public static void InventoryActionsOpenAnchorInUsePolicyStaysScoped()
+    {
+        Assert.False(
+            InventoryActions.AreaContainerUsePolicy.AllowsInUseState(
+                targetIsAnchor: true,
+                targetInUse: true,
+                anchorInUse: true,
+                allowOpenQuickStackAnchor: false),
+            "ordinary area actions must reject an in-use anchor");
+        Assert.True(
+            InventoryActions.AreaContainerUsePolicy.AllowsInUseState(
+                targetIsAnchor: true,
+                targetInUse: true,
+                anchorInUse: true,
+                allowOpenQuickStackAnchor: true),
+            "the current quick-stack anchor may remain open by its local owner");
+        Assert.True(
+            InventoryActions.AreaContainerUsePolicy.AllowsInUseState(
+                targetIsAnchor: false,
+                targetInUse: false,
+                anchorInUse: true,
+                allowOpenQuickStackAnchor: true),
+            "an open quick-stack anchor must not block an idle nearby container");
+        Assert.False(
+            InventoryActions.AreaContainerUsePolicy.AllowsInUseState(
+                targetIsAnchor: false,
+                targetInUse: true,
+                anchorInUse: true,
+                allowOpenQuickStackAnchor: true),
+            "allowing the open anchor must never allow another in-use container");
+    }
+
+    public static void InventoryActionsOpenContainerQuickStackStaysWiredThroughAreaOwnership()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string actions = File.ReadAllText(
+            Path.Combine(repositoryRoot, "InventoryActions", "Actions.cs"));
+        string ownership = File.ReadAllText(
+            Path.Combine(repositoryRoot, "InventoryActions", "AreaContainerOwnership.cs"));
+        string start = ReadSourceSection(
+            ownership,
+            "private static bool TryStartAreaContainerTransfer(",
+            "private static void UpdateAreaContainerTransfer(");
+        string update = ReadSourceSection(
+            ownership,
+            "private static void UpdateAreaContainerTransfer(",
+            "private static void ContinueAreaContainerTransfer(");
+        string validation = ReadSourceSection(
+            ownership,
+            "private static AreaOwnershipFailure ValidateAreaOwnershipRequest(",
+            "private static bool TryGetRpcSenderPlayer(");
+
+        Assert.True(
+            start.Contains("IsOpenQuickStackAnchor(player, anchor, action)", StringComparison.Ordinal) &&
+            start.Contains("AllowOpenQuickStackAnchor = allowOpenQuickStackAnchor", StringComparison.Ordinal) &&
+            start.Contains("if (targets.Count == 0)", StringComparison.Ordinal),
+            "an opened-container StackAll action must retain its narrowly scoped anchor exception and fall back to vanilla when no target is usable");
+        Assert.True(
+            update.Contains("IsInventoryGuiBlockingAreaTransfer(session)", StringComparison.Ordinal),
+            "the ownership handoff must continue while its exact quick-stack anchor remains open");
+        Assert.True(
+            actions.Contains("allowOpenQuickStackAnchor ||", StringComparison.Ordinal) &&
+            actions.Contains("allowOpenQuickStackAnchor: allowOpenQuickStackAnchor", StringComparison.Ordinal),
+            "the exact open anchor must be inserted first while nearby target discovery receives the scoped exception");
+        string continuation = ReadSourceSection(
+            ownership,
+            "private static void ContinueAreaContainerTransfer()",
+            "private static bool TryBeginAreaOwnershipRequest(");
+        int openAnchorBranch = continuation.IndexOf(
+            "session.AllowOpenQuickStackAnchor && target == session.Anchor",
+            StringComparison.Ordinal);
+        int genericUseValidation = continuation.IndexOf(
+            "!CanUseAreaContainerNow(",
+            StringComparison.Ordinal);
+        Assert.True(
+            openAnchorBranch >= 0 && genericUseValidation > openAnchorBranch &&
+            continuation.IndexOf("ExecuteAreaContainerTransfer(session, target)", openAnchorBranch, StringComparison.Ordinal) > openAnchorBranch,
+            "the open vanilla target must transfer before generic unattended-container validation");
+        Assert.True(
+            validation.Contains("anchorZdo.GetOwner() == sender", StringComparison.Ordinal) &&
+            validation.Contains("AreaContainerUsePolicy.AllowsInUseState", StringComparison.Ordinal),
+            "a remote owner may accept an in-use anchor only when the requester owns that quick-stack anchor");
     }
 
     public static void AreaOwnershipHandoffExecutesMatchingGrantOnce()
@@ -4992,7 +5262,8 @@ internal static class Tests
         float durability = 50f,
         bool pickedUp = true,
         int stack = 1,
-        IEnumerable<KeyValuePair<string, string>>? customData = null) =>
+        IEnumerable<KeyValuePair<string, string>>? customData = null,
+        bool cheated = false) =>
         new(
             prefabName,
             quality,
@@ -5003,7 +5274,8 @@ internal static class Tests
             durability,
             pickedUp,
             stack,
-            customData);
+            customData,
+            cheated);
 
     private static SortKey Key(
         int resourceTier = 0,
@@ -5062,11 +5334,11 @@ internal static class Assert
         }
     }
 
-    public static void Equal<T>(T expected, T actual)
+    public static void Equal<T>(T expected, T actual, string? message = null)
     {
         if (!EqualityComparer<T>.Default.Equals(expected, actual))
         {
-            throw new InvalidOperationException($"Expected '{expected}', got '{actual}'.");
+            throw new InvalidOperationException($"{message} Expected '{expected}', got '{actual}'.");
         }
     }
 

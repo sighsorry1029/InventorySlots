@@ -20,7 +20,7 @@ internal static class ContainerStackAllFavoriteProtectionPatch
     }
 }
 
-[HarmonyPatch(typeof(Container), "RPC_TakeAllRespons")]
+[HarmonyPatch(typeof(Container), "RPC_TakeAllResponse")]
 internal static class ContainerTakeAllResponsInventorySlotsPatch
 {
     private static void Postfix(Container __instance, bool granted)

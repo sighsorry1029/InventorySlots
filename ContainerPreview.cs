@@ -27,6 +27,9 @@ public sealed partial class InventorySlotsPlugin
     private static bool _containerPreviewActive;
     private static bool _containerPreviewUiCaptured;
     private static bool _containerPreviewStandaloneWarningLogged;
+    private static InventoryGui? _containerPreviewGuiOwner;
+    private static GameObject? _containerPreviewHoverObject;
+    private static Container? _containerPreviewHoverContainer;
     private static Container? _containerPreviewTarget;
     private static Inventory? _containerPreviewInventory;
     private static Inventory? _containerPreviewRenderedInventory;
@@ -35,6 +38,47 @@ public sealed partial class InventorySlotsPlugin
     private static float _containerPreviewCloseAt;
     private static float _containerPreviewLastFailureAt = float.NegativeInfinity;
     private static string _containerPreviewLastFailure = "";
+
+    internal static void OnContainerPreviewGuiAwake(InventoryGui gui)
+    {
+        if (gui == null || IsUnityNull(gui))
+        {
+            return;
+        }
+
+        RestoreContainerPreviewUi();
+        ClearContainerPreviewState(clearHover: true);
+        _containerPreviewRealGuiVisible = false;
+        _containerPreviewGuiOwner = gui;
+    }
+
+    internal static void OnContainerPreviewGuiDestroyed(InventoryGui gui)
+    {
+        if (_containerPreviewGuiOwner != null &&
+            !IsUnityNull(_containerPreviewGuiOwner) &&
+            _containerPreviewGuiOwner != gui)
+        {
+            return;
+        }
+
+        RestoreContainerPreviewUi();
+        ClearContainerPreviewState(clearHover: true);
+        _containerPreviewRealGuiVisible = false;
+        _containerPreviewGuiOwner = null;
+    }
+
+    internal static void OnContainerPreviewHoverUpdated(Player player, GameObject? hoverObject)
+    {
+        if (IsDedicatedServer ||
+            player == null ||
+            IsUnityNull(player) ||
+            player != Player.m_localPlayer)
+        {
+            return;
+        }
+
+        CacheContainerPreviewHover(hoverObject);
+    }
 
     internal static void OnRealInventoryGuiShown()
     {
@@ -61,6 +105,8 @@ public sealed partial class InventorySlotsPlugin
         _containerPreviewRealGuiVisible = false;
         EndContainerPreview(InventoryGui.instance, keepRealGuiVisible: false);
         RestoreContainerPreviewUi();
+        ClearContainerPreviewState(clearHover: true);
+        _containerPreviewGuiOwner = null;
     }
 
     internal static bool ShouldBlockContainerPreviewInteraction(InventoryGui? gui)
@@ -99,6 +145,13 @@ public sealed partial class InventorySlotsPlugin
         if (IsDedicatedServer || gui == null || IsUnityNull(gui))
         {
             return;
+        }
+
+        if (_containerPreviewGuiOwner == null ||
+            IsUnityNull(_containerPreviewGuiOwner) ||
+            _containerPreviewGuiOwner != gui)
+        {
+            OnContainerPreviewGuiAwake(gui);
         }
 
         Player? player = Player.m_localPlayer;
@@ -189,7 +242,13 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool TryGetContainerPreviewTarget(Player player, out Container? container, out Inventory? inventory)
     {
-        container = GetHoveredContainer(player);
+        GameObject? hoverObject = player.GetHoverObject();
+        if (_containerPreviewHoverObject != hoverObject)
+        {
+            CacheContainerPreviewHover(hoverObject);
+        }
+
+        container = _containerPreviewHoverContainer;
         inventory = null;
         if (container == null ||
             IsUnityNull(container) ||
@@ -206,6 +265,20 @@ public sealed partial class InventorySlotsPlugin
         }
 
         return true;
+    }
+
+    private static void CacheContainerPreviewHover(GameObject? hoverObject)
+    {
+        if (_containerPreviewHoverObject == hoverObject &&
+            (_containerPreviewHoverContainer == null || !IsUnityNull(_containerPreviewHoverContainer)))
+        {
+            return;
+        }
+
+        _containerPreviewHoverObject = IsUnityNull(hoverObject) ? null : hoverObject;
+        _containerPreviewHoverContainer = _containerPreviewHoverObject != null
+            ? _containerPreviewHoverObject.GetComponentInParent<Container>()
+            : null;
     }
 
     private static bool IsContainerPreviewInventoryValid(Inventory inventory, out int width, out int height)
@@ -252,17 +325,7 @@ public sealed partial class InventorySlotsPlugin
             gui.m_container.gameObject.SetActive(true);
 
             InventoryGrid grid = gui.m_containerGrid;
-            grid.m_inventory = inventory;
-            grid.m_selected.x = Mathf.Clamp(grid.m_selected.x, 0, width - 1);
-            grid.m_selected.y = Mathf.Clamp(grid.m_selected.y, 0, height - 1);
-            int expectedElementCount = width * height;
-            if (grid.m_elements == null || grid.m_elements.Count != expectedElementCount)
-            {
-                grid.m_width = -1;
-                grid.m_height = -1;
-            }
-
-            grid.UpdateGui(null, null);
+            grid.UpdateInventory(inventory, null, null);
 
             bool targetChanged = _containerPreviewRenderedInventory != inventory ||
                                  _containerPreviewRenderedWidth != width ||
@@ -301,20 +364,28 @@ public sealed partial class InventorySlotsPlugin
             ClearInventoryHoverTooltipSources();
         }
 
-        CaptureAndHideContainerPreviewObject(gui.m_player != null ? gui.m_player.gameObject : null);
-        CaptureAndHideContainerPreviewObject(gui.m_crafting != null ? gui.m_crafting.gameObject : null);
-        CaptureAndHideContainerPreviewObject(gui.m_info != null ? gui.m_info.gameObject : null);
-        CaptureAndHideContainerPreviewObject(gui.m_infoPanel != null ? gui.m_infoPanel.gameObject : null);
-        CaptureAndHideContainerPreviewObject(gui.m_takeAllButton != null ? gui.m_takeAllButton.gameObject : null);
-        CaptureAndHideContainerPreviewObject(gui.m_stackAllButton != null ? gui.m_stackAllButton.gameObject : null);
-        CaptureAndHideContainerPreviewObject(gui.m_inventoryRoot?.Find("Crafting")?.gameObject);
-        CaptureAndHideContainerPreviewObject(gui.m_inventoryRoot?.Find("RightPanel")?.gameObject);
+        GameObject? previewRoot = gui.m_container != null ? gui.m_container.gameObject : null;
+        CaptureAndHideContainerPreviewObject(gui.m_player != null ? gui.m_player.gameObject : null, previewRoot);
+        CaptureAndHideContainerPreviewObject(gui.m_crafting != null ? gui.m_crafting.gameObject : null, previewRoot);
+        CaptureAndHideContainerPreviewObject(gui.m_info != null ? gui.m_info.gameObject : null, previewRoot);
+        CaptureAndHideContainerPreviewObject(gui.m_infoPanel != null ? gui.m_infoPanel.gameObject : null, previewRoot);
+        CaptureAndHideContainerPreviewObject(gui.m_takeAllButton != null ? gui.m_takeAllButton.gameObject : null, previewRoot);
+        CaptureAndHideContainerPreviewObject(gui.m_stackAllButton != null ? gui.m_stackAllButton.gameObject : null, previewRoot);
+        CaptureAndHideContainerPreviewObject(gui.m_inventoryRoot?.Find("Crafting")?.gameObject, previewRoot);
+        CaptureAndHideContainerPreviewObject(gui.m_inventoryRoot?.Find("RightPanel")?.gameObject, previewRoot);
         HideInventoryActionPanels();
     }
 
-    private static void CaptureAndHideContainerPreviewObject(GameObject? target)
+    private static void CaptureAndHideContainerPreviewObject(GameObject? target, GameObject? previewRoot)
     {
         if (target == null || IsUnityNull(target))
+        {
+            return;
+        }
+
+        if (previewRoot != null &&
+            !IsUnityNull(previewRoot) &&
+            (target == previewRoot || previewRoot.transform.IsChildOf(target.transform)))
         {
             return;
         }
@@ -330,13 +401,8 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
-    private static void EndContainerPreview(InventoryGui? gui, bool keepRealGuiVisible)
+    private static void ClearContainerPreviewState(bool clearHover)
     {
-        if (GetContainerPreviewPhase() != ContainerPreviewPhase.PreviewVisible)
-        {
-            return;
-        }
-
         _containerPreviewFrameOwned = false;
         _containerPreviewActive = false;
         _containerPreviewTarget = null;
@@ -345,6 +411,24 @@ public sealed partial class InventorySlotsPlugin
         _containerPreviewRenderedWidth = -1;
         _containerPreviewRenderedHeight = -1;
         _containerPreviewCloseAt = 0f;
+
+        if (!clearHover)
+        {
+            return;
+        }
+
+        _containerPreviewHoverObject = null;
+        _containerPreviewHoverContainer = null;
+    }
+
+    private static void EndContainerPreview(InventoryGui? gui, bool keepRealGuiVisible)
+    {
+        if (GetContainerPreviewPhase() != ContainerPreviewPhase.PreviewVisible)
+        {
+            return;
+        }
+
+        ClearContainerPreviewState(clearHover: false);
 
         if (gui == null || IsUnityNull(gui))
         {
@@ -396,6 +480,36 @@ public sealed partial class InventorySlotsPlugin
         _containerPreviewLastFailure = message;
         _containerPreviewLastFailureAt = now;
         Log.LogWarning($"Container preview was closed after a UI update failed: {message}");
+    }
+}
+
+[HarmonyPatch(typeof(Player), "UpdateHover")]
+internal static class PlayerContainerPreviewHoverPatch
+{
+    [HarmonyPriority(Priority.Last)]
+    private static void Postfix(Player __instance, GameObject ___m_hovering)
+    {
+        InventorySlotsPlugin.OnContainerPreviewHoverUpdated(__instance, ___m_hovering);
+    }
+}
+
+[HarmonyPatch(typeof(InventoryGui), "Awake")]
+internal static class InventoryGuiContainerPreviewAwakePatch
+{
+    [HarmonyPriority(Priority.Last)]
+    private static void Postfix(InventoryGui __instance)
+    {
+        InventorySlotsPlugin.OnContainerPreviewGuiAwake(__instance);
+    }
+}
+
+[HarmonyPatch(typeof(InventoryGui), "OnDestroy")]
+internal static class InventoryGuiContainerPreviewDestroyPatch
+{
+    [HarmonyPriority(Priority.First)]
+    private static void Prefix(InventoryGui __instance)
+    {
+        InventorySlotsPlugin.OnContainerPreviewGuiDestroyed(__instance);
     }
 }
 

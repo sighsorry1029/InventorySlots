@@ -13,7 +13,7 @@ namespace InventoryActions;
 public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
 {
     internal const string ModName = "InventoryActions";
-    internal const string ModVersion = "1.0.8";
+    internal const string ModVersion = "1.0.11";
     internal const string Author = "sighsorry";
     internal const string ModGUID = $"{Author}.{ModName}";
     private const string ExternalMultiUserChestGuid = "com.maxsch.valheim.MultiUserChest";
@@ -96,6 +96,7 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
     private void OnDestroy()
     {
         CancelAreaContainerTransfer();
+        CloseInventoryTrashConfirmDialog();
         // Keep inventory action patches installed during runtime teardown to avoid item-move logic changing mid-session.
         Config.Save();
     }

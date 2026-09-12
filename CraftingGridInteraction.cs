@@ -728,7 +728,7 @@ public sealed partial class InventorySlotsPlugin
 
         if (grid.m_elements != null)
         {
-            foreach (InventoryGrid.Element element in grid.m_elements)
+            foreach (InventoryElement element in grid.m_elements)
             {
                 if (element?.m_food != null && element.m_food.sprite != null)
                 {

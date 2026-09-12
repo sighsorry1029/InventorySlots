@@ -154,8 +154,8 @@ public sealed partial class InventorySlotsPlugin
         int count = Math.Min(grid.m_elements.Count, width * Math.Max(0, inventory.GetHeight()));
         for (int i = 0; i < count; i++)
         {
-            InventoryGrid.Element element = grid.m_elements[i];
-            if (IsUnityNull(element?.m_go) || !element!.m_go.activeInHierarchy)
+            InventoryElement element = grid.m_elements[i];
+            if (IsUnityNull(element) || !element!.gameObject.activeInHierarchy)
             {
                 continue;
             }
@@ -168,7 +168,7 @@ public sealed partial class InventorySlotsPlugin
                 continue;
             }
 
-            if (element.m_go.transform is not RectTransform rect || !RectContainsScreenMouse(rect))
+            if (element.gameObject.transform is not RectTransform rect || !RectContainsScreenMouse(rect))
             {
                 continue;
             }

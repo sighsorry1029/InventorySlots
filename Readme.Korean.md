@@ -111,6 +111,10 @@ Jewelcrafting의 소켓과 보석 툴팁 내용은 InventorySlots의 툴팁과 �
 
 `InventorySlots/ResourceMap.yml`은 티어 이름과 재료 목록을 직접 연결함. 위에서 아래 순서로 티어가 정해지며, 같은 재료가 여러 번 나오면 처음 나온 티어가 적용됨.
 
+기본 맵은 Meadows부터 DeepNorth까지 정렬 티어를 제공함. 제작 비용이나 해금 조건은 바꾸지 않음. Writhan 재료는 Swamp, Hook은 Mistlands, 용암 Blob 트로피는 AshLands에 배치하며, Fader 처치 보상은 다음 지역 진입 재료로 보아 DeepNorth에 배치함.
+
+모드를 업데이트해도 기존 `ResourceMap.yml`은 덮어쓰지 않음. 파일을 백업한 뒤 저장소의 `config/InventorySlots/ResourceMap.yml`에서 누락 항목만 해당 섹션에 병합하고 사용자 항목과 티어 순서를 유지해야 함. `DeepNorth`는 `AshLands` 뒤에 추가하며 섹션을 알파벳순으로 정렬하면 안 됨. 멀티플레이에서는 서버의 맵이 기준임. YAML 수정은 실행 중 다시 읽고 동기화하도록 되어 있으며, 제작 목록은 갱신 대상으로 표시되고 인벤토리·상자는 다음 정렬부터 새 티어를 사용함. 잘못된 YAML은 마지막 정상 맵을 유지함.
+
 ```yaml
 Meadows:
   - Wood

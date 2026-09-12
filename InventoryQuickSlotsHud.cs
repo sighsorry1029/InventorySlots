@@ -616,9 +616,9 @@ public sealed partial class InventorySlotsPlugin
 
         if (gui?.m_playerGrid?.m_elements != null)
         {
-            foreach (InventoryGrid.Element element in gui.m_playerGrid.m_elements)
+            foreach (InventoryElement element in gui.m_playerGrid.m_elements)
             {
-                source = !IsUnityNull(element?.m_go) ? element!.m_go.GetComponent<UITooltip>() : null;
+                source = !IsUnityNull(element) ? element!.gameObject.GetComponent<UITooltip>() : null;
                 if (source?.m_tooltipPrefab != null)
                 {
                     return source;

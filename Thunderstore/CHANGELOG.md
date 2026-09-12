@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.4.10
+
+- Fixed the mouse cursor remaining captured after a built-in multi-user container opened while the Use key was held. The remote-container update path now releases Valheim's stack-wait state together with the hold state, matching the vanilla container lifecycle.
+- Preserved the existing multi-user access, ownership, request-ordering, and item-transfer safeguards; this change only restores normal mouse input after opening the container.
+
+## 1.4.9
+
+- Fixed special upgrader Idol resources appearing in ordinary crafting requirements. The compact requirement strip and pinned/hover tooltip rows now follow Valheim's `m_upgraderResource` and current-station policy, while special upgrader stations continue to show their applicable Idol costs.
+- Kept crafting availability, resource consumption, search, and tier sorting behavior unchanged; Valheim remains authoritative for validating and consuming the active station's resources.
+
+## 1.4.8
+
+- Fixed built-in multi-user containers failing to open and repeatedly logging an unknown RPC warning. The intercepted request now replies through Valheim's registered `RPC_OpenResponse` method while retaining the existing access, distance, ownership, and duplicate-processing guards.
+- Fixed Wide Pockets and Deep Pockets purchases expanding and shifting the entire player inventory panel. Native purchased rows still increase storage independently, while InventorySlots continues to size only its visible grid and background viewport.
+
+## 1.4.7
+
+- Updated InventorySlots for Valheim 1.0.7. Valheim's purchased Wide Pockets and Deep Pockets rows now extend the inventory independently from InventorySlots' three progression rows, preserving the native unlock state, capacity changes, overflow handling, death recovery, and UI sizing.
+- Limited InventorySlots progression to Hard Antler, Swamp Key, and Wishbone. Dragon Tear and Yagluth Drop no longer add mod-owned rows because the two new vanilla pocket upgrades own the later expansion stages.
+- Updated changed game API and UI boundaries for inventory resizing, grid elements and input, split dialogs, container revisions, item serialization, and equipment visuals. Custom equipment now tracks item quality, and multi-user transfers preserve Valheim's cheated-item marker without weakening ownership, revision, rollback, or duplicate-request checks.
+- Updated the bundled ServerSync compatibility build for Valheim 1.0.7 while retaining configuration/version contracts and additional login-packet ordering protection.
+- Expanded the default `ResourceMap.yml` from 132 to 210 entries. Deep North sorting now covers verified materials, crops, trophies, molds, and conversion-only outputs, while Writhan resources remain Swamp, Hook remains Mistlands, and the lava blob trophy remains Ashlands. Existing generated maps are preserved and require a manual merge to receive the additions.
+- Updated the project and compatibility checks to build against the current original game assemblies, corrected the BepInEx package dependency to 5.4.2350, and added original client/server contract and Harmony resize-patch verification.
+
 ## 1.4.6
 
 - Increased the crafting queue limit to 999. The quantity field accepts three digits and adjusts its text size to fit, while each queued craft retains the existing material, inventory-space, and crafting-station checks.

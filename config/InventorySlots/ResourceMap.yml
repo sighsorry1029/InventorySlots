@@ -51,6 +51,8 @@ Swamp:
   - CuredSquirrelHamstring
   - CryptKey
   - TrophyAbomination
+  - WrithanRoots
+  - TrophyWrithan
 Ocean:
   - Chitin
   - SerpentScale
@@ -114,6 +116,7 @@ Mistlands:
   - MushroomMagecap
   - MushroomJotunPuffs
   - RoyalJelly
+  - Hook
 AshLands:
   - FlametalNew
   - AskBladder
@@ -142,3 +145,83 @@ AshLands:
   - Fiddleheadfern
   - TrophySeekerQueen
   - TrophyCharredMelee
+  - TrophyBlob_Lava
+DeepNorth:
+  # Ashlands completion rewards used to enter Deep North progression.
+  - FaderDrop
+  - FaderEmber
+  # Actual prefab names for raw materials and production intermediates.
+  - GoldOre
+  - Gold
+  - Frostwood
+  - FirConeFrost
+  - FrostCore
+  - Ice
+  - FrozenFuel
+  - OozeMork
+  - ElakingHairBundle
+  - BarkaBranch
+  - Leatherstraps
+  - MoleClaws
+  - MooseHide
+  - MooseMeat
+  - MooseSinew
+  - NornThread
+  - SealBlubber
+  - SealHide
+  - OrbFrostFire
+  - OrbThunderBlood
+  - CrownJewel
+  - SpiceDeepNorth
+  - KaleSeeds
+  - Kale
+  - OatSeeds
+  - Oat
+  - OatFlour
+  - PoteitrSeeds
+  - Poteitr
+  - Lingonberry
+  - GlowWorm
+  - TrophyBarka
+  - TrophyElaking
+  - TrophyMole
+  - TrophyJotunWitch
+  - TrophyJotunWarrior
+  - TrophyMoose
+  - TrophyBlob_Morkhalla
+  - TrophySeal
+  # Cast items inherit their tier from recipes; molds need direct entries.
+  - MoldArmorGoldChest
+  - MoldArmorGoldHelmet
+  - MoldArmorGoldLegs
+  - MoldArmorMageChest
+  - MoldArmorMageHelmet
+  - MoldArmorMageLegs
+  - MoldArmorMediumHelmet
+  - MoldArmorMediumLegs
+  - MoldArmormediumChest
+  - MoldAtgeir
+  - MoldAxe
+  - MoldAxe2H
+  - MoldBow
+  - MoldCrossbow
+  - MoldFistweapon
+  - MoldKeys
+  - MoldKnife
+  - MoldMace
+  - MoldMace2H
+  - MoldShieldBuckler
+  - MoldShieldRound
+  - MoldShieldTower
+  - MoldSpear
+  - MoldStaffOrbofAhri
+  - MoldStafffrostorbs
+  - MoldStaffspiritcaller
+  - MoldStaffthunderblood
+  - MoldSword
+  - MoldSword2H
+  # Foundry outputs without a recipe from which to infer inventory sorting tiers.
+  - ArmorDeepNorthHeavyChest
+  - ArmorDeepNorthHeavylegs
+  - HelmetDNHeavy
+  - BloodGoldKey

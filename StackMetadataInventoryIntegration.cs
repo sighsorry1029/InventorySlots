@@ -190,6 +190,10 @@ public sealed partial class InventorySlotsPlugin
 
     private static void MergeStackMetadata(ItemData? destination, ItemData? source)
     {
+        if (destination != null && source != null && source.m_cheated && !PlayerProfile.s_bypassCheatChecks)
+        {
+            destination.m_cheated = true;
+        }
         if (destination?.m_customData != null && source != null)
         {
             StackMetadataPolicy.MergeInto(

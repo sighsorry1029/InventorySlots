@@ -43,6 +43,24 @@ internal enum AreaOwnershipHandoffDecision
     Unavailable
 }
 
+internal static class AreaContainerUsePolicy
+{
+    public static bool AllowsInUseState(
+        bool targetIsAnchor,
+        bool targetInUse,
+        bool anchorInUse,
+        bool allowOpenQuickStackAnchor)
+    {
+        if (anchorInUse && !allowOpenQuickStackAnchor)
+        {
+            return false;
+        }
+
+        return !targetInUse ||
+               targetIsAnchor && allowOpenQuickStackAnchor;
+    }
+}
+
 internal readonly struct AreaOwnershipRequestIdentity : IEquatable<AreaOwnershipRequestIdentity>
 {
     public AreaOwnershipRequestIdentity(

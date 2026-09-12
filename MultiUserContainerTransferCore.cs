@@ -19,7 +19,8 @@ internal sealed class MultiUserContainerItemSnapshot
         float durability,
         bool pickedUp,
         int stack,
-        IEnumerable<KeyValuePair<string, string>>? customData)
+        IEnumerable<KeyValuePair<string, string>>? customData,
+        bool cheated = false)
     {
         PrefabName = prefabName;
         Quality = quality;
@@ -30,6 +31,7 @@ internal sealed class MultiUserContainerItemSnapshot
         Durability = durability;
         DurabilityBits = SingleBits.GetBits(durability);
         PickedUp = pickedUp;
+        Cheated = cheated;
         Stack = stack;
 
         List<KeyValuePair<string, string>> copiedCustomData =
@@ -49,6 +51,7 @@ internal sealed class MultiUserContainerItemSnapshot
     public float Durability { get; }
     public int DurabilityBits { get; }
     public bool PickedUp { get; }
+    public bool Cheated { get; }
     public int Stack { get; }
     public IReadOnlyList<KeyValuePair<string, string>> CustomData => _customData;
 
@@ -124,7 +127,8 @@ internal static class MultiUserContainerTransferCore
                 expected,
                 actual,
                 requiredStack) ||
-            expected!.CustomData.Count != actual!.CustomData.Count)
+            expected!.Cheated != actual!.Cheated ||
+            expected.CustomData.Count != actual.CustomData.Count)
         {
             return false;
         }

@@ -16,14 +16,14 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
-    private static InventoryGridElementUiCache? GetInventoryGridElementUiCache(InventoryGrid.Element element)
+    private static InventoryGridElementUiCache? GetInventoryGridElementUiCache(InventoryElement element)
     {
-        return IsUnityNull(element?.m_go)
+        return IsUnityNull(element)
             ? null
-            : element!.m_go.GetComponent<InventoryGridElementUiCache>() ?? element.m_go.AddComponent<InventoryGridElementUiCache>();
+            : element!.gameObject.GetComponent<InventoryGridElementUiCache>() ?? element.gameObject.AddComponent<InventoryGridElementUiCache>();
     }
 
-    private static void UpdateFavoriteBorder(InventoryGrid.Element element, Player player, Inventory inventory, Vector2i pos)
+    private static void UpdateFavoriteBorder(InventoryElement element, Player player, Inventory inventory, Vector2i pos)
     {
         bool slotFavorite = IsFavoriteSlot(player, pos);
         if (!slotFavorite)
@@ -51,14 +51,14 @@ public sealed partial class InventorySlotsPlugin
         border.SetAsLastSibling();
     }
 
-    private static RectTransform? EnsureFavoriteBorder(InventoryGrid.Element element)
+    private static RectTransform? EnsureFavoriteBorder(InventoryElement element)
     {
-        if (IsUnityNull(element?.m_go))
+        if (IsUnityNull(element))
         {
             return null;
         }
 
-        GameObject root = element!.m_go!;
+        GameObject root = element!.gameObject!;
         InventoryGridElementUiCache? cache = GetInventoryGridElementUiCache(element!);
         RectTransform? border = cache != null && cache.FavoriteBorder != null && !IsUnityNull(cache.FavoriteBorder)
             ? cache.FavoriteBorder
@@ -105,20 +105,20 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        foreach (InventoryGrid.Element element in grid.m_elements)
+        foreach (InventoryElement element in grid.m_elements)
         {
-            if (IsUnityNull(element?.m_go))
+            if (IsUnityNull(element))
             {
                 continue;
             }
 
-            if (!element!.m_go.activeSelf)
+            if (!element!.gameObject.activeSelf)
             {
                 HideInventoryPinnedTooltipBorder(element);
                 continue;
             }
 
-            Vector2i pos = grid.GetButtonPos(element.m_go);
+            Vector2i pos = grid.GetButtonPos(element.gameObject);
             UpdateInventoryPinnedTooltipBorder(grid, element, pos);
         }
     }
@@ -135,7 +135,7 @@ public sealed partial class InventorySlotsPlugin
         UpdateInventoryPinnedTooltipGridBorders(gui.m_containerGrid);
     }
 
-    private static void UpdateInventoryPinnedTooltipBorder(InventoryGrid grid, InventoryGrid.Element element, Vector2i pos)
+    private static void UpdateInventoryPinnedTooltipBorder(InventoryGrid grid, InventoryElement element, Vector2i pos)
     {
         if (grid.m_inventory == null || IsOutOfBounds(grid.m_inventory, pos))
         {
@@ -178,14 +178,14 @@ public sealed partial class InventorySlotsPlugin
         return false;
     }
 
-    private static RectTransform? EnsureInventoryPinnedTooltipMarker(InventoryGrid.Element element)
+    private static RectTransform? EnsureInventoryPinnedTooltipMarker(InventoryElement element)
     {
-        if (IsUnityNull(element?.m_go))
+        if (IsUnityNull(element))
         {
             return null;
         }
 
-        GameObject root = element!.m_go!;
+        GameObject root = element!.gameObject!;
         InventoryGridElementUiCache? cache = GetInventoryGridElementUiCache(element!);
         RectTransform? marker = cache != null && cache.PinnedTooltipMarker != null && !IsUnityNull(cache.PinnedTooltipMarker)
             ? cache.PinnedTooltipMarker
@@ -251,9 +251,9 @@ public sealed partial class InventorySlotsPlugin
         state.LayoutSignature = signature;
     }
 
-    private static void HideInventoryPinnedTooltipBorder(InventoryGrid.Element element)
+    private static void HideInventoryPinnedTooltipBorder(InventoryElement element)
     {
-        if (IsUnityNull(element?.m_go))
+        if (IsUnityNull(element))
         {
             return;
         }
@@ -261,7 +261,7 @@ public sealed partial class InventorySlotsPlugin
         InventoryGridElementUiCache? cache = GetInventoryGridElementUiCache(element!);
         Transform existing = cache?.PinnedTooltipMarker != null && !IsUnityNull(cache.PinnedTooltipMarker)
             ? cache.PinnedTooltipMarker
-            : element!.m_go.transform.Find(InventoryPinnedTooltipMarkerName);
+            : element!.gameObject.transform.Find(InventoryPinnedTooltipMarkerName);
         if (existing != null && existing.gameObject.activeSelf)
         {
             existing.gameObject.SetActive(false);
@@ -278,9 +278,9 @@ public sealed partial class InventorySlotsPlugin
         image.raycastTarget = false;
     }
 
-    private static void HideFavoriteBorder(InventoryGrid.Element element)
+    private static void HideFavoriteBorder(InventoryElement element)
     {
-        if (IsUnityNull(element?.m_go))
+        if (IsUnityNull(element))
         {
             return;
         }
@@ -288,7 +288,7 @@ public sealed partial class InventorySlotsPlugin
         InventoryGridElementUiCache? cache = GetInventoryGridElementUiCache(element!);
         Transform existing = cache?.FavoriteBorder != null && !IsUnityNull(cache.FavoriteBorder)
             ? cache.FavoriteBorder
-            : element!.m_go.transform.Find(FavoriteBorderName);
+            : element!.gameObject.transform.Find(FavoriteBorderName);
         if (existing != null && existing.gameObject.activeSelf)
         {
             existing.gameObject.SetActive(false);

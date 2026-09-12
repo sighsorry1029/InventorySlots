@@ -27,6 +27,8 @@ Client restock limits can cap favorite restock targets per prefab, such as `Ston
 
 InventoryActions is incompatible with InventorySlots and Quick Stack Store to avoid duplicate buttons, hotkeys, and inventory mutations.
 
+Valheim 1.0 support includes purchased inventory rows: favorites can use every loaded player row, while sorting, quick stack, and trash still protect the hotbar. The action buttons follow the current inventory height. Sorting keeps cheat-marked and unmarked stacks separate when consolidating stacks, and custom-data items retain their existing stacking protection.
+
 ## Multiplayer
 
 Install the same InventoryActions version on the dedicated server and every client. Area quick stack/restock processes eligible closed containers one at a time; when another peer owns a container, that owner validates access, range, and idle state before handing ownership to the requesting player.

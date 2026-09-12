@@ -1,9 +1,52 @@
 using System;
+using System.Collections.Generic;
+using System.Reflection;
+using System.Reflection.Emit;
 using HarmonyLib;
 using UnityEngine;
 using ItemData = ItemDrop.ItemData;
 
 namespace InventorySlots;
+
+[HarmonyPatch(typeof(Player), nameof(Player.SetInventorySize))]
+internal static class PlayerNativeInventorySizePatch
+{
+    private static void Prefix(Player __instance, out int __state)
+    {
+        __state = InventorySlotsPlugin.CaptureRowsBeforeNativeResize(__instance);
+    }
+
+    private static void Postfix(Player __instance, int __state)
+    {
+        InventorySlotsPlugin.CompleteNativeInventoryResize(__instance, __state);
+    }
+
+    private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+    {
+        var storage = typeof(Inventory).GetMethod(nameof(Inventory.SetHeight), new[] { typeof(int) })!;
+        var panel = typeof(InventoryGui).GetMethod(nameof(InventoryGui.SetInventorySize), new[] { typeof(int) })!;
+        int storageCalls = 0;
+        int panelCalls = 0;
+        foreach (CodeInstruction instruction in instructions)
+        {
+            string? replacement = instruction.Calls(storage)
+                ? nameof(InventorySlotsPlugin.SetNativeInventoryStorageHeight)
+                : instruction.Calls(panel) ? nameof(InventorySlotsPlugin.SetNativeInventoryPanelSize) : null;
+            if (replacement == null)
+            {
+                yield return instruction;
+                continue;
+            }
+            if (instruction.Calls(storage)) storageCalls++; else panelCalls++;
+            yield return new CodeInstruction(OpCodes.Ldarg_0).MoveLabelsFrom(instruction).MoveBlocksFrom(instruction);
+            yield return new CodeInstruction(OpCodes.Call, typeof(InventorySlotsPlugin).GetMethod(replacement, BindingFlags.Static | BindingFlags.NonPublic));
+        }
+        if (storageCalls != 1 || panelCalls != 1)
+        {
+            throw new InvalidOperationException($"Unsafe Player.SetInventorySize patch: expected one storage and UI call, found {storageCalls}/{panelCalls}.");
+        }
+    }
+}
 
 [HarmonyPatch(typeof(Player), "Awake")]
 internal static class PlayerAwakePatch

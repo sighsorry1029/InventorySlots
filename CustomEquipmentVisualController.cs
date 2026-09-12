@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using HarmonyLib;
 using UnityEngine;
 using ItemData = ItemDrop.ItemData;
 using ItemType = ItemDrop.ItemData.ItemType;
@@ -11,6 +12,14 @@ public sealed partial class InventorySlotsPlugin
 {
     private const string CustomEquipmentVisualItemZdoPrefix = "InventorySlots_CustomEquipmentVisual_Item_";
     private const string CustomEquipmentVisualVariantZdoPrefix = "InventorySlots_CustomEquipmentVisual_Variant_";
+    private const string CustomEquipmentVisualQualityZdoPrefix = "InventorySlots_CustomEquipmentVisual_Quality_";
+
+    private static readonly Func<VisEquipment, int, int, Transform, bool, bool, int, GameObject> AttachCustomItem =
+        AccessTools.MethodDelegate<Func<VisEquipment, int, int, Transform, bool, bool, int, GameObject>>(
+            AccessTools.Method(typeof(VisEquipment), "AttachItem", new[] { typeof(int), typeof(int), typeof(Transform), typeof(bool), typeof(bool), typeof(int) }));
+    private static readonly Func<VisEquipment, int, int, int, List<GameObject>> AttachCustomArmor =
+        AccessTools.MethodDelegate<Func<VisEquipment, int, int, int, List<GameObject>>>(
+            AccessTools.Method(typeof(VisEquipment), "AttachArmor", new[] { typeof(int), typeof(int), typeof(int) }));
 
     internal static void UpdateCustomEquipmentVisuals(Player player)
     {
@@ -98,10 +107,12 @@ public sealed partial class InventorySlotsPlugin
             }
 
             int variant = zdo.GetInt(GetCustomEquipmentVisualVariantZdoKey(slot.Id));
+            int quality = zdo.GetInt(GetCustomEquipmentVisualQualityZdoKey(slot.Id), 1);
             states.Add(new CustomEquipmentVisualState(
                 slot.Id,
                 itemHash,
                 variant,
+                quality,
                 itemPrefab.name,
                 itemDrop.m_itemData.m_shared.m_itemType,
                 IsAdventureBackpackItem(itemDrop.m_itemData)));
@@ -118,20 +129,23 @@ public sealed partial class InventorySlotsPlugin
             ItemData? item = FindItemForSlot(player, inventory, slot);
             int itemHash = 0;
             int variant = 0;
+            int quality = 0;
             if (item != null && ShouldAttachCustomEquipmentVisual(item))
             {
                 itemHash = StringExtensionMethods.GetStableHashCode(item.m_dropPrefab.name);
                 variant = item.m_variant;
+                quality = item.m_quality;
                 states.Add(new CustomEquipmentVisualState(
                     slot.Id,
                     itemHash,
                     variant,
+                    quality,
                     item.m_dropPrefab.name,
                     item.m_shared.m_itemType,
                     IsAdventureBackpackItem(item)));
             }
 
-            SetCustomEquipmentVisualZdoValue(visEquipment, slot.Id, itemHash, variant);
+            SetCustomEquipmentVisualZdoValue(visEquipment, slot.Id, itemHash, variant, quality);
         }
 
         return states;
@@ -191,6 +205,7 @@ public sealed partial class InventorySlotsPlugin
                 hash = hash * 31 + StringComparer.OrdinalIgnoreCase.GetHashCode(slotId);
                 hash = hash * 31 + StringComparer.OrdinalIgnoreCase.GetHashCode(GetItemPrefabName(item));
                 hash = hash * 31 + item.m_variant;
+                hash = hash * 31 + item.m_quality;
                 hash = hash * 31 + (int)item.m_shared.m_itemType;
             }
 
@@ -213,6 +228,7 @@ public sealed partial class InventorySlotsPlugin
                 hash = hash * 31 + StringComparer.Ordinal.GetHashCode(visual.Key);
                 hash = hash * 31 + StringComparer.Ordinal.GetHashCode(visual.PrefabName);
                 hash = hash * 31 + visual.Variant;
+                hash = hash * 31 + visual.Quality;
             }
 
             return hash;
@@ -249,7 +265,7 @@ public sealed partial class InventorySlotsPlugin
     {
         foreach (SlotDefinition slot in SlotDefinitions.Where(slot => slot.Kind == SlotKind.CustomEquipment))
         {
-            SetCustomEquipmentVisualZdoValue(visEquipment, slot.Id, itemHash: 0, variant: 0);
+            SetCustomEquipmentVisualZdoValue(visEquipment, slot.Id, itemHash: 0, variant: 0, quality: 0);
         }
     }
 
@@ -261,13 +277,13 @@ public sealed partial class InventorySlotsPlugin
         {
             string key = GetCustomEquipmentVisualKey(visEquipment, state);
             desiredKeys.Add(key);
-            if (EquipmentVisuals.Visuals.TryGetValue(key, out CustomEquipmentVisual? existing) && existing.Matches(visEquipment, state.PrefabName, state.Variant))
+            if (EquipmentVisuals.Visuals.TryGetValue(key, out CustomEquipmentVisual? existing) && existing.Matches(visEquipment, state.PrefabName, state.Variant, state.Quality))
             {
                 continue;
             }
 
             existing?.Destroy();
-            CustomEquipmentVisual visual = new(key, visEquipment, state.PrefabName, state.Variant);
+            CustomEquipmentVisual visual = new(key, visEquipment, state.PrefabName, state.Variant, state.Quality);
             EquipmentVisuals.Visuals[key] = visual;
             if (!TryInitializeCustomEquipmentVisual(visEquipment, state, visual))
             {
@@ -407,14 +423,14 @@ public sealed partial class InventorySlotsPlugin
                 case ItemType.Helmet:
                     if (!IsUnityNull(visEquipment.m_helmet))
                     {
-                        GameObject instance = visEquipment.AttachItem(state.ItemHash, state.Variant, visEquipment.m_helmet);
+                        GameObject instance = AttachCustomItem(visEquipment, state.ItemHash, state.Variant, visEquipment.m_helmet, true, false, state.Quality);
                         visual.Add(instance);
                     }
                     break;
                 case ItemType.Shoulder:
                 case ItemType.Utility:
                 case ItemType.Trinket:
-                    List<GameObject> instances = visEquipment.AttachArmor(state.ItemHash, state.Variant);
+                    List<GameObject> instances = AttachCustomArmor(visEquipment, state.ItemHash, state.Variant, state.Quality);
                     ReorderAdventureBackpackBones(visEquipment, state, instances);
                     visual.AddRange(instances);
                     break;
@@ -440,7 +456,7 @@ public sealed partial class InventorySlotsPlugin
         string prefabName = item.m_dropPrefab.name;
         foreach (CustomEquipmentVisual visual in EquipmentVisuals.Visuals.Values)
         {
-            if (!visual.Matches(visEquipment, prefabName, item.m_variant))
+            if (!visual.Matches(visEquipment, prefabName, item.m_variant, item.m_quality))
             {
                 continue;
             }
@@ -451,7 +467,7 @@ public sealed partial class InventorySlotsPlugin
         return roots.Count > 0;
     }
 
-    private static void SetCustomEquipmentVisualZdoValue(VisEquipment visEquipment, string slotId, int itemHash, int variant)
+    private static void SetCustomEquipmentVisualZdoValue(VisEquipment visEquipment, string slotId, int itemHash, int variant, int quality)
     {
         if (IsUnityNull(visEquipment) || visEquipment.m_nview == null || !visEquipment.m_nview.IsValid() || !visEquipment.m_nview.IsOwner())
         {
@@ -466,6 +482,11 @@ public sealed partial class InventorySlotsPlugin
 
         int itemKey = GetCustomEquipmentVisualItemZdoKey(slotId);
         int variantKey = GetCustomEquipmentVisualVariantZdoKey(slotId);
+        int qualityKey = GetCustomEquipmentVisualQualityZdoKey(slotId);
+        if (zdo.GetInt(qualityKey) != quality)
+        {
+            zdo.Set(qualityKey, quality);
+        }
         if (zdo.GetInt(itemKey) != itemHash)
         {
             zdo.Set(itemKey, itemHash);
@@ -487,6 +508,11 @@ public sealed partial class InventorySlotsPlugin
         return StringExtensionMethods.GetStableHashCode(CustomEquipmentVisualVariantZdoPrefix + slotId);
     }
 
+    private static int GetCustomEquipmentVisualQualityZdoKey(string slotId)
+    {
+        return StringExtensionMethods.GetStableHashCode(CustomEquipmentVisualQualityZdoPrefix + slotId);
+    }
+
     private static void ReorderAdventureBackpackBones(VisEquipment visEquipment, CustomEquipmentVisualState state, List<GameObject>? instances)
     {
         if (!state.ReorderAdventureBackpackBones ||
@@ -505,6 +531,7 @@ public sealed partial class InventorySlotsPlugin
             string slotId,
             int itemHash,
             int variant,
+            int quality,
             string prefabName,
             ItemType itemType,
             bool reorderAdventureBackpackBones)
@@ -512,6 +539,7 @@ public sealed partial class InventorySlotsPlugin
             SlotId = slotId;
             ItemHash = itemHash;
             Variant = variant;
+            Quality = quality;
             PrefabName = prefabName;
             ItemType = itemType;
             ReorderAdventureBackpackBones = reorderAdventureBackpackBones;
@@ -520,6 +548,7 @@ public sealed partial class InventorySlotsPlugin
         public string SlotId { get; }
         public int ItemHash { get; }
         public int Variant { get; }
+        public int Quality { get; }
         public string PrefabName { get; }
         public ItemType ItemType { get; }
         public bool ReorderAdventureBackpackBones { get; }
@@ -529,22 +558,24 @@ public sealed partial class InventorySlotsPlugin
     {
         private readonly List<GameObject> _instances = new();
 
-        public CustomEquipmentVisual(string key, VisEquipment owner, string prefabName, int variant)
+        public CustomEquipmentVisual(string key, VisEquipment owner, string prefabName, int variant, int quality)
         {
             Key = key;
             Owner = owner;
             PrefabName = prefabName;
             Variant = variant;
+            Quality = quality;
         }
 
         public string Key { get; }
         public VisEquipment Owner { get; }
         public string PrefabName { get; }
         public int Variant { get; }
+        public int Quality { get; }
 
-        public bool Matches(VisEquipment owner, string prefabName, int variant)
+        public bool Matches(VisEquipment owner, string prefabName, int variant, int quality)
         {
-            return !IsUnityNull(Owner) && Owner == owner && string.Equals(PrefabName, prefabName, StringComparison.Ordinal) && Variant == variant;
+            return !IsUnityNull(Owner) && Owner == owner && string.Equals(PrefabName, prefabName, StringComparison.Ordinal) && Variant == variant && Quality == quality;
         }
 
         public bool IsOwnedBy(VisEquipment owner)

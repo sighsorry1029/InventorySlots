@@ -193,9 +193,13 @@ public sealed partial class InventorySlotsPlugin
         }
 
         Player? player = Player.m_localPlayer;
+        CraftingStation? currentStation = player != null ? player.GetCurrentCraftingStation() : null;
         foreach (Requirement requirement in recipe.m_resources)
         {
-            if (requirement == null || requirement.m_resItem == null || requirement.GetAmount(quality) <= 0)
+            if (requirement == null ||
+                requirement.m_resItem == null ||
+                requirement.GetAmount(quality) <= 0 ||
+                !IsCraftingRequirementActiveForStation(requirement, currentStation))
             {
                 continue;
             }
@@ -224,6 +228,13 @@ public sealed partial class InventorySlotsPlugin
         }
 
         return CraftingRequirements.VisibleRequirements;
+    }
+
+    private static bool IsCraftingRequirementActiveForStation(Requirement requirement, CraftingStation? station)
+    {
+        return station != null
+            ? station.m_upgrader == requirement.m_upgraderResource
+            : !requirement.m_upgraderResource;
     }
 
     private static bool ShouldShowCraftingStatusHud(InventoryGui gui)

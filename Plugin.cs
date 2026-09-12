@@ -42,6 +42,7 @@ public sealed partial class InventorySlotsPlugin : BaseUnityPlugin
     private const int BaseRows = ClientStateCore.DefaultLastExpandableRows;
     private const int InventoryWidth = 8;
     private const int MaxSupportedExtraRows = 5;
+    private const int MaxProgressionExtraRows = 3;
     private const string SlotIdKey = "InventorySlotsSlotId";
     private const string EquippedByKey = "InventorySlotsEquippedBy";
     private const string BackupKey = "InventorySlotsBackup";

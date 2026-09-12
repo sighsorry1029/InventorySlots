@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using BepInEx;
 using BepInEx.Configuration;
+using HarmonyLib;
 using ServerSync;
 using UnityEngine;
 using ItemData = ItemDrop.ItemData;
@@ -13,6 +14,15 @@ namespace InventoryActions;
 
 public sealed partial class InventoryActionsPlugin
 {
+    // Valheim 1.0 changed this private notification to a two-argument method.
+    // Native MoveItemToThis handles acquisition/cheat notifications itself;
+    // these flushes preserve the previous no-argument notification semantics.
+    private static readonly Action<Inventory, bool, bool> InventoryChanged =
+        AccessTools.MethodDelegate<Action<Inventory, bool, bool>>(
+            AccessTools.DeclaredMethod(typeof(Inventory), "Changed", new[] { typeof(bool), typeof(bool) }));
+
+    private static void NotifyInventoryChanged(Inventory inventory) => InventoryChanged(inventory, false, false);
+
     private static readonly ConfigSync ConfigSync = new(ModGUID)
     {
         DisplayName = ModName,
@@ -295,8 +305,7 @@ public sealed partial class InventoryActionsPlugin
 
     private static bool IsSupportedPlayerCell(Inventory inventory, Vector2i pos)
     {
-        return !IsOutOfBounds(inventory, pos) &&
-               pos.y < Math.Min(VanillaPlayerRows, inventory.GetHeight());
+        return !IsOutOfBounds(inventory, pos);
     }
 
     private static bool IsRegularPlayerCell(Inventory inventory, Vector2i pos)

@@ -76,7 +76,7 @@ public sealed partial class InventorySlotsPlugin
         LayoutCraftingHoverTooltipPanel(panel, overlay, overlayWidth, height, padding, showBody: showDetails && !string.IsNullOrWhiteSpace(content.Body), showOverlay: showDetails);
         DisableCraftingTooltipRecipeOverlayBackground(overlay.GetComponent<Image>());
 
-        panel.position = ZInput.mousePosition;
+        panel.position = ZInput.pointerPosition;
         Utils.ClampUIToScreen(panel);
         tooltip.transform.SetAsLastSibling();
         if (!showDetails)
@@ -617,6 +617,7 @@ public sealed partial class InventorySlotsPlugin
         bool veiledMasked = IsVeiledRecipeMasked(pair);
         StringBuilder builder = new();
         builder.Append(GetCraftingHoverTooltipContentKey(pair));
+        CraftingStation? currentStation = Player.m_localPlayer != null ? Player.m_localPlayer.GetCurrentCraftingStation() : null;
 
         int written = 0;
         if (recipe?.m_resources != null)
@@ -624,7 +625,9 @@ public sealed partial class InventorySlotsPlugin
             for (int i = 0; i < recipe.m_resources.Length && written < CraftingTooltipRecipeSlotCount - 1; i++)
             {
                 Requirement requirement = recipe.m_resources[i];
-                if (requirement == null || requirement.m_resItem == null)
+                if (requirement == null ||
+                    requirement.m_resItem == null ||
+                    !IsCraftingRequirementActiveForStation(requirement, currentStation))
                 {
                     continue;
                 }
@@ -651,7 +654,6 @@ public sealed partial class InventorySlotsPlugin
         CraftingStation? station = recipe != null ? recipe.GetRequiredStation(quality) : null;
         int requiredStationLevel = recipe != null ? recipe.GetRequiredStationLevel(quality) : 0;
         bool stationRequirementKnown = !veiledMasked || recipe == null || KnowsVeiledRecipeStationRequirement(recipe, quality);
-        CraftingStation? currentStation = Player.m_localPlayer != null ? Player.m_localPlayer.GetCurrentCraftingStation() : null;
         bool stationAvailable = station == null ||
                                 HasNoCraftCost() ||
                                 stationRequirementKnown && currentStation != null && currentStation.m_name == station.m_name && currentStation.GetLevel() >= requiredStationLevel;
@@ -764,12 +766,13 @@ public sealed partial class InventorySlotsPlugin
         Recipe? recipe = pair.Recipe;
         int quality = pair.ItemData == null ? 1 : pair.ItemData.m_quality + 1;
         bool veiledMasked = IsVeiledRecipeMasked(pair);
+        CraftingStation? currentStation = Player.m_localPlayer != null ? Player.m_localPlayer.GetCurrentCraftingStation() : null;
         for (int i = 0; i < CraftingTooltipRecipeSlotCount - 1; i++)
         {
             int slot = i;
             RectTransform slotRect = EnsureCraftingTooltipRecipeSlot(row, slot);
             slotRect.anchoredPosition = new Vector2(slot * (slotSize + gap), 0f);
-            if (!TryGetCraftingTooltipRequirement(recipe, quality, i, out Requirement requirement))
+            if (!TryGetCraftingTooltipRequirement(recipe, quality, i, currentStation, out Requirement requirement))
             {
                 ConfigureCraftingTooltipRecipeSlot(row, slot, null, "", available: true, slotSize, "", enableSlotTooltips);
                 continue;
@@ -795,7 +798,6 @@ public sealed partial class InventorySlotsPlugin
         CraftingStation? station = recipe != null ? recipe.GetRequiredStation(quality) : null;
         int requiredStationLevel = recipe != null ? recipe.GetRequiredStationLevel(quality) : 0;
         bool stationRequirementKnown = !veiledMasked || recipe == null || KnowsVeiledRecipeStationRequirement(recipe, quality);
-        CraftingStation? currentStation = Player.m_localPlayer != null ? Player.m_localPlayer.GetCurrentCraftingStation() : null;
         bool stationAvailable = station == null ||
                                 HasNoCraftCost() ||
                                 stationRequirementKnown && currentStation != null && currentStation.m_name == station.m_name && currentStation.GetLevel() >= requiredStationLevel;
@@ -815,7 +817,12 @@ public sealed partial class InventorySlotsPlugin
             stationRequirementKnown ? null : Color.white);
     }
 
-    private static bool TryGetCraftingTooltipRequirement(Recipe? recipe, int quality, int index, out Requirement requirement)
+    private static bool TryGetCraftingTooltipRequirement(
+        Recipe? recipe,
+        int quality,
+        int index,
+        CraftingStation? currentStation,
+        out Requirement requirement)
     {
         requirement = null!;
         if (recipe?.m_resources == null)
@@ -827,7 +834,10 @@ public sealed partial class InventorySlotsPlugin
         for (int i = 0; i < recipe.m_resources.Length; i++)
         {
             Requirement candidate = recipe.m_resources[i];
-            if (candidate == null || candidate.m_resItem == null || candidate.GetAmount(quality) <= 0)
+            if (candidate == null ||
+                candidate.m_resItem == null ||
+                candidate.GetAmount(quality) <= 0 ||
+                !IsCraftingRequirementActiveForStation(candidate, currentStation))
             {
                 continue;
             }

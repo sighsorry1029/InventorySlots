@@ -180,27 +180,27 @@ public sealed partial class InventoryActionsPlugin
 
         EnsureFavoritesLoaded(player);
         Color borderColor = GetFavoriteBorderColor();
-        foreach (InventoryGrid.Element element in grid.m_elements)
+        foreach (InventoryElement element in grid.m_elements)
         {
-            if (element?.m_go == null || IsUnityNull(element.m_go))
+            if (element == null || IsUnityNull(element))
             {
                 continue;
             }
 
-            if (!element.m_go.activeSelf)
+            if (!element.gameObject.activeSelf)
             {
                 HideFavoriteBorder(element);
                 continue;
             }
 
-            Vector2i pos = grid.GetButtonPos(element.m_go);
+            Vector2i pos = grid.GetButtonPos(element.gameObject);
             if (!CanFavoriteCell(inventory, pos) || !Runtime.FavoriteSlots.Contains(pos))
             {
                 HideFavoriteBorder(element);
                 continue;
             }
 
-            InventoryGridElementMarker marker = element.m_go.GetComponent<InventoryGridElementMarker>() ?? element.m_go.AddComponent<InventoryGridElementMarker>();
+            InventoryGridElementMarker marker = element.gameObject.GetComponent<InventoryGridElementMarker>() ?? element.gameObject.AddComponent<InventoryGridElementMarker>();
             RectTransform? border = EnsureFavoriteBorder(element, marker);
             if (border == null)
             {
@@ -220,7 +220,7 @@ public sealed partial class InventoryActionsPlugin
                 border.gameObject.SetActive(true);
             }
 
-            if (border.GetSiblingIndex() != element.m_go.transform.childCount - 1)
+            if (border.GetSiblingIndex() != element.gameObject.transform.childCount - 1)
             {
                 border.SetAsLastSibling();
             }
@@ -230,14 +230,14 @@ public sealed partial class InventoryActionsPlugin
     private static Color GetFavoriteBorderColor() =>
         _favoriteBorderColor != null ? _favoriteBorderColor.Value : FavoriteBorderDefaultColor;
 
-    private static RectTransform? EnsureFavoriteBorder(InventoryGrid.Element element, InventoryGridElementMarker marker)
+    private static RectTransform? EnsureFavoriteBorder(InventoryElement element, InventoryGridElementMarker marker)
     {
-        if (element?.m_go == null || IsUnityNull(element.m_go))
+        if (element == null || IsUnityNull(element))
         {
             return null;
         }
 
-        GameObject root = element.m_go;
+        GameObject root = element.gameObject;
         RectTransform? border = marker.FavoriteBorder != null && !IsUnityNull(marker.FavoriteBorder)
             ? marker.FavoriteBorder
             : null;
@@ -308,17 +308,17 @@ public sealed partial class InventoryActionsPlugin
         image.raycastTarget = false;
     }
 
-    private static void HideFavoriteBorder(InventoryGrid.Element element)
+    private static void HideFavoriteBorder(InventoryElement element)
     {
-        if (element?.m_go == null || IsUnityNull(element.m_go))
+        if (element == null || IsUnityNull(element))
         {
             return;
         }
 
-        InventoryGridElementMarker? marker = element.m_go.GetComponent<InventoryGridElementMarker>();
+        InventoryGridElementMarker? marker = element.gameObject.GetComponent<InventoryGridElementMarker>();
         Transform? existing = marker?.FavoriteBorder != null && !IsUnityNull(marker.FavoriteBorder)
             ? marker.FavoriteBorder
-            : element.m_go.transform.Find(FavoriteBorderName);
+            : element.gameObject.transform.Find(FavoriteBorderName);
         if (existing != null && existing.gameObject.activeSelf)
         {
             existing.gameObject.SetActive(false);

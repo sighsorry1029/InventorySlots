@@ -100,7 +100,7 @@ internal static class InventoryGuiDropSlotItemOutsidePatch
     }
 }
 
-[HarmonyPatch(typeof(InventoryGrid), "OnLeftClick")]
+[HarmonyPatch(typeof(InventoryGrid), "OnLeftDown")]
 internal static class InventoryGridFavoriteLeftClickPatch
 {
     private static bool Prefix(InventoryGrid __instance, UIInputHandler clickHandler)
@@ -109,7 +109,7 @@ internal static class InventoryGridFavoriteLeftClickPatch
     }
 }
 
-[HarmonyPatch(typeof(InventoryGrid), "OnRightClick")]
+[HarmonyPatch(typeof(InventoryGrid), "OnRightDown")]
 internal static class InventoryGridFavoriteRightClickPatch
 {
     private static bool Prefix(InventoryGrid __instance, UIInputHandler element)

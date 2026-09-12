@@ -35,7 +35,7 @@ internal static class InventoryGridDominantFoodIconColorPatch
                 continue;
             }
 
-            InventoryGrid.Element element = __instance.m_elements[index];
+            InventoryElement element = __instance.m_elements[index];
             if (element?.m_food == null)
             {
                 continue;

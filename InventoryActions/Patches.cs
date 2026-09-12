@@ -123,7 +123,7 @@ internal static class ContainerOpenDuringAreaLeaseInventoryActionsPatch
         return !InventoryActionsPlugin.TryRejectContainerRequestDuringAreaLease(
             __instance,
             uid,
-            "OpenRespons");
+            "RPC_OpenResponse");
     }
 }
 
@@ -149,11 +149,11 @@ internal static class ContainerTakeAllDuringAreaLeaseInventoryActionsPatch
         return !InventoryActionsPlugin.TryRejectContainerRequestDuringAreaLease(
             __instance,
             uid,
-            "TakeAllRespons");
+            "RPC_TakeAllResponse");
     }
 }
 
-[HarmonyPatch(typeof(InventoryGrid), "OnLeftClick")]
+[HarmonyPatch(typeof(InventoryGrid), "OnLeftDown")]
 internal static class InventoryGridFavoriteLeftClickPatch
 {
     private static bool Prefix(InventoryGrid __instance, UIInputHandler clickHandler)

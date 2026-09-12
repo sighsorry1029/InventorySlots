@@ -456,7 +456,7 @@ public sealed partial class InventorySlotsPlugin
             ShouldShowJewelcraftingInventoryInteract(tooltipItemSource?.Grid),
             itemSignature);
         LayoutInventoryContainerCustomTooltip(panel, resetScroll || textChanged || extraChanged);
-        panel.position = ZInput.mousePosition;
+        panel.position = ZInput.pointerPosition;
         Utils.ClampUIToScreen(panel);
         panel.SetAsLastSibling();
 
@@ -1102,8 +1102,8 @@ public sealed partial class InventorySlotsPlugin
     private static Vector3 GetSimpleNameTooltipPosition(float width, SimpleNameTooltipPlacement placement)
     {
         return placement == SimpleNameTooltipPlacement.LeftOfCursor
-            ? ZInput.mousePosition + new Vector3(-width - 14f, 16f, 0f)
-            : ZInput.mousePosition + new Vector3(14f, 16f, 0f);
+            ? ZInput.pointerPosition + new Vector3(-width - 14f, 16f, 0f)
+            : ZInput.pointerPosition + new Vector3(14f, 16f, 0f);
     }
 
     private static GameObject? EnsureInventorySimpleNameTooltip(UITooltip? tooltip = null)

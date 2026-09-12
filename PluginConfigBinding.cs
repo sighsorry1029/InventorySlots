@@ -74,14 +74,12 @@ public sealed partial class InventorySlotsPlugin
         _ = ConfigSync.AddLockingConfigEntry(_serverConfigLocked);
 
         _progressiveRowsEnabled = ConfigEntry(ProgressiveSlotsConfigSection, "Enable Progressive Rows", Toggle.On, "When enabled, extra inventory rows unlock by item discovery while the internal inventory height stays fixed.");
-        _maxExtraRows = ConfigEntry(ProgressiveSlotsConfigSection, "Maximum Extra Rows", 5, new ConfigDescription("Maximum extra regular inventory rows that can become usable through progression. Slot coordinates stay fixed at the mod's reserved maximum.", new AcceptableValueRange<int>(0, MaxSupportedExtraRows)));
+        _maxExtraRows = ConfigEntry(ProgressiveSlotsConfigSection, "Maximum Extra Rows", 3, new ConfigDescription("Maximum rows added by InventorySlots (0-3). Haldor's purchased rows are added independently. Previous values above 3 are capped at 3; internal slot coordinates remain fixed.", new AcceptableValueRange<int>(0, MaxProgressionExtraRows)));
         _rowUnlockItems = new[]
         {
             ConfigEntry(ProgressiveSlotsConfigSection, "Extra Row 1 Items", "HardAntler", "Comma-separated item prefab names or internal item names. Discovering any listed item unlocks extra row 1."),
             ConfigEntry(ProgressiveSlotsConfigSection, "Extra Row 2 Items", "CryptKey", "Comma-separated item prefab names or internal item names. Discovering any listed item unlocks extra row 2."),
-            ConfigEntry(ProgressiveSlotsConfigSection, "Extra Row 3 Items", "Wishbone", "Comma-separated item prefab names or internal item names. Discovering any listed item unlocks extra row 3."),
-            ConfigEntry(ProgressiveSlotsConfigSection, "Extra Row 4 Items", "DragonTear", "Comma-separated item prefab names or internal item names. Discovering any listed item unlocks extra row 4."),
-            ConfigEntry(ProgressiveSlotsConfigSection, "Extra Row 5 Items", "YagluthDrop", "Comma-separated item prefab names or internal item names. Discovering any listed item unlocks extra row 5.")
+            ConfigEntry(ProgressiveSlotsConfigSection, "Extra Row 3 Items", "Wishbone", "Comma-separated item prefab names or internal item names. Discovering any listed item unlocks extra row 3.")
         };
 
         _quickSlotRows = ConfigEntry(ProgressiveSlotsConfigSection, "Quick Slot Rows", 3, new ConfigDescription("Number of fixed three-slot quick slot rows reserved after equipment slots.", new AcceptableValueRange<int>(0, QuickSlotPanelRows)));

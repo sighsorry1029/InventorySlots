@@ -54,6 +54,8 @@ internal static class InventoryFindFreeStackItemPatch
     typeof(long),
     typeof(string),
     typeof(Vector2i),
+    typeof(bool),
+    typeof(bool),
     typeof(bool))]
 internal static class InventoryEquipmentSlotUpgradeReplacementAddPatch
 {
@@ -212,7 +214,7 @@ internal static class InventoryAddItemDataPatch
     }
 }
 
-[HarmonyPatch(typeof(Inventory), "AddItem", typeof(ItemData), typeof(int), typeof(int), typeof(int))]
+[HarmonyPatch(typeof(Inventory), "AddItem", typeof(ItemData), typeof(int), typeof(int), typeof(int), typeof(bool))]
 internal static class InventoryAddItemXyPatch
 {
     private static bool Prefix(

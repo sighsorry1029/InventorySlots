@@ -114,7 +114,7 @@ public sealed partial class InventorySlotsPlugin
         InventoryPanels.ContainerWeightPanelAppliedYOffset = yOffset;
     }
 
-    private static bool UpdateEquipmentSlotElementState(InventoryGrid.Element element, Player player, Inventory inventory, SlotDefinition slot, Vector2i pos)
+    private static bool UpdateEquipmentSlotElementState(InventoryElement element, Player player, Inventory inventory, SlotDefinition slot, Vector2i pos)
     {
         if (slot.Kind == SlotKind.Quick || inventory == null || IsOutOfBounds(inventory, pos))
         {
@@ -149,7 +149,7 @@ public sealed partial class InventorySlotsPlugin
         return true;
     }
 
-    private static void UpdateEquipmentSlotTooltip(InventoryGrid.Element element, ItemData item)
+    private static void UpdateEquipmentSlotTooltip(InventoryElement element, ItemData item)
     {
         if (element?.m_tooltip == null || item?.m_shared == null)
         {
@@ -206,7 +206,7 @@ public sealed partial class InventorySlotsPlugin
                api.HasSocketContainer(item);
     }
 
-    private static void SetDirectEquipmentSlotTooltip(InventoryGrid.Element element, ItemData item)
+    private static void SetDirectEquipmentSlotTooltip(InventoryElement element, ItemData item)
     {
         if (element.m_tooltip == null || item?.m_shared == null)
         {
@@ -246,7 +246,7 @@ public sealed partial class InventorySlotsPlugin
         tooltip.m_text = fallbackText;
     }
 
-    private static void ResetEquipmentSlotTooltipCache(InventoryGrid.Element element)
+    private static void ResetEquipmentSlotTooltipCache(InventoryElement element)
     {
         InventoryGridElementUiCache? cache = GetInventoryGridElementUiCache(element);
         if (cache != null)

@@ -922,7 +922,7 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        return !IsActiveUiObject(gui.m_splitPanel) &&
+        return (gui.m_splitDialog == null || !gui.m_splitDialog.IsActive) &&
                !IsActiveUiObject(gui.m_variantDialog) &&
                !IsActiveUiObject(gui.m_skillsDialog) &&
                !IsActiveUiObject(gui.m_textsDialog) &&

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography;
 using UnityEngine;
 using ItemData = ItemDrop.ItemData;
@@ -13,7 +14,7 @@ public sealed partial class InventorySlotsPlugin
     private const string MultiUserContainerAcknowledgeRpc = "InventorySlots_MUC_Ack_v3";
     private const string MultiUserContainerReceiptZdoKey =
         "sighsorry.InventorySlots.MUC.Receipts.v3";
-    private const byte MultiUserContainerProtocolVersion = 3;
+    private const byte MultiUserContainerProtocolVersion = 4;
     private const int MultiUserContainerMaxRequestPackageBytes = 96 * 1024;
     private const int MultiUserContainerMaxResponsePackageBytes = 48 * 1024;
     private const int MultiUserContainerMaxDurableReceiptResponseBytes = 48 * 1024;
@@ -755,11 +756,9 @@ public sealed partial class InventorySlotsPlugin
             ZPackage expectedPackage = new();
             container.GetInventory().Save(expectedPackage);
             ZDO? zdo = container.m_nview.GetZDO();
-            return zdo != null &&
-                   string.Equals(
-                       zdo.GetString(ZDOVars.s_items),
-                       expectedPackage.GetBase64(),
-                       StringComparison.Ordinal);
+            byte[]? stored = zdo?.GetByteArray(ZDOVars.s_items);
+            return container.m_nview.IsOwner() && stored != null &&
+                   stored.SequenceEqual(expectedPackage.GetArray());
         }
         catch (Exception exception)
         {

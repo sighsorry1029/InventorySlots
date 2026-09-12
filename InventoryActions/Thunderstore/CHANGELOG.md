@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.0.11
+
+- Fixed vanilla Hold E quick stack skipping the container being interacted with. The opened container is now processed first, then any remaining eligible items are extended to nearby containers.
+- If an area transfer cannot start, InventoryActions now leaves Valheim's original `StackAll` path available instead of suppressing the current-container action. Nearby containers that are in use remain excluded, and the existing access, ownership-lease, revision, timeout, and duplicate-processing guards are retained.
+
+## 1.0.10
+
+- Maintenance release verifying that area ownership-lease rejection replies use Valheim 1.0.7's registered `RPC_OpenResponse` and `RPC_TakeAllResponse` methods in the final package. Access, ownership, timeout, revision, and duplicate-request behavior is unchanged from 1.0.9.
+
+## 1.0.9
+
+- Updated InventoryActions for Valheim 1.0.7 and fixed the repeated `MissingMethodException` caused by the changed private inventory notification signature.
+- Added support for Valheim's purchased inventory rows. Favorites, sorting, quick stack, restock, trash positioning, and action-button layout now follow the loaded inventory height while continuing to protect the hotbar.
+- Updated favorite input and grid element handling for the current inventory UI, moved trash confirmation to the current Split Dialog lifecycle, and corrected open/take-all rejection response RPC names while preserving access, ownership-lease, revision, timeout, and duplicate-request checks.
+- Preserved the cheated-item marker when sort consolidates compatible stacks, while retaining the existing fail-closed behavior for unrecognized external custom item data.
+- Updated the build to use the current original Valheim assemblies with compiler-only publicized references, retained the reviewed ServerSync compatibility build, and corrected the BepInEx package dependency to 5.4.2350.
+
 ## 1.0.8
 
 - Reduced redundant UI updates by keeping the active Sort and Trash buttons enabled instead of toggling them off and on during each refresh.

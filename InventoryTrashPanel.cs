@@ -406,10 +406,15 @@ public sealed partial class InventorySlotsPlugin
         return InventoryActionCellPolicyCore.CanTrashSlot(kind);
     }
 
+    private static readonly AccessTools.FieldRef<SplitDialog, Button> TrashSplitOkButton =
+        AccessTools.FieldRefAccess<SplitDialog, Button>("m_splitOkButton");
+    private static readonly AccessTools.FieldRef<SplitDialog, Button> TrashSplitCancelButton =
+        AccessTools.FieldRefAccess<SplitDialog, Button>("m_splitCancelButton");
+
     private static void ShowInventoryTrashConfirmDialog(InventoryGui gui, Inventory inventory, ItemData item, int amount)
     {
         CloseInventoryTrashConfirmDialog();
-        if (gui == null || gui.m_splitPanel == null || inventory == null || item == null || amount <= 0)
+        if (gui == null || gui.m_splitDialog == null || inventory == null || item == null || amount <= 0)
         {
             return;
         }
@@ -418,63 +423,23 @@ public sealed partial class InventorySlotsPlugin
         _inventoryTrashPendingItem = item;
         _inventoryTrashPendingAmount = amount;
 
-        _inventoryTrashConfirmDialog = Object.Instantiate(gui.m_splitPanel.gameObject, gui.transform);
-        _inventoryTrashConfirmDialog.name = InventoryTrashConfirmDialogName;
-
-        Button? okButton = FindInventoryTrashConfirmButton(_inventoryTrashConfirmDialog, "win_bkg/Button_ok");
-        Button? cancelButton = FindInventoryTrashConfirmButton(_inventoryTrashConfirmDialog, "win_bkg/Button_cancel");
-        if (okButton == null || cancelButton == null)
-        {
-            CloseInventoryTrashConfirmDialog();
-            return;
-        }
-
-        okButton.onClick.RemoveAllListeners();
-        okButton.onClick.AddListener(new UnityAction(ConfirmInventoryTrashDelete));
-        SetInventoryTrashConfirmButtonText(okButton, LocalizeUi("$inventoryslots_trash_delete", "Delete"), new Color(1f, 0.25f, 0.12f, 1f));
-
-        cancelButton.onClick.RemoveAllListeners();
-        cancelButton.onClick.AddListener(new UnityAction(CloseInventoryTrashConfirmDialog));
-        SetInventoryTrashConfirmButtonText(cancelButton, LocalizeUi("$menu_cancel", "Cancel"), Color.white);
-
-        Transform? slider = _inventoryTrashConfirmDialog.transform.Find("win_bkg/Slider");
-        if (slider != null)
-        {
-            slider.gameObject.SetActive(false);
-        }
-
-        TMP_Text? text = _inventoryTrashConfirmDialog.transform.Find("win_bkg/Text")?.GetComponent<TMP_Text>();
-        if (text != null)
-        {
-            ApplyDefaultFontAsset(text);
-            string itemName = LocalizeUi(item.m_shared.m_name, item.m_shared.m_name);
-            string format = LocalizeUi("$inventoryslots_trash_confirm_format", "Delete {item}?");
-            text.text = format.Replace("{item}", itemName);
-        }
-
-        TMP_Text? amountText = _inventoryTrashConfirmDialog.transform.Find("win_bkg/amount")?.GetComponent<TMP_Text>();
-        if (amountText != null)
-        {
-            ApplyDefaultFontAsset(amountText);
-            amountText.text = $"{amount}/{Mathf.Max(1, item.m_shared.m_maxStackSize)}";
-        }
-
-        Image? icon = _inventoryTrashConfirmDialog.transform.Find("win_bkg/Icon_bkg/Icon")?.GetComponent<Image>();
-        if (icon != null)
-        {
-            icon.sprite = item.GetIcon();
-            icon.preserveAspect = true;
-        }
-
-        _inventoryTrashConfirmDialog.SetActive(true);
+        // The clone owns its SplitDialog listeners. Use its public events instead
+        // of duplicating the old split panel's hierarchy and button lifecycle.
+        SplitDialog dialog = Object.Instantiate(gui.m_splitDialog, gui.transform);
+        _inventoryTrashConfirmDialog = dialog.gameObject;
+        dialog.name = InventoryTrashConfirmDialogName;
+        dialog.SplitAccepted += ConfirmInventoryTrashDelete;
+        dialog.SplitCanceled += CloseInventoryTrashConfirmDialog;
+        dialog.UpdateLimits(Mathf.Max(1, item.m_shared.m_maxStackSize), false);
+        dialog.SliderValue = amount;
+        dialog.m_splitSlider.gameObject.SetActive(false);
+        string itemName = LocalizeUi(item.m_shared.m_name, item.m_shared.m_name);
+        string format = LocalizeUi("$inventoryslots_trash_confirm_format", "Delete {item}?");
+        dialog.UpdateIcon(item.GetIcon(), format.Replace("{item}", itemName));
+        SetInventoryTrashConfirmButtonText(TrashSplitOkButton(dialog), LocalizeUi("$inventoryslots_trash_delete", "Delete"), new Color(1f, 0.25f, 0.12f, 1f));
+        SetInventoryTrashConfirmButtonText(TrashSplitCancelButton(dialog), LocalizeUi("$menu_cancel", "Cancel"), Color.white);
+        dialog.SetActive(true);
     }
-
-    private static Button? FindInventoryTrashConfirmButton(GameObject dialog, string path)
-    {
-        Transform transform = dialog.transform.Find(path);
-        return transform != null ? transform.GetComponent<Button>() : null;
-    }
-
     private static void SetInventoryTrashConfirmButtonText(Button button, string label, Color color)
     {
         foreach (TMP_Text text in button.GetComponentsInChildren<TMP_Text>(true))

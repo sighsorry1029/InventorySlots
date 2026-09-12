@@ -1,0 +1,61 @@
+{
+  "candidate": "C:\\Users\\blizz\\RiderProjects\\InventorySlots\\InventoryActions\\bin\\Debug\\InventoryActions.dll",
+  "sha256": "622c0fbf30ac43b5b161b8cbac737a714d60637c1d5c3af5e1226bc88a7a4264",
+  "originalManaged": "C:\\Users\\blizz\\.codex\\references\\valheim\\snapshots\\dedicated-server-b25185644-windows-x64-20260909T131109Z\\original\\valheim_server_Data\\Managed",
+  "fingerprints": [
+    {
+      "name": "assembly_valheim.dll",
+      "sha256": "9df99b0011b4ca0a448e6d935c77368b4e3b98eee7b0ac8d1b43b34e267471b2"
+    },
+    {
+      "name": "assembly_utils.dll",
+      "sha256": "f85f21c2f115ef8db4118083005e6d36c818854d090a1f867fd7a7484ea1d7e2"
+    },
+    {
+      "name": "assembly_guiutils.dll",
+      "sha256": "d86658217ebbb5ccf151a1cb2fe523a80230bcb4b4b79e43d17f3da21126fe33"
+    }
+  ],
+  "directGameReferences": 387,
+  "patchCount": 23,
+  "patches": [
+    "InventoryActions.InventoryGuiSafeTakeAllPatch -\u003E System.Void InventoryGui::OnTakeAll()",
+    "InventoryActions.InventoryGuiPlaceStacksPatch -\u003E System.Void InventoryGui::OnStackAll()",
+    "InventoryActions.InventoryGuiUpdateInventoryActionsPatch -\u003E System.Void InventoryGui::Update()",
+    "InventoryActions.InventoryGuiTopFirstMoveSelectedItemPatch -\u003E System.Void InventoryGui::OnSelectedItem(InventoryGrid,ItemDrop/ItemData,Vector2i,InventoryGrid/Modifier)",
+    "InventoryActions.UITooltipNullPrefabGuardInventoryActionsPatch -\u003E System.Void UITooltip::OnHoverStart(UnityEngine.GameObject)",
+    "InventoryActions.InventoryGuiHideInventoryActionsPatch -\u003E System.Void InventoryGui::Hide()",
+    "InventoryActions.InventoryGuiCloseContainerInventoryActionsPatch -\u003E System.Void InventoryGui::CloseContainer()",
+    "InventoryActions.ContainerStackAllInventoryActionsPatch -\u003E System.Void Container::StackAll()",
+    "InventoryActions.ContainerActionHoverTextPatch -\u003E System.String Container::GetHoverText()",
+    "InventoryActions.ContainerRestockInteractPatch -\u003E System.Boolean Container::Interact(Humanoid,System.Boolean,System.Boolean)",
+    "InventoryActions.ContainerAwakeInventoryActionsPatch -\u003E System.Void Container::Awake()",
+    "InventoryActions.ContainerDestroyedInventoryActionsPatch -\u003E System.Void Container::OnDestroyed()",
+    "InventoryActions.ContainerOpenDuringAreaLeaseInventoryActionsPatch -\u003E System.Void Container::RPC_RequestOpen(System.Int64,System.Int64)",
+    "InventoryActions.ContainerStackDuringAreaLeaseInventoryActionsPatch -\u003E System.Void Container::RPC_RequestStack(System.Int64,System.Int64)",
+    "InventoryActions.ContainerTakeAllDuringAreaLeaseInventoryActionsPatch -\u003E System.Void Container::RPC_RequestTakeAll(System.Int64,System.Int64)",
+    "InventoryActions.InventoryGridFavoriteLeftClickPatch -\u003E System.Void InventoryGrid::OnLeftDown(UIInputHandler)",
+    "ServerSync.ConfigSync/SnatchCurrentlyHandlingRPC -\u003E System.Void ZRpc::HandlePackage(ZPackage)",
+    "ServerSync.ConfigSync/RegisterRPCPatch -\u003E System.Void ZNet::Awake()",
+    "ServerSync.ConfigSync/RegisterClientRPCPatch -\u003E System.Void ZNet::OnNewConnection(ZNetPeer)",
+    "ServerSync.ConfigSync/ResetConfigsOnShutdown -\u003E System.Void ZNet::Shutdown(System.Boolean)",
+    "ServerSync.ConfigSync/SendConfigsAfterLogin -\u003E System.Void ZNet::RPC_PeerInfo(ZRpc,ZPackage)",
+    "ServerSync.ConfigSync/PreventSavingServerInfo -\u003E System.String BepInEx.Configuration.ConfigEntryBase::GetSerializedValue()",
+    "ServerSync.ConfigSync/PreventConfigRereadChangingValues -\u003E System.Void BepInEx.Configuration.ConfigEntryBase::SetSerializedValue(System.String)"
+  ],
+  "existingNonpublicAccessCount": 30,
+  "runtimeAccessAttributes": [
+    "assembly_guiutils",
+    "assembly_utils",
+    "assembly_valheim"
+  ],
+  "failures": [],
+  "manual": [
+    "Incomplete/method-level Harmony declaration: ServerSync.VersionCheck"
+  ],
+  "limitations": [
+    "Static contract check; no game/Unity/Mono or multiplayer execution.",
+    "Existing nonpublic calls still use the publicizer runtime strategy and require target-runtime validation.",
+    "Dynamic targets, arbitrary reflection and other mods\u0027 patch composition require separate review."
+  ]
+}

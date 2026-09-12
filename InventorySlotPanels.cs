@@ -255,9 +255,9 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
-    private static void UpdateSlotBindingLabel(InventoryGrid.Element element, SlotDefinition? slot, bool hideEquipmentSlotName = false)
+    private static void UpdateSlotBindingLabel(InventoryElement element, SlotDefinition? slot, bool hideEquipmentSlotName = false)
     {
-        if (IsUnityNull(element?.m_go))
+        if (IsUnityNull(element))
         {
             return;
         }
@@ -268,7 +268,7 @@ public sealed partial class InventorySlotsPlugin
             : null;
         if (binding == null)
         {
-            Transform bindingTransform = element!.m_go.transform.Find("binding");
+            Transform bindingTransform = element!.gameObject.transform.Find("binding");
             if (bindingTransform == null)
             {
                 return;
@@ -345,12 +345,12 @@ public sealed partial class InventorySlotsPlugin
             return new Vector3(gridTransform.rect.width / 2f - width * playerGrid.m_elementSpace / 2f, 0f, 0f);
         }
 
-        if (playerGrid.m_elements.Count == 0 || IsUnityNull(playerGrid.m_elements[0]?.m_go))
+        if (playerGrid.m_elements.Count == 0 || IsUnityNull(playerGrid.m_elements[0]?.gameObject))
         {
             return Vector3.zero;
         }
 
-        Transform originTransform = playerGrid.m_elements[0].m_go.transform;
+        Transform originTransform = playerGrid.m_elements[0].gameObject.transform;
         if (originTransform.parent != playerGrid.m_gridRoot)
         {
             originTransform.SetParent(playerGrid.m_gridRoot, false);

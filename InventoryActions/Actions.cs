@@ -49,8 +49,7 @@ public sealed partial class InventoryActionsPlugin
             return false;
         }
 
-        QuickStackIntoContainers(player, playerInventory, container, includeArea: true);
-        return true;
+        return QuickStackIntoContainers(player, playerInventory, container, includeArea: true);
     }
 
     internal static bool TryHandleSafeTakeAll(InventoryGui gui)
@@ -85,8 +84,8 @@ public sealed partial class InventoryActionsPlugin
         int movedStacks = SafeTakeAllItems(player, playerInventory, containerInventory);
         if (movedStacks > 0)
         {
-            playerInventory.Changed();
-            containerInventory.Changed();
+            NotifyInventoryChanged(playerInventory);
+            NotifyInventoryChanged(containerInventory);
         }
 
         if (tombstone != null && containerInventory.NrOfItems() == 0)
@@ -157,8 +156,8 @@ public sealed partial class InventoryActionsPlugin
         int movedAmount = MoveItemToInventoryTopFirst(sourceInventory, targetInventory, item);
         if (movedAmount > 0)
         {
-            playerInventory.Changed();
-            containerInventory.Changed();
+            NotifyInventoryChanged(playerInventory);
+            NotifyInventoryChanged(containerInventory);
             gui.m_moveItemEffects.Create(gui.transform.position, Quaternion.identity);
         }
 
@@ -205,16 +204,15 @@ public sealed partial class InventoryActionsPlugin
         QuickStackIntoContainers(localPlayer, playerInventory, container, includeArea: false);
     }
 
-    private static void QuickStackIntoContainers(Player localPlayer, Inventory playerInventory, Container container, bool includeArea)
+    private static bool QuickStackIntoContainers(Player localPlayer, Inventory playerInventory, Container container, bool includeArea)
     {
         if (includeArea)
         {
-            _ = TryStartAreaContainerTransfer(
+            return TryStartAreaContainerTransfer(
                 localPlayer,
                 playerInventory,
                 container,
                 AreaContainerActionKind.QuickStack);
-            return;
         }
 
         List<ItemData> candidates = GetQuickStackCandidates(localPlayer, playerInventory);
@@ -224,10 +222,11 @@ public sealed partial class InventoryActionsPlugin
             : 0;
         if (moved > 0)
         {
-            playerInventory.Changed();
+            NotifyInventoryChanged(playerInventory);
         }
 
         ShowContainerActionResult(localPlayer, "$inventoryactions_action_stack", "Stack", moved);
+        return true;
     }
 
     private static bool ShouldQuickStackItem(Player player, Inventory inventory, ItemData item)
@@ -284,7 +283,7 @@ public sealed partial class InventoryActionsPlugin
 
         if (moved > 0)
         {
-            containerInventory.Changed();
+            NotifyInventoryChanged(containerInventory);
         }
 
         return moved;
@@ -319,8 +318,8 @@ public sealed partial class InventoryActionsPlugin
 
         if (moved > 0)
         {
-            playerInventory.Changed();
-            containerInventory.Changed();
+            NotifyInventoryChanged(playerInventory);
+            NotifyInventoryChanged(containerInventory);
         }
 
     }
@@ -373,7 +372,7 @@ public sealed partial class InventoryActionsPlugin
             : 0;
         if (movedAmount > 0)
         {
-            playerInventory.Changed();
+            NotifyInventoryChanged(playerInventory);
         }
 
         ShowContainerActionResult(localPlayer, "$inventoryactions_action_take_stacks", "Take stacks", movedAmount);
@@ -497,7 +496,7 @@ public sealed partial class InventoryActionsPlugin
 
         if (movedAmount > 0)
         {
-            containerInventory.Changed();
+            NotifyInventoryChanged(containerInventory);
         }
 
         return movedAmount;
@@ -596,7 +595,7 @@ public sealed partial class InventoryActionsPlugin
 
         if (changed)
         {
-            inventory.Changed();
+            NotifyInventoryChanged(inventory);
         }
 
         return moved;
@@ -607,7 +606,8 @@ public sealed partial class InventoryActionsPlugin
         bool changed = false;
         List<List<ItemData>> grouped = toMerge
             .Where(item => item?.m_shared != null && item.m_stack < item.m_shared.m_maxStackSize && CanUseContainerActionStacking(item))
-            .GroupBy(item => new { item.m_shared.m_name, item.m_quality, item.m_worldLevel })
+            // Direct stack consolidation must not erase Valheim's cheat marker.
+            .GroupBy(item => new { item.m_shared.m_name, item.m_quality, item.m_worldLevel, item.m_cheated })
             .Select(grouping => grouping.ToList())
             .ToList();
 
@@ -692,7 +692,7 @@ public sealed partial class InventoryActionsPlugin
     private static List<Vector2i> GetPlayerActionSlots(Player player, Inventory inventory)
     {
         List<Vector2i> slots = new();
-        int rows = Math.Min(VanillaPlayerRows, inventory.GetHeight());
+        int rows = inventory.GetHeight();
         for (int y = 1; y < rows; y++)
         {
             for (int x = 0; x < inventory.GetWidth(); x++)
@@ -901,17 +901,23 @@ public sealed partial class InventoryActionsPlugin
     private static string GetContainerRestockKeyDisplayText() =>
         _containerRestockKey != null ? GetShortcutDisplayText(_containerRestockKey.Value) : "";
 
-    private static List<Container> GetActionContainers(Player player, Container currentContainer, AreaContainerActionKind action)
+    private static List<Container> GetActionContainers(
+        Player player,
+        Container currentContainer,
+        AreaContainerActionKind action,
+        bool allowOpenQuickStackAnchor = false)
     {
         List<Container> containers = new();
         HashSet<Container> seen = new();
         if (currentContainer != null &&
-            CanUseAreaContainerNow(
-                player,
-                currentContainer,
-                currentContainer,
-                action,
-                requireDirectOwner: false) &&
+            (allowOpenQuickStackAnchor ||
+             CanUseAreaContainerNow(
+                 player,
+                 currentContainer,
+                 currentContainer,
+                 action,
+                 requireDirectOwner: false,
+                 allowOpenQuickStackAnchor: false)) &&
             seen.Add(currentContainer))
         {
             containers.Add(currentContainer);
@@ -947,6 +953,7 @@ public sealed partial class InventoryActionsPlugin
                     origin,
                     rangeSq,
                     action,
+                    allowOpenQuickStackAnchor,
                     out float distanceSq))
             {
                 areaContainers.Add((container, distanceSq));
@@ -987,6 +994,7 @@ public sealed partial class InventoryActionsPlugin
         Vector3 origin,
         float rangeSq,
         AreaContainerActionKind action,
+        bool allowOpenQuickStackAnchor,
         out float distanceSq)
     {
         distanceSq = float.MaxValue;
@@ -1011,7 +1019,8 @@ public sealed partial class InventoryActionsPlugin
             container,
             currentContainer!,
             action,
-            requireDirectOwner: false);
+            requireDirectOwner: false,
+            allowOpenQuickStackAnchor: allowOpenQuickStackAnchor);
     }
 
     private static bool IsAreaContainerEligible(Container container)

@@ -4,6 +4,18 @@ namespace InventorySlots;
 
 internal static class InventorySlotSafetyCore
 {
+    // Native inventorysize commands may exceed Haldor's normal 4-6 range.
+    // Keep the fixed nine-row storage boundary even in that case.
+    public static int GetCombinedRegularRows(int nativeRows, int progressionRows)
+    {
+        return Math.Min(9, Math.Max(4, Math.Min(9, nativeRows)) + Math.Max(0, Math.Min(3, progressionRows)));
+    }
+
+    public static int GetRecoveryDisplayRows(int usableRows, int occupiedRow)
+    {
+        return Math.Max(usableRows, Math.Min(9, occupiedRow + 1));
+    }
+
     public enum EquipmentUpgradeCompletionPlan
     {
         None,

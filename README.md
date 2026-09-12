@@ -110,15 +110,19 @@ In multiplayer with ServerCharacters or ServerManager installed, InventorySlots 
 
 ## Progressive Rows
 
-The base inventory starts as an 8x4 grid. Up to five extra regular rows can unlock through item discovery.
+For Valheim 1.0.7, the base inventory starts as an 8x4 grid. InventorySlots adds up to three regular rows through item discovery. Haldor's Wider Pockets and Deeper Pockets purchases each add one more row independently, for a maximum of nine regular rows (72 slots).
 
 Default extra row unlocks:
 
 - Extra Row 1: `HardAntler`
 - Extra Row 2: `CryptKey`
 - Extra Row 3: `Wishbone`
-- Extra Row 4: `DragonTear`
-- Extra Row 5: `YagluthDrop`
+
+Wider Pockets costs 1,000 coins after Moder is defeated in the current world; Deeper Pockets costs 2,000 coins after the Queen is defeated. Purchases use vanilla character keys and do not require InventorySlots row unlocks. Disabling progressive rows immediately grants the configured mod rows, while purchased rows remain independent.
+
+`Maximum Extra Rows` now accepts 0-3; previous higher values are capped at 3. `Extra Row 4 Items` and `Extra Row 5 Items` no longer participate in progression. The first three configuration keys retain their meaning. Equipment and quick-slot progression are unchanged.
+
+The internal regular storage area remains nine rows and equipment/quick-slot coordinates stay fixed. If a character has items in rows that are now locked, occupied cells remain accessible for recovery; empty locked cells do not become usable storage. Existing vanilla purchases and item data are preserved.
 
 Clients can display unlocked rows in two ways:
 
@@ -266,7 +270,7 @@ Crafting and inventory/container sorting use separate client sort modes. Craftin
 - `TierThenGroup`: resource tier first, then group.
 - `GroupThenTier`: group first, then resource tier.
 
-The resource tier map comes from `InventorySlots/ResourceMap.yml` and defaults to a biome-style progression from Meadows through Ashlands.
+The resource tier map comes from `InventorySlots/ResourceMap.yml` and defaults to a biome-style progression from Meadows through Deep North. It controls sorting, not crafting costs or progression unlocks. Writhan resources belong to Swamp, Hook to Mistlands, and the lava blob trophy to Ashlands; Fader's completion rewards are grouped with Deep North entry materials.
 
 ## Tooltips
 
@@ -404,6 +408,8 @@ BlackForest:
   - HardAntler
   - Bronze
 ```
+
+Existing `ResourceMap.yml` files are preserved when the mod is updated. Back up your file and merge missing entries from the repository's `config/InventorySlots/ResourceMap.yml` into the matching sections, keeping your custom entries and tier order. Append `DeepNorth` after `AshLands`; do not alphabetize the sections. The server's map is authoritative in multiplayer. YAML edits are hot-reloaded and synchronized: crafting views are invalidated, while inventory and container items use the new tiers the next time you sort them. Invalid YAML keeps the last valid map.
 
 This release does not read or migrate the former root-level `InventorySlots.yml`, root-level `InventorySlots.Client.yml`, or an inline `resourceMap`. Legacy files are left untouched; manually reapply custom settings to the new files and update the server and all clients together.
 

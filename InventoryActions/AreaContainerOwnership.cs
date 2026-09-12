@@ -59,6 +59,7 @@ public sealed partial class InventoryActionsPlugin
         public bool PlayerInventoryChanged;
         public int ChangedContainerVfxCount;
         public int VfxLimit;
+        public bool AllowOpenQuickStackAnchor;
     }
 
     private static bool TryStartAreaContainerTransfer(
@@ -77,7 +78,18 @@ public sealed partial class InventoryActionsPlugin
             return false;
         }
 
-        List<Container> targets = GetActionContainers(player, anchor, action);
+        bool allowOpenQuickStackAnchor =
+            IsOpenQuickStackAnchor(player, anchor, action);
+        List<Container> targets = GetActionContainers(
+            player,
+            anchor,
+            action,
+            allowOpenQuickStackAnchor);
+        if (targets.Count == 0)
+        {
+            return false;
+        }
+
         InventoryGui.instance?.SetupDragItem(null, null, 0);
         _areaContainerTransfer = new AreaContainerTransferSession
         {
@@ -87,6 +99,7 @@ public sealed partial class InventoryActionsPlugin
             AnchorId = anchorId,
             Action = action,
             Targets = targets,
+            AllowOpenQuickStackAnchor = allowOpenQuickStackAnchor,
             VfxLimit = IsContainerActionSuccessFxEnabled()
                 ? ContainerActionSuccessVfxLimit
                 : 0
@@ -111,7 +124,7 @@ public sealed partial class InventoryActionsPlugin
             player.IsDead() ||
             ((Character)player).InCutscene() ||
             player.IsTeleporting() ||
-            InventoryGui.IsVisible() ||
+            IsInventoryGuiBlockingAreaTransfer(session) ||
             IsUnityNull(session.Anchor) ||
             !IsAreaContainerEligible(session.Anchor) ||
             (player.transform.position - session.Anchor.transform.position).sqrMagnitude >
@@ -172,7 +185,8 @@ public sealed partial class InventoryActionsPlugin
                               target,
                               session.Anchor,
                               session.Action,
-                              requireDirectOwner: true);
+                              requireDirectOwner: true,
+                              allowOpenQuickStackAnchor: session.AllowOpenQuickStackAnchor);
 
         AreaOwnershipHandoffDecision decision = AreaOwnershipHandoff.Observe(
             Time.unscaledTime,
@@ -212,13 +226,37 @@ public sealed partial class InventoryActionsPlugin
                session.NextTargetIndex < session.Targets.Count)
         {
             Container target = session.Targets[session.NextTargetIndex];
+            if (session.AllowOpenQuickStackAnchor && target == session.Anchor)
+            {
+                // Container.StackAll is invoked from InventoryGui.UpdateContainer while
+                // this exact container is open. Process it synchronously with the same
+                // loaded inventory vanilla would use, before extending the action to
+                // nearby containers. Generic in-use/revision checks are for unattended
+                // area targets and must not discard the current vanilla target.
+                session.NextTargetIndex++;
+                int moved = 0;
+                try
+                {
+                    moved = ExecuteAreaContainerTransfer(session, target);
+                }
+                catch (Exception exception)
+                {
+                    Log.LogWarning($"Open quick-stack anchor transfer failed safely: {exception.Message}");
+                    FlushAreaTransferInventoriesAfterFailure(session, target);
+                }
+
+                RecordAreaContainerTransfer(session, target, moved);
+                continue;
+            }
+
             if (IsUnityNull(target) ||
                 !CanUseAreaContainerNow(
                     session.Player,
                     target,
                     session.Anchor,
                     session.Action,
-                    requireDirectOwner: false))
+                    requireDirectOwner: false,
+                    allowOpenQuickStackAnchor: session.AllowOpenQuickStackAnchor))
             {
                 session.NextTargetIndex++;
                 continue;
@@ -238,7 +276,8 @@ public sealed partial class InventoryActionsPlugin
                             target,
                             session.Anchor,
                             session.Action,
-                            requireDirectOwner: true) &&
+                            requireDirectOwner: true,
+                            allowOpenQuickStackAnchor: session.AllowOpenQuickStackAnchor) &&
                         HasLoadedCurrentContainerRevision(target))
                     {
                         moved = ExecuteAreaContainerTransfer(session, target);
@@ -415,7 +454,8 @@ public sealed partial class InventoryActionsPlugin
                    target,
                    session.Anchor,
                    session.Action,
-                   requireDirectOwner: true);
+                   requireDirectOwner: true,
+                   allowOpenQuickStackAnchor: session.AllowOpenQuickStackAnchor);
     }
 
     private static int ExecuteAreaContainerTransfer(
@@ -468,7 +508,7 @@ public sealed partial class InventoryActionsPlugin
     {
         try
         {
-            session.PlayerInventory.Changed();
+            NotifyInventoryChanged(session.PlayerInventory);
         }
         catch (Exception exception)
         {
@@ -478,7 +518,10 @@ public sealed partial class InventoryActionsPlugin
 
         try
         {
-            target.m_inventory?.Changed();
+            if (target.m_inventory != null)
+            {
+                NotifyInventoryChanged(target.m_inventory);
+            }
         }
         catch (Exception exception)
         {
@@ -493,7 +536,7 @@ public sealed partial class InventoryActionsPlugin
         _areaContainerTransfer = null;
         if (session.PlayerInventoryChanged)
         {
-            session.PlayerInventory.Changed();
+            NotifyInventoryChanged(session.PlayerInventory);
             if (session.VfxLimit > 0)
             {
                 BroadcastContainerActionSuccessFx(
@@ -576,7 +619,7 @@ public sealed partial class InventoryActionsPlugin
         {
             try
             {
-                changedInventory.Changed();
+                NotifyInventoryChanged(changedInventory);
             }
             catch (Exception exception)
             {
@@ -849,7 +892,16 @@ public sealed partial class InventoryActionsPlugin
             return AreaOwnershipFailure.Unavailable;
         }
 
-        if (IsContainerInUse(container) || IsContainerInUse(anchor))
+        ZDO? anchorZdo = anchor.m_nview?.GetZDO();
+        bool requesterOwnsOpenQuickStackAnchor =
+            identity.Action == AreaContainerActionKind.QuickStack &&
+            anchorZdo != null &&
+            anchorZdo.GetOwner() == sender;
+        if (!AreaContainerUsePolicy.AllowsInUseState(
+                container == anchor,
+                IsContainerInUse(container),
+                IsContainerInUse(anchor),
+                requesterOwnsOpenQuickStackAnchor))
         {
             return AreaOwnershipFailure.InUse;
         }
@@ -963,7 +1015,8 @@ public sealed partial class InventoryActionsPlugin
         Container container,
         Container anchor,
         AreaContainerActionKind action,
-        bool requireDirectOwner)
+        bool requireDirectOwner,
+        bool allowOpenQuickStackAnchor = false)
     {
         // MUC 0.6.1 does not expose all secondary users or pending positional
         // item RPCs, so even a locally owned chest cannot be proven idle.
@@ -974,8 +1027,11 @@ public sealed partial class InventoryActionsPlugin
             anchor == null ||
             !IsAreaContainerEligible(container) ||
             !IsAreaContainerEligible(anchor) ||
-            IsContainerInUse(container) ||
-            IsContainerInUse(anchor) ||
+            !AreaContainerUsePolicy.AllowsInUseState(
+                container == anchor,
+                IsContainerInUse(container),
+                IsContainerInUse(anchor),
+                allowOpenQuickStackAnchor) ||
             !HasContainerPlayerAccess(player, container) ||
             !HasContainerPlayerAccess(player, anchor))
         {
@@ -1003,6 +1059,44 @@ public sealed partial class InventoryActionsPlugin
 
         return CanMutateContainerDirectly(container) ||
                CanRequestAreaOwnership(container);
+    }
+
+    private static bool IsOpenQuickStackAnchor(
+        Player player,
+        Container anchor,
+        AreaContainerActionKind action)
+    {
+        InventoryGui? gui = InventoryGui.instance;
+        return action == AreaContainerActionKind.QuickStack &&
+               !HasExternalMultiUserChestActive &&
+               player == Player.m_localPlayer &&
+               gui != null &&
+               !IsUnityNull(gui) &&
+               gui.m_animator != null &&
+               gui.m_animator.GetBool("visible") &&
+               gui.m_currentContainer == anchor &&
+               CanMutateContainerDirectly(anchor);
+    }
+
+    private static bool IsInventoryGuiBlockingAreaTransfer(
+        AreaContainerTransferSession session)
+    {
+        if (!InventoryGui.IsVisible())
+        {
+            return false;
+        }
+
+        if (!session.AllowOpenQuickStackAnchor)
+        {
+            return true;
+        }
+
+        InventoryGui? gui = InventoryGui.instance;
+        return gui != null &&
+               !IsUnityNull(gui) &&
+               gui.m_animator != null &&
+               gui.m_animator.GetBool("visible") &&
+               gui.m_currentContainer != session.Anchor;
     }
 
     private static bool HasLoadedCurrentContainerRevision(Container container)

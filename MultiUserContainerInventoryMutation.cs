@@ -606,11 +606,18 @@ public sealed partial class InventorySlotsPlugin
             requiredStack: 1);
     }
 
-    private static void NotifyMultiUserContainerInventoryChanged(Inventory inventory)
+    private static readonly Action<Inventory, bool, bool> NotifyInventoryChanged =
+        HarmonyLib.AccessTools.MethodDelegate<Action<Inventory, bool, bool>>(
+            HarmonyLib.AccessTools.Method(typeof(Inventory), "Changed", new[] { typeof(bool), typeof(bool) }));
+
+    private static void NotifyMultiUserContainerInventoryChanged(Inventory inventory, ItemData? receivedItem = null)
     {
         try
         {
-            inventory.Changed();
+            bool localReceipt = receivedItem != null && Player.m_localPlayer != null &&
+                                Player.m_localPlayer.GetInventory() == inventory;
+            bool cheatedStateChanged = localReceipt && receivedItem!.m_cheated && !Achievements.IsCheatedAtAll();
+            NotifyInventoryChanged(inventory, localReceipt, cheatedStateChanged);
         }
         catch (Exception exception)
         {

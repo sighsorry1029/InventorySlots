@@ -2729,7 +2729,7 @@ public sealed partial class InventorySlotsPlugin
 
             target.m_stack += amount;
             MergeStackMetadata(target, item);
-            NotifyMultiUserContainerInventoryChanged(inventory);
+            NotifyMultiUserContainerInventoryChanged(inventory, item);
             securedItem = target;
             return true;
         }
@@ -2748,7 +2748,7 @@ public sealed partial class InventorySlotsPlugin
         inserted.m_gridPos = destination;
         inserted.m_equipped = false;
         inventory.m_inventory.Add(inserted);
-        NotifyMultiUserContainerInventoryChanged(inventory);
+        NotifyMultiUserContainerInventoryChanged(inventory, inserted);
         securedItem = inserted;
         try
         {
@@ -3054,7 +3054,7 @@ public sealed partial class InventorySlotsPlugin
             }
         }
 
-        container.m_nview.InvokeRPC(sender, "OpenRespons", granted);
+        container.m_nview.InvokeRPC(sender, "RPC_OpenResponse", granted);
         return true;
     }
 
@@ -3118,6 +3118,7 @@ public sealed partial class InventorySlotsPlugin
         else if (gui.m_containerHoldState >= 0)
         {
             gui.m_containerHoldState = -1;
+            gui.m_waitForContainerStack = false;
         }
 
         return true;

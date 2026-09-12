@@ -45,14 +45,14 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        foreach (InventoryGrid.Element element in grid.m_elements)
+        foreach (InventoryElement element in grid.m_elements)
         {
-            if (IsUnityNull(element?.m_go))
+            if (IsUnityNull(element))
             {
                 continue;
             }
 
-            UIInputHandler? input = element!.m_go.GetComponentInChildren<UIInputHandler>(includeInactive: true);
+            UIInputHandler? input = element!.gameObject.GetComponentInChildren<UIInputHandler>(includeInactive: true);
             if (input == null)
             {
                 continue;
@@ -108,8 +108,8 @@ public sealed partial class InventorySlotsPlugin
     {
         elementListId = grid.m_elements?.GetHashCode() ?? 0;
         elementCount = grid.m_elements?.Count ?? 0;
-        firstElementId = elementCount > 0 && !IsUnityNull(grid.m_elements![0]?.m_go) ? grid.m_elements[0].m_go.GetInstanceID() : 0;
-        lastElementId = elementCount > 0 && !IsUnityNull(grid.m_elements![elementCount - 1]?.m_go) ? grid.m_elements[elementCount - 1].m_go.GetInstanceID() : 0;
+        firstElementId = elementCount > 0 && !IsUnityNull(grid.m_elements![0]) ? grid.m_elements[0].gameObject.GetInstanceID() : 0;
+        lastElementId = elementCount > 0 && !IsUnityNull(grid.m_elements![elementCount - 1]) ? grid.m_elements[elementCount - 1].gameObject.GetInstanceID() : 0;
     }
 
     private static void HandleInventoryGridTooltipPointerEnter(UIInputHandler handler)
