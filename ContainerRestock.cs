@@ -112,16 +112,9 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        if (TryHandleMultiUserContainerAreaRestock(container))
+        if (IsContainerAreaTransferActive())
         {
             return true;
-        }
-
-        if (!CanMutateContainerDirectly(
-                container,
-                allowLocalWithoutZNetView: true))
-        {
-            return false;
         }
 
         Inventory playerInventory = ((Humanoid)player).GetInventory();
@@ -130,8 +123,7 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        RestockFromContainer(player, playerInventory, container, ContainerTakeStacksMode.AreaFavoriteRestock);
-        return true;
+        return TryStartContainerAreaTransfer(player, playerInventory, container, quickStack: false);
     }
 
     private static void RestockFromContainer(Player localPlayer, Inventory playerInventory, Container container, ContainerTakeStacksMode mode)

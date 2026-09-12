@@ -8,6 +8,8 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
+    private static bool _containerQuickStackHoldConsumed;
+
     internal static bool TryHandleVanillaPlaceStacks(InventoryGui gui)
     {
         if (gui == null || gui.m_currentContainer == null)
@@ -15,27 +17,15 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        if (IsMultiUserContainerAreaBatchActive())
+        if (IsContainerAreaTransferActive())
         {
-            ShowMultiUserContainerNotReady();
+            ShowContainerNotReady();
             return true;
         }
 
         ContainerAccessMode accessMode = GetContainerAccessMode(
             gui.m_currentContainer,
             allowLocalWithoutZNetView: true);
-        if (accessMode == ContainerAccessMode.MultiUserChestRemote &&
-            IsBuiltInMultiUserChestEnabled)
-        {
-            if (!TryStartMultiUserContainerPlaceStacksBatch(
-                    gui.m_currentContainer))
-            {
-                ShowMultiUserContainerNotReady();
-            }
-
-            return true;
-        }
-
         if (accessMode != ContainerAccessMode.DirectOwner)
         {
             return false;
@@ -58,25 +48,22 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        ContainerAccessMode accessMode = GetContainerAccessMode(
-            container,
-            allowLocalWithoutZNetView: true);
-        if (IsBuiltInMultiUserChestEnabled &&
-            TryHandleMultiUserContainerAreaQuickStack(container))
+        if (IsContainerQuickStackShortcutHeld() && _containerQuickStackHoldConsumed)
         {
+            // Vanilla Show/Hide and the hover handler share one Use press.
             return true;
         }
 
-        if (accessMode == ContainerAccessMode.MultiUserChestRemote &&
-            IsBuiltInMultiUserChestEnabled)
+        if (!HasContainerPlayerAccess(player, container, flashGuardStone: true))
         {
-            ShowMultiUserContainerNotReady();
+            player.Message(MessageHud.MessageType.Center, "$msg_cantopen", 0, null);
             return true;
         }
 
-        if (accessMode != ContainerAccessMode.DirectOwner)
+        if (IsContainerAreaTransferActive())
         {
-            return false;
+            ShowContainerNotReady();
+            return true;
         }
 
         Inventory playerInventory = ((Humanoid)player).GetInventory();
@@ -85,12 +72,44 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        QuickStackIntoContainers(player, playerInventory, container, includeArea: true);
+        if (TryStartContainerAreaTransfer(player, playerInventory, container, quickStack: true))
+        {
+            _containerQuickStackHoldConsumed = IsContainerQuickStackShortcutHeld();
+            return true;
+        }
+
+        // A rejected area request must not fall through to an unguarded write.
+        if (!HasExternalMultiUserChestActive && IsContainerAreaEligible(container))
+        {
+            ShowContainerNotReady();
+            return true;
+        }
+
+        if (!CanMutateContainerDirectly(container, allowLocalWithoutZNetView: true))
+        {
+            return false;
+        }
+
+        QuickStackIntoContainers(player, playerInventory, container, includeArea: false);
+        _containerQuickStackHoldConsumed = IsContainerQuickStackShortcutHeld();
         return true;
     }
 
     private static void HandleContainerQuickStackHotkey(Player player)
     {
+        if (!IsContainerQuickStackShortcutHeld())
+        {
+            _containerQuickStackHoldConsumed = false;
+            ResetContainerHold(InventoryPanels.ContainerQuickStackHold);
+            return;
+        }
+
+        // A late Show or vanilla's post-stack Hide must not start a second run.
+        if (_containerQuickStackHoldConsumed || InventoryGui.IsVisible())
+        {
+            return;
+        }
+
         HandleContainerHoldHotkey(
             player,
             InventoryPanels.ContainerQuickStackHold,
@@ -135,16 +154,9 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        if (TryHandleMultiUserContainerAreaQuickStack(container))
+        if (IsContainerAreaTransferActive())
         {
             return true;
-        }
-
-        if (!CanMutateContainerDirectly(
-                container,
-                allowLocalWithoutZNetView: true))
-        {
-            return false;
         }
 
         Inventory playerInventory = ((Humanoid)player).GetInventory();
@@ -153,8 +165,13 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        QuickStackIntoContainers(player, playerInventory, container, includeArea: true);
-        return true;
+        bool started = TryStartContainerAreaTransfer(player, playerInventory, container, quickStack: true);
+        if (started)
+        {
+            _containerQuickStackHoldConsumed = IsContainerQuickStackShortcutHeld();
+        }
+
+        return started;
     }
 
     internal static void QuickStackCurrentContainer(Player? player)

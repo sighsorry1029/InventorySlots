@@ -576,8 +576,6 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void OnItemDropAwakeForInventorySlotsDrop(ItemDrop itemDrop)
     {
-        OnItemDropAwakeForMultiUserContainerWorldDelivery(itemDrop);
-
         InventorySlotsItemDropCreationScope? scope =
             _activeInventorySlotsItemDropCreationScope;
         HumanoidDropInventorySlotsState? state = scope?.DropState;
@@ -765,7 +763,6 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void OnInventoryGuiHide()
     {
-        CancelMultiUserContainerBatch(includeAreaBatch: false);
         OnInventoryGuiHidden();
         StartQuickSlotPanelOutroAnimation();
         PrunePendingSlotActions();
@@ -779,7 +776,6 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void OnInventoryGuiCloseContainer()
     {
-        CancelMultiUserContainerBatch(includeAreaBatch: false);
         RestoreContainerUiState();
     }
 

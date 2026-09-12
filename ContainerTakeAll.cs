@@ -15,26 +15,16 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        if (IsMultiUserContainerAreaBatchActive())
+        if (IsContainerAreaTransferActive())
         {
-            ShowMultiUserContainerNotReady();
+            ShowContainerNotReady();
             return true;
         }
 
         Container container = gui.m_currentContainer;
         ContainerAccessMode accessMode = GetContainerAccessMode(container, allowLocalWithoutZNetView: true);
-        if (accessMode == ContainerAccessMode.MultiUserChestRemote)
+        if (accessMode == ContainerAccessMode.ExternalMultiUserChestRemote)
         {
-            if (IsBuiltInMultiUserChestEnabled)
-            {
-                if (!TryStartMultiUserContainerTakeAllBatch(container))
-                {
-                    ShowMultiUserContainerNotReady();
-                }
-
-                return true;
-            }
-
             return false;
         }
 

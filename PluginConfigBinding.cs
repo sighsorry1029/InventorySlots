@@ -66,7 +66,6 @@ public sealed partial class InventorySlotsPlugin
     private static ConfigEntry<float> _containerPreviewCloseDelay = null!;
     private static ConfigEntry<KeyboardShortcut> _favoriteModifierKey = null!;
     private static ConfigEntry<KeyboardShortcut>[] _quickSlotHotkeys = null!;
-    private static ConfigEntry<Toggle> _enableBuiltInMultiUserChest = null!;
 
     private static void BindConfigs()
     {
@@ -111,15 +110,8 @@ public sealed partial class InventorySlotsPlugin
         _deathKeepRulesEnabled = OrderedConfigEntry("1 - General", "Enable Death Keep Rules", Toggle.On, "When enabled, items matching the YAML KeepOnDeath list stay in the player inventory instead of moving to the tombstone. When disabled, KeepOnDeath is ignored and death uses the normal tombstone behavior.", order: 990);
         _enableInventoryTrashPanel = OrderedConfigEntry("1 - General", "Enable Inventory Trash Panel", Toggle.On, "When enabled, shows a trash panel below the player inventory. Dropping a held player-inventory item on it opens a confirmation dialog before deleting the held amount.", order: 980);
 
-        _areaQuickStackRange = OrderedConfigEntry("1 - General", "Area Quick Stack Range", 10f, new ConfigDescription("Range in meters for hover Area Quick Stack. Set to 0 to disable area quick stack. The opened-container Place stacks button only uses the current container. Built-in multi-user remote targets are also limited to 10 meters from the player.", new AcceptableValueRange<float>(0f, 50f)), order: 970);
-        _areaRestockRange = OrderedConfigEntry("1 - General", "Area Take Stacks Range", 10f, new ConfigDescription("Range in meters for hover Area Take Stacks. Set to 0 to disable area take stacks. The opened-container Take stacks button only uses the current container. Built-in multi-user remote targets are also limited to 10 meters from the player.", new AcceptableValueRange<float>(0f, 50f)), order: 960);
-
-        _enableBuiltInMultiUserChest = OrderedConfigEntry(
-            "1 - General",
-            "Enable Multi User Chest",
-            Toggle.On,
-            "Enables InventorySlots' built-in multi-user access for standard player-built chests. On is the default. If the external MultiUserChest mod is installed, it takes precedence and this setting is ignored. To use the built-in implementation, remove the external mod from the server and all clients, then restart.",
-            order: 950);
+        _areaQuickStackRange = OrderedConfigEntry("1 - General", "Area Quick Stack Range", 10f, new ConfigDescription("Range in meters from the hovered chest for Area Quick Stack. Set to 0 to use only that chest. Unused player-built chests can grant ownership before the transfer. The opened-container Place stacks button only uses the current container.", new AcceptableValueRange<float>(0f, 50f)), order: 970);
+        _areaRestockRange = OrderedConfigEntry("1 - General", "Area Take Stacks Range", 10f, new ConfigDescription("Range in meters from the hovered chest for Area Take Stacks. Set to 0 to use only that chest. Unused player-built chests can grant ownership before the transfer. The opened-container Take stacks button only uses the current container.", new AcceptableValueRange<float>(0f, 50f)), order: 960);
 
         _inventoryRowsDisplayMode = OrderedConfigEntry(ClientConfigSection, "Inventory Rows Display Mode", InventoryRowsDisplayMode.Expandable, "Client-only regular inventory row display mode. Fixed always shows all unlocked regular inventory rows. Expandable restores the last locally remembered visible row count, reveals newly unlocked rows once, and changes it with mouse wheel while the inventory is open.", order: 900, synchronizedSetting: false);
         _autoFavoriteHotbarSwitchRow = OrderedConfigEntry(ClientConfigSection, "Auto Favorite Hotbar Switch Row", Toggle.On, "When enabled, marks row 2 as favorite when the local player is loaded or spawned. Turn this Off if you want row 2 favorites to stay manually controlled. Not synced with server.", order: 890, synchronizedSetting: false);

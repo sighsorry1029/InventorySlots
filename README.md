@@ -92,7 +92,7 @@ Jewelcrafting sockets and gem tooltip content are supported in InventorySlots to
 - Crafting browser: icon grid, search, group filters, recipe favorites, recipe sorting, grid zoom, and multicraft.
 - Tooltips: scrollable hover tooltips and pinned comparison panels for inventory, containers, crafting, quick slots, and supported modded tabs.
 - Compatibility support for EpicLoot, Jewelcrafting, backpacks, RustyBags, Magic Supremacy, BetterArchery, MultiUserChest, ServerCharacters, ServerManager, TooltipExpansion, and VNEI.
-- Optional multi-user access for standard player-built chests, with owner-authoritative transfers and Jewelcrafting-aware previews.
+- Vanilla chest access: one player opens a chest at a time, while area actions can request ownership of eligible unused chests.
 
 ## Slot Model
 
@@ -232,7 +232,11 @@ When hovering a container:
 
 Area ranges use the interacted container as the center. Setting a range to `0` disables nearby-container behavior for that action.
 
-With the built-in multi-user chest enabled, non-owner area transfers use the current chest owner as the authority and run one item transfer at a time. Remote targets must also be within 10 meters of the player. The external MultiUserChest mod does not provide InventorySlots with a transactional area-transfer API, so external-mod remote targets remain excluded.
+Opening a chest follows vanilla's single-user access and ownership transfer. Area actions process containers one at a time. For an eligible unused chest owned by another player, InventorySlots requests authorization from its current owner and waits for ownership and the saved inventory state before moving items. A denied or timed-out request skips that target without moving its items. The chest already open by the requester can still receive that player's quick stack.
+
+The former built-in MultiUserChest implementation and its `Enable Multi User Chest` setting have been removed. Existing configuration entries and old chest receipt data are not used or deleted. The standalone MultiUserChest mod remains optional; InventorySlots leaves its chest opening behavior to that mod and excludes non-owned area targets while it is loaded.
+
+Finish pending inventory actions and exit normally before replacing the DLL. Restart the server and all clients with the same build so that area ownership requests use matching implementations.
 
 Container actions respect container access, wards, tombstones, ships, in-use containers, and ownership constraints.
 
@@ -417,17 +421,13 @@ This release does not read or migrate the former root-level `InventorySlots.yml`
 
 These options are stored in the root-level `sighsorry.InventorySlots.cfg`:
 
-- `1 - General`: server lock, death keep rules, trash panel, area quick stack, area take stacks, and the built-in multi-user chest setting, which is enabled by default.
+- `1 - General`: server lock, death keep rules, trash panel, area quick stack, and area take stacks.
 - `2 - Progressive Slots`: extra rows, quick slot rows, quick slot progression.
 - `3 - Restock`: favorite restock target limits.
 - `4 - Client`: inventory display, sort modes, crafting grid, container preview and hover behavior, container FX, mouse UI scroll.
 - `5 - Client UI`: hints and tooltip display options.
 - `6 - Client Keys`: keyboard and mouse shortcuts.
 - `7 - Controller Input`: controller scrolling and controller hotkeys.
-
-### Built-in Multi-user Chest
-
-When `1 - General / Enable Multi User Chest` is On, multiple players can open a standard player-built chest without transferring chest ownership.
 
 ## Controller Input
 
@@ -441,13 +441,13 @@ InventorySlots declares incompatibility with mods that also take ownership of eq
 
 Soft compatibility and adaptive behavior include:
 
-- AzuCraftyBoxes: nearby material counts and colors.
+- AzuCraftyBoxes: nearby material counts and colors through its optional API. AzuCraftyBoxes handles material consumption itself; this display integration does not arbitrate simultaneous crafting or building.
 - Jewelcrafting: ring/necklace slots, socket tooltips, gem rows, crafting socket UI placement, and visual/stat panel support.
 - AdventureBackpacks and Smoothbrain Backpacks: backpack slot support and equipped-backpack synchronization.
 - RustyBags: bag/quiver slot support and equipped state synchronization.
 - Magic Supremacy: belt slot support and equipped-belt synchronization.
 - BetterArchery: quiver/reserved cells are treated conservatively.
-- MultiUserChest: the standalone mod takes precedence; its remote-owner access remains respected while InventorySlots' built-in implementation stays inactive.
+- MultiUserChest: the standalone mod controls concurrent chest opening; InventorySlots area transfers do not mutate non-owned containers while it is loaded.
 - ServerCharacters: local slot backup/restore avoids stale server-character data.
 - EpicLoot: item tooltip content is preserved while InventorySlots-owned tooltip layouts stay isolated.
 - TooltipExpansion: InventorySlots-owned tooltips avoid vanilla tooltip scrollbar/layout interference.

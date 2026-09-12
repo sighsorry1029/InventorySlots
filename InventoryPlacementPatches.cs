@@ -332,24 +332,8 @@ internal static class InventoryMoveItemToThisPatch
         ItemData item,
         int amount,
         ref int x,
-        ref int y,
-        out bool __state)
+        ref int y)
     {
-        __state = false;
-        if (InventorySlotsPlugin.TryRouteMultiUserContainerPositionalMove(
-                __instance,
-                fromInventory,
-                item,
-                amount,
-                x,
-                y,
-                out bool multiUserResult))
-        {
-            __state = true;
-            __result = multiUserResult;
-            return false;
-        }
-
         return InventorySlotsPlugin.TryValidatePlayerInventoryMoveItemToThis(__instance, ref __result, fromInventory, item, amount, ref x, ref y);
     }
 
@@ -358,26 +342,13 @@ internal static class InventoryMoveItemToThisPatch
         bool __result,
         ItemData item,
         int x,
-        int y,
-        bool __state)
+        int y)
     {
-        if (!__state)
-        {
-            InventorySlotsPlugin.OnPlayerInventoryItemPlaced(
-                __instance,
-                item,
-                new Vector2i(x, y),
-                __result);
-        }
-    }
-}
-
-[HarmonyPatch(typeof(Inventory), "MoveItemToThis", typeof(Inventory), typeof(ItemData))]
-internal static class InventoryMoveItemToThisAutoPatch
-{
-    private static bool Prefix(Inventory __instance, Inventory fromInventory, ItemData item)
-    {
-        return !InventorySlotsPlugin.TryRouteMultiUserContainerAutoMove(__instance, fromInventory, item);
+        InventorySlotsPlugin.OnPlayerInventoryItemPlaced(
+            __instance,
+            item,
+            new Vector2i(x, y),
+            __result);
     }
 }
 
@@ -395,18 +366,6 @@ internal static class InventoryGridDropItemPatch
 {
     private static bool Prefix(InventoryGrid __instance, Inventory fromInventory, ItemData item, int amount, Vector2i pos, ref bool __result)
     {
-        if (InventorySlotsPlugin.TryRouteMultiUserContainerDropItem(
-                __instance,
-                fromInventory,
-                item,
-                amount,
-                pos,
-                out bool multiUserResult))
-        {
-            __result = multiUserResult;
-            return false;
-        }
-
         return InventorySlotsPlugin.ShouldAllowInventoryGridDropItem(
             __instance,
             fromInventory,

@@ -24,24 +24,9 @@ internal static class PlayerUseHotbarItemQuickSlotModifierPatch
 internal static class InventoryGuiDragSlotItemOutPatch
 {
     [HarmonyPriority(Priority.First)]
-    private static bool Prefix(InventoryGui __instance, InventoryGrid grid, ItemDrop.ItemData item, Vector2i pos, InventoryGrid.Modifier mod)
+    private static bool Prefix(InventoryGui __instance, InventoryGrid grid, Vector2i pos, InventoryGrid.Modifier mod)
     {
         if (InventorySlotsPlugin.ShouldBlockContainerPreviewInteraction(__instance))
-        {
-            return false;
-        }
-
-        if (InventorySlotsPlugin.IsMultiUserContainerInteractionPending(__instance, grid, item, pos))
-        {
-            return false;
-        }
-
-        if (mod == InventoryGrid.Modifier.Drop &&
-            InventorySlotsPlugin.TryHandleMultiUserContainerDropSelectedItem(
-                __instance,
-                grid,
-                item,
-                pos))
         {
             return false;
         }
@@ -56,23 +41,9 @@ internal static class InventoryGuiDragSlotItemOutPatch
 internal static class InventoryGuiContainerPreviewRightClickPatch
 {
     [HarmonyPriority(Priority.First)]
-    private static bool Prefix(InventoryGui __instance, InventoryGrid grid, ItemDrop.ItemData item, Vector2i pos)
+    private static bool Prefix(InventoryGui __instance)
     {
-        if (InventorySlotsPlugin.ShouldBlockContainerPreviewInteraction(__instance))
-        {
-            return false;
-        }
-
-        if (InventorySlotsPlugin.IsMultiUserContainerInteractionPending(
-                __instance,
-                grid,
-                item,
-                pos))
-        {
-            return false;
-        }
-
-        return !InventorySlotsPlugin.TryHandleMultiUserContainerRightClick(__instance, grid, item, pos);
+        return !InventorySlotsPlugin.ShouldBlockContainerPreviewInteraction(__instance);
     }
 }
 
@@ -90,8 +61,7 @@ internal static class InventoryGuiDropSlotItemOutsidePatch
 {
     private static bool Prefix(InventoryGui __instance)
     {
-        if (InventorySlotsPlugin.ShouldBlockContainerPreviewInteraction(__instance) ||
-            InventorySlotsPlugin.TryHandleMultiUserContainerDropOutside(__instance))
+        if (InventorySlotsPlugin.ShouldBlockContainerPreviewInteraction(__instance))
         {
             return false;
         }

@@ -24,9 +24,9 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        if (IsMultiUserContainerAreaBatchActive())
+        if (IsContainerAreaTransferActive())
         {
-            ShowMultiUserContainerNotReady();
+            ShowContainerNotReady();
             return;
         }
 
@@ -43,7 +43,7 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        if (accessMode != ContainerAccessMode.MultiUserChestRemote ||
+        if (accessMode != ContainerAccessMode.ExternalMultiUserChestRemote ||
             IsContainerSortRequestPending(container))
         {
             return;
@@ -88,14 +88,14 @@ public sealed partial class InventorySlotsPlugin
         }
 
         RegisterContainerRpcs(container);
-        RegisterMultiUserContainerRpcs(container);
+        RegisterContainerAreaOwnershipRpcs(container);
     }
 
     internal static void UnregisterContainer(Container container)
     {
         if (container != null)
         {
-            UnregisterMultiUserContainerRpcs(container);
+            UnregisterContainerAreaOwnershipRpcs(container);
             ClearPendingContainerSortRequest(container);
             InventoryContainers.KnownContainers.Remove(container);
         }

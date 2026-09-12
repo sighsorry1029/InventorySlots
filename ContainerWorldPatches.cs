@@ -2,13 +2,30 @@ using HarmonyLib;
 
 namespace InventorySlots;
 
+// Keep vanilla's exclusive open/stack/take-all behavior. A short area handoff
+// lease only prevents another request from stealing ownership before it finishes.
 [HarmonyPatch(typeof(Container), "RPC_RequestOpen")]
-internal static class ContainerRequestOpenMultiUserPatch
+internal static class ContainerOpenAreaLeasePatch
 {
-    private static bool Prefix(Container __instance, long uid, long playerID)
-    {
-        return !InventorySlotsPlugin.TryHandleMultiUserContainerOpen(__instance, uid, playerID);
-    }
+    [HarmonyPriority(Priority.First)]
+    private static bool Prefix(Container __instance, long uid) =>
+        !InventorySlotsPlugin.TryRejectContainerRequestDuringAreaLease(__instance, uid, "RPC_OpenResponse");
+}
+
+[HarmonyPatch(typeof(Container), "RPC_RequestStack")]
+internal static class ContainerStackAreaLeasePatch
+{
+    [HarmonyPriority(Priority.First)]
+    private static bool Prefix(Container __instance, long uid) =>
+        !InventorySlotsPlugin.TryRejectContainerRequestDuringAreaLease(__instance, uid, "RPC_StackResponse");
+}
+
+[HarmonyPatch(typeof(Container), "RPC_RequestTakeAll")]
+internal static class ContainerTakeAllAreaLeasePatch
+{
+    [HarmonyPriority(Priority.First)]
+    private static bool Prefix(Container __instance, long uid) =>
+        !InventorySlotsPlugin.TryRejectContainerRequestDuringAreaLease(__instance, uid, "RPC_TakeAllResponse");
 }
 
 [HarmonyPatch(typeof(Container), "StackAll")]
@@ -67,29 +84,8 @@ internal static class ContainerAwakeTombstoneHeightPatch
 [HarmonyPatch(typeof(Container), "OnDestroyed")]
 internal static class ContainerDestroyedInventorySlotsPatch
 {
-    private static void Prefix(Container __instance)
-    {
-        ZDO? zdo = __instance.m_nview?.GetZDO();
-        if (zdo != null)
-        {
-            InventorySlotsPlugin.OnMultiUserContainerPermanentlyDestroyed(
-                __instance,
-                zdo);
-        }
-    }
-
     private static void Postfix(Container __instance)
     {
         InventorySlotsPlugin.UnregisterContainer(__instance);
-    }
-}
-
-[HarmonyPatch(typeof(ZNetScene), "OnZDODestroyed")]
-internal static class ContainerZdoDestroyedInventorySlotsPatch
-{
-    [HarmonyPriority(Priority.First)]
-    private static void Prefix(ZDO zdo)
-    {
-        InventorySlotsPlugin.OnMultiUserContainerZdoDestroyed(zdo);
     }
 }

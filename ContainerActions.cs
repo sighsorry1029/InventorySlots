@@ -26,7 +26,7 @@ public sealed partial class InventorySlotsPlugin
         Player player,
         Container currentContainer,
         bool areaForQuickStack,
-        bool includeBuiltInRemote = false)
+        bool includeRemote = false)
     {
         List<Container> containers = new();
         HashSet<Container> seen = new();
@@ -69,7 +69,7 @@ public sealed partial class InventorySlotsPlugin
                     currentContainer,
                     origin,
                     rangeSq,
-                    includeBuiltInRemote,
+                    includeRemote,
                     out float distanceSq))
             {
                 areaContainers.Add((container, distanceSq));
@@ -154,6 +154,48 @@ public sealed partial class InventorySlotsPlugin
         player.Message(MessageHud.MessageType.Center, message, 0, null);
     }
 
+    private static void ShowContainerNotReady()
+    {
+        Player.m_localPlayer?.Message(MessageHud.MessageType.Center,
+            LocalizeUi("$inventoryslots_container_not_ready", "Container is not ready."), 0, null);
+    }
+
+    private static int ExecuteContainerAreaTransfer(
+        Player player, Inventory inventory, Container container, bool quickStack)
+    {
+        if (quickStack)
+        {
+            List<ItemData> candidates = inventory.GetAllItems()
+                .Where(item => ShouldQuickStackItem(player, inventory, item)).ToList();
+            candidates.Sort((a, b) => -CompareGridOrder(a.m_gridPos, b.m_gridPos));
+            return QuickStackItemsIntoContainer(player, inventory, container.GetInventory(), candidates);
+        }
+
+        List<ItemData> targets = inventory.GetAllItems()
+            .Where(item => ShouldTakeStacksTarget(player, inventory, item,
+                ContainerTakeStacksMode.AreaFavoriteRestock)).ToList();
+        targets.Sort((a, b) => -CompareGridOrder(a.m_gridPos, b.m_gridPos));
+        return RestockTargetsFromContainer(inventory, container.GetInventory(), targets,
+            ContainerTakeStacksMode.AreaFavoriteRestock);
+    }
+
+    private static void CompleteContainerAreaTransfer(
+        Player player, Container anchor, bool quickStack, int moved)
+    {
+        if (moved > 0)
+        {
+            ClearCraftingRequirementAvailabilityCache();
+            if (anchor != null && IsContainerActionSuccessFxEnabled())
+            {
+                BroadcastContainerActionSuccessFx(anchor, ContainerActionSuccessSfxKind);
+            }
+        }
+
+        ShowContainerActionResult(player,
+            quickStack ? "$inventoryslots_action_stack" : "$inventoryslots_action_take_stacks",
+            quickStack ? "Stack" : "Take stacks", moved);
+    }
+
     private static List<Vector2i> GetPlayerActionSlots(Player player, Inventory inventory, bool includeHotbar, bool blockFavorites = false)
     {
         List<Vector2i> slots = new();
@@ -218,9 +260,9 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        if (IsMultiUserContainerAreaBatchActive())
+        if (IsContainerAreaTransferActive())
         {
-            ShowMultiUserContainerNotReady();
+            ShowContainerNotReady();
             return false;
         }
 

@@ -32,9 +32,6 @@ public sealed partial class InventorySlotsPlugin
     private static bool HasServerCharacterManagementActive =>
         !ZNet.IsSinglePlayer && (HasPlugin(ServerCharactersGuid) || HasPlugin(ServerManagerGuid));
     private static bool HasExternalMultiUserChestActive => HasPlugin(MultiUserChestGuid);
-    private static bool IsBuiltInMultiUserChestEnabled =>
-        !HasExternalMultiUserChestActive &&
-        _enableBuiltInMultiUserChest?.Value == Toggle.On;
     private static bool HasJewelcraftingActive => HasPlugin(JewelcraftingGuid);
     private static bool HasCircletExtendedActive => HasPlugin(CircletExtendedGuid);
     private static bool HasHipLanternActive => HasPlugin(HipLanternGuid);

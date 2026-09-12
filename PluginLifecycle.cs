@@ -37,8 +37,6 @@ public sealed partial class InventorySlotsPlugin
     private void Update()
     {
         ProcessYamlHotReload();
-        UpdateMultiUserContainerRuntime();
-        UpdateMultiUserContainerBatchRuntime();
 
         if (IsDedicatedServer)
         {
@@ -54,8 +52,10 @@ public sealed partial class InventorySlotsPlugin
         }
 
         Player? player = Player.m_localPlayer;
+        UpdateContainerAreaTransfer(player!);
         if (IsUnityNull(player) || player!.m_isLoading)
         {
+            _containerQuickStackHoldConsumed = false;
             ClearQuickSlotsHud();
             HideQuickSlotInventoryPanels();
             ClearCustomEquipmentVisuals();
@@ -126,7 +126,7 @@ public sealed partial class InventorySlotsPlugin
     private void OnDestroy()
     {
         ShutdownEpicLootCompatibility();
-        ShutdownMultiUserContainerRuntime();
+        CancelContainerAreaTransfer();
         ShutdownContainerPreview();
         LocalizationManager.Localizer.OnLocalizationComplete -= HandleLocalizationComplete;
         StopYamlWatcher();

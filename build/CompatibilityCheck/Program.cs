@@ -15,6 +15,7 @@ using var mod = AssemblyDefinition.ReadAssembly(args[0], new ReaderParameters { 
 var failures = new List<string>();
 var manual = new List<string>();
 var patches = new List<string>();
+var reflectedContracts = new List<string>();
 var privateAccess = new HashSet<string>();
 var references = new HashSet<string>();
 IEnumerable<TypeDefinition> Types(IEnumerable<TypeDefinition> types) => types.SelectMany(t => new[] { t }.Concat(Types(t.NestedTypes)));
@@ -123,6 +124,79 @@ foreach (var type in Types(mod.MainModule.Types))
             failures.Add($"Harmony result type {patch.FullName}: {parameter.ParameterType.FullName} != {original.ReturnType.FullName}");
     }
 }
+// String-resolved AccessTools members do not appear as direct game references.
+// Check the bounded area-handoff contract only in candidates containing that runtime.
+if (Types(mod.MainModule.Types).Any(t => t.FullName == "InventorySlots.InventorySlotsPlugin" &&
+    t.Fields.Any(f => f.Name == "ContainerAreaView")))
+{
+    using var originalGame = AssemblyDefinition.ReadAssembly(
+        Path.Combine(args[1], "assembly_valheim.dll"),
+        new ReaderParameters { AssemblyResolver = resolver });
+    var originalTypes = Types(originalGame.MainModule.Types).ToDictionary(t => t.FullName);
+
+    TypeDefinition? ReflectedOwner(string ownerName)
+    {
+        if (originalTypes.TryGetValue(ownerName, out var owner)) return owner;
+        failures.Add("Area handoff reflection: missing original type " + ownerName);
+        return null;
+    }
+
+    void CheckReflectedField(string ownerName, string name, string fieldType, bool isStatic)
+    {
+        var owner = ReflectedOwner(ownerName);
+        if (owner == null) return;
+        var candidates = owner.Fields.Where(f => f.Name == name).ToArray();
+        string expected = $"{ownerName}.{name}: {(isStatic ? "static" : "instance")} {fieldType}";
+        if (candidates.Length != 1)
+        {
+            failures.Add($"Area handoff reflection: {expected} resolves to {candidates.Length} fields");
+            return;
+        }
+        var field = candidates[0];
+        if (field.FieldType.FullName != fieldType || field.IsStatic != isStatic || field.IsLiteral)
+        {
+            failures.Add($"Area handoff reflection: expected {expected}; found {field.FullName} [{field.Attributes}]");
+            return;
+        }
+        reflectedContracts.Add(expected + $" [{field.Attributes}]");
+    }
+
+    void CheckReflectedMethod(string ownerName, string name, string returnType, bool isStatic,
+        params string[] parameters)
+    {
+        var owner = ReflectedOwner(ownerName);
+        if (owner == null) return;
+        var candidates = owner.Methods.Where(m => m.Name == name && !m.HasGenericParameters &&
+            m.Parameters.Select(p => p.ParameterType.FullName).SequenceEqual(parameters)).ToArray();
+        string expected = $"{ownerName}.{name}({string.Join(", ", parameters)}): {(isStatic ? "static" : "instance")} {returnType}";
+        if (candidates.Length != 1)
+        {
+            failures.Add($"Area handoff reflection: {expected} resolves to {candidates.Length} methods");
+            return;
+        }
+        var method = candidates[0];
+        if (method.ReturnType.FullName != returnType || method.IsStatic != isStatic)
+        {
+            failures.Add($"Area handoff reflection: expected {expected}; found {method.FullName} [{method.Attributes}]");
+            return;
+        }
+        reflectedContracts.Add(expected + $" [{method.Attributes}]");
+    }
+
+    CheckReflectedField("Container", "m_nview", "ZNetView", false);
+    CheckReflectedField("Container", "m_lastRevision", "System.UInt32", false);
+    CheckReflectedField("Player", "m_isLoading", "System.Boolean", false);
+    CheckReflectedField("InventoryGui", "m_currentContainer", "Container", false);
+    CheckReflectedField("InventoryGui", "m_animator", "UnityEngine.Animator", false);
+    CheckReflectedField("PrivateArea", "m_allAreas", "System.Collections.Generic.List`1<PrivateArea>", true);
+    CheckReflectedMethod("Container", "CheckForChanges", "System.Void", false);
+    CheckReflectedMethod("Container", "CheckAccess", "System.Boolean", false, "System.Int64");
+    CheckReflectedMethod("Inventory", "Changed", "System.Void", false, "System.Boolean", "System.Boolean");
+    CheckReflectedMethod("PrivateArea", "IsEnabled", "System.Boolean", false);
+    CheckReflectedMethod("PrivateArea", "IsInside", "System.Boolean", false, "UnityEngine.Vector3", "System.Single");
+    CheckReflectedMethod("PrivateArea", "GetPermittedPlayers",
+        "System.Collections.Generic.List`1<System.Collections.Generic.KeyValuePair`2<System.Int64,System.String>>", false);
+}
 string Hash(string path) => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
 var attributes = mod.CustomAttributes.Where(a => a.AttributeType.Name == "IgnoresAccessChecksToAttribute").Select(a => (string)a.ConstructorArguments[0].Value).ToArray();
 foreach (string required in new[] { "assembly_valheim", "assembly_utils", "assembly_guiutils" })
@@ -134,14 +208,15 @@ var report = new
 {
     candidate = Path.GetFullPath(args[0]), sha256 = Hash(args[0]), originalManaged = Path.GetFullPath(args[1]),
     fingerprints, directGameReferences = references.Count, patchCount = patches.Count, patches,
+    reflectedGameContractCount = reflectedContracts.Count, reflectedContracts,
     existingNonpublicAccessCount = privateAccess.Count, runtimeAccessAttributes = attributes,
     failures = failures.Distinct().ToArray(), manual,
     limitations = new[] { "Static contract check; no game/Unity/Mono or multiplayer execution.",
         "Existing nonpublic calls still use the publicizer runtime strategy and require target-runtime validation.",
-        "Dynamic targets, arbitrary reflection and other mods' patch composition require separate review." }
+        "Reflection checks cover the listed area-handoff contracts only; other dynamic targets/reflection and other mods' patch composition require separate review." }
 };
 Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(args[3]))!);
 File.WriteAllText(args[3], JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }));
-Console.WriteLine($"References: {references.Count}; Harmony targets: {patches.Count}; failures: {failures.Distinct().Count()}; manual: {manual.Count}");
+Console.WriteLine($"References: {references.Count}; Harmony targets: {patches.Count}; reflected contracts: {reflectedContracts.Count}; failures: {failures.Distinct().Count()}; manual: {manual.Count}");
 foreach (string failure in failures.Distinct()) Console.WriteLine(failure);
 Environment.ExitCode = failures.Count == 0 ? 0 : 1;

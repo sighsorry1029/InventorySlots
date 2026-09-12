@@ -8,7 +8,7 @@ public sealed partial class InventorySlotsPlugin
     {
         Unavailable,
         DirectOwner,
-        MultiUserChestRemote
+        ExternalMultiUserChestRemote
     }
 
     private static bool CanHandleContainerRestock(Player player, Container container)
@@ -27,7 +27,7 @@ public sealed partial class InventorySlotsPlugin
         Container? currentContainer,
         Vector3 playerPosition,
         float rangeSq,
-        bool includeBuiltInRemote,
+        bool includeRemote,
         out float distanceSq)
     {
         if (!IsAreaContainerCandidate(
@@ -45,10 +45,8 @@ public sealed partial class InventorySlotsPlugin
         ContainerAccessMode accessMode = GetContainerAccessMode(container);
         bool canMutateDirectly =
             accessMode == ContainerAccessMode.DirectOwner;
-        bool canRequestRemote =
-            includeBuiltInRemote &&
-            accessMode == ContainerAccessMode.MultiUserChestRemote &&
-            CanUseBuiltInRemoteAreaContainer(player, container);
+        bool canRequestRemote = includeRemote &&
+                                CanRequestContainerAreaOwnership(container);
         if (!canMutateDirectly && !canRequestRemote)
         {
             return false;
@@ -59,15 +57,7 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        if (canRequestRemote)
-        {
-            return true;
-        }
-
-        return HasExternalMultiUserChestActive ||
-               (IsBuiltInMultiUserChestEnabled &&
-                 IsBuiltInMultiUserContainerEligible(container)) ||
-               !IsContainerInUse(container);
+        return !IsContainerInUse(container);
     }
 
     private static bool IsAreaContainerCandidate(Player player, Container container, Container? currentContainer, Vector3 playerPosition, float rangeSq, out float distanceSq)
@@ -141,7 +131,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         return CanUseMultiUserChestRemote(container)
-            ? ContainerAccessMode.MultiUserChestRemote
+            ? ContainerAccessMode.ExternalMultiUserChestRemote
             : ContainerAccessMode.Unavailable;
     }
 
@@ -156,25 +146,7 @@ public sealed partial class InventorySlotsPlugin
             container,
             allowLocalWithoutZNetView: container.m_nview == null);
         return accessMode == ContainerAccessMode.DirectOwner ||
-               accessMode == ContainerAccessMode.MultiUserChestRemote &&
-               CanUseBuiltInRemoteAreaContainer(player, container);
-    }
-
-    private static bool CanUseBuiltInRemoteAreaContainer(
-        Player player,
-        Container container)
-    {
-        if (player == null ||
-            container == null ||
-            !IsBuiltInMultiUserChestEnabled ||
-            !IsBuiltInMultiUserContainerEligible(container))
-        {
-            return false;
-        }
-
-        float maximumDistance = MultiUserContainerMaximumInteractionDistance;
-        return (player.transform.position - container.transform.position)
-            .sqrMagnitude <= maximumDistance * maximumDistance;
+               CanRequestContainerAreaOwnership(container);
     }
 
     private static bool CanProcessContainerSortRpc(Container container, long sender, long requesterPlayerId)
@@ -194,9 +166,7 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        return HasExternalMultiUserChestActive ||
-               IsBuiltInMultiUserChestEnabled &&
-               IsBuiltInMultiUserContainerEligible(container);
+        return HasExternalMultiUserChestActive;
     }
 
     private static bool IsRpcSenderForPlayer(long sender, long requesterPlayerId)

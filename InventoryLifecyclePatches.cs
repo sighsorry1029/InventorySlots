@@ -202,16 +202,6 @@ internal static class InventoryLoadValidateInventorySlotsPatch
     }
 }
 
-[HarmonyPatch(typeof(Inventory), "Load", typeof(ZPackage))]
-internal static class InventoryLoadMultiUserContainerDragSafetyPatch
-{
-    [HarmonyPriority(Priority.First)]
-    private static void Postfix(Inventory __instance)
-    {
-        InventorySlotsPlugin.OnMultiUserContainerInventoryLoaded(__instance);
-    }
-}
-
 [HarmonyPatch(typeof(Inventory), "MoveAll")]
 internal static class InventoryMoveAllPatch
 {
