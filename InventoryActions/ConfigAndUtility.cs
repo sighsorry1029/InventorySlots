@@ -41,6 +41,10 @@ public sealed partial class InventoryActionsPlugin
     private static ConfigEntry<KeyboardShortcut> _containerRestockKey = null!;
     private static ConfigEntry<string> _sortButtonPositionOffset = null!;
     private static ConfigEntry<string> _trashButtonPositionOffset = null!;
+    private static string? _cachedSortButtonPositionOffsetText;
+    private static Vector2 _cachedSortButtonPositionOffset;
+    private static string? _cachedTrashButtonPositionOffsetText;
+    private static Vector2 _cachedTrashButtonPositionOffset;
     private static ConfigEntry<string> _restockTargetStackLimitsConfig = null!;
     private static readonly Color FavoriteBorderDefaultColor = new(0.1f, 0.55f, 1f, 0.95f);
     private static readonly char[] ButtonPositionOffsetSeparators = { ' ', '\t', '\r', '\n', ':', '=', ',', ';', '(', ')', '[', ']' };
@@ -141,23 +145,28 @@ public sealed partial class InventoryActionsPlugin
         return configEntry;
     }
 
-    private static Vector2 GetSortButtonPositionOffset() => GetConfiguredButtonPositionOffset(_sortButtonPositionOffset);
+    private static Vector2 GetSortButtonPositionOffset() => GetConfiguredButtonPositionOffset(
+        _sortButtonPositionOffset, ref _cachedSortButtonPositionOffsetText, ref _cachedSortButtonPositionOffset);
 
-    private static Vector2 GetTrashButtonPositionOffset() => GetConfiguredButtonPositionOffset(_trashButtonPositionOffset);
+    private static Vector2 GetTrashButtonPositionOffset() => GetConfiguredButtonPositionOffset(
+        _trashButtonPositionOffset, ref _cachedTrashButtonPositionOffsetText, ref _cachedTrashButtonPositionOffset);
 
-    private static Vector2 GetConfiguredButtonPositionOffset(ConfigEntry<string>? entry)
+    private static Vector2 GetConfiguredButtonPositionOffset(
+        ConfigEntry<string>? entry, ref string? cachedText, ref Vector2 cachedOffset)
     {
         if (entry == null)
         {
             return Vector2.zero;
         }
 
-        if (TryParseButtonPositionOffset(entry.Value, out Vector2 offset))
+        string? raw = entry.Value;
+        if (!string.Equals(raw, cachedText, StringComparison.Ordinal))
         {
-            return offset;
+            cachedOffset = TryParseButtonPositionOffset(raw, out Vector2 offset) ? offset : Vector2.zero;
+            cachedText = raw;
         }
 
-        return Vector2.zero;
+        return cachedOffset;
     }
 
     private static bool TryParseButtonPositionOffset(string? raw, out Vector2 offset)

@@ -4,6 +4,8 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
+using BepInEx.Configuration;
+using UnityEngine;
 
 internal static class Program
 {
@@ -12,7 +14,8 @@ internal static class Program
 
     private static int Main(string[] args)
     {
-        if (args.Length != 3) throw new ArgumentException("Usage: <final InventoryActions.dll> <original Managed> <BepInEx core>");
+        if (args.Length != 3 && (args.Length != 4 || args[3] != "--button-offsets"))
+            throw new ArgumentException("Usage: <final InventoryActions.dll> <original Managed> <BepInEx core> [--button-offsets]");
         string[] roots = { Path.GetDirectoryName(Path.GetFullPath(args[0]))!, Path.GetFullPath(args[1]), Path.GetFullPath(args[2]) };
         AppDomain.CurrentDomain.AssemblyResolve += (_, request) =>
         {
@@ -33,7 +36,8 @@ internal static class Program
             threading.GetField("_invokeLock", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(queue, new object());
             threading.GetField("<Instance>k__BackingField", BindingFlags.NonPublic | BindingFlags.Static)!.SetValue(null, queue);
             plugin = Assembly.LoadFrom(Path.GetFullPath(args[0])).GetType("InventoryActions.InventoryActionsPlugin", true)!;
-            Run();
+            if (args.Length == 4) RunButtonPositionChecks();
+            else Run();
             System.Console.WriteLine($"PASS {checks} isolated checks against actual mod and original game assemblies. CLR {Environment.Version}; no Unity/game execution.");
             return 0;
         }
@@ -52,6 +56,59 @@ internal static class Program
         if (!condition) throw new InvalidOperationException(name);
         checks++;
         System.Console.WriteLine("PASS " + name);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void RunButtonPositionChecks()
+    {
+        CheckOffset("unbound sort", "GetSortButtonPositionOffset", 0f, 0f);
+        CheckOffset("unbound trash", "GetTrashButtonPositionOffset", 0f, 0f);
+
+        // Exercise actual config entries and compiled getters without opening UI
+        // or writing the user's configuration. No Unity objects are constructed.
+        ConfigFile config = new ConfigFile(Path.Combine(Path.GetTempPath(), "InventoryActions-smoke-" + Guid.NewGuid() + ".cfg"), false)
+        {
+            SaveOnConfigSet = false
+        };
+        ConfigEntry<string> sort = config.Bind("test", "sort", "x: 1.25 y: -2", "");
+        ConfigEntry<string> trash = config.Bind("test", "trash", "[8; 9]", "");
+        FieldInfo sortField = plugin.GetField("_sortButtonPositionOffset", BindingFlags.NonPublic | BindingFlags.Static)!;
+        FieldInfo trashField = plugin.GetField("_trashButtonPositionOffset", BindingFlags.NonPublic | BindingFlags.Static)!;
+        sortField.SetValue(null, sort);
+        trashField.SetValue(null, trash);
+
+        for (int i = 0; i < 3; i++)
+        {
+            CheckOffset("stable sort " + i, "GetSortButtonPositionOffset", 1.25f, -2f);
+            CheckOffset("independent trash " + i, "GetTrashButtonPositionOffset", 8f, 9f);
+        }
+
+        sort.Value = "X=-4 Y=2.5";
+        CheckOffset("live config edit", "GetSortButtonPositionOffset", -4f, 2.5f);
+        foreach (string raw in new[] { "invalid", "invalid", "x: 1 y: nope", "", "   " })
+        {
+            sort.Value = raw;
+            CheckOffset("invalid or blank config returns zero", "GetSortButtonPositionOffset", 0f, 0f);
+        }
+        sort.Value = "x: 1.25 y: -2";
+        CheckOffset("valid config after invalid input", "GetSortButtonPositionOffset", 1.25f, -2f);
+        CheckOffset("sort changes leave trash independent", "GetTrashButtonPositionOffset", 8f, 9f);
+
+        ConfigEntry<string> replacement = config.Bind("test", "replacement", sort.Value, "");
+        sortField.SetValue(null, replacement);
+        CheckOffset("same value after rebind", "GetSortButtonPositionOffset", 1.25f, -2f);
+        replacement.Value = "0, 7";
+        CheckOffset("new value after rebind", "GetSortButtonPositionOffset", 0f, 7f);
+        sortField.SetValue(null, null);
+        CheckOffset("unbind after populated value", "GetSortButtonPositionOffset", 0f, 0f);
+        sortField.SetValue(null, replacement);
+        CheckOffset("restore same entry after unbind", "GetSortButtonPositionOffset", 0f, 7f);
+    }
+
+    private static void CheckOffset(string name, string getter, float x, float y)
+    {
+        Vector2 value = (Vector2)Call(getter)!;
+        Check(name, value.x == x && value.y == y);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
