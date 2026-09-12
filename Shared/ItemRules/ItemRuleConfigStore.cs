@@ -1,7 +1,11 @@
 using System;
 using BepInEx.Configuration;
 
+#if INVENTORY_SLOTS
+namespace InventorySlots;
+#else
 namespace InventoryActions;
+#endif
 
 internal static class ItemRuleConfigStore
 {

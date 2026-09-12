@@ -11,7 +11,7 @@ public sealed partial class InventorySlotsPlugin
             return true;
         }
 
-        if (IsCraftingSearchFocused())
+        if (IsCraftingSearchFocused() || IsItemRuleInputBlocked())
         {
             return true;
         }

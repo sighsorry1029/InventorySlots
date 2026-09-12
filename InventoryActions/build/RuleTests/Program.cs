@@ -1,6 +1,10 @@
 using System;
 using System.Linq;
+#if INVENTORY_SLOTS
+using InventorySlots;
+#else
 using InventoryActions;
+#endif
 
 int checks = 0;
 void Check(string name, bool result) { if (!result) throw new Exception(name); checks++; }

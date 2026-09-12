@@ -19,7 +19,7 @@ inventoryactions_container_not_ready: Container is not ready.
 inventoryactions_hold_to_restock: Hold to restock
 inventoryactions_rules_restock_title: Restock limits
 inventoryactions_rules_exclude_title: Auto pickup exclusions
-inventoryactions_rules_restock_scope: "Alt+E · target per favorite stack; 0 disables restock"
+inventoryactions_rules_restock_scope: "{key} · target per favorite stack; 0 disables restock"
 inventoryactions_rules_exclude_scope: Manual E pickup is still available
 inventoryactions_rules_quantity: Target quantity
 inventoryactions_rules_cancel: Cancel

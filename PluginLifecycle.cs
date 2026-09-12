@@ -14,6 +14,7 @@ public sealed partial class InventorySlotsPlugin
         try
         {
             BindConfigs();
+            BindItemRuleConfigs();
             EnsureDefaultYamlFiles();
             InitializeJewelcraftingSlotCompatibility();
             InitializeBackpackCompatibility();
@@ -125,6 +126,7 @@ public sealed partial class InventorySlotsPlugin
 
     private void OnDestroy()
     {
+        ShutdownItemRules();
         ShutdownEpicLootCompatibility();
         CancelContainerAreaTransfer();
         ShutdownContainerPreview();

@@ -4,8 +4,18 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(RuleTarget)' == 'InventorySlots'">
+    <DefineConstants>$(DefineConstants);INVENTORY_SLOTS</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
-    <Compile Include="../../ItemRuleConfigCore.cs" Link="ItemRuleConfigCore.cs" />
-    <Compile Include="../../RestockTargetLimitCore.cs" Link="RestockTargetLimitCore.cs" />
+    <Compile Include="../../../Shared/ItemRules/ItemRuleConfigCore.cs" Link="ItemRuleConfigCore.cs" />
+    <Compile Include="../../RestockTargetLimitCore.cs" Link="RestockTargetLimitCore.cs" Condition="'$(RuleTarget)' != 'InventorySlots'" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(RuleTarget)' == 'InventorySlots'">
+    <Compile Include="../../../RestockTargetLimitCore.cs" Link="RestockTargetLimitCore.cs" />
+    <Compile Include="../../../InventorySlotsConfigCore.cs" Link="InventorySlotsConfigCore.cs" />
+    <Compile Include="../../../InventorySlotsYamlModels.cs" Link="InventorySlotsYamlModels.cs" />
+    <Compile Include="../../../ItemGroupRegistry.cs" Link="ItemGroupRegistry.cs" />
+    <PackageReference Include="YamlDotNet" Version="16.3.0" />
   </ItemGroup>
 </Project>

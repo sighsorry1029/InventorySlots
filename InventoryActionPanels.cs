@@ -28,6 +28,7 @@ public sealed partial class InventorySlotsPlugin
         UpdateContainerActionPanel(gui);
         UpdateInventorySortPanel(gui, playerGrid, player, gridOrigin, viewportRows);
         UpdateInventoryTrashPanel(gui, playerGrid, player, gridOrigin, viewportRows);
+        UpdateItemRuleUi(gui, gridOrigin, viewportRows);
         UpdateCurrencyPocketPanel(gui, playerGrid, gridOrigin);
         RaiseInventorySortPanel();
     }
@@ -452,6 +453,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void HideInventoryActionPanels()
     {
+        _itemRuleEditor?.Hide();
         SetActionPanelActive(InventoryPanels.InventorySortPanel, false);
         SetActionPanelActive(_inventoryTrashPanel, false);
         CloseInventoryTrashConfirmDialog();

@@ -46,6 +46,7 @@ public sealed partial class InventoryActionsPlugin
     private static Vector2 _cachedSortButtonPositionOffset;
     private static ConfigEntry<string> _restockTargetStackLimitsConfig = null!;
     private static ConfigEntry<string> _autoPickupExcludedItemsConfig = null!;
+    private static bool CanShowItemRules(InventoryGui gui) => true;
     private static readonly Color FavoriteBorderDefaultColor = new(0.1f, 0.55f, 1f, 0.95f);
     private static readonly char[] ButtonPositionOffsetSeparators = { ' ', '\t', '\r', '\n', ':', '=', ',', ';', '(', ')', '[', ']' };
     private static readonly Dictionary<string, ButtonPositionOffsetEditorState> ButtonPositionOffsetEditorStates = new(StringComparer.Ordinal);

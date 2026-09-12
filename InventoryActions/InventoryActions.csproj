@@ -99,6 +99,7 @@
     </ItemGroup>
     <ItemGroup>
         <Compile Include="*.cs"/>
+        <Compile Include="../Shared/ItemRules/*.cs" Link="ItemRules/%(Filename)%(Extension)"/>
         <Compile Include="LocalizationManager\Localizer.cs"/>
         <Compile Include="Properties\AssemblyInfo.cs"/>
     </ItemGroup>

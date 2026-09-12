@@ -27,7 +27,7 @@ internal static class Program
         Assembly game = Assembly.LoadFrom(Path.Combine(args[1], "assembly_valheim.dll"));
         Assembly mod = Assembly.LoadFrom(Path.GetFullPath(args[0]));
         MethodInfo original = game.GetType("Player", true)!.GetMethod("AutoPickup", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        MethodInfo transpiler = mod.GetType("InventoryActions.AutoPickupExclusionPatch", true)!.GetMethod("Transpiler", BindingFlags.Static | BindingFlags.NonPublic)!;
+        MethodInfo transpiler = mod.GetType(mod.GetName().Name + ".AutoPickupExclusionPatch", true)!.GetMethod("Transpiler", BindingFlags.Static | BindingFlags.NonPublic)!;
         var input = ReadBody(original);
         var field = game.GetType("ItemDrop", true)!.GetField("m_autoPickup")!;
         int at = input.FindIndex(i => i.opcode == OpCodes.Ldfld && Equals(i.operand, field));

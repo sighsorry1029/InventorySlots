@@ -38,7 +38,7 @@ public sealed partial class InventoryActionsPlugin
         UpdateContainerActionButtons(gui);
         UpdatePlayerActionPanel(gui, gui.m_playerGrid, player);
         UpdateTrashPanel(gui, gui.m_playerGrid, player);
-        UpdateItemRuleUi(gui);
+        UpdateItemRuleUi(gui, GetGridOrigin(gui.m_playerGrid), GetDisplayedPlayerRows(gui.m_playerGrid));
         UpdateFavoriteBorders(gui.m_playerGrid, player);
     }
 
@@ -235,10 +235,6 @@ public sealed partial class InventoryActionsPlugin
     private static Vector3 GetInventoryBottomButtonPosition(InventoryGrid grid, float buttonSize, int columnsFromRight) =>
         GetGridOrigin(grid) + CalculateInventoryBottomButtonPosition(GetInventoryGridWidth(grid), GetDisplayedPlayerRows(grid),
             Mathf.Max(1f, grid.m_elementSpace), buttonSize, columnsFromRight);
-
-    private static Vector3 CalculateInventoryBottomButtonPosition(int columns, int rows, float spacing, float size, int columnsFromRight) =>
-        new((Mathf.Max(0, columns - 1 - columnsFromRight) + 0.5f) * spacing - size * 0.5f,
-            -Mathf.Max(1, rows) * spacing - TrashPanelGap, 0f);
 
     private static int GetInventoryGridWidth(InventoryGrid playerGrid) =>
         Mathf.Max(1, playerGrid.m_inventory != null ? playerGrid.m_inventory.GetWidth() : PlayerInventoryWidth);
@@ -603,84 +599,6 @@ public sealed partial class InventoryActionsPlugin
     {
         ConfigureInventoryActionIcon(button, buttonSize, GetInventoryTrashIconSprite());
         SetTooltip(button, LocalizeUi("$inventoryactions_trash_title", "Trash"), LocalizeUi("$inventoryactions_trash_tooltip", "Drop a held inventory item here to delete it after confirmation."));
-    }
-
-    private static void ConfigureInventoryActionIcon(Button button, float buttonSize, Sprite sprite)
-    {
-        InventoryTrashButtonMarker marker = button.GetComponent<InventoryTrashButtonMarker>() ?? button.gameObject.AddComponent<InventoryTrashButtonMarker>();
-        if (!marker.TextSuppressed)
-        {
-            foreach (TMP_Text text in button.GetComponentsInChildren<TMP_Text>(true))
-            {
-                text.text = "";
-                text.enabled = false;
-            }
-
-            foreach (UnityEngine.UI.Text text in button.GetComponentsInChildren<UnityEngine.UI.Text>(true))
-            {
-                text.text = "";
-                text.enabled = false;
-            }
-
-            marker.TextSuppressed = true;
-        }
-
-        if (marker.Icon == null || IsUnityNull(marker.Icon))
-        {
-            Transform existing = button.transform.Find(TrashIconName);
-            marker.Icon = existing != null ? existing.GetComponent<Image>() : null;
-            if (marker.Icon == null || IsUnityNull(marker.Icon))
-            {
-                GameObject iconGo = new(TrashIconName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-                RectTransform iconRect = (RectTransform)iconGo.transform;
-                iconRect.SetParent(button.transform, false);
-                marker.Icon = iconGo.GetComponent<Image>();
-            }
-        }
-
-        float iconSize = Mathf.Max(18f, buttonSize * 0.58f);
-        RectTransform rect = (RectTransform)marker.Icon!.transform;
-        Vector2 center = new(0.5f, 0.5f);
-        Vector2 size = new(iconSize, iconSize);
-        // Compare the actual icon so external UI changes and a replaced icon
-        // are repaired without allocating a layout signature each update.
-        if (rect.parent == button.transform &&
-            rect.anchorMin == center && rect.anchorMax == center && rect.pivot == center &&
-            rect.anchoredPosition == Vector2.zero && rect.sizeDelta == size &&
-            rect.localScale == Vector3.one && rect.localRotation == Quaternion.identity &&
-            marker.Icon.sprite == sprite && marker.Icon.preserveAspect && !marker.Icon.raycastTarget)
-        {
-            return;
-        }
-
-        if (rect.parent != button.transform)
-        {
-            rect.SetParent(button.transform, false);
-        }
-
-        rect.anchorMin = center;
-        rect.anchorMax = center;
-        rect.pivot = center;
-        rect.anchoredPosition = Vector2.zero;
-        rect.sizeDelta = size;
-        rect.localScale = Vector3.one;
-        rect.localRotation = Quaternion.identity;
-        marker.Icon.sprite = sprite;
-        marker.Icon.preserveAspect = true;
-        marker.Icon.raycastTarget = false;
-    }
-
-    private static void SetInventoryActionIconVisual(Button button, bool acceptsHeldItem)
-    {
-        InventoryTrashButtonMarker? marker = button.GetComponent<InventoryTrashButtonMarker>();
-        if (marker?.Icon != null && !IsUnityNull(marker.Icon))
-        {
-            Color color = acceptsHeldItem ? new Color(1f, 0.82f, 0.55f, 1f) : new Color(0.75f, 0.75f, 0.75f, 0.65f);
-            if (marker.Icon.color != color)
-            {
-                marker.Icon.color = color;
-            }
-        }
     }
 
     private static Sprite GetInventoryTrashIconSprite()

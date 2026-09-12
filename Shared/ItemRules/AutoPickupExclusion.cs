@@ -5,9 +5,19 @@ using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
 
+#if INVENTORY_SLOTS
+using RulePlugin = InventorySlots.InventorySlotsPlugin;
+namespace InventorySlots;
+#else
+using RulePlugin = InventoryActions.InventoryActionsPlugin;
 namespace InventoryActions;
+#endif
 
+#if INVENTORY_SLOTS
+public sealed partial class InventorySlotsPlugin
+#else
 public sealed partial class InventoryActionsPlugin
+#endif
 {
     private static HashSet<string> _autoPickupExcludedItems = new(StringComparer.OrdinalIgnoreCase);
 
@@ -37,14 +47,14 @@ internal static class AutoPickupExclusionPatch
         int matches = code.Count(i => i.opcode == OpCodes.Ldfld && Equals(i.operand, field));
         if (matches != 1)
         {
-            InventoryActionsPlugin.Log.LogWarning($"Auto pickup exclusions disabled: expected one m_autoPickup check, found {matches}.");
+            RulePlugin.Log.LogWarning($"Auto pickup exclusions disabled: expected one m_autoPickup check, found {matches}.");
             return code;
         }
 
         int index = code.FindIndex(i => i.opcode == OpCodes.Ldfld && Equals(i.operand, field));
         if (code[index].blocks.Count != 0)
         {
-            InventoryActionsPlugin.Log.LogWarning("Auto pickup exclusions disabled: another patch added an exception boundary at the pickup check.");
+            RulePlugin.Log.LogWarning("Auto pickup exclusions disabled: another patch added an exception boundary at the pickup check.");
             return code;
         }
         CodeInstruction duplicate = new(OpCodes.Dup);
@@ -54,7 +64,7 @@ internal static class AutoPickupExclusionPatch
         code.InsertRange(index + 2, new[]
         {
             new CodeInstruction(OpCodes.Ldarg_0),
-            new CodeInstruction(OpCodes.Call, typeof(InventoryActionsPlugin).GetMethod(nameof(InventoryActionsPlugin.FilterAutoPickup), BindingFlags.Static | BindingFlags.NonPublic))
+            new CodeInstruction(OpCodes.Call, typeof(RulePlugin).GetMethod(nameof(RulePlugin.FilterAutoPickup), BindingFlags.Static | BindingFlags.NonPublic))
         });
         return code;
     }

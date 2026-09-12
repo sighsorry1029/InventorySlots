@@ -3,7 +3,11 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using BepInEx.Configuration;
+#if INVENTORY_SLOTS
+using InventorySlots;
+#else
 using InventoryActions;
+#endif
 
 internal static class Program
 {

@@ -1,8 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <Import Project="../../../environment.props" />
   <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net48</TargetFramework><Nullable>enable</Nullable><LangVersion>latest</LangVersion></PropertyGroup>
+  <PropertyGroup Condition="'$(RuleTarget)' == 'InventorySlots'">
+    <DefineConstants>$(DefineConstants);INVENTORY_SLOTS</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
-    <Compile Include="../../ItemRuleConfigStore.cs" Link="ItemRuleConfigStore.cs" />
+    <Compile Include="../../../Shared/ItemRules/ItemRuleConfigStore.cs" Link="ItemRuleConfigStore.cs" />
     <Reference Include="BepInEx"><HintPath>$(BepInExPath)/core/BepInEx.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
 </Project>

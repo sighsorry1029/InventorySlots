@@ -11,14 +11,28 @@ using UnityEngine.UI;
 using Object = UnityEngine.Object;
 using ItemData = ItemDrop.ItemData;
 
+#if INVENTORY_SLOTS
+using RulePlugin = InventorySlots.InventorySlotsPlugin;
+using RuleTokens = InventorySlots.InventorySlotsConfigCore;
+namespace InventorySlots;
+#else
+using RulePlugin = InventoryActions.InventoryActionsPlugin;
+using RuleTokens = InventoryActions.RestockTargetLimitCore;
 namespace InventoryActions;
+#endif
 
+#if INVENTORY_SLOTS
+public sealed partial class InventorySlotsPlugin
+#else
 public sealed partial class InventoryActionsPlugin
+#endif
 {
     private static ItemRuleEditor? _itemRuleEditor;
     private static int _itemRuleInputClosedFrame = -1;
     internal static bool IsItemRuleInputBlocked() =>
         (_itemRuleEditor != null && _itemRuleEditor.Pinned) || _itemRuleInputClosedFrame == Time.frameCount;
+
+    internal static bool IsItemRuleScrollBlocked() => IsItemRuleInputBlocked() || (_itemRuleEditor != null && _itemRuleEditor.OwnsPointer);
 
     private static bool IsItemRuleButtonEnabled(bool restock) =>
         (restock ? _showRestockRulesButton : _showAutoPickupRulesButton)?.Value == Toggle.On;
@@ -26,14 +40,14 @@ public sealed partial class InventoryActionsPlugin
     private static int GetItemRuleColumnsFromRight(bool restock) =>
         restock && IsItemRuleButtonEnabled(false) ? 2 : 1;
 
-    private static void UpdateItemRuleUi(InventoryGui gui)
+    private static void UpdateItemRuleUi(InventoryGui gui, Vector3 gridOrigin, int visibleRows)
     {
-        if (_instance == null || !_instance.isActiveAndEnabled || IsDedicatedServer || gui.m_takeAllButton == null || gui.m_playerGrid.m_gridRoot == null) return;
+        if (gui == null || _instance == null || !_instance.isActiveAndEnabled || IsDedicatedServer || gui.m_takeAllButton == null || gui.m_playerGrid.m_gridRoot == null) return;
         if (!IsItemRuleButtonEnabled(true) && !IsItemRuleButtonEnabled(false)) { _itemRuleEditor?.Hide(); return; }
         if (_itemRuleEditor == null || _itemRuleEditor.Owner != gui)
         {
             DestroyItemRuleUi();
-            GameObject root = new("InventoryActions_ItemRules", typeof(RectTransform));
+            GameObject root = new(ModName + "_ItemRules", typeof(RectTransform));
             root.transform.SetParent(gui.transform, false);
             RectTransform rect = (RectTransform)root.transform;
             rect.anchorMin = Vector2.zero; rect.anchorMax = Vector2.one;
@@ -41,7 +55,7 @@ public sealed partial class InventoryActionsPlugin
             _itemRuleEditor = root.AddComponent<ItemRuleEditor>();
             _itemRuleEditor.Initialize(gui);
         }
-        _itemRuleEditor.PositionToolbar();
+        _itemRuleEditor.PositionToolbar(gridOrigin, visibleRows);
     }
 
     internal static void DestroyItemRuleUi(InventoryGui? owner = null)
@@ -52,6 +66,88 @@ public sealed partial class InventoryActionsPlugin
         editor.Close();
         Object.Destroy(editor.gameObject);
     }
+
+    private static void ConfigureInventoryActionIcon(Button button, float buttonSize, Sprite sprite)
+    {
+        InventoryTrashButtonMarker marker = button.GetComponent<InventoryTrashButtonMarker>() ?? button.gameObject.AddComponent<InventoryTrashButtonMarker>();
+        if (!marker.TextSuppressed)
+        {
+            foreach (TMP_Text text in button.GetComponentsInChildren<TMP_Text>(true))
+            {
+                text.text = "";
+                text.enabled = false;
+            }
+
+            foreach (UnityEngine.UI.Text text in button.GetComponentsInChildren<UnityEngine.UI.Text>(true))
+            {
+                text.text = "";
+                text.enabled = false;
+            }
+
+            marker.TextSuppressed = true;
+        }
+
+        if (marker.Icon == null || IsUnityNull(marker.Icon))
+        {
+            Transform existing = button.transform.Find((ModName + "_TrashIcon"));
+            marker.Icon = existing != null ? existing.GetComponent<Image>() : null;
+            if (marker.Icon == null || IsUnityNull(marker.Icon))
+            {
+                GameObject iconGo = new((ModName + "_TrashIcon"), typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+                RectTransform iconRect = (RectTransform)iconGo.transform;
+                iconRect.SetParent(button.transform, false);
+                marker.Icon = iconGo.GetComponent<Image>();
+            }
+        }
+
+        float iconSize = Mathf.Max(18f, buttonSize * 0.58f);
+        RectTransform rect = (RectTransform)marker.Icon!.transform;
+        Vector2 center = new(0.5f, 0.5f);
+        Vector2 size = new(iconSize, iconSize);
+        // Compare the actual icon so external UI changes and a replaced icon
+        // are repaired without allocating a layout signature each update.
+        if (rect.parent == button.transform &&
+            rect.anchorMin == center && rect.anchorMax == center && rect.pivot == center &&
+            rect.anchoredPosition == Vector2.zero && rect.sizeDelta == size &&
+            rect.localScale == Vector3.one && rect.localRotation == Quaternion.identity &&
+            marker.Icon.sprite == sprite && marker.Icon.preserveAspect && !marker.Icon.raycastTarget)
+        {
+            return;
+        }
+
+        if (rect.parent != button.transform)
+        {
+            rect.SetParent(button.transform, false);
+        }
+
+        rect.anchorMin = center;
+        rect.anchorMax = center;
+        rect.pivot = center;
+        rect.anchoredPosition = Vector2.zero;
+        rect.sizeDelta = size;
+        rect.localScale = Vector3.one;
+        rect.localRotation = Quaternion.identity;
+        marker.Icon.sprite = sprite;
+        marker.Icon.preserveAspect = true;
+        marker.Icon.raycastTarget = false;
+    }
+
+    private static void SetInventoryActionIconVisual(Button button, bool acceptsHeldItem)
+    {
+        InventoryTrashButtonMarker? marker = button.GetComponent<InventoryTrashButtonMarker>();
+        if (marker?.Icon != null && !IsUnityNull(marker.Icon))
+        {
+            Color color = acceptsHeldItem ? new Color(1f, 0.82f, 0.55f, 1f) : new Color(0.75f, 0.75f, 0.75f, 0.65f);
+            if (marker.Icon.color != color)
+            {
+                marker.Icon.color = color;
+            }
+        }
+    }
+
+    private static Vector3 CalculateInventoryBottomButtonPosition(int columns, int rows, float spacing, float size, int columnsFromRight) =>
+        new((Mathf.Max(0, columns - 1 - columnsFromRight) + 0.5f) * spacing - size * 0.5f,
+            -Mathf.Max(1, rows) * spacing - 8f, 0f);
 
     // One GUI-owned component owns the toolbar, draft and event listeners. It
     // rebuilds list rows only on opening or a deliberate edit, never every frame.
@@ -92,8 +188,8 @@ public sealed partial class InventoryActionsPlugin
         // InventoryGui.IsVisible intentionally lags Hide by up to two frames.
         // Use the same Animator obtained by vanilla Awake through the public API.
         private bool CanShow => _instance != null && _instance.isActiveAndEnabled && Owner != null && InventoryGui.IsVisible() &&
-            (_animator == null || _animator.GetBool(VisibleParameter)) && !Menu.IsVisible() && !global::Console.IsVisible();
-        private string L(string key, string fallback) => LocalizeUi("$inventoryactions_rules_" + key, fallback);
+            (_animator == null || _animator.GetBool(VisibleParameter)) && !Menu.IsVisible() && !global::Console.IsVisible() && CanShowItemRules(Owner);
+        private string L(string key, string fallback) => LocalizeUi("$" + ModName.ToLowerInvariant() + "_rules_" + key, fallback);
 
         internal void Initialize(InventoryGui gui)
         {
@@ -103,8 +199,8 @@ public sealed partial class InventoryActionsPlugin
             _camera = gui.GetComponentInParent<Canvas>()?.worldCamera;
             _font = gui.m_takeAllButton.GetComponentInChildren<TMP_Text>(true)?.font ?? TMP_Settings.defaultFontAsset;
             _toolbar = Rect("Toolbar", _root, Vector2.zero, Vector2.zero);
-            _restockButton = RuleButton("InventoryActions_RestockRules", true);
-            _excludeButton = RuleButton("InventoryActions_AutoPickupRules", false);
+            _restockButton = RuleButton(ModName + "_RestockRules", true);
+            _excludeButton = RuleButton(ModName + "_AutoPickupRules", false);
             _ruleButtonSprite = _restockButton.image.sprite;
             _restockButton.gameObject.AddComponent<UIDragHandler>().m_onReleasedOn = _ => ClickTool(true);
             _excludeButton.gameObject.AddComponent<UIDragHandler>().m_onReleasedOn = _ => ClickTool(false);
@@ -139,7 +235,7 @@ public sealed partial class InventoryActionsPlugin
             _popup.gameObject.SetActive(false);
         }
 
-        internal void PositionToolbar()
+        internal void PositionToolbar(Vector3 gridOrigin, int visibleRows)
         {
             if (!CanShow) { Hide(); return; }
             if (Open && !IsItemRuleButtonEnabled(_restock)) Close();
@@ -156,7 +252,8 @@ public sealed partial class InventoryActionsPlugin
                 button.gameObject.SetActive(enabled);
                 if (!enabled) return;
                 Frame((RectTransform)button.transform, 0, 0, size, size);
-                Vector3 position = GetInventoryBottomButtonPosition(grid, size, GetItemRuleColumnsFromRight(restock));
+                int columns = Mathf.Max(1, grid.m_inventory != null ? grid.m_inventory.GetWidth() : 8);
+                Vector3 position = gridOrigin + CalculateInventoryBottomButtonPosition(columns, visibleRows, Mathf.Max(1f, grid.m_elementSpace), size, GetItemRuleColumnsFromRight(restock));
                 button.transform.localPosition = _root.InverseTransformPoint(grid.m_gridRoot.TransformPoint(position));
             }
             ConfigureInventoryActionIcon(_restockButton, size, _restockIcon);
@@ -206,7 +303,7 @@ public sealed partial class InventoryActionsPlugin
             Player? player = Player.m_localPlayer;
             ItemData? item = Owner.m_dragItem;
             return !_editing && HasHeldTrashCandidate(Owner) && player != null && item?.m_shared != null && item.m_dropPrefab != null &&
-                Owner.m_dragInventory == GetPlayerInventory(player) && Owner.m_dragInventory.ContainsItem(item) &&
+                Owner.m_dragInventory == ((Humanoid)player).GetInventory() && Owner.m_dragInventory.ContainsItem(item) &&
                 (Owner.m_splitDialog == null || !Owner.m_splitDialog.IsActive);
         }
 
@@ -254,6 +351,8 @@ public sealed partial class InventoryActionsPlugin
             target.fillCenter = source.fillCenter; target.preserveAspect = source.preserveAspect;
         }
 
+        internal bool OwnsPointer => Open && Contains(_popup);
+
         private bool Contains(RectTransform rect) => RectTransformUtility.RectangleContainsScreenPoint(rect, Input.mousePosition, _camera);
         private void Update()
         {
@@ -286,7 +385,7 @@ public sealed partial class InventoryActionsPlugin
 
         private void ClickTool(bool restock)
         {
-            if (!IsItemRuleButtonEnabled(restock)) return;
+            if (!CanShow || !IsItemRuleButtonEnabled(restock)) return;
             if (Owner.m_splitDialog != null && Owner.m_splitDialog.IsActive) return;
             if (HasHeldTrashCandidate(Owner)) { RegisterHeldItem(restock); return; }
             if (_editing) return;
@@ -295,7 +394,7 @@ public sealed partial class InventoryActionsPlugin
 
         private void LoadList(bool restock, bool pin)
         {
-            if (!IsItemRuleButtonEnabled(restock)) return;
+            if (!CanShow || !IsItemRuleButtonEnabled(restock)) return;
             CloseInventoryTrashConfirmDialog();
             _restock = restock; _snapshot = Setting.Value;
             _entries = ItemRuleConfigCore.Read(_snapshot, restock);
@@ -314,7 +413,7 @@ public sealed partial class InventoryActionsPlugin
             if (key.Length == 0) return;
             LoadList(restock, true);
             ItemRuleConfigCore.Entry? entry = _entries.LastOrDefault(e => restock
-                ? RestockTargetLimitCore.NormalizeResourceToken(e.Key) == RestockTargetLimitCore.NormalizeResourceToken(key)
+                ? RuleTokens.NormalizeResourceToken(e.Key) == RuleTokens.NormalizeResourceToken(key)
                 : string.Equals(ItemRuleConfigCore.PrefabKey(e.Key), key, StringComparison.OrdinalIgnoreCase));
             bool added = entry == null;
             if (entry == null)
@@ -388,11 +487,11 @@ public sealed partial class InventoryActionsPlugin
                 value = prefab != null ? prefab.GetComponent<ItemDrop>()?.m_itemData : null;
                 if (value == null && _restock)
                 {
-                    string normalized = RestockTargetLimitCore.NormalizeResourceToken(key);
+                    string normalized = RuleTokens.NormalizeResourceToken(key);
                     foreach (GameObject candidate in ObjectDB.instance.m_items)
                     {
                         ItemData? data = candidate != null ? candidate.GetComponent<ItemDrop>()?.m_itemData : null;
-                        if (data?.m_shared != null && GetRestockTargetLookupTokens(data).Any(k => RestockTargetLimitCore.NormalizeResourceToken(k) == normalized))
+                        if (data?.m_shared != null && GetRestockTargetLookupTokens(data).Any(k => RuleTokens.NormalizeResourceToken(k) == normalized))
                         { value = data; break; }
                     }
                 }
@@ -431,7 +530,7 @@ public sealed partial class InventoryActionsPlugin
             _title.text = _restock ? L("restock_title", "Restock limits") : L("exclude_title", "Auto pickup exclusions");
             _title.color = _gold;
             _scope.text = _registration != null ? L("quantity", "Target quantity") + " (0–" + _registrationMax + ")"
-                : _restock ? L("restock_scope", "Alt+E · target per favorite stack; 0 disables restock") : L("exclude_scope", "Manual E pickup is still available");
+                : _restock ? L("restock_scope", "{key} · target per favorite stack; 0 disables restock").Replace("{key}", GetContainerRestockKeyDisplayText()) : L("exclude_scope", "Manual E pickup is still available");
             Frame(_viewport, 12, -78, inner, viewHeight);
             _content.sizeDelta = new Vector2(inner, Mathf.Max(1, visible.Count) * RowHeight);
             _content.anchoredPosition = Vector2.zero;
@@ -531,7 +630,7 @@ public sealed partial class InventoryActionsPlugin
 
         private RectTransform Rect(string name, Transform parent, Vector2 size, Vector2 position)
         {
-            GameObject go = new("InventoryActions_Rules_" + name, typeof(RectTransform));
+            GameObject go = new(ModName + "_Rules_" + name, typeof(RectTransform));
             RectTransform rect = (RectTransform)go.transform; rect.SetParent(parent, false);
             Frame(rect, position.x, position.y, size.x, size.y); return rect;
         }
@@ -625,7 +724,7 @@ public sealed partial class InventoryActionsPlugin
                 DrawTrashLine(drawing, 64, 13, 53, 51, 15, 1, Color.white);
             }
             Texture2D texture = new(64, 64, TextureFormat.RGBA32, false)
-            { name = restock ? "InventoryActions_RestockIcon" : "InventoryActions_ExcludeIcon", filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+            { name = restock ? ModName + "_RestockIcon" : ModName + "_ExcludeIcon", filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
             texture.SetPixels(drawing); texture.Apply(updateMipmaps: false, makeNoLongerReadable: true);
             Sprite sprite = Sprite.Create(texture, new Rect(0, 0, 64, 64), new Vector2(0.5f, 0.5f), 100);
             _ownedIcons.Add(sprite);
@@ -634,26 +733,41 @@ public sealed partial class InventoryActionsPlugin
     }
 }
 
+#if !INVENTORY_SLOTS
 [HarmonyPatch(typeof(Chat), nameof(Chat.HasFocus))]
 internal static class ItemRuleEditorInputPatch
 {
-    private static void Postfix(ref bool __result) => __result |= InventoryActionsPlugin.IsItemRuleInputBlocked();
+    private static void Postfix(ref bool __result) => __result |= RulePlugin.IsItemRuleInputBlocked();
 }
+
+#endif
 
 [HarmonyPatch(typeof(InventoryGui), "OnDestroy")]
 internal static class ItemRuleEditorDestroyPatch
 {
-    private static void Postfix(InventoryGui __instance) => InventoryActionsPlugin.DestroyItemRuleUi(__instance);
+    private static void Postfix(InventoryGui __instance) => RulePlugin.DestroyItemRuleUi(__instance);
 }
 
 [HarmonyPatch(typeof(InventoryGui), "UpdateGamepad")]
 internal static class ItemRuleEditorGamepadPatch
 {
-    private static bool Prefix() => !InventoryActionsPlugin.IsItemRuleInputBlocked();
+    private static bool Prefix() => !RulePlugin.IsItemRuleInputBlocked();
 }
 
 [HarmonyPatch(typeof(InventoryGrid), "UpdateGamepad")]
 internal static class ItemRuleEditorGridGamepadPatch
 {
-    private static bool Prefix() => !InventoryActionsPlugin.IsItemRuleInputBlocked();
+    private static bool Prefix() => !RulePlugin.IsItemRuleInputBlocked();
+}
+
+[HarmonyPatch(typeof(UIGamePad), nameof(UIGamePad.ButtonPressed))]
+internal static class ItemRuleEditorButtonShortcutPatch
+{
+    private static bool Prefix(UIGamePad __instance, ref bool __result)
+    {
+        if (!RulePlugin.IsItemRuleInputBlocked() || InventoryGui.instance == null ||
+            !__instance.transform.IsChildOf(InventoryGui.instance.transform)) return true;
+        __result = false;
+        return false;
+    }
 }

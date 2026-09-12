@@ -51,3 +51,21 @@ inventoryslots_quick_slot_format: "Quick {index}"
 inventoryslots_clear_favorites_hint_format: "{key}: clear favorites"
 inventoryslots_inventory_limit_reached: "{item}: you can carry at most {max}."
 inventoryslots_upgrade_safety_canceled: Upgrade canceled because the equipped item could not be returned to its slot safely.
+
+inventoryslots_rules_restock_title: Restock limits
+inventoryslots_rules_exclude_title: Auto pickup exclusions
+inventoryslots_rules_restock_scope: "{key} · target per favorite stack; 0 disables restock"
+inventoryslots_rules_exclude_scope: Manual E pickup is still available
+inventoryslots_rules_quantity: Target quantity
+inventoryslots_rules_cancel: Cancel
+inventoryslots_rules_save: Save
+inventoryslots_rules_remove: Remove
+inventoryslots_rules_editing: Editing
+inventoryslots_rules_preview: Preview
+inventoryslots_rules_pinned: Pinned
+inventoryslots_rules_empty: No registered items
+inventoryslots_rules_registered: Registered
+inventoryslots_rules_saved: Saved
+inventoryslots_rules_conflict: Config changed. Cancel to reload before saving.
+inventoryslots_rules_invalid: Enter a valid non-negative quantity within the shown limit.
+inventoryslots_rules_save_failed: Could not save config.

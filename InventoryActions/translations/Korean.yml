@@ -19,7 +19,7 @@ inventoryactions_container_not_ready: 컨테이너를 사용할 수 없습니다
 inventoryactions_hold_to_restock: 누르고 있으면 보충
 inventoryactions_rules_restock_title: 보충 수량
 inventoryactions_rules_exclude_title: 자동 줍기 제외
-inventoryactions_rules_restock_scope: "Alt+E · 즐겨찾기 스택당 목표 수량 · 0은 보충 안 함"
+inventoryactions_rules_restock_scope: "{key} · 즐겨찾기 스택당 목표 수량 · 0은 보충 안 함"
 inventoryactions_rules_exclude_scope: E로 직접 줍기는 가능합니다
 inventoryactions_rules_quantity: 목표 수량
 inventoryactions_rules_cancel: 취소

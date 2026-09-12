@@ -7,7 +7,7 @@ internal static class ChatHasFocusInventorySlotsInputPatch
 {
     private static void Postfix(ref bool __result)
     {
-        __result = __result || InventorySlotsPlugin.IsCraftingSearchFocused();
+        __result = __result || InventorySlotsPlugin.IsCraftingSearchFocused() || InventorySlotsPlugin.IsItemRuleInputBlocked();
     }
 }
 

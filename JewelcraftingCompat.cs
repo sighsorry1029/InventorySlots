@@ -116,6 +116,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static bool TryOpenJewelcraftingSocketContainerFromInventorySlotsSlot(InventoryGui gui)
     {
+        if (IsItemRuleInputBlocked()) return false;
         if (!HasJewelcraftingActive ||
             gui == null ||
             gui.m_playerGrid == null ||

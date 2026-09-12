@@ -1,5 +1,12 @@
 # Item rule UI and automatic pickup exclusions — 2026-09-12
 
+Current source-location note (2026-09-13): the four item-rule source files now live
+in `Shared/ItemRules` at the repository root and are compiled separately into both
+mods. InventoryActions retains its settings and regular-row/ExtraSlots policy.
+See [the InventorySlots integration record](../../docs/ItemRuleButtons.md) for
+the new consumer, common button-shortcut guard and current verification. The
+sections below describe their respective historical implementation steps.
+
 Scope: InventoryActions 1.0.11 on the existing main checkout, starting at
 `dee1a157309f71b99cdbe841806d5a4f1df55f4f`. Existing InventorySlots/shared-container
 working changes are outside this implementation. No version, dependency, Release

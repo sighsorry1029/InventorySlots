@@ -66,6 +66,7 @@ public sealed partial class InventorySlotsPlugin
         playerGrid.m_gridRoot.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, displayedRows * playerGrid.m_elementSpace);
         if (UpdateInventoryPanelDragging() && TryUpdateDraggedInventoryPanelPositionOnly(playerGrid, origin, width))
         {
+            UpdateItemRuleUi(InventoryGui.instance, origin, viewportRows);
             return;
         }
 

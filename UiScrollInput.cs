@@ -18,6 +18,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static float GetUiScrollDelta(UiScrollInputMode mode, bool allowGamepad = true)
     {
+        if (IsItemRuleScrollBlocked()) return 0f;
         float mouseDelta = Input.mouseScrollDelta.y * GetMouseUiScrollMultiplier();
         if (Mathf.Abs(mouseDelta) >= 0.01f)
         {
@@ -46,6 +47,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool HasUnconsumedUiScrollInput()
     {
+        if (IsItemRuleScrollBlocked()) return false;
         float mouseDelta = Input.mouseScrollDelta.y * GetMouseUiScrollMultiplier();
         if (Mathf.Abs(mouseDelta) >= 0.01f && _mouseUiScrollConsumedFrame != Time.frameCount)
         {

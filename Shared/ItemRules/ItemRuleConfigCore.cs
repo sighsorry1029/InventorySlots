@@ -4,7 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
+#if INVENTORY_SLOTS
+namespace InventorySlots;
+#else
 namespace InventoryActions;
+#endif
 
 // Text spans belong to one config snapshot. Updating one row preserves other rows,
 // comments and separators; callers must reject saves against a newer snapshot.

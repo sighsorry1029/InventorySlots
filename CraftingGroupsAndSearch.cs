@@ -405,6 +405,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void HandleCraftingGroupFavoriteClearShortcut()
     {
+        if (IsItemRuleInputBlocked()) return;
         if (!IsCraftingClearFavoritesHotkeyDown() ||
             !TryGetHoveredCraftingGroupButton(out CraftingRecipeGroupButton? button))
         {
