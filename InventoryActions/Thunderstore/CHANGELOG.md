@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.13
+
+- Added optional Equipment and Quick Slots 3.x and AzuExtendedPlayerInventory 2.4.14 compatibility. Automatic sorting, quick stack, restock, favorites, trash, and Safe Take All now stay within regular player inventory rows instead of treating equipment, quick, reserved, or custom-slot rows as storage.
+- Kept bottom action buttons aligned with each provider's visible inventory rows. AzuEPI's live separate-panel setting switches between the regular inventory bottom and the full inline grid without restarting.
+- Removed the Favorite Border Color configuration option and fixed favorite borders to the previous default blue color.
+
 ## 1.0.12
 
 - Added client-side Restock and Auto Pickup Exclude controls below the player inventory. Dropping an item registers its rule without moving it; valid restock quantities and removals save immediately, while excluded items remain available through manual pickup.

@@ -131,6 +131,76 @@ internal static class Program
         }
         Vector3 resized = (Vector3)Call("CalculateInventoryBottomButtonPosition", 8, 5, 90f, 58f, 0)!;
         Check("changed slot/button size stays centered", resized.x == 646f && resized.y == -458f);
+
+        // EAQS 3.x appends hidden slot rows to the same Inventory. Exercise the
+        // compiled boundary using a live delegate without loading that optional mod.
+        FieldInfo eaqsRowsField = plugin.GetField("_equipmentAndQuickSlotsVisibleRows", BindingFlags.NonPublic | BindingFlags.Static)!;
+        int visibleRows = 5;
+        eaqsRowsField.SetValue(null, new Func<int>(() => visibleRows));
+        Inventory eaqsInventory = new Inventory("eaqs", null, 8, 8);
+        Check("EAQS visible row API bounds regular rows", (int)Call("GetRegularPlayerRowsOrInventoryHeight", eaqsInventory)! == 5);
+        Check("EAQS last visible row can be favorited", (bool)Call("CanFavoriteCell", eaqsInventory, new Vector2i(7, 4))!);
+        Check("EAQS hidden slot row cannot be favorited", !(bool)Call("CanFavoriteCell", eaqsInventory, new Vector2i(0, 5))!);
+        Check("EAQS hidden slot row cannot be trashed", !(bool)Call("CanTrashCell", eaqsInventory, new Vector2i(0, 5))!);
+        ItemDrop.ItemData regularItem = Item(10, false);
+        regularItem.m_gridPos = new Vector2i(0, 4);
+        ItemDrop.ItemData hiddenSlotItem = Item(10, false);
+        hiddenSlotItem.m_gridPos = new Vector2i(0, 5);
+        Check("EAQS visible item remains a regular action item", (bool)Call("IsRegularActionItem", eaqsInventory, regularItem)!);
+        Check("EAQS hidden item is excluded from regular actions", !(bool)Call("IsRegularActionItem", eaqsInventory, hiddenSlotItem)!);
+        visibleRows = 6;
+        Check("EAQS live row changes are read without reinitializing", (int)Call("GetRegularPlayerRowsOrInventoryHeight", eaqsInventory)! == 6);
+        Check("EAQS newly visible row becomes regular", (bool)Call("CanTrashCell", eaqsInventory, new Vector2i(0, 5))!);
+        eaqsRowsField.SetValue(null, null);
+        Check("inventory height remains the fallback without EAQS", (int)Call("GetRegularPlayerRowsOrInventoryHeight", eaqsInventory)! == 8);
+
+        // AzuEPI exposes the first special slot as a live linear grid index. Keep
+        // automatic actions above that boundary without loading the optional mod.
+        FieldInfo azuSlotIndexField = plugin.GetField("_azuEpiGetSlotGridLinearIndex", BindingFlags.NonPublic | BindingFlags.Static)!;
+        FieldInfo azuConfigField = plugin.GetField("_azuEpiConfig", BindingFlags.NonPublic | BindingFlags.Static)!;
+        FieldInfo azuSeparatePanelEntryField = plugin.GetField("_azuEpiSeparatePanelEntry", BindingFlags.NonPublic | BindingFlags.Static)!;
+        FieldInfo azuSeparatePanelField = plugin.GetField("_azuEpiDisplaysEquipmentInSeparatePanel", BindingFlags.NonPublic | BindingFlags.Static)!;
+        int firstSpecialSlot = 40;
+        azuSlotIndexField.SetValue(null, new Func<Inventory, int, int>((_, _) => firstSpecialSlot));
+        Inventory azuInventory = new Inventory("azu-epi", null, 8, 8);
+        Check("AzuEPI first special slot bounds regular rows", (int)Call("GetRegularPlayerRowsOrInventoryHeight", azuInventory)! == 5);
+        Check("AzuEPI last regular row can be favorited", (bool)Call("CanFavoriteCell", azuInventory, new Vector2i(7, 4))!);
+        Check("AzuEPI special row cannot be favorited", !(bool)Call("CanFavoriteCell", azuInventory, new Vector2i(0, 5))!);
+        Check("AzuEPI special row cannot be trashed", !(bool)Call("CanTrashCell", azuInventory, new Vector2i(0, 5))!);
+        ItemDrop.ItemData azuRegularItem = Item(10, false);
+        azuRegularItem.m_gridPos = new Vector2i(0, 4);
+        ItemDrop.ItemData azuSpecialItem = Item(10, false);
+        azuSpecialItem.m_gridPos = new Vector2i(0, 5);
+        Check("AzuEPI regular item remains an action item", (bool)Call("IsRegularActionItem", azuInventory, azuRegularItem)!);
+        Check("AzuEPI special item is excluded from actions", !(bool)Call("IsRegularActionItem", azuInventory, azuSpecialItem)!);
+        firstSpecialSlot = 48;
+        Check("AzuEPI live row changes are read without reinitializing", (int)Call("GetRegularPlayerRowsOrInventoryHeight", azuInventory)! == 6);
+        firstSpecialSlot = 64;
+        Check("AzuEPI disabled equipment row uses full inventory height", (int)Call("GetRegularPlayerRowsOrInventoryHeight", azuInventory)! == 8);
+        firstSpecialSlot = -1;
+        Check("AzuEPI with no registered slots uses full inventory height", (int)Call("GetRegularPlayerRowsOrInventoryHeight", azuInventory)! == 8);
+
+        firstSpecialSlot = 40;
+        ConfigEntry<int> azuSeparatePanel = config.Bind("2 - Inventory", "Display Equipment in Separate Panel", 1, "");
+        azuConfigField.SetValue(null, config);
+        azuSeparatePanelEntryField.SetValue(null, azuSeparatePanel);
+        Call("RefreshAzuEpiSeparatePanelSetting");
+        EventHandler<SettingChangedEventArgs> azuSettingChanged =
+            (EventHandler<SettingChangedEventArgs>)Delegate.CreateDelegate(
+                typeof(EventHandler<SettingChangedEventArgs>),
+                plugin.GetMethod("HandleAzuEpiSettingChanged", BindingFlags.NonPublic | BindingFlags.Static)!);
+        config.SettingChanged += azuSettingChanged;
+        Check("AzuEPI separate panel places buttons after regular rows", (int)Call("GetAzuEpiDisplayedPlayerRows", azuInventory)! == 5);
+        azuSeparatePanel.Value = 0;
+        Check("AzuEPI live inline setting places buttons after all rows", (int)Call("GetAzuEpiDisplayedPlayerRows", azuInventory)! == 8);
+        azuSeparatePanel.Value = 1;
+        Check("AzuEPI live separate setting restores regular-row layout", (int)Call("GetAzuEpiDisplayedPlayerRows", azuInventory)! == 5);
+        config.SettingChanged -= azuSettingChanged;
+        azuSlotIndexField.SetValue(null, null);
+        azuConfigField.SetValue(null, null);
+        azuSeparatePanelEntryField.SetValue(null, null);
+        azuSeparatePanelField.SetValue(null, null);
+        Check("inventory height remains the fallback without slot providers", (int)Call("GetRegularPlayerRowsOrInventoryHeight", azuInventory)! == 8);
     }
     private static void CheckOffset(string name, string getter, float x, float y)
     {

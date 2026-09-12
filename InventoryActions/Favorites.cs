@@ -179,7 +179,7 @@ public sealed partial class InventoryActionsPlugin
         }
 
         EnsureFavoritesLoaded(player);
-        Color borderColor = GetFavoriteBorderColor();
+        Color borderColor = FavoriteBorderColor;
         foreach (InventoryElement element in grid.m_elements)
         {
             if (element == null || IsUnityNull(element))
@@ -226,9 +226,6 @@ public sealed partial class InventoryActionsPlugin
             }
         }
     }
-
-    private static Color GetFavoriteBorderColor() =>
-        _favoriteBorderColor != null ? _favoriteBorderColor.Value : FavoriteBorderDefaultColor;
 
     private static RectTransform? EnsureFavoriteBorder(InventoryElement element, InventoryGridElementMarker marker)
     {

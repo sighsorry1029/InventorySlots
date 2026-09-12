@@ -35,7 +35,6 @@ public sealed partial class InventoryActionsPlugin
     private static ConfigEntry<Toggle> _enableInventoryTrashPanel = null!;
     private static ConfigEntry<float> _areaQuickStackRange = null!;
     private static ConfigEntry<float> _areaRestockRange = null!;
-    private static ConfigEntry<Color> _favoriteBorderColor = null!;
     private static ConfigEntry<Toggle> _containerActionSuccessFx = null!;
     private static ConfigEntry<KeyboardShortcut> _favoriteModifierKey = null!;
     private static ConfigEntry<KeyboardShortcut> _containerRestockKey = null!;
@@ -47,7 +46,7 @@ public sealed partial class InventoryActionsPlugin
     private static ConfigEntry<string> _restockTargetStackLimitsConfig = null!;
     private static ConfigEntry<string> _autoPickupExcludedItemsConfig = null!;
     private static bool CanShowItemRules(InventoryGui gui) => true;
-    private static readonly Color FavoriteBorderDefaultColor = new(0.1f, 0.55f, 1f, 0.95f);
+    private static readonly Color FavoriteBorderColor = new(0.1f, 0.55f, 1f, 0.95f);
     private static readonly char[] ButtonPositionOffsetSeparators = { ' ', '\t', '\r', '\n', ':', '=', ',', ';', '(', ')', '[', ']' };
     private static readonly Dictionary<string, ButtonPositionOffsetEditorState> ButtonPositionOffsetEditorStates = new(StringComparer.Ordinal);
 
@@ -70,13 +69,6 @@ public sealed partial class InventoryActionsPlugin
             new AcceptableShortcuts(),
             new ConfigurationManagerAttributes { Order = 890 }),
             synchronizedSetting: false);
-        _favoriteBorderColor = ConfigEntry(ClientConfigSection, "Favorite Border Color", FavoriteBorderDefaultColor, new ConfigDescription(
-            "Color for favorite slot borders. Uses the same RRGGBBAA color format as InventorySlots color configs. Not synced with server.",
-            null,
-            new ConfigurationManagerAttributes { Order = 880 }),
-            synchronizedSetting: false);
-        _favoriteBorderColor.SettingChanged += (_, _) => RefreshFavoriteBorders();
-
         _containerActionSuccessFx = ConfigEntry(
             ClientConfigSection,
             "Container Action Success FX",
@@ -308,7 +300,7 @@ public sealed partial class InventoryActionsPlugin
 
     private static bool IsSupportedPlayerCell(Inventory inventory, Vector2i pos)
     {
-        return !IsOutOfBounds(inventory, pos);
+        return !IsOutOfBounds(inventory, pos) && pos.y < GetRegularPlayerRowsOrInventoryHeight(inventory);
     }
 
     private static bool IsRegularPlayerCell(Inventory inventory, Vector2i pos)
@@ -319,6 +311,51 @@ public sealed partial class InventoryActionsPlugin
     private static bool IsRegularActionItem(Inventory inventory, ItemData item)
     {
         return item?.m_shared != null && IsRegularPlayerCell(inventory, item.m_gridPos);
+    }
+
+    private static int GetRegularPlayerRowsOrInventoryHeight(Inventory? inventory)
+    {
+        int rows = Mathf.Max(1, inventory != null ? inventory.GetHeight() : VanillaPlayerRows);
+        System.Func<int>? getVisibleRows = _equipmentAndQuickSlotsVisibleRows;
+        if (getVisibleRows != null)
+        {
+            try
+            {
+                return Mathf.Clamp(getVisibleRows(), 1, rows);
+            }
+            catch (Exception error)
+            {
+                // Disable the failed delegate so player-grid refreshes do not throw or log each frame.
+                _equipmentAndQuickSlotsVisibleRows = null;
+                Log.LogWarning($"EquipmentAndQuickSlots visible-row lookup failed: {error.Message}");
+                return rows;
+            }
+        }
+
+        System.Func<Inventory, int, int>? getAzuEpiSlotIndex = _azuEpiGetSlotGridLinearIndex;
+        if (inventory == null || getAzuEpiSlotIndex == null)
+        {
+            return rows;
+        }
+
+        try
+        {
+            int width = Mathf.Max(1, inventory.GetWidth());
+            int firstSpecialSlot = getAzuEpiSlotIndex(inventory, 0);
+            long cellCount = (long)width * rows;
+
+            // AzuEPI returns -1 when it has no registered slots, and returns the
+            // first index beyond the inventory while its equipment row is disabled.
+            return firstSpecialSlot >= 0 && firstSpecialSlot < cellCount
+                ? Mathf.Clamp(firstSpecialSlot / width, 1, rows)
+                : rows;
+        }
+        catch (Exception error)
+        {
+            _azuEpiGetSlotGridLinearIndex = null;
+            Log.LogWarning($"AzuExtendedPlayerInventory slot-boundary lookup failed: {error.Message}");
+            return rows;
+        }
     }
 
     private static bool HasNoCustomData(ItemData item)

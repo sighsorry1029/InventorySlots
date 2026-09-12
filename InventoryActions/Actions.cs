@@ -692,7 +692,7 @@ public sealed partial class InventoryActionsPlugin
     private static List<Vector2i> GetPlayerActionSlots(Player player, Inventory inventory)
     {
         List<Vector2i> slots = new();
-        int rows = inventory.GetHeight();
+        int rows = GetRegularPlayerRowsOrInventoryHeight(inventory);
         for (int y = 1; y < rows; y++)
         {
             for (int x = 0; x < inventory.GetWidth(); x++)

@@ -217,10 +217,23 @@ public sealed partial class InventoryActionsPlugin
     private static int GetDisplayedPlayerRows(InventoryGrid playerGrid)
     {
         int rows = Mathf.Max(1, playerGrid.m_inventory != null ? playerGrid.m_inventory.GetHeight() : VanillaPlayerRows);
+        bool isLocalPlayerInventory = Player.m_localPlayer != null &&
+                                      playerGrid.m_inventory == GetPlayerInventory(Player.m_localPlayer);
+        if (isLocalPlayerInventory && _equipmentAndQuickSlotsVisibleRows != null)
+        {
+            return GetRegularPlayerRowsOrInventoryHeight(playerGrid.m_inventory);
+        }
+
+        // AzuEPI only removes its special rows from the player grid when its separate
+        // equipment panel is enabled. Automatic item actions always use regular rows.
+        if (isLocalPlayerInventory && _azuEpiGetSlotGridLinearIndex != null)
+        {
+            return GetAzuEpiDisplayedPlayerRows(playerGrid.m_inventory);
+        }
+
         // ExtraSlots appends hidden equipment/storage rows to the same inventory.
         // Use its public display height only for the local player's UI.
-        if (_extraSlotsPlugin != null && _extraSlotsPlayerRows != null && Player.m_localPlayer != null &&
-            playerGrid.m_inventory == GetPlayerInventory(Player.m_localPlayer))
+        if (_extraSlotsPlugin != null && _extraSlotsPlayerRows != null && isLocalPlayerInventory)
         {
             try { return Mathf.Clamp(_extraSlotsPlayerRows(), 1, rows); }
             catch (Exception error)
@@ -230,6 +243,14 @@ public sealed partial class InventoryActionsPlugin
             }
         }
         return rows;
+    }
+
+    private static int GetAzuEpiDisplayedPlayerRows(Inventory? inventory)
+    {
+        int rows = Mathf.Max(1, inventory != null ? inventory.GetHeight() : VanillaPlayerRows);
+        return _azuEpiDisplaysEquipmentInSeparatePanel == true
+            ? GetRegularPlayerRowsOrInventoryHeight(inventory)
+            : rows;
     }
 
     private static Vector3 GetInventoryBottomButtonPosition(InventoryGrid grid, float buttonSize, int columnsFromRight) =>

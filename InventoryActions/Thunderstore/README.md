@@ -30,6 +30,10 @@ In the standard eight-column inventory, trash is centered below column 8, auto p
 
 ExtraSlots is optional. When installed, its public inventory-height API provides the regular row count, excluding hidden equipment/quick-slot storage rows. This keeps buttons aligned through purchased rows and ExtraSlots row changes without changing stored items or slot permissions.
 
+Equipment and Quick Slots 3.x is optional. InventoryActions uses its public visible-row API so automatic sorting, quick stack, restock, favorites, trash, and bottom-button layout stay inside the visible player inventory instead of treating EAQS equipment, quick, reserved, or custom-slot rows as regular storage. Explicit item moves remain under EAQS and Valheim's normal item-move rules.
+
+AzuExtendedPlayerInventory 2.4.14 is optional. InventoryActions uses AzuEPI's public slot-index API so automatic sorting, quick stack, restock, favorites, and trash stay above its equipment, quick, and custom-slot rows. Bottom buttons follow AzuEPI's live separate-panel setting: they use the regular inventory bottom with a separate equipment panel and the full grid bottom when slots are inline. Explicit item moves and AzuEPI's own favorite data remain under AzuEPI's rules.
+
 Both lists use the existing client config: `3 - Restock / Restock Target Stack Limits` and `2 - Client / Auto Pickup Excluded Items`. They are not server-synced and apply to all characters using that config. In-game/Configuration Manager changes apply immediately; editing the cfg on disk requires a config reload or game restart. Rules do not add item metadata. Unresolved mod items remain in the list. Removing a restock entry can reveal a remaining internal/localized-name rule; it does not necessarily restore the default maximum.
 
 - favorite player inventory slots with `LeftAlt + left click`

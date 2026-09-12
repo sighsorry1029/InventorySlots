@@ -1,5 +1,6 @@
 using BepInEx;
 using BepInEx.Bootstrap;
+using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
 using UnityEngine;
@@ -11,16 +12,27 @@ namespace InventoryActions;
 [BepInIncompatibility("goldenrevolver.quick_stack_store")]
 [BepInDependency(ExternalMultiUserChestGuid, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency(ExtraSlotsGuid, BepInDependency.DependencyFlags.SoftDependency)]
+[BepInDependency(EquipmentAndQuickSlotsGuid, BepInDependency.DependencyFlags.SoftDependency)]
+[BepInDependency(AzuExtendedPlayerInventoryGuid, BepInDependency.DependencyFlags.SoftDependency)]
 public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
 {
     internal const string ModName = "InventoryActions";
-    internal const string ModVersion = "1.0.12";
+    internal const string ModVersion = "1.0.13";
     internal const string Author = "sighsorry";
     internal const string ModGUID = $"{Author}.{ModName}";
     private const string ExternalMultiUserChestGuid = "com.maxsch.valheim.MultiUserChest";
     private const string ExtraSlotsGuid = "shudnal.ExtraSlots";
+    private const string EquipmentAndQuickSlotsGuid = "randyknapp.mods.equipmentandquickslots";
+    private const string AzuExtendedPlayerInventoryGuid = "Azumatt.AzuExtendedPlayerInventory";
+    private static readonly ConfigDefinition AzuEpiSeparatePanelConfig =
+        new("2 - Inventory", "Display Equipment in Separate Panel");
     private static BaseUnityPlugin? _extraSlotsPlugin;
     private static System.Func<int>? _extraSlotsPlayerRows;
+    private static System.Func<int>? _equipmentAndQuickSlotsVisibleRows;
+    private static System.Func<Inventory, int, int>? _azuEpiGetSlotGridLinearIndex;
+    private static ConfigFile? _azuEpiConfig;
+    private static ConfigEntryBase? _azuEpiSeparatePanelEntry;
+    private static bool? _azuEpiDisplaysEquipmentInSeparatePanel;
 
     private const int PlayerInventoryWidth = 8;
     private const int VanillaPlayerRows = 4;
@@ -74,6 +86,8 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
         LocalizationManager.Localizer.Load(this);
         BindConfigs();
         InitializeExtraSlotsUiCompatibility();
+        InitializeEquipmentAndQuickSlotsCompatibility();
+        InitializeAzuEpiCompatibility();
         _harmony.PatchAll();
         Log.LogInfo($"{ModName} loaded.");
     }
@@ -103,6 +117,15 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
     {
         _extraSlotsPlugin = null;
         _extraSlotsPlayerRows = null;
+        _equipmentAndQuickSlotsVisibleRows = null;
+        _azuEpiGetSlotGridLinearIndex = null;
+        if (_azuEpiConfig != null)
+        {
+            _azuEpiConfig.SettingChanged -= HandleAzuEpiSettingChanged;
+        }
+        _azuEpiConfig = null;
+        _azuEpiSeparatePanelEntry = null;
+        _azuEpiDisplaysEquipmentInSeparatePanel = null;
         DestroyItemRuleUi();
         _autoPickupExcludedItemsConfig.SettingChanged -= RefreshAutoPickupExclusions;
         _autoPickupExcludedItems.Clear();
@@ -130,6 +153,140 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
             _extraSlotsPlugin = plugin.Instance;
         }
         catch (System.Exception error) { Log.LogWarning($"ExtraSlots UI compatibility initialization failed: {error.Message}"); }
+    }
+
+    private static void InitializeEquipmentAndQuickSlotsCompatibility()
+    {
+        if (IsDedicatedServer ||
+            !Chainloader.PluginInfos.TryGetValue(EquipmentAndQuickSlotsGuid, out PluginInfo plugin) ||
+            plugin.Instance == null)
+        {
+            return;
+        }
+
+        try
+        {
+            // EAQS 3.x keeps equipment, quick, and custom slots in hidden rows of the
+            // player's Inventory. Resolve its public boundary once and read the live
+            // visible-row count whenever InventoryActions lays out or mutates that inventory.
+            System.Type? api = plugin.Instance.GetType().Assembly.GetType("EquipmentAndQuickSlots.API");
+            System.Reflection.MethodInfo? method = api?.GetMethod(
+                "GetVisibleRows",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static,
+                null,
+                System.Type.EmptyTypes,
+                null);
+            if (method == null || method.ReturnType != typeof(int))
+            {
+                Log.LogWarning("EquipmentAndQuickSlots public visible-row API is unavailable; hidden-slot compatibility is disabled.");
+                return;
+            }
+
+            _equipmentAndQuickSlotsVisibleRows =
+                (System.Func<int>)System.Delegate.CreateDelegate(typeof(System.Func<int>), method);
+            Log.LogInfo("EquipmentAndQuickSlots visible-row compatibility enabled.");
+        }
+        catch (System.Exception error)
+        {
+            Log.LogWarning($"EquipmentAndQuickSlots compatibility initialization failed: {error.Message}");
+        }
+    }
+
+    private static void InitializeAzuEpiCompatibility()
+    {
+        if (IsDedicatedServer ||
+            !Chainloader.PluginInfos.TryGetValue(AzuExtendedPlayerInventoryGuid, out PluginInfo plugin) ||
+            plugin.Instance == null)
+        {
+            return;
+        }
+
+        try
+        {
+            // AzuEPI stores regular and special slots in the same Inventory. Its public
+            // slot-index API exposes the live boundary without binding to internal layout types.
+            System.Type? api = plugin.Instance.GetType().Assembly.GetType("AzuEPI.API");
+            System.Reflection.MethodInfo? method = api?.GetMethod(
+                "GetSlotGridLinearIndex",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static,
+                null,
+                new[] { typeof(Inventory), typeof(int) },
+                null);
+            if (method == null || method.ReturnType != typeof(int))
+            {
+                Log.LogWarning("AzuExtendedPlayerInventory public slot-boundary API is unavailable; special-slot compatibility is disabled.");
+                return;
+            }
+
+            _azuEpiGetSlotGridLinearIndex =
+                (System.Func<Inventory, int, int>)System.Delegate.CreateDelegate(
+                    typeof(System.Func<Inventory, int, int>), method);
+
+            ConfigFile config = plugin.Instance.Config;
+            _azuEpiConfig = config;
+            if (config.ContainsKey(AzuEpiSeparatePanelConfig))
+            {
+                _azuEpiSeparatePanelEntry = config[AzuEpiSeparatePanelConfig];
+                RefreshAzuEpiSeparatePanelSetting();
+                if (_azuEpiConfig != null && _azuEpiSeparatePanelEntry != null)
+                {
+                    config.SettingChanged += HandleAzuEpiSettingChanged;
+                }
+            }
+            else
+            {
+                Log.LogWarning("AzuExtendedPlayerInventory separate-panel setting is unavailable; using the full inventory height for button placement.");
+            }
+
+            Log.LogInfo("AzuExtendedPlayerInventory special-slot compatibility enabled.");
+        }
+        catch (System.Exception error)
+        {
+            _azuEpiGetSlotGridLinearIndex = null;
+            if (_azuEpiConfig != null)
+            {
+                _azuEpiConfig.SettingChanged -= HandleAzuEpiSettingChanged;
+            }
+            _azuEpiConfig = null;
+            _azuEpiSeparatePanelEntry = null;
+            _azuEpiDisplaysEquipmentInSeparatePanel = null;
+            Log.LogWarning($"AzuExtendedPlayerInventory compatibility initialization failed: {error.Message}");
+        }
+    }
+
+    private static void HandleAzuEpiSettingChanged(object? sender, SettingChangedEventArgs args)
+    {
+        if (_azuEpiSeparatePanelEntry != null &&
+            ReferenceEquals(args.ChangedSetting, _azuEpiSeparatePanelEntry))
+        {
+            RefreshAzuEpiSeparatePanelSetting();
+        }
+    }
+
+    private static void RefreshAzuEpiSeparatePanelSetting()
+    {
+        ConfigEntryBase? entry = _azuEpiSeparatePanelEntry;
+        if (entry == null)
+        {
+            _azuEpiDisplaysEquipmentInSeparatePanel = null;
+            return;
+        }
+
+        try
+        {
+            _azuEpiDisplaysEquipmentInSeparatePanel = System.Convert.ToInt32(entry.BoxedValue) != 0;
+        }
+        catch (System.Exception error)
+        {
+            if (_azuEpiConfig != null)
+            {
+                _azuEpiConfig.SettingChanged -= HandleAzuEpiSettingChanged;
+            }
+            _azuEpiConfig = null;
+            _azuEpiSeparatePanelEntry = null;
+            _azuEpiDisplaysEquipmentInSeparatePanel = null;
+            Log.LogWarning($"AzuExtendedPlayerInventory separate-panel setting lookup failed: {error.Message}");
+        }
     }
 
 }
