@@ -118,7 +118,7 @@ Default extra row unlocks:
 - Extra Row 2: `CryptKey`
 - Extra Row 3: `Wishbone`
 
-Wider Pockets costs 1,000 coins after Moder is defeated in the current world; Deeper Pockets costs 2,000 coins after the Queen is defeated. Purchases use vanilla character keys and do not require InventorySlots row unlocks. Disabling progressive rows immediately grants the configured mod rows, while purchased rows remain independent.
+Wider Pockets costs 1,000 coins after Moder is defeated in the current world; Deeper Pockets costs 2,000 coins after the Queen is defeated. Purchases use vanilla character keys and do not require InventorySlots row unlocks. Setting `Enable Progressive Rows` to `Off` immediately unlocks all extra rows set by `Maximum Extra Rows` (three by default), without item discovery. Purchased rows remain independent.
 
 `Maximum Extra Rows` now accepts 0-3; previous higher values are capped at 3. `Extra Row 4 Items` and `Extra Row 5 Items` no longer participate in progression. The first three configuration keys retain their meaning. Equipment and quick-slot progression are unchanged.
 

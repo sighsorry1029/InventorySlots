@@ -73,7 +73,7 @@ public sealed partial class InventorySlotsPlugin
         _serverConfigLocked = OrderedConfigEntry("1 - General", "Lock Configuration", Toggle.On, "When enabled, only server admins can modify this mod's synced configuration.", order: 1000);
         _ = ConfigSync.AddLockingConfigEntry(_serverConfigLocked);
 
-        _progressiveRowsEnabled = ConfigEntry(ProgressiveSlotsConfigSection, "Enable Progressive Rows", Toggle.On, "When enabled, extra inventory rows unlock by item discovery while the internal inventory height stays fixed.");
+        _progressiveRowsEnabled = ConfigEntry(ProgressiveSlotsConfigSection, "Enable Progressive Rows", Toggle.On, "On: extra inventory rows unlock through item discovery. Off: immediately unlocks all extra rows set by Maximum Extra Rows (3 by default), without item discovery. Haldor's purchased rows remain independent.");
         _maxExtraRows = ConfigEntry(ProgressiveSlotsConfigSection, "Maximum Extra Rows", 3, new ConfigDescription("Maximum rows added by InventorySlots (0-3). Haldor's purchased rows are added independently. Previous values above 3 are capped at 3; internal slot coordinates remain fixed.", new AcceptableValueRange<int>(0, MaxProgressionExtraRows)));
         _rowUnlockItems = new[]
         {

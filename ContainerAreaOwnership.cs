@@ -628,7 +628,10 @@ public sealed partial class InventorySlotsPlugin
         Animator? animator = gui != null ? ContainerAreaGuiAnimator(gui) : null;
         // IsVisible lingers for two frames after Hide has cleared the current
         // container. Area work may finish after that vanilla hold-to-stack hide.
-        if (animator == null || !animator.GetBool("visible")) return true;
+        // The read-only preview raises this animator flag while keeping the
+        // inventory closed for input. It must not block hover restock or a
+        // pending ownership handoff; actual GUI actions still require an anchor.
+        if (animator == null || !animator.GetBool("visible") || ShouldBlockContainerPreviewInteraction(gui)) return true;
         return session.OpenAnchor && IsOpenContainerAreaAnchor(session.Anchor);
     }
 

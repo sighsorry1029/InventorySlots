@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.13
+
+- Fixed missing slots and items when a 4x4 container is the first chest opened or previewed, including custom container sizes configured by other mods. The original game now creates the missing UI cells without changing container capacity or item data.
+- Fixed container previews incorrectly blocking hover restock (Alt+E by default) and pending nearby-container ownership handoffs while the inventory is closed.
+- Clarified that setting Enable Progressive Rows to Off immediately unlocks all extra rows set by Maximum Extra Rows (three by default), without item discovery. Haldor's purchased rows remain independent.
+
 ## 1.4.12
 
 - Fixed container previews that could leave the player inventory visible alongside the hovered container. Shared UI ancestors now retain only the branch leading to the read-only preview.
