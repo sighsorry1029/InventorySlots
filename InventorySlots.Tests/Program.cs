@@ -140,6 +140,7 @@ TestRunner.Run(
     ("Shared interaction rejects unrelated late and cancelled grants", Tests.SharedInteractionRejectsUnrelatedLateAndCancelledGrants),
     ("Shared interaction runtime keeps callbacks behind authoritative state", Tests.SharedInteractionRuntimeKeepsCallbacksBehindAuthoritativeState),
     ("Shared container GUI keeps stale selections and hold callbacks safe", Tests.SharedContainerGuiKeepsStaleSelectionsAndHoldCallbacksSafe),
+    ("Shared chest STUWard adapter preserves managed and vanilla access boundaries", WardInteropTests.Run),
     ("InventoryActions success FX stays bounded and once per action", Tests.InventoryActionsContainerActionSuccessFxStaysBoundedAndOncePerAction),
     ("InventoryActions success FX uses transient Everybody RPC", Tests.InventoryActionsContainerActionSuccessFxUsesTransientEverybodyRpc),
     ("InventoryActions success FX stays local guarded and self cleaning", Tests.InventoryActionsContainerActionSuccessFxStaysLocalGuardedAndSelfCleaning),

@@ -17,6 +17,7 @@ using Requirement = Piece.Requirement;
 namespace InventorySlots;
 
 [BepInPlugin(ModGUID, ModName, ModVersion)]
+[BepInDependency("sighsorry.STUWard", BepInDependency.DependencyFlags.SoftDependency)]
 [BepInIncompatibility("Azumatt.AzuExtendedPlayerInventory")]
 [BepInIncompatibility("shudnal.ExtraSlots")]
 [BepInIncompatibility("shudnal.ExtraSlotsCustomSlots")]

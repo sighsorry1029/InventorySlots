@@ -665,23 +665,6 @@ public sealed partial class InventorySlotsPlugin
                    CanMutateContainerDirectly(anchor, allowLocalWithoutZNetView: true));
     }
 
-    private static bool HasContainerAreaRequesterAccess(long playerId, Container container)
-    {
-        if (!CheckContainerAreaAccess(container, playerId)) return false;
-        if (!container.m_checkGuardStone) return true;
-        bool guarded = false;
-        foreach (PrivateArea ward in (List<PrivateArea>)ContainerAreaWards.GetValue(null))
-        {
-            if (ward == null || !IsContainerAreaWardEnabled(ward) ||
-                !IsInsideContainerAreaWard(ward, container.transform.position, 0f)) continue;
-            guarded = true;
-            Piece? piece = ward.GetComponent<Piece>();
-            if (piece != null && piece.GetCreator() == playerId ||
-                ContainerAreaWardPlayers(ward).Any(entry => entry.Key == playerId)) return true;
-        }
-        return !guarded;
-    }
-
     private static ZNetView? GetContainerAreaView(Container? container) =>
         container != null ? ContainerAreaView(container) : null;
 

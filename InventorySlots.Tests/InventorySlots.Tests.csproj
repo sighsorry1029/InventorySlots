@@ -12,6 +12,7 @@
     <Compile Include="..\ContainerActionCore.cs" Link="ContainerActionCore.cs" />
     <Compile Include="..\ContainerTransferCore.cs" Link="ContainerTransferCore.cs" />
     <Compile Include="..\ContainerAreaHandoffCore.cs" Link="ContainerAreaHandoffCore.cs" />
+    <Compile Include="..\StuWardCompat.cs" Link="StuWardCompat.cs" />
     <Compile Include="..\CraftingRecipeViewCore.cs" Link="CraftingRecipeViewCore.cs" />
     <Compile Include="..\CraftingTabAdapterModels.cs" Link="CraftingTabAdapterModels.cs" />
     <Compile Include="..\CraftingUiStamps.cs" Link="CraftingUiStamps.cs" />
