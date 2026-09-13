@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <OutputType>Library</OutputType>
+    <AssemblyName>ContainerUiDiagnostics</AssemblyName>
+    <RootNamespace>ContainerUiDiagnostics</RootNamespace>
+    <Version>1.0.0</Version>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GamePath Condition="'$(GamePath)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Valheim</GamePath>
+    <GameManagedPath>$(GamePath)\valheim_Data\Managed</GameManagedPath>
+    <BepInExCorePath>$(GamePath)\BepInEx\core</BepInExCorePath>
+    <DeployToGame Condition="'$(DeployToGame)' == ''">false</DeployToGame>
+    <GamePluginPath Condition="'$(GamePluginPath)' == ''">$(GamePath)\BepInEx\plugins</GamePluginPath>
+  </PropertyGroup>
+  <!-- Original game references. No publicizer, Harmony patches, merge, or packaging target. -->
+  <ItemGroup>
+    <Reference Include="BepInEx"><HintPath>$(BepInExCorePath)\BepInEx.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="assembly_valheim"><HintPath>$(GameManagedPath)\assembly_valheim.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine"><HintPath>$(GameManagedPath)\UnityEngine.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(GameManagedPath)\UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.AnimationModule"><HintPath>$(GameManagedPath)\UnityEngine.AnimationModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.UI"><HintPath>$(GameManagedPath)\UnityEngine.UI.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.UIModule"><HintPath>$(GameManagedPath)\UnityEngine.UIModule.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+  <Target Name="DeployDiagnosticPlugin" AfterTargets="Build" Condition="'$(DeployToGame)' == 'true'">
+    <MakeDir Directories="$(GamePluginPath)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(GamePluginPath)" />
+    <MakeDir Directories="$(AdditionalPluginPath)" Condition="'$(AdditionalPluginPath)' != ''" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(AdditionalPluginPath)" Condition="'$(AdditionalPluginPath)' != ''" />
+  </Target>
+</Project>
