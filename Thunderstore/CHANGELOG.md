@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.14
+
+- Added the client-only `Restock Leave One Item` option, enabled by default. Favorite restock (Alt+E by default) leaves one item per kind in each source chest, counting all stacks with the same internal item name together, so the chest remains a quick-stack destination.
+- Turning the option Off allows restock to take the last item. In-game setting changes apply to subsequent transfers immediately. `Take stacks`, `Take All`, and manual moves retain their existing behavior.
+- Each client controls its own restock setting; another player or mod may still remove the last item. Existing ownership, access, and stack-compatibility checks are unchanged.
+
 ## 1.4.13
 
 - Fixed missing slots and items when a 4x4 container is the first chest opened or previewed, including custom container sizes configured by other mods. The original game now creates the missing UI cells without changing container capacity or item data.

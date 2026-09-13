@@ -36,6 +36,8 @@ AzuExtendedPlayerInventory 2.4.14 is optional. InventoryActions uses AzuEPI's pu
 
 Both lists use the existing client config: `3 - Restock / Restock Target Stack Limits` and `2 - Client / Auto Pickup Excluded Items`. They are not server-synced and apply to all characters using that config. In-game/Configuration Manager changes apply immediately; editing the cfg on disk requires a config reload or game restart. Rules do not add item metadata. Unresolved mod items remain in the list. Removing a restock entry can reveal a remaining internal/localized-name rule; it does not necessarily restore the default maximum.
 
+`3 - Restock / Restock Leave One Item` defaults to **On**. Favorite restock (Alt+E by default) leaves one item of each kind in each source chest, across all stacks with the same internal item name, to keep that chest eligible for future quick stack. A chest with only one remaining item will not supply it. Turn this client-only setting Off to allow full depletion; in-game changes apply to subsequent transfers immediately. `Take stacks`, `Take All`, and manual moves are unchanged. Other players and other mods can still take the last item.
+
 - favorite player inventory slots with `LeftAlt + left click`
 - hold `E` while hovering a container to quick stack matching non-favorited stackable items
 - restock existing stacks from the current container

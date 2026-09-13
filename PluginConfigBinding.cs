@@ -29,6 +29,7 @@ public sealed partial class InventorySlotsPlugin
     private static ConfigEntry<float> _areaQuickStackRange = null!;
     private static ConfigEntry<float> _areaRestockRange = null!;
     private static ConfigEntry<string> _restockTargetStackLimitsConfig = null!;
+    private static ConfigEntry<Toggle> _restockLeaveOneItem = null!;
     private static ConfigEntry<KeyboardShortcut> _hotbarSwitchKey = null!;
     private static ConfigEntry<KeyboardShortcut> _containerRestockKey = null!;
     private static ConfigEntry<Toggle> _showHotbarSwitchHint = null!;
@@ -92,6 +93,9 @@ public sealed partial class InventorySlotsPlugin
         _equipmentSlotProgressionEnabled = ConfigEntry(ProgressiveSlotsConfigSection, "Enable Equipment Slot Progression", Toggle.On, "When enabled, equipment slots unlock after the player discovers, carries, or has equipped an item accepted by that slot.");
         BindInventoryStateConfigInvalidation();
 
+        _restockLeaveOneItem = OrderedConfigEntry(RestockConfigSection, "Restock Leave One Item", Toggle.On,
+            "Client-only: favorite restock (Alt+E by default) leaves one item of each kind in each source container so it remains a quick-stack destination. Counts all stacks with the same internal item name together. A container with only one remaining item cannot supply it. Off allows restock to take the last item. Does not affect Take stacks, Take All, or manual moves. Changes apply to subsequent transfers immediately.",
+            order: 710, synchronizedSetting: false);
         _restockTargetStackLimitsConfig = ConfigEntry(
             RestockConfigSection,
             "Restock Target Stack Limits",

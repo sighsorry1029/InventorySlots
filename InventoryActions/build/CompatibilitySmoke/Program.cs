@@ -15,8 +15,8 @@ internal static class Program
 
     private static int Main(string[] args)
     {
-        if (args.Length != 3 && (args.Length != 4 || (args[3] != "--button-offsets" && args[3] != "--ui-layout")))
-            throw new ArgumentException("Usage: <final InventoryActions.dll> <original Managed> <BepInEx core> [--ui-layout]");
+        if (args.Length != 3 && (args.Length != 4 || (args[3] != "--button-offsets" && args[3] != "--ui-layout" && args[3] != "--restock-reserve")))
+            throw new ArgumentException("Usage: <final mod.dll> <original Managed> <BepInEx core> [--ui-layout|--restock-reserve]");
         string[] roots = { Path.GetDirectoryName(Path.GetFullPath(args[0]))!, Path.GetFullPath(args[1]), Path.GetFullPath(args[2]) };
         AppDomain.CurrentDomain.AssemblyResolve += (_, request) =>
         {
@@ -36,10 +36,12 @@ internal static class Program
             object queue = FormatterServices.GetUninitializedObject(threading);
             threading.GetField("_invokeLock", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(queue, new object());
             threading.GetField("<Instance>k__BackingField", BindingFlags.NonPublic | BindingFlags.Static)!.SetValue(null, queue);
-            plugin = Assembly.LoadFrom(Path.GetFullPath(args[0])).GetType("InventoryActions.InventoryActionsPlugin", true)!;
-            if (args.Length == 4) RunUiLayoutChecks();
+            Assembly mod = Assembly.LoadFrom(Path.GetFullPath(args[0]));
+            plugin = mod.GetType(mod.GetName().Name + "." + mod.GetName().Name + "Plugin", true)!;
+            if (args.Length == 4 && args[3] == "--restock-reserve") RunRestockReserveChecks();
+            else if (args.Length == 4) RunUiLayoutChecks();
             else Run();
-            System.Console.WriteLine($"PASS {checks} isolated checks against actual mod and original game assemblies. CLR {Environment.Version}; no Unity/game execution.");
+            System.Console.WriteLine($"PASS {checks} isolated checks against supplied DLL and original game assemblies. CLR {Environment.Version}; no Unity/game execution.");
             return 0;
         }
         catch (Exception error)
@@ -249,6 +251,93 @@ internal static class Program
         normal.m_customData["external"] = "preserve";
         Call("MergeSortableStacks", items, mixed);
         Check("external custom data retains stacking protection", normal.m_stack == 30 && cheated.m_stack == 30 && normal.m_customData["external"] == "preserve");
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void RunRestockReserveChecks()
+    {
+        // Exercise the final DLL's quantity policy with original Inventory/ItemData
+        // and a real, unsaved BepInEx setting. Transfers below simulate success/failure;
+        // native movement, Harmony patches and network ownership still need game tests.
+        ConfigFile config = new ConfigFile(Path.Combine(Path.GetTempPath(), "Restock-reserve-" + Guid.NewGuid() + ".cfg"), false)
+        {
+            SaveOnConfigSet = false
+        };
+        Type toggle = plugin.GetNestedType("Toggle")!;
+        MethodInfo bind = typeof(ConfigFile).GetMethods().Single(m => m.Name == "Bind" && m.IsGenericMethod &&
+            m.GetParameters().Length == 4 && m.GetParameters()[0].ParameterType == typeof(string) &&
+            m.GetParameters()[3].ParameterType == typeof(ConfigDescription)).MakeGenericMethod(toggle);
+        ConfigEntryBase setting = (ConfigEntryBase)bind.Invoke(config, new object[] { "test", "leave one", Enum.Parse(toggle, "On"), new ConfigDescription("") })!;
+        plugin.GetField("_restockLeaveOneItem", BindingFlags.NonPublic | BindingFlags.Static)!.SetValue(null, setting);
+        Type mode = plugin.GetMethod("GetRestockTransferAmount", BindingFlags.NonPublic | BindingFlags.Static)!.GetParameters()[3].ParameterType;
+        object favorite = Enum.Parse(mode, "AreaFavoriteRestock");
+        object matching = Enum.Parse(mode, "CurrentContainerMatchingStacks");
+
+        Inventory Chest(params ItemDrop.ItemData[] items)
+        {
+            Inventory chest = new Inventory("reserve", null, 8, 4);
+            chest.GetAllItems().AddRange(items);
+            return chest;
+        }
+        int Amount(Inventory chest, ItemDrop.ItemData item, int needed, object? operation = null) =>
+            (int)Call("GetRestockTransferAmount", chest, item, needed, operation ?? favorite)!;
+        int Withdraw(Inventory chest, ItemDrop.ItemData item, int needed, int actualLimit = int.MaxValue)
+        {
+            int moved = Math.Min(Amount(chest, item, needed), actualLimit);
+            item.m_stack -= moved;
+            if (item.m_stack == 0) chest.GetAllItems().Remove(item);
+            return moved;
+        }
+
+        var single = Item(1, false);
+        Inventory one = Chest(single);
+        Check("last item is reserved", Amount(one, single, 50) == 0);
+        Check("Take stacks can take the last item", Amount(one, single, 50, matching) == 1);
+        setting.BoxedValue = Enum.Parse(toggle, "Off");
+        Check("live Off allows full depletion", Amount(one, single, 50) == 1);
+        setting.BoxedValue = Enum.Parse(toggle, "On");
+        Check("live On restores reserve", Amount(one, single, 50) == 0);
+
+        var five = Item(5, false);
+        Inventory stock = Chest(five);
+        Check("partial refill takes only needed quantity", Amount(stock, five, 2) == 2);
+        Check("no shortage requests no transfer", Amount(stock, five, 0) == 0);
+        Check("single stack supplies all but one", Withdraw(stock, five, 50) == 4 && five.m_stack == 1);
+
+        var first = Item(2, false);
+        var last = Item(3, false);
+        stock = Chest(first, last);
+        Check("earlier stack may be fully consumed", Withdraw(stock, last, 50) == 3 && !stock.GetAllItems().Contains(last));
+        Check("next favorite sees one reserve across all stacks", Withdraw(stock, first, 50) == 1 && first.m_stack == 1);
+        Check("further favorite cannot consume reserve", Withdraw(stock, first, 50) == 0);
+        var secondChestItem = Item(2, false);
+        Inventory secondChest = Chest(secondChestItem);
+        Check("second chest keeps its own reserve", Withdraw(secondChest, secondChestItem, 50) == 1 && first.m_stack == 1 && secondChestItem.m_stack == 1);
+
+        var source = Item(5, false);
+        var other = Item(1, false);
+        other.m_shared.m_name = "different-item";
+        stock = Chest(source, other);
+        Check("different item does not preserve source routing", Amount(stock, source, 50) == 4);
+        other.m_shared.m_name = "TEST-STONE";
+        other.m_quality = 2;
+        other.m_customData["external"] = "keep";
+        Check("routing uses case-insensitive name independently of merge identity", Amount(stock, source, 50) == 5);
+        other.m_stack = 0;
+        Check("zero stack does not count as a reserve", Amount(stock, source, 50) == 4);
+        other.m_stack = 1;
+        other.m_shared = null!;
+        Check("invalid item does not count as a reserve", Amount(stock, source, 50) == 4);
+
+        stock = Chest(source);
+        Check("failed movement leaves full stock available", Withdraw(stock, source, 50, 0) == 0 && Amount(stock, source, 50) == 4);
+        Check("partial movement uses actual remaining stock", Withdraw(stock, source, 50, 2) == 2 && Amount(stock, source, 50) == 2);
+        Check("partial retry retains exactly one", Withdraw(stock, source, 50) == 2 && source.m_stack == 1);
+        var added = Item(1, false);
+        stock.GetAllItems().Add(added);
+        Check("new live stack allows old reserve to move", Withdraw(stock, source, 50) == 1 && Amount(stock, added, 50) == 0);
+        setting.BoxedValue = Enum.Parse(toggle, "Off");
+        Check("turning Off releases final reserve", Withdraw(stock, added, 50) == 1 && stock.GetAllItems().Count == 0);
     }
 
     private static ItemDrop.ItemData Item(int stack, bool cheated) => new ItemDrop.ItemData

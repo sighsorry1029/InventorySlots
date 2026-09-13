@@ -453,6 +453,29 @@ public sealed partial class InventoryActionsPlugin
         return targets;
     }
 
+    private static int GetRestockTransferAmount(Inventory containerInventory, ItemData source, int needed, RestockMode mode)
+    {
+        int amount = Math.Min(needed, source.m_stack);
+        if (amount <= 0 || amount < source.m_stack || mode != RestockMode.AreaFavoriteRestock ||
+            _restockLeaveOneItem?.Value != Toggle.On)
+        {
+            return amount;
+        }
+
+        // Only emptying the last stack removes this quick-stack destination.
+        // Read live contents after each move; quality/metadata still govern merging separately.
+        foreach (ItemData other in containerInventory.GetAllItems())
+        {
+            if (!ReferenceEquals(other, source) && other?.m_shared != null && other.m_stack > 0 &&
+                string.Equals(other.m_shared.m_name, source.m_shared.m_name, StringComparison.OrdinalIgnoreCase))
+            {
+                return amount;
+            }
+        }
+
+        return amount - 1;
+    }
+
     private static int RestockTargetsFromContainer(Inventory playerInventory, Inventory containerInventory, List<ItemData> targets, RestockMode mode)
     {
         if (playerInventory == null || containerInventory == null || targets.Count == 0)
@@ -480,7 +503,7 @@ public sealed partial class InventoryActionsPlugin
                     continue;
                 }
 
-                int amount = Math.Min(wanted - potential, containerItem.m_stack);
+                int amount = GetRestockTransferAmount(containerInventory, containerItem, wanted - potential, mode);
                 if (amount <= 0)
                 {
                     continue;

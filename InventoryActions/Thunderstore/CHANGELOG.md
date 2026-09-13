@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.15
+
+- Added the client-only `Restock Leave One Item` option, enabled by default. Favorite restock (Alt+E by default) leaves one item per kind in each source chest, counting all stacks with the same internal item name together, so the chest remains a quick-stack destination.
+- Turning the option Off allows restock to take the last item. In-game setting changes apply to subsequent transfers immediately. `Take stacks`, `Take All`, and manual moves retain their existing behavior.
+- Each client controls its own restock setting; another player or mod may still remove the last item. Existing ownership, access, and stack-compatibility checks are unchanged.
+
 ## 1.0.14
 
 - Added an optional compact InventoryActions quick guide beside the hotbar. It displays the active favorite, Use, and Restock bindings, adapts to available screen space, can be collapsed, and stores its visibility and collapsed state as client-only settings.

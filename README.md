@@ -248,6 +248,8 @@ Stone: 10, Coins: 500
 
 Items not listed refill to their normal max stack. A target of `0` prevents restocking that item.
 
+`3 - Restock / Restock Leave One Item` defaults to **On**. Favorite restock (Alt+E by default) leaves one item of each kind in each source chest, across all stacks with the same internal item name, to keep that chest eligible for future quick stack. A chest with only one remaining item will not supply it. Turn this client-only setting Off to allow full depletion; in-game changes apply to subsequent transfers immediately. `Take stacks`, `Take All`, and manual moves are unchanged. Other players and other mods can still take the last item.
+
 ## Crafting Browser
 
 The crafting panel is redesigned into a fast icon-grid browser.

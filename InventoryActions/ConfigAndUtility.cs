@@ -46,6 +46,7 @@ public sealed partial class InventoryActionsPlugin
     private static string? _cachedSortButtonPositionOffsetText;
     private static Vector2 _cachedSortButtonPositionOffset;
     private static ConfigEntry<string> _restockTargetStackLimitsConfig = null!;
+    private static ConfigEntry<Toggle> _restockLeaveOneItem = null!;
     private static ConfigEntry<string> _autoPickupExcludedItemsConfig = null!;
     private static bool CanShowItemRules(InventoryGui gui) => true;
     private static readonly Color FavoriteBorderColor = new(0.1f, 0.55f, 1f, 0.95f);
@@ -105,6 +106,9 @@ public sealed partial class InventoryActionsPlugin
         _featureGuideCollapsed = ConfigEntry(ClientConfigSection, "Feature Guide Collapsed", Toggle.Off,
             new ConfigDescription("Stores the local collapsed state of the InventoryActions guide.",
                 null, new ConfigurationManagerAttributes { Browsable = false }), synchronizedSetting: false);
+        _restockLeaveOneItem = ConfigEntry(RestockConfigSection, "Restock Leave One Item", Toggle.On,
+            new ConfigDescription("Client-only: favorite restock (Alt+E by default) leaves one item of each kind in each source container so it remains a quick-stack destination. Counts all stacks with the same internal item name together. A container with only one remaining item cannot supply it. Off allows restock to take the last item. Does not affect Take stacks, Take All, or manual moves. Changes apply to subsequent transfers immediately.",
+                null, new ConfigurationManagerAttributes { Order = 710 }), synchronizedSetting: false);
         _restockTargetStackLimitsConfig = ConfigEntry(
             RestockConfigSection,
             "Restock Target Stack Limits",
