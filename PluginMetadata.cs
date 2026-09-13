@@ -3,7 +3,7 @@ namespace InventorySlots;
 public sealed partial class InventorySlotsPlugin
 {
     internal const string ModName = "InventorySlots";
-    internal const string ModVersion = "1.4.14";
+    internal const string ModVersion = "1.4.15";
     internal const string Author = "sighsorry";
     internal const string ModGUID = $"{Author}.{ModName}";
 }

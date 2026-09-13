@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.15
+
+- Fixed the built-in multi-user chest feature denying remote Clan, Guild, and administrator access granted by STUWard. InventorySlots now delegates managed-ward container authorization to STUWard while retaining its own requester, ownership, lease, distance, and inventory-transfer safeguards.
+- Added a soft compatibility declaration for STUWard. Missing or older STUWard versions continue to use the existing direct ward-permission behavior, and the standalone MultiUserChest mod remains in control when installed.
+- STUWard 1.3.14 or later is required for group and administrator grants to pass through this integration. Servers and clients using the built-in multi-user chest feature should update both mods together.
+
 ## 1.4.14
 
 - Added the client-only `Restock Leave One Item` option, enabled by default. Favorite restock (Alt+E by default) leaves one item per kind in each source chest, counting all stacks with the same internal item name together, so the chest remains a quick-stack destination.
