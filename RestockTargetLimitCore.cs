@@ -68,6 +68,17 @@ internal static class RestockTargetLimitCore
             : "";
     }
 
+    internal static string ClampAmountForEditor(string? value, int maximumAmount)
+    {
+        if (!long.TryParse(value?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out long parsed))
+        {
+            return "";
+        }
+
+        long clamped = Math.Min(Math.Max(0L, parsed), Math.Max(0, maximumAmount));
+        return clamped.ToString(CultureInfo.InvariantCulture);
+    }
+
     internal static IEnumerable<string> SplitEntries(string raw)
     {
         return raw.Replace("\r", "\n").Split(new[] { '\n', ',', ';' }, StringSplitOptions.RemoveEmptyEntries);

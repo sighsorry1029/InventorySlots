@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.14
+
+- Added an optional compact InventoryActions quick guide beside the hotbar. It displays the active favorite, Use, and Restock bindings, adapts to available screen space, can be collapsed, and stores its visibility and collapsed state as client-only settings.
+- Moved Restock and Auto Pickup Exclude controls into the player-grid render hierarchy used by Trash, so container panels and native dialogs remain above all three controls. External toolbar listeners and objects are also released with the inventory UI lifecycle.
+- Changed the Restock limit editor to keep an in-progress numeric buffer and clamp it to `0..max stack` when editing ends. For example, an item with a maximum stack of 30 now saves both `40` and `230` as `30` instead of restoring `4` or `23`.
+- Removed the redundant automatic-save status and empty-hand Trash hover tooltip, and added a localized title to the delete confirmation dialog.
+
 ## 1.0.13
 
 - Added optional Equipment and Quick Slots 3.x and AzuExtendedPlayerInventory 2.4.14 compatibility. Automatic sorting, quick stack, restock, favorites, trash, and Safe Take All now stay within regular player inventory rows instead of treating equipment, quick, reserved, or custom-slot rows as storage.

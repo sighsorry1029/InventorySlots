@@ -41,6 +41,8 @@ public sealed partial class InventoryActionsPlugin
     private static ConfigEntry<string> _sortButtonPositionOffset = null!;
     private static ConfigEntry<Toggle> _showRestockRulesButton = null!;
     private static ConfigEntry<Toggle> _showAutoPickupRulesButton = null!;
+    private static ConfigEntry<Toggle> _showFeatureGuide = null!;
+    private static ConfigEntry<Toggle> _featureGuideCollapsed = null!;
     private static string? _cachedSortButtonPositionOffsetText;
     private static Vector2 _cachedSortButtonPositionOffset;
     private static ConfigEntry<string> _restockTargetStackLimitsConfig = null!;
@@ -97,6 +99,12 @@ public sealed partial class InventoryActionsPlugin
         _showAutoPickupRulesButton = ConfigEntry(ClientConfigSection, "Show Auto Pickup Exclude Button", Toggle.On,
             new ConfigDescription("Show the automatic pickup exclusion icon below the player inventory. Hiding it does not disable saved exclusions. Applies immediately and closes its editor. Valid edits save immediately.",
                 null, new ConfigurationManagerAttributes { Order = 810 }), synchronizedSetting: false);
+        _showFeatureGuide = ConfigEntry(ClientConfigSection, "Show Feature Guide", Toggle.On,
+            new ConfigDescription("Show a compact InventoryActions guide beside the hotbar. Applies immediately.",
+                null, new ConfigurationManagerAttributes { Order = 800 }), synchronizedSetting: false);
+        _featureGuideCollapsed = ConfigEntry(ClientConfigSection, "Feature Guide Collapsed", Toggle.Off,
+            new ConfigDescription("Stores the local collapsed state of the InventoryActions guide.",
+                null, new ConfigurationManagerAttributes { Browsable = false }), synchronizedSetting: false);
         _restockTargetStackLimitsConfig = ConfigEntry(
             RestockConfigSection,
             "Restock Target Stack Limits",
@@ -264,6 +272,7 @@ public sealed partial class InventoryActionsPlugin
 
     private sealed class ConfigurationManagerAttributes
     {
+        public bool? Browsable { get; set; }
         public int? Order { get; set; }
         public Action<ConfigEntryBase>? CustomDrawer { get; set; }
     }

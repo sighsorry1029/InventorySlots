@@ -17,7 +17,7 @@ namespace InventoryActions;
 public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
 {
     internal const string ModName = "InventoryActions";
-    internal const string ModVersion = "1.0.13";
+    internal const string ModVersion = "1.0.14";
     internal const string Author = "sighsorry";
     internal const string ModGUID = $"{Author}.{ModName}";
     private const string ExternalMultiUserChestGuid = "com.maxsch.valheim.MultiUserChest";
@@ -103,6 +103,7 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
         if (player == null || IsUnityNull(player) || player!.m_isLoading)
         {
             _itemRuleEditor?.Hide();
+            HideFeatureGuideHud();
             CancelAreaContainerTransfer();
             ResetContainerHold(Runtime.AreaQuickStackHold);
             ResetContainerHold(Runtime.AreaRestockHold);
@@ -111,6 +112,7 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
 
         UpdateAreaContainerTransfer(player);
         HandleHoverActions(player);
+        UpdateFeatureGuideHud();
     }
 
     private void OnDestroy()
@@ -126,6 +128,7 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
         _azuEpiConfig = null;
         _azuEpiSeparatePanelEntry = null;
         _azuEpiDisplaysEquipmentInSeparatePanel = null;
+        DestroyFeatureGuideHud();
         DestroyItemRuleUi();
         _autoPickupExcludedItemsConfig.SettingChanged -= RefreshAutoPickupExclusions;
         _autoPickupExcludedItems.Clear();

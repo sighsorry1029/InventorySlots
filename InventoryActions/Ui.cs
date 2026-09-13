@@ -619,7 +619,14 @@ public sealed partial class InventoryActionsPlugin
     private static void ConfigureInventoryTrashButton(Button button, float buttonSize)
     {
         ConfigureInventoryActionIcon(button, buttonSize, GetInventoryTrashIconSprite());
-        SetTooltip(button, LocalizeUi("$inventoryactions_trash_title", "Trash"), LocalizeUi("$inventoryactions_trash_tooltip", "Drop a held inventory item here to delete it after confirmation."));
+        UITooltip? tooltip = button.GetComponent<UITooltip>();
+        if (tooltip != null)
+        {
+            tooltip.m_topic = "";
+            tooltip.m_text = "";
+            tooltip.enabled = false;
+            Object.Destroy(tooltip);
+        }
     }
 
     private static Sprite GetInventoryTrashIconSprite()
@@ -825,6 +832,12 @@ public sealed partial class InventoryActionsPlugin
         string itemName = LocalizeUi(item.m_shared.m_name, item.m_shared.m_name);
         string format = LocalizeUi("$inventoryactions_trash_confirm_format", "Delete {item}?");
         dialog.UpdateIcon(item.GetIcon(), format.Replace("{item}", itemName));
+        TMP_Text? title = dialog.transform.Find("win_bkg/Text")?.GetComponent<TMP_Text>();
+        if (title != null)
+        {
+            title.text = LocalizeUi("$inventoryactions_trash_confirm_title", "Delete item");
+        }
+
         SetInventoryTrashConfirmButtonText(TrashSplitOkButton(dialog), LocalizeUi("$inventoryactions_trash_delete", "Delete"), new Color(1f, 0.25f, 0.12f, 1f));
         SetInventoryTrashConfirmButtonText(TrashSplitCancelButton(dialog), LocalizeUi("$menu_cancel", "Cancel"), Color.white);
         dialog.SetActive(true);

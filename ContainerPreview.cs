@@ -383,11 +383,26 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        if (previewRoot != null &&
-            !IsUnityNull(previewRoot) &&
-            (target == previewRoot || previewRoot.transform.IsChildOf(target.transform)))
+        if (previewRoot != null && !IsUnityNull(previewRoot))
         {
-            return;
+            if (target == previewRoot)
+            {
+                return;
+            }
+
+            if (previewRoot.transform.IsChildOf(target.transform))
+            {
+                // Some InventoryGui layouts nest the container below a broader
+                // player-panel branch. Preserve only the path to the preview and
+                // hide every sibling branch so the player inventory cannot leak
+                // into the read-only container preview.
+                for (int index = 0; index < target.transform.childCount; index++)
+                {
+                    CaptureAndHideContainerPreviewObject(target.transform.GetChild(index).gameObject, previewRoot);
+                }
+
+                return;
+            }
         }
 
         if (!ContainerPreviewHiddenObjects.ContainsKey(target))

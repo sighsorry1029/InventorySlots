@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.12
+
+- Fixed container previews that could leave the player inventory visible alongside the hovered container. Shared UI ancestors now retain only the branch leading to the read-only preview.
+- Moved Restock and Auto Pickup Exclude controls into the player-grid render hierarchy used by Trash, so container panels and native dialogs remain above all three controls. External toolbar listeners and objects are also released with the inventory UI lifecycle.
+- Changed the Restock limit editor to keep an in-progress numeric buffer and clamp it to `0..max stack` when editing ends. For example, an item with a maximum stack of 30 now saves both `40` and `230` as `30` instead of restoring `4` or `23`.
+- Removed the redundant automatic-save status and empty-hand Trash hover tooltip, added a localized title to the delete confirmation, and shortened the quick guide's Restock configuration section.
+
 ## 1.4.11
 
 - Restored the configurable built-in multi-user chest feature for standard player-built chests. Multiple players may keep a chest open for viewing, while drag/drop, stack/restock, take-all, sorting, and nearby-container actions wait for an approved ownership handoff and fresh inventory state before changing items. Stale selections, denied or timed-out requests, ownership/token changes, and duplicate responses fail without moving items.

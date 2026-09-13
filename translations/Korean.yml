@@ -26,8 +26,7 @@ inventoryslots_button_take_all: 모두 가져오기
 inventoryslots_button_place_stacks: 스택 넣기
 inventoryslots_button_place_all: 모두 놓기
 inventoryslots_button_take_stacks: 묶음 갖기
-inventoryslots_trash_title: 휴지통
-inventoryslots_trash_tooltip: 들고 있는 인벤토리 아이템을 여기에 놓으면 확인 후 삭제합니다.
+inventoryslots_trash_confirm_title: 아이템 삭제
 inventoryslots_trash_confirm_format: "{item}을(를) 삭제할까요?"
 inventoryslots_trash_delete: 삭제
 inventoryslots_trash_no_item: 먼저 아이템을 집어 주세요.
@@ -46,7 +45,7 @@ inventoryslots_multi_user_chest_use_empty_slot: 빈 칸이나 같은 아이템 �
 inventoryslots_hold_to_restock: 누르고 있으면 보충
 inventoryslots_reclaim_blocked: 차단됨
 inventoryslots_hotbar_switch_hint: "전환 [{key}]"
-inventoryslots_feature_guide: "<b>InventorySlots 빠른 가이드</b>\n인벤토리·상자 아이템 또는 제작 레시피 위에서 <color=#FFA94D>[{tooltipKey}]</color>: 툴팁 고정\n인벤토리 칸 또는 제작 레시피 위에서 <color=#FFA94D>[{favoriteKey}]</color>: 즐겨찾기 등록/해제\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 일치하는 아이템을 주변 상자에 보관 (즐겨찾기 칸 제외)\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 즐겨찾기 칸에 있는 아이템을 주변 상자에서 목표 수량까지 보충\n목표 수량 설정: <color=#FFA94D>인벤토리 아래 Restock(보충) 아이콘에 아이템 드롭 → 수량 입력 → 저장</color>\n목표는 스택마다 적용: 미설정은 최대 스택, 0은 보충 제외\n버튼을 숨긴 경우: <color=#FFA94D>F1 → InventorySlots → 3 - Restock</color>\n커스텀 슬롯·규칙: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>\n지금 이 가이드 숨기기: <color=#FFA94D>F1 → InventorySlots → Show Feature Guide → Off</color>"
+inventoryslots_feature_guide: "<b>InventorySlots 빠른 가이드</b>\n인벤토리·상자 아이템 또는 제작 레시피 위에서 <color=#FFA94D>[{tooltipKey}]</color>: 툴팁 고정\n인벤토리 칸 또는 제작 레시피 위에서 <color=#FFA94D>[{favoriteKey}]</color>: 즐겨찾기 등록/해제\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 일치하는 아이템을 주변 상자에 보관 (즐겨찾기 칸 제외)\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 즐겨찾기 칸에 있는 아이템을 주변 상자에서 목표 수량까지 보충\n커스텀 슬롯·규칙: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>\n지금 이 가이드 숨기기: <color=#FFA94D>F1 → InventorySlots → Show Feature Guide → Off</color>"
 inventoryslots_quick_slot_format: "퀵 {index}"
 inventoryslots_clear_favorites_hint_format: "{key}: 즐겨찾기 해제"
 inventoryslots_inventory_limit_reached: "{item}: 최대 {max}개까지 지닐 수 있습니다."
@@ -69,5 +68,4 @@ inventoryslots_rules_saved: 저장됨
 inventoryslots_rules_conflict: 설정이 변경되었습니다. 입력을 마치면 다시 불러옵니다.
 inventoryslots_rules_invalid: 표시된 범위 내에서 0 이상의 수량을 입력해 주세요.
 inventoryslots_rules_save_failed: 설정을 저장하지 못했습니다.
-inventoryslots_rules_autosave: 변경 사항은 자동으로 저장됩니다
 inventoryslots_rules_restored: 마지막으로 저장한 수량으로 복원했습니다

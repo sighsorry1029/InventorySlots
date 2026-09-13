@@ -2,8 +2,7 @@ inventoryactions_button_take_all: Take all
 inventoryactions_button_place_stacks: Place stacks
 inventoryactions_button_place_all: Place all
 inventoryactions_button_take_stacks: Take stacks
-inventoryactions_trash_title: Trash
-inventoryactions_trash_tooltip: Drop a held inventory item here to delete it after confirmation.
+inventoryactions_trash_confirm_title: Delete item
 inventoryactions_trash_confirm_format: "Delete {item}?"
 inventoryactions_trash_delete: Delete
 inventoryactions_trash_no_item: Pick up an item first.
@@ -17,6 +16,7 @@ inventoryactions_action_sort: Sort
 inventoryactions_action_result_format: "{action}: {count}"
 inventoryactions_container_not_ready: Container is not ready.
 inventoryactions_hold_to_restock: Hold to restock
+inventoryactions_feature_guide: "<b>InventoryActions quick guide</b>\n<color=#FFA94D>[{favoriteKey} + Left Click]</color> on a player inventory slot: Toggle favorite\nWhile looking at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching non-favorited items in it and nearby chests\nWhile looking at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill favorite stacks from it and nearby chests up to their targets\nDrop a held item on <color=#FFA94D>Restock limits</color>: Set its favorite-stack target\nDrop a held item on <color=#FFA94D>Auto pickup exclusions / Trash</color>: Exclude auto pickup / delete after confirmation\nHide this guide: <color=#FFA94D>F1 → InventoryActions → Show Feature Guide → Off</color>"
 inventoryactions_rules_restock_title: Restock limits
 inventoryactions_rules_exclude_title: Auto pickup exclusions
 inventoryactions_rules_restock_scope: "{key} · target per favorite stack; 0 disables restock"
@@ -34,5 +34,4 @@ inventoryactions_rules_saved: Saved
 inventoryactions_rules_conflict: Config changed. Finish editing to reload.
 inventoryactions_rules_invalid: Enter a valid non-negative quantity within the shown limit.
 inventoryactions_rules_save_failed: Could not save config.
-inventoryactions_rules_autosave: Changes save automatically
 inventoryactions_rules_restored: Last saved quantity restored

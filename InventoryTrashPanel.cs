@@ -158,9 +158,20 @@ public sealed partial class InventorySlotsPlugin
             }
         }
 
+        // The template carries a UITooltip, but this icon communicates its state
+        // through the held-item highlight and the delete confirmation dialog.
+        UITooltip? tooltip = button.GetComponent<UITooltip>();
+        if (tooltip != null)
+        {
+            tooltip.m_topic = "";
+            tooltip.m_text = "";
+            tooltip.enabled = false;
+            Object.Destroy(tooltip);
+        }
+
         Sprite sprite = GetInventoryTrashIconSprite();
         float iconSize = Mathf.Max(18f, buttonSize * 0.58f);
-        string signature = $"{buttonSize:0.###}|{iconSize:0.###}|{GetUnityObjectId(sprite)}|{_uiLocalizationVersion}";
+        string signature = $"{buttonSize:0.###}|{iconSize:0.###}|{GetUnityObjectId(sprite)}";
         if (string.Equals(marker.LayoutSignature, signature, StringComparison.Ordinal))
         {
             return;
@@ -181,19 +192,6 @@ public sealed partial class InventorySlotsPlugin
         if (marker.Icon.raycastTarget)
         {
             marker.Icon.raycastTarget = false;
-        }
-
-        UITooltip tooltip = button.GetComponent<UITooltip>() ?? button.gameObject.AddComponent<UITooltip>();
-        string topic = LocalizeUi("$inventoryslots_trash_title", "Trash");
-        string tooltipText = LocalizeUi("$inventoryslots_trash_tooltip", "Drop a held inventory item here to delete it after confirmation.");
-        if (tooltip.m_topic != topic)
-        {
-            tooltip.m_topic = topic;
-        }
-
-        if (tooltip.m_text != tooltipText)
-        {
-            tooltip.m_text = tooltipText;
         }
 
         marker.LayoutSignature = signature;
@@ -436,6 +434,13 @@ public sealed partial class InventorySlotsPlugin
         string itemName = LocalizeUi(item.m_shared.m_name, item.m_shared.m_name);
         string format = LocalizeUi("$inventoryslots_trash_confirm_format", "Delete {item}?");
         dialog.UpdateIcon(item.GetIcon(), format.Replace("{item}", itemName));
+        TMP_Text? title = dialog.transform.Find("win_bkg/Text")?.GetComponent<TMP_Text>();
+        if (title != null)
+        {
+            ApplyDefaultFontAsset(title);
+            title.text = LocalizeUi("$inventoryslots_trash_confirm_title", "Delete item");
+        }
+
         SetInventoryTrashConfirmButtonText(TrashSplitOkButton(dialog), LocalizeUi("$inventoryslots_trash_delete", "Delete"), new Color(1f, 0.25f, 0.12f, 1f));
         SetInventoryTrashConfirmButtonText(TrashSplitCancelButton(dialog), LocalizeUi("$menu_cancel", "Cancel"), Color.white);
         dialog.SetActive(true);

@@ -219,7 +219,10 @@ public sealed partial class InventoryActionsPlugin
             if (fontSource == null) return false; // Wait until the game's own font is ready.
             _font = fontSource.font;
             _fontMaterial = fontSource?.fontSharedMaterial ?? _font.material;
-            _toolbar = Rect("Toolbar", _root, Vector2.zero, Vector2.zero);
+            // Keep the inventory buttons in the same player-grid render phase as
+            // the trash button. The popup stays on m_inventoryRoot so dialogs and
+            // screen-edge clamping keep their existing behavior.
+            _toolbar = Rect("Toolbar", gui.m_playerGrid.m_gridRoot, Vector2.zero, Vector2.zero);
             _restockButton = RuleButton(ModName + "_RestockRules", true);
             _excludeButton = RuleButton(ModName + "_AutoPickupRules", false);
             _ruleButtonSprite = _restockButton.image.sprite;
@@ -257,6 +260,8 @@ public sealed partial class InventoryActionsPlugin
             if (!CanShow) { Hide(); return; }
             if (Open && (!IsItemRuleButtonEnabled(_restock) || HasBlockingDialog)) Close();
             InventoryGrid grid = Owner.m_playerGrid;
+            RectTransform gridRoot = grid.m_gridRoot;
+            if (_toolbar.parent != gridRoot) _toolbar.SetParent(gridRoot, false);
             float size = Mathf.Clamp(Mathf.Max(1f, grid.m_elementSpace) * 0.72f, 42f, 58f);
             // A zero-size toolbar shares the GUI origin. Convert each grid anchor
             // separately so row growth and grid transforms affect every button.
@@ -271,7 +276,7 @@ public sealed partial class InventoryActionsPlugin
                 Frame((RectTransform)button.transform, 0, 0, size, size);
                 int columns = Mathf.Max(1, grid.m_inventory != null ? grid.m_inventory.GetWidth() : 8);
                 Vector3 position = gridOrigin + CalculateInventoryBottomButtonPosition(columns, visibleRows, Mathf.Max(1f, grid.m_elementSpace), size, GetItemRuleColumnsFromRight(restock));
-                button.transform.localPosition = _root.InverseTransformPoint(grid.m_gridRoot.TransformPoint(position));
+                button.transform.localPosition = _toolbar.InverseTransformPoint(gridRoot.TransformPoint(position));
             }
             ConfigureInventoryActionIcon(_restockButton, size, _restockIcon);
             ConfigureInventoryActionIcon(_excludeButton, size, _excludeIcon);
@@ -548,7 +553,7 @@ public sealed partial class InventoryActionsPlugin
             _content.sizeDelta = new Vector2(inner, Mathf.Max(1, visible.Count) * RowHeight);
             _content.anchoredPosition = Vector2.zero;
             Frame(_status.rectTransform, 12, -82 - viewHeight, inner, 30);
-            _status.text = L("autosave", "Changes save automatically");
+            _status.text = "";
             if (visible.Count == 0)
             {
                 TMP_Text empty = Text(_content, "Empty", L("empty", "No registered items"), 16);
@@ -571,7 +576,7 @@ public sealed partial class InventoryActionsPlugin
                 tooltip.m_topic = item == null ? entry.Key : GetLocalizedItemName(item); tooltip.m_text = entry.Key;
                 if (_restock)
                 {
-                    TMP_InputField field = NumberField(row, entry);
+                    TMP_InputField field = NumberField(row, entry, item);
                     Frame((RectTransform)field.transform, inner - 94, -2, _registration != null ? 94 : 58, 32);
                 }
                 if (_registration == null)
@@ -589,8 +594,11 @@ public sealed partial class InventoryActionsPlugin
             PositionPopup();
         }
 
-        private TMP_InputField NumberField(RectTransform parent, ItemRuleConfigCore.Entry entry)
+        private TMP_InputField NumberField(RectTransform parent, ItemRuleConfigCore.Entry entry, ItemData? item)
         {
+            int? maximumAmount = item?.m_shared != null
+                ? Mathf.Max(0, item.m_shared.m_maxStackSize)
+                : null;
             RectTransform rect = Rect("Quantity", parent, new Vector2(58, 32), Vector2.zero);
             rect.gameObject.SetActive(false);
             Image image = rect.gameObject.AddComponent<Image>();
@@ -616,7 +624,7 @@ public sealed partial class InventoryActionsPlugin
                 // An empty/invalid edit buffer must never disable restock or be
                 // written to config. Keep the last successfully saved quantity.
                 if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int amount) || amount < 0 ||
-                    (entry == _registration && amount > _registrationMax))
+                    (maximumAmount.HasValue && amount > maximumAmount.Value))
                 { _status.text = L("invalid", "Enter a valid non-negative quantity."); return; }
                 string previous = entry.Amount;
                 entry.Amount = text;
@@ -624,9 +632,24 @@ public sealed partial class InventoryActionsPlugin
             });
             input.onEndEdit.AddListener(text =>
             {
-                if (text == entry.Amount) return;
-                input.SetTextWithoutNotify(entry.Amount);
-                _status.text = L("restored", "Last saved quantity restored");
+                string normalized = maximumAmount.HasValue
+                    ? RestockTargetLimitCore.ClampAmountForEditor(text, maximumAmount.Value)
+                    : RestockTargetLimitCore.NormalizeAmountForEditor(text);
+                if (normalized.Length == 0)
+                {
+                    input.SetTextWithoutNotify(entry.Amount);
+                    _status.text = L("restored", "Last saved quantity restored");
+                    return;
+                }
+                if (normalized == entry.Amount)
+                {
+                    input.SetTextWithoutNotify(normalized);
+                    return;
+                }
+                string previous = entry.Amount;
+                entry.Amount = normalized;
+                if (Save()) input.SetTextWithoutNotify(normalized);
+                else { entry.Amount = previous; input.SetTextWithoutNotify(previous); }
             });
             _fields.Add(input);
             rect.gameObject.SetActive(true);
@@ -649,15 +672,29 @@ public sealed partial class InventoryActionsPlugin
             _hoverMode = null; _hoverStarted = _outsideStarted = -1f;
             if (_toolbar != null) _toolbar.gameObject.SetActive(false);
         }
-        private void OnDisable() => Close();
+        private void OnDisable()
+        {
+            Close();
+            if (_toolbar != null) _toolbar.gameObject.SetActive(false);
+        }
         private void OnDestroy()
         {
             Close();
-            foreach (Button button in GetComponentsInChildren<Button>(true)) button.onClick.RemoveAllListeners();
-            foreach (UIDragHandler handler in GetComponentsInChildren<UIDragHandler>(true)) handler.m_onReleasedOn = null;
+            RemoveUiListeners(transform);
+            if (_toolbar != null && !_toolbar.IsChildOf(transform))
+            {
+                RemoveUiListeners(_toolbar);
+                Object.Destroy(_toolbar.gameObject);
+            }
             foreach (Sprite sprite in _ownedIcons) if (sprite != null) { Object.Destroy(sprite.texture); Object.Destroy(sprite); }
             _ownedIcons.Clear();
             if (ReferenceEquals(_itemRuleEditor, this)) _itemRuleEditor = null;
+        }
+
+        private static void RemoveUiListeners(Transform owner)
+        {
+            foreach (Button button in owner.GetComponentsInChildren<Button>(true)) button.onClick.RemoveAllListeners();
+            foreach (UIDragHandler handler in owner.GetComponentsInChildren<UIDragHandler>(true)) handler.m_onReleasedOn = null;
         }
 
         private RectTransform Rect(string name, Transform parent, Vector2 size, Vector2 position)

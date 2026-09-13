@@ -234,6 +234,10 @@ internal static class Tests
         Assert.True(
             source.Contains("previewRoot.transform.IsChildOf(target.transform)", StringComparison.Ordinal),
             "UI suppression must never deactivate an ancestor of the visible container panel");
+        Assert.True(
+            source.Contains("target.transform.childCount", StringComparison.Ordinal) &&
+            source.Contains("CaptureAndHideContainerPreviewObject(target.transform.GetChild(index).gameObject, previewRoot);", StringComparison.Ordinal),
+            "an ancestor shared with the container preview must hide its non-preview branches instead of leaving the player panel visible");
     }
 
     public static void OccupiedLockedRowsRemainVisible()
@@ -2730,6 +2734,14 @@ internal static class Tests
             source,
             "private static bool CanFavoriteCell",
             "private static bool HasNoCustomData");
+        string supportedCellPolicy = ReadSourceSection(
+            policy,
+            "private static bool IsSupportedPlayerCell",
+            "private static bool IsRegularPlayerCell");
+        string regularRowsPolicy = ReadSourceSection(
+            source,
+            "private static int GetRegularPlayerRowsOrInventoryHeight",
+            "private static bool HasNoCustomData");
 
         Assert.True(
             CountSourceOccurrences(policy, "return IsSupportedPlayerCell(inventory, pos);") == 1,
@@ -2739,8 +2751,10 @@ internal static class Tests
             policy.Contains("IsSupportedPlayerCell(inventory, pos) && pos.y > 0", StringComparison.Ordinal),
             "trash and regular container actions must exclude the hotbar");
         Assert.True(
-            policy.Contains("!IsOutOfBounds(inventory, pos)", StringComparison.Ordinal) &&
-            !policy.Contains("VanillaPlayerRows", StringComparison.Ordinal),
+            supportedCellPolicy.Contains("!IsOutOfBounds(inventory, pos)", StringComparison.Ordinal) &&
+            supportedCellPolicy.Contains("GetRegularPlayerRowsOrInventoryHeight(inventory)", StringComparison.Ordinal) &&
+            !supportedCellPolicy.Contains("pos.y < VanillaPlayerRows", StringComparison.Ordinal) &&
+            regularRowsPolicy.Contains("inventory != null ? inventory.GetHeight() : VanillaPlayerRows", StringComparison.Ordinal),
             "InventoryActions must include purchased rows within the loaded inventory bounds");
         Assert.False(
             policy.Contains("InventoryCellKind", StringComparison.Ordinal) ||
@@ -4991,6 +5005,14 @@ internal static class Tests
         Assert.Equal("7", RestockTargetLimitCore.NormalizeAmountForEditor(" +7 "));
         Assert.Equal("", RestockTargetLimitCore.NormalizeAmountForEditor("invalid"));
         Assert.Equal("", RestockTargetLimitCore.NormalizeAmountForEditor("2147483648"));
+        Assert.Equal("30", RestockTargetLimitCore.ClampAmountForEditor("40", 30));
+        Assert.Equal("30", RestockTargetLimitCore.ClampAmountForEditor("230", 30));
+        Assert.Equal("0", RestockTargetLimitCore.ClampAmountForEditor("-5", 30));
+        Assert.Equal("30", RestockTargetLimitCore.ClampAmountForEditor("9999999999", 30));
+        Assert.Equal("", RestockTargetLimitCore.ClampAmountForEditor("invalid", 30));
+        Assert.Equal(
+            RestockTargetLimitCore.ClampAmountForEditor("230", 30),
+            InventoryActions.RestockTargetLimitCore.ClampAmountForEditor("230", 30));
 
         Assert.Equal(
             RestockTargetLimitCore.Parse("Wood: -5")["wood"],

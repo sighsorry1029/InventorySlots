@@ -26,8 +26,7 @@ inventoryslots_button_take_all: Take all
 inventoryslots_button_place_stacks: Place stacks
 inventoryslots_button_place_all: Place all
 inventoryslots_button_take_stacks: Take stacks
-inventoryslots_trash_title: Trash
-inventoryslots_trash_tooltip: Drop a held inventory item here to delete it after confirmation.
+inventoryslots_trash_confirm_title: Delete item
 inventoryslots_trash_confirm_format: "Delete {item}?"
 inventoryslots_trash_delete: Delete
 inventoryslots_trash_no_item: Pick up an item first.
@@ -46,7 +45,7 @@ inventoryslots_multi_user_chest_use_empty_slot: Use an empty slot or a matching 
 inventoryslots_hold_to_restock: Hold to restock
 inventoryslots_reclaim_blocked: Blocked
 inventoryslots_hotbar_switch_hint: "Switch [{key}]"
-inventoryslots_feature_guide: "<b>InventorySlots quick guide</b>\n<color=#FFA94D>[{tooltipKey}]</color> over an inventory or chest item, or a crafting recipe: Pin tooltip\n<color=#FFA94D>[{favoriteKey}]</color> over an inventory slot or crafting recipe: Toggle favorite\nWhile looking at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching items nearby (favorite slots excluded)\nWhile looking at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill existing items in favorite slots from nearby chests up to their targets\nSet targets: Drop an item onto the <color=#FFA94D>Restock icon below inventory → enter quantity → Save</color>\nTargets apply per stack: Unconfigured = maximum stack; 0 = no restock\nIf the button is hidden: <color=#FFA94D>F1 → InventorySlots → 3 - Restock</color>\nCustom slots and rules: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>\nHide this guide now: <color=#FFA94D>F1 → InventorySlots → Show Feature Guide → Off</color>"
+inventoryslots_feature_guide: "<b>InventorySlots quick guide</b>\n<color=#FFA94D>[{tooltipKey}]</color> over an inventory or chest item, or a crafting recipe: Pin tooltip\n<color=#FFA94D>[{favoriteKey}]</color> over an inventory slot or crafting recipe: Toggle favorite\nWhile looking at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching items nearby (favorite slots excluded)\nWhile looking at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill existing items in favorite slots from nearby chests up to their targets\nCustom slots and rules: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>\nHide this guide now: <color=#FFA94D>F1 → InventorySlots → Show Feature Guide → Off</color>"
 inventoryslots_quick_slot_format: "Quick {index}"
 inventoryslots_clear_favorites_hint_format: "{key}: clear favorites"
 inventoryslots_inventory_limit_reached: "{item}: you can carry at most {max}."
@@ -69,5 +68,4 @@ inventoryslots_rules_saved: Saved
 inventoryslots_rules_conflict: Config changed. Finish editing to reload.
 inventoryslots_rules_invalid: Enter a valid non-negative quantity within the shown limit.
 inventoryslots_rules_save_failed: Could not save config.
-inventoryslots_rules_autosave: Changes save automatically
 inventoryslots_rules_restored: Last saved quantity restored
