@@ -6,6 +6,9 @@ It adds progressive inventory rows, equipment slots, quick slots, favorites, kee
 
 ## Visual Overview
 
+![](https://i.ibb.co/b5qGKm8k/Inventory-Button.gif) <br>
+Three inventory buttons: Restock limit, Auto Pickup Exclude, and Trash
+
 ### Stable Inventory Growth
 
 ![](https://i.ibb.co/QFFMsQgx/progressiveslotfinal.gif) <br>
@@ -129,7 +132,7 @@ Clients can display unlocked rows in two ways:
 - `Fixed`: show all unlocked regular rows.
 - `Expandable`: remember the visible row count locally and adjust it with the mouse wheel while the inventory is open.
 
-`Auto Favorite Hotbar Switch Row` defaults to `On` and marks the second inventory row as favorite when the local player is loaded or spawned.
+`Auto Favorite Hotbar Switch Row` defaults to `Off`. When enabled, it marks the second inventory row as favorite when the local player is loaded or spawned.
 
 ## Equipment Slots
 
@@ -248,7 +251,9 @@ Stone: 10, Coins: 500
 
 Items not listed refill to their normal max stack. A target of `0` prevents restocking that item.
 
-`3 - Restock / Restock Leave One Item` defaults to **On**. Favorite restock (Alt+E by default) leaves one item of each kind in each source chest, across all stacks with the same internal item name, to keep that chest eligible for future quick stack. A chest with only one remaining item will not supply it. Turn this client-only setting Off to allow full depletion; in-game changes apply to subsequent transfers immediately. `Take stacks`, `Take All`, and manual moves are unchanged. Other players and other mods can still take the last item.
+`3 - Inventory Buttons / Restock Leave One Item` defaults to **On**. Favorite restock (Alt+E by default) leaves one item of each kind in each source chest, across all stacks with the same internal item name, to keep that chest eligible for future quick stack. A chest with only one remaining item will not supply it. Turn this client-only setting Off to allow full depletion; in-game changes apply to subsequent transfers immediately. `Take stacks`, `Take All`, and manual moves are unchanged. Other players and other mods can still take the last item.
+
+`3 - Inventory Buttons` also groups `Restock Button`, `Restock Target Stack Limits`, `Auto Pickup Exclude Button`, `Auto Pickup Excluded Items`, and `Trash Button`. The three client-only button modes default to **Auto**: show the bottom edge and expand that button on hover. Holding an item alone does not expand it; an open editor keeps its button expanded, and gamepad use expands Auto buttons. **On** always displays the full button; **Off** hides it. Saved restock and pickup rules remain active when their button is hidden. Enabled buttons pack from the right in Trash, Exclude, Restock order. The synced `1 - General / Enable Inventory Trash Panel` still controls whether trash is allowed at all. No old-section migration is performed.
 
 ## Crafting Browser
 
@@ -425,7 +430,7 @@ These options are stored in the root-level `sighsorry.InventorySlots.cfg`:
 
 - `1 - General`: server lock, death keep rules, trash panel, area quick stack, and area take stacks.
 - `2 - Progressive Slots`: extra rows, quick slot rows, quick slot progression.
-- `3 - Restock`: favorite restock target limits.
+- `3 - Inventory Buttons`: button display modes, restock limits/reserve and automatic pickup exclusions (client-only).
 - `4 - Client`: inventory display, sort modes, crafting grid, container preview and hover behavior, container FX, mouse UI scroll.
 - `5 - Client UI`: hints and tooltip display options.
 - `6 - Client Keys`: keyboard and mouse shortcuts.

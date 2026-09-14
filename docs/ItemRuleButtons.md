@@ -235,3 +235,126 @@ recurrence, Korean/fallback text, Craft disabled while rule actions remain usabl
 input contrast over wood, continuous typing/selection/Escape, config persistence
 after restart, screen-edge dropdowns and split-dialog overlap. No performance
 measurement, version change, Release package or push was performed.
+
+## Closing animation alignment (2026-09-14)
+
+Both mods now retain the existing Trash and rule toolbar visuals beneath the
+player grid while the native inventory animator closes. Hide/CloseContainer and
+the later `IsVisible()` transition no longer independently remove these buttons
+during a normal close. The rule editor closes immediately, its existing Animator
+input guard prevents reopening, and Trash explicitly rejects interaction while
+the animator's `visible` parameter is false. No separate button animation or timer
+was added. Quickslot animation is unchanged.
+
+Preview-only suppression, invalid/loading player cleanup, UI destruction and
+explicit full hiding still remove the buttons. Retaining visuals never activates
+an already-hidden toolbar. The shared UI implementation applies to both mods.
+
+Both Debug builds/deployments succeeded. Existing InventorySlots checks (167) and
+item rule configuration checks (37) passed; these do not execute Unity animation.
+In-game checks remain: close/reopen with and without a container, a pinned editor
+or held item, button visibility settings, and preview after closing.
+
+## Independent slide-out buttons (2026-09-14)
+
+Trash, Restock and Exclude each have their own clipped content transform below
+the player grid in both mods. Each idle button exposes 7 UI units. Hovering that
+button's visible area expands only that button over 0.15 seconds; leaving it for
+0.3 seconds starts its retraction. Holding an item alone does not expand any
+button: dragging and empty-handed hovering use the same pointer condition.
+An open rule popup holds only its associated button expanded and follows that
+button. Gamepad use keeps all enabled buttons expanded for access without hover.
+Enabled buttons pack from the right edge in Trash, Exclude, Restock order. With
+Trash disabled, Exclude occupies column 8 and Restock column 7; if only one rule
+button is enabled it occupies column 8. Live layout uses the same column offset
+for the button, its clip and the popup anchor.
+
+RectMask2D clips the translated content above the inventory's bottom edge. A
+raycast filter restricts input to the currently exposed height, and hover checks
+the foremost EventSystem hit so overlaid containers/dialogs win. No inventory
+slot-sized invisible hover area is added. Disabled button settings still apply,
+including the all-disabled case. The original row/column positioning remains
+responsible for native and supported mod-added rows.
+
+Each button's slide freezes during inventory closing so the three buttons leave
+with their parent panel. Input is blocked and the editor closes immediately.
+Opening again starts from the collapsed state. GUI destruction removes the
+clips with their parents; per-button references are cleared on destruction.
+Rule clips live under the rule toolbar so its hide/destroy behavior still owns
+both buttons and their listeners. Each component performs no per-frame hierarchy
+or reflection searches. Pointer data
+and raycast result storage are reused (EventSystem itself may allocate).
+
+Debug builds and existing automated checks do not verify Unity clipping,
+raycasting or animation. Check the actual game for hover/drag, mouse movement
+between buttons and popups, gamepad use, dynamic rows, all visibility-setting
+combinations, container/split overlap, and close/reopen.
+
+## Inventory Buttons configuration (2026-09-14)
+
+Both mods use `3 - Inventory Buttons`, replacing their old `3 - Restock` section.
+Configuration Manager order (highest Order first):
+
+1. Restock Button = Auto (900)
+2. Restock Target Stack Limits = empty (890)
+3. Restock Leave One Item = On (880)
+4. Auto Pickup Exclude Button = Auto (870)
+5. Auto Pickup Excluded Items = empty (860)
+6. Trash Button = Auto (850)
+
+All six settings are client-only. Button modes are Off, Auto and On. Auto keeps
+the independent hover slide behavior; On always exposes the whole button and
+Off hides it. The existing synced `1 - General / Enable Inventory Trash Panel`
+remains unchanged and overrides the local trash mode. Only effectively visible
+buttons reserve columns. Hidden rule buttons leave saved rules active. Hiding
+Trash also closes its confirmation and prevents starting a trash action.
+
+No migration or legacy binding was added. Values from old section/key identities
+are not imported into these bindings. Other section numbers are unchanged.
+
+Both final Debug builds succeeded with zero warnings/errors and matched the
+deployed Steam plugin DLL hashes. The existing 167-check suite passed. The
+compiled InventoryActions `--button-modes` harness passed 271 checks covering
+all server-permission/mode combinations with real BepInEx entries. InventorySlots
+could not enter that additional harness: its existing static initialization
+fails under Windows CLR (interface method loading) and under the experimental
+.NET 9 runner (Harmony initialization). These are isolated-harness limitations,
+not game execution results. Actual Configuration Manager presentation, live
+UI mode transitions and game/network execution remain unverified.
+
+### Retry with Unity's standalone Mono (2026-09-14)
+
+Unity Editor installations provide `MonoBleedingEdge/bin/mono.exe` even though
+Mono is not on PATH. The harness now initializes BepInEx.Paths through its
+existing SetExecutablePath method before ConfigFile initialization, with a new
+temporary BepInEx root. No user configuration or mod/game DLL is changed.
+
+Using Unity 6000.0.46f1's Mono 6.13.0 (x86) and the current original client Managed
+directory, InventorySlots completed all 271 `--button-modes` assertions against
+the then-current 1.4.15 Debug DLL (SHA-256
+`2F7AE7CC84FA5F328466456CBB47EA05494D8D79954E2473E3B8399058591701`).
+This covers server permission, each Off/Auto/On setting, independent visibility
+and packed columns. Logs: `artifacts/slots-button-modes-mono.log`.
+
+However, the process subsequently exited with native access violation
+`0xC0000005`. Unity 6000.0.61f1 behaved similarly; 2022.3.50f1 completed the same
+assertions then exited with `0xC0000374`. InventoryActions as a control also
+completed all 271 assertions then suffered the standalone Mono exit failure.
+Windows Application events identify mono-2.0-sgen.dll/ntdll.dll for the access
+violations. The underlying native fault has not been established. Disabling
+finalization for the managed-only queue did not fix it and was not retained.
+
+Thus the assertion results are now available, but this is **not** a clean
+end-to-end harness run or actual Unity/game verification. No process termination
+shortcut, altered game/mod assembly, or test-assertion bypass was used to mask
+the failing exit status. Reproduction:
+
+```powershell
+dotnet build InventoryActions/build/CompatibilitySmoke/CompatibilitySmoke.csproj -c Debug
+& 'C:/Program Files/Unity 6000.0.46f1/Editor/Data/MonoBleedingEdge/bin/mono.exe' `
+  InventoryActions/build/CompatibilitySmoke/bin/Debug/net48/CompatibilitySmoke.exe `
+  bin/Debug/InventorySlots.dll `
+  'C:/Program Files (x86)/Steam/steamapps/common/Valheim/valheim_Data/Managed' `
+  'C:/Program Files (x86)/Steam/steamapps/common/Valheim/BepInEx/core' --button-modes
+# Check $LASTEXITCODE as well as the PASS summary.
+```

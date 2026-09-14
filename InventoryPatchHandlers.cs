@@ -784,7 +784,7 @@ public sealed partial class InventorySlotsPlugin
         ClearPendingContainerSortRequest();
         RestoreContainerPanelPosition();
         RestoreContainerWeightPanelPosition();
-        HideInventoryActionPanels();
+        HideInventoryActionPanels(preservePlayerButtons: IsInventoryPanelClosing(InventoryGui.instance));
     }
 
     internal static bool TryOverrideTombStoneEasyFit(TombStone tombStone, Player player, ref bool result)

@@ -15,8 +15,8 @@ internal static class Program
 
     private static int Main(string[] args)
     {
-        if (args.Length != 3 && (args.Length != 4 || (args[3] != "--button-offsets" && args[3] != "--ui-layout" && args[3] != "--restock-reserve")))
-            throw new ArgumentException("Usage: <final mod.dll> <original Managed> <BepInEx core> [--ui-layout|--restock-reserve]");
+        if (args.Length != 3 && (args.Length != 4 || (args[3] != "--button-offsets" && args[3] != "--ui-layout" && args[3] != "--restock-reserve" && args[3] != "--button-modes")))
+            throw new ArgumentException("Usage: <final mod.dll> <original Managed> <BepInEx core> [--ui-layout|--restock-reserve|--button-modes]");
         string[] roots = { Path.GetDirectoryName(Path.GetFullPath(args[0]))!, Path.GetFullPath(args[1]), Path.GetFullPath(args[2]) };
         AppDomain.CurrentDomain.AssemblyResolve += (_, request) =>
         {
@@ -30,6 +30,13 @@ internal static class Program
         };
         try
         {
+            // Standalone Mono does not run BepInEx's preloader. Initialize its
+            // managed paths before ConfigFile's static constructor. Keep any
+            // framework-created config/cache files outside the user's game.
+            Assembly bep = Assembly.LoadFrom(Path.Combine(roots[2], "BepInEx.dll"));
+            string isolatedRoot = Path.Combine(Path.GetTempPath(), "InventoryButtons-harness-" + Guid.NewGuid());
+            bep.GetType("BepInEx.Paths", true)!.GetMethod("SetExecutablePath", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!
+                .Invoke(null, new object[] { Path.Combine(isolatedRoot, "valheim.exe"), Path.Combine(isolatedRoot, "BepInEx"), roots[1], roots });
             // Supply only BepInEx's managed dispatch queue. ServerSync may enqueue
             // startup work, but this harness never executes it or constructs Unity objects.
             Type threading = Assembly.LoadFrom(Path.Combine(roots[2], "BepInEx.dll")).GetType("BepInEx.ThreadingHelper", true)!;
@@ -38,7 +45,8 @@ internal static class Program
             threading.GetField("<Instance>k__BackingField", BindingFlags.NonPublic | BindingFlags.Static)!.SetValue(null, queue);
             Assembly mod = Assembly.LoadFrom(Path.GetFullPath(args[0]));
             plugin = mod.GetType(mod.GetName().Name + "." + mod.GetName().Name + "Plugin", true)!;
-            if (args.Length == 4 && args[3] == "--restock-reserve") RunRestockReserveChecks();
+            if (args.Length == 4 && args[3] == "--button-modes") RunButtonModeChecks();
+            else if (args.Length == 4 && args[3] == "--restock-reserve") RunRestockReserveChecks();
             else if (args.Length == 4) RunUiLayoutChecks();
             else Run();
             System.Console.WriteLine($"PASS {checks} isolated checks against supplied DLL and original game assemblies. CLR {Environment.Version}; no Unity/game execution.");
@@ -59,6 +67,46 @@ internal static class Program
         if (!condition) throw new InvalidOperationException(name);
         checks++;
         System.Console.WriteLine("PASS " + name);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void RunButtonModeChecks()
+    {
+        ConfigFile config = new ConfigFile(Path.Combine(Path.GetTempPath(), "button-modes-" + Guid.NewGuid() + ".cfg"), false) { SaveOnConfigSet = false };
+        Type mode = plugin.GetNestedType("InventoryButtonMode", BindingFlags.NonPublic)!;
+        Type toggle = plugin.GetNestedType("Toggle", BindingFlags.Public | BindingFlags.NonPublic)!;
+        MethodInfo bind = typeof(ConfigFile).GetMethods().Single(m => m.Name == "Bind" && m.IsGenericMethod &&
+            m.GetParameters().Length == 4 && m.GetParameters()[0].ParameterType == typeof(string) && m.GetParameters()[3].ParameterType == typeof(ConfigDescription));
+        ConfigEntryBase Bind(string field, Type type, string value)
+        {
+            ConfigEntryBase entry = (ConfigEntryBase)bind.MakeGenericMethod(type).Invoke(config,
+                new object[] { "test", field, Enum.Parse(type, value), new ConfigDescription("") })!;
+            plugin.GetField(field, BindingFlags.NonPublic | BindingFlags.Static)!.SetValue(null, entry);
+            return entry;
+        }
+        ConfigEntryBase restock = Bind("_restockButtonMode", mode, "Auto");
+        ConfigEntryBase exclude = Bind("_autoPickupButtonMode", mode, "Auto");
+        ConfigEntryBase trash = Bind("_trashButtonMode", mode, "Auto");
+        ConfigEntryBase server = Bind("_enableInventoryTrashPanel", toggle, "On");
+        Check("button mode choices", string.Join(",", Enum.GetNames(mode)) == "Off,Auto,On");
+        foreach (string permission in new[] { "Off", "On" })
+        foreach (string t in new[] { "Off", "Auto", "On" })
+        foreach (string e in new[] { "Off", "Auto", "On" })
+        foreach (string r in new[] { "Off", "Auto", "On" })
+        {
+            server.BoxedValue = Enum.Parse(toggle, permission);
+            trash.BoxedValue = Enum.Parse(mode, t);
+            exclude.BoxedValue = Enum.Parse(mode, e);
+            restock.BoxedValue = Enum.Parse(mode, r);
+            string state = $"server={permission}, trash={t}, exclude={e}, restock={r}";
+            bool trashVisible = permission == "On" && t != "Off";
+            Check(state + ": server permission and local trash visibility", (bool)Call("IsInventoryTrashButtonEnabled")! == trashVisible);
+            Check(state + ": independent restock visibility", (bool)Call("IsItemRuleButtonEnabled", true)! == (r != "Off"));
+            Check(state + ": independent exclude visibility", (bool)Call("IsItemRuleButtonEnabled", false)! == (e != "Off"));
+            int[] packedColumns = trashVisible ? new[] { 1, 2 } : new[] { 0, 1 };
+            Check(state + ": exclude fills the rightmost available column", (int)Call("GetItemRuleColumnsFromRight", false)! == packedColumns[0]);
+            Check(state + ": restock follows enabled neighbors", (int)Call("GetItemRuleColumnsFromRight", true)! == packedColumns[e == "Off" ? 0 : 1]);
+        }
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -103,25 +151,7 @@ internal static class Program
 
         // Real config entries exercise all live visibility combinations. They
         // do not touch saved item rules or require any Unity object instances.
-        Type toggle = plugin.GetNestedType("Toggle")!;
-        MethodInfo bind = typeof(ConfigFile).GetMethods().Single(m => m.Name == "Bind" && m.IsGenericMethod &&
-            m.GetParameters().Length == 4 && m.GetParameters()[0].ParameterType == typeof(string) &&
-            m.GetParameters()[3].ParameterType == typeof(ConfigDescription)).MakeGenericMethod(toggle);
-        ConfigEntryBase restock = (ConfigEntryBase)bind.Invoke(config, new object[] { "test", "restock", Enum.Parse(toggle, "On"), new ConfigDescription("") })!;
-        ConfigEntryBase exclude = (ConfigEntryBase)bind.Invoke(config, new object[] { "test", "exclude", Enum.Parse(toggle, "On"), new ConfigDescription("") })!;
-        plugin.GetField("_showRestockRulesButton", BindingFlags.NonPublic | BindingFlags.Static)!.SetValue(null, restock);
-        plugin.GetField("_showAutoPickupRulesButton", BindingFlags.NonPublic | BindingFlags.Static)!.SetValue(null, exclude);
-        foreach (bool showRestock in new[] { false, true })
-        foreach (bool showExclude in new[] { false, true })
-        {
-            restock.BoxedValue = Enum.Parse(toggle, showRestock ? "On" : "Off");
-            exclude.BoxedValue = Enum.Parse(toggle, showExclude ? "On" : "Off");
-            string state = $"restock {showRestock}, exclude {showExclude}";
-            Check(state + ": restock visibility", (bool)Call("IsItemRuleButtonEnabled", true)! == showRestock);
-            Check(state + ": exclude visibility", (bool)Call("IsItemRuleButtonEnabled", false)! == showExclude);
-            Check(state + ": restock uses column " + (showExclude ? 6 : 7), (int)Call("GetItemRuleColumnsFromRight", true)! == (showExclude ? 2 : 1));
-            Check(state + ": exclude reserves column 7", (int)Call("GetItemRuleColumnsFromRight", false)! == 1);
-        }
+        RunButtonModeChecks();
 
         // Exact column centers and the bottom edge for base/purchased/expanded
         // row counts. These values are GUI coordinates before the grid transform.

@@ -21,7 +21,7 @@ public sealed partial class InventorySlotsPlugin
         InventoryGui gui = InventoryGui.instance;
         if (gui == null || !InventoryGui.IsVisible())
         {
-            HideInventoryActionPanels();
+            HideInventoryActionPanels(preservePlayerButtons: IsInventoryPanelClosing(gui));
             return;
         }
 
@@ -451,11 +451,12 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
-    internal static void HideInventoryActionPanels()
+    internal static void HideInventoryActionPanels(bool preservePlayerButtons = false)
     {
-        _itemRuleEditor?.Hide();
+        if (preservePlayerButtons) _itemRuleEditor?.Close();
+        else _itemRuleEditor?.Hide();
         SetActionPanelActive(InventoryPanels.InventorySortPanel, false);
-        SetActionPanelActive(_inventoryTrashPanel, false);
+        if (!preservePlayerButtons) SetActionPanelActive(_inventoryTrashPanel, false);
         CloseInventoryTrashConfirmDialog();
         HideInventorySideHints();
         RestoreContainerActionButtonLayout();

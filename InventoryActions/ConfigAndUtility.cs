@@ -39,8 +39,6 @@ public sealed partial class InventoryActionsPlugin
     private static ConfigEntry<KeyboardShortcut> _favoriteModifierKey = null!;
     private static ConfigEntry<KeyboardShortcut> _containerRestockKey = null!;
     private static ConfigEntry<string> _sortButtonPositionOffset = null!;
-    private static ConfigEntry<Toggle> _showRestockRulesButton = null!;
-    private static ConfigEntry<Toggle> _showAutoPickupRulesButton = null!;
     private static ConfigEntry<Toggle> _showFeatureGuide = null!;
     private static ConfigEntry<Toggle> _featureGuideCollapsed = null!;
     private static string? _cachedSortButtonPositionOffsetText;
@@ -94,23 +92,23 @@ public sealed partial class InventoryActionsPlugin
                     CustomDrawer = DrawButtonPositionOffsetConfig
                 }),
             synchronizedSetting: false);
-        _showRestockRulesButton = ConfigEntry(ClientConfigSection, "Show Restock Rules Button", Toggle.On,
-            new ConfigDescription("Show the restock rules icon below the player inventory. Hiding it does not disable saved restock limits. Applies immediately and closes its editor. Valid edits save immediately.",
-                null, new ConfigurationManagerAttributes { Order = 820 }), synchronizedSetting: false);
-        _showAutoPickupRulesButton = ConfigEntry(ClientConfigSection, "Show Auto Pickup Exclude Button", Toggle.On,
-            new ConfigDescription("Show the automatic pickup exclusion icon below the player inventory. Hiding it does not disable saved exclusions. Applies immediately and closes its editor. Valid edits save immediately.",
-                null, new ConfigurationManagerAttributes { Order = 810 }), synchronizedSetting: false);
+        _restockButtonMode = ConfigEntry(InventoryButtonsConfigSection, "Restock Button", InventoryButtonMode.Auto,
+            new ConfigDescription(RuleButtonModeDescription, null, new ConfigurationManagerAttributes { Order = 900 }), synchronizedSetting: false);
+        _autoPickupButtonMode = ConfigEntry(InventoryButtonsConfigSection, "Auto Pickup Exclude Button", InventoryButtonMode.Auto,
+            new ConfigDescription(RuleButtonModeDescription, null, new ConfigurationManagerAttributes { Order = 870 }), synchronizedSetting: false);
+        _trashButtonMode = ConfigEntry(InventoryButtonsConfigSection, "Trash Button", InventoryButtonMode.Auto,
+            new ConfigDescription(TrashButtonModeDescription, null, new ConfigurationManagerAttributes { Order = 850 }), synchronizedSetting: false);
         _showFeatureGuide = ConfigEntry(ClientConfigSection, "Show Feature Guide", Toggle.On,
             new ConfigDescription("Show a compact InventoryActions guide beside the hotbar. Applies immediately.",
                 null, new ConfigurationManagerAttributes { Order = 800 }), synchronizedSetting: false);
         _featureGuideCollapsed = ConfigEntry(ClientConfigSection, "Feature Guide Collapsed", Toggle.Off,
             new ConfigDescription("Stores the local collapsed state of the InventoryActions guide.",
                 null, new ConfigurationManagerAttributes { Browsable = false }), synchronizedSetting: false);
-        _restockLeaveOneItem = ConfigEntry(RestockConfigSection, "Restock Leave One Item", Toggle.On,
+        _restockLeaveOneItem = ConfigEntry(InventoryButtonsConfigSection, "Restock Leave One Item", Toggle.On,
             new ConfigDescription("Client-only: favorite restock (Alt+E by default) leaves one item of each kind in each source container so it remains a quick-stack destination. Counts all stacks with the same internal item name together. A container with only one remaining item cannot supply it. Off allows restock to take the last item. Does not affect Take stacks, Take All, or manual moves. Changes apply to subsequent transfers immediately.",
-                null, new ConfigurationManagerAttributes { Order = 710 }), synchronizedSetting: false);
+                null, new ConfigurationManagerAttributes { Order = 880 }), synchronizedSetting: false);
         _restockTargetStackLimitsConfig = ConfigEntry(
-            RestockConfigSection,
+            InventoryButtonsConfigSection,
             "Restock Target Stack Limits",
             "",
             new ConfigDescription(
@@ -118,14 +116,15 @@ public sealed partial class InventoryActionsPlugin
                 null,
                 new ConfigurationManagerAttributes
                 {
-                    Order = 700,
+                    Order = 890,
                     CustomDrawer = DrawRestockTargetStackLimitsConfig
                 }),
             synchronizedSetting: false);
         _restockTargetStackLimitsConfig.SettingChanged += (_, _) => RefreshRestockTargetStackLimits();
         RefreshRestockTargetStackLimits();
-        _autoPickupExcludedItemsConfig = ConfigEntry(ClientConfigSection, "Auto Pickup Excluded Items", "",
-            "Client-only prefab names excluded from automatic pickup, separated by commas, semicolons or new lines. Empty preserves normal pickup. Manual E pickup remains available. Applies to all characters using this config; does not delete items or change restock rules.", synchronizedSetting: false);
+        _autoPickupExcludedItemsConfig = ConfigEntry(InventoryButtonsConfigSection, "Auto Pickup Excluded Items", "",
+            new ConfigDescription("Client-only prefab names excluded from automatic pickup, separated by commas, semicolons or new lines. Empty preserves normal pickup. Manual E pickup remains available. Applies to all characters using this config; does not delete items or change restock rules.",
+                null, new ConfigurationManagerAttributes { Order = 860 }), synchronizedSetting: false);
         _autoPickupExcludedItemsConfig.SettingChanged += RefreshAutoPickupExclusions;
         RefreshAutoPickupExclusions(null, EventArgs.Empty);
     }

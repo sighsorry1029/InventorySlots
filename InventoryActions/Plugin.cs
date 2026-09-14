@@ -17,7 +17,7 @@ namespace InventoryActions;
 public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
 {
     internal const string ModName = "InventoryActions";
-    internal const string ModVersion = "1.0.15";
+    internal const string ModVersion = "1.0.16";
     internal const string Author = "sighsorry";
     internal const string ModGUID = $"{Author}.{ModName}";
     private const string ExternalMultiUserChestGuid = "com.maxsch.valheim.MultiUserChest";
@@ -39,7 +39,7 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
     private const string FavoriteBorderName = "InventoryActions_FavoriteBorder";
     private const float FavoriteBorderThickness = 2f;
     private const string ClientConfigSection = "2 - Client";
-    private const string RestockConfigSection = "3 - Restock";
+    private const string InventoryButtonsConfigSection = "3 - Inventory Buttons";
     private const string GeneralConfigSection = "1 - General";
     private const float ContainerHoverHoldDuration = 0.5f;
     private const string ContainerActionSuccessFxPrefabName = "fx_HildirChest_Unlock";

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.16
+
+- Added independent Auto slide-out behavior for the Restock, Auto Pickup Exclude, and Trash buttons. Each button now shows only its bottom edge until hovered, stays open with its own editor, follows the inventory closing animation, and no longer expands merely because an item is being dragged.
+- Grouped the related client settings under `3 - Inventory Buttons`. Each button now supports `Off`, `Auto`, and `On`, defaults to `Auto`, and enabled buttons fill empty positions from the right. The existing synchronized `Enable Inventory Trash Panel` setting still controls whether trash is permitted. No legacy setting migration is included.
+- Fixed EpicLoot Enchant and Rune result dialogs, as well as Augment choices, inheriting hidden vanilla crafting elements and showing blank content. Their cloned name, description, icon, rarity background, and description scrollbar are restored without changing EpicLoot item processing.
+- Changed `Auto Favorite Hotbar Switch Row` to default to Off. Existing config files keep their explicitly saved value.
+
 ## 1.4.15
 
 - Fixed the built-in multi-user chest feature denying remote Clan, Guild, and administrator access granted by STUWard. InventorySlots now delegates managed-ward container authorization to STUWard while retaining its own requester, ownership, lease, distance, and inventory-transfer safeguards.

@@ -93,11 +93,11 @@ public sealed partial class InventorySlotsPlugin
         _equipmentSlotProgressionEnabled = ConfigEntry(ProgressiveSlotsConfigSection, "Enable Equipment Slot Progression", Toggle.On, "When enabled, equipment slots unlock after the player discovers, carries, or has equipped an item accepted by that slot.");
         BindInventoryStateConfigInvalidation();
 
-        _restockLeaveOneItem = OrderedConfigEntry(RestockConfigSection, "Restock Leave One Item", Toggle.On,
+        _restockLeaveOneItem = OrderedConfigEntry(InventoryButtonsConfigSection, "Restock Leave One Item", Toggle.On,
             "Client-only: favorite restock (Alt+E by default) leaves one item of each kind in each source container so it remains a quick-stack destination. Counts all stacks with the same internal item name together. A container with only one remaining item cannot supply it. Off allows restock to take the last item. Does not affect Take stacks, Take All, or manual moves. Changes apply to subsequent transfers immediately.",
-            order: 710, synchronizedSetting: false);
+            order: 880, synchronizedSetting: false);
         _restockTargetStackLimitsConfig = ConfigEntry(
-            RestockConfigSection,
+            InventoryButtonsConfigSection,
             "Restock Target Stack Limits",
             "",
             new ConfigDescription(
@@ -105,7 +105,7 @@ public sealed partial class InventorySlotsPlugin
                 null,
                 new ConfigurationManagerAttributes
                 {
-                    Order = 700,
+                    Order = 890,
                     CustomDrawer = DrawRestockTargetStackLimitsConfig
                 }),
             synchronizedSetting: false);
@@ -124,7 +124,7 @@ public sealed partial class InventorySlotsPlugin
         _sharedContainersActive = _enableSharedContainers.Value == Toggle.On;
 
         _inventoryRowsDisplayMode = OrderedConfigEntry(ClientConfigSection, "Inventory Rows Display Mode", InventoryRowsDisplayMode.Expandable, "Client-only regular inventory row display mode. Fixed always shows all unlocked regular inventory rows. Expandable restores the last locally remembered visible row count, reveals newly unlocked rows once, and changes it with mouse wheel while the inventory is open.", order: 900, synchronizedSetting: false);
-        _autoFavoriteHotbarSwitchRow = OrderedConfigEntry(ClientConfigSection, "Auto Favorite Hotbar Switch Row", Toggle.On, "When enabled, marks row 2 as favorite when the local player is loaded or spawned. Turn this Off if you want row 2 favorites to stay manually controlled. Not synced with server.", order: 890, synchronizedSetting: false);
+        _autoFavoriteHotbarSwitchRow = OrderedConfigEntry(ClientConfigSection, "Auto Favorite Hotbar Switch Row", Toggle.Off, "When enabled, marks row 2 as favorite when the local player is loaded or spawned. Turn this Off if you want row 2 favorites to stay manually controlled. Not synced with server.", order: 890, synchronizedSetting: false);
         _inventorySortMode = OrderedConfigEntry(ClientConfigSection, "Inventory Sort Mode", CraftingRecipeSortMode.GroupThenTier, "Sorting mode used by player inventory and container sort buttons. GroupThenTier sorts predefined group first, then biome/resource tier. TierThenGroup sorts biome/resource tier first, then predefined group.", order: 880, synchronizedSetting: false);
         _containerActionSuccessFx = OrderedConfigEntry(
             ClientConfigSection,

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.16
+
+- Added independent Auto slide-out behavior for the Restock, Auto Pickup Exclude, and Trash buttons. Each button now shows only its bottom edge until hovered, stays open with its own editor, follows the inventory closing animation, and no longer expands merely because an item is being dragged.
+- Grouped the related client settings under `3 - Inventory Buttons`. Each button now supports `Off`, `Auto`, and `On`, defaults to `Auto`, and enabled buttons fill empty positions from the right. The existing synchronized `Enable Inventory Trash Panel` setting still controls whether trash is permitted. No legacy setting migration is included.
+- Kept button input disabled as soon as the inventory starts closing while allowing all three controls to leave with the same player-inventory animation.
+
 ## 1.0.15
 
 - Added the client-only `Restock Leave One Item` option, enabled by default. Favorite restock (Alt+E by default) leaves one item per kind in each source chest, counting all stacks with the same internal item name together, so the chest remains a quick-stack destination.

@@ -27,18 +27,37 @@ public sealed partial class InventorySlotsPlugin
 public sealed partial class InventoryActionsPlugin
 #endif
 {
+    private enum InventoryButtonMode { Off, Auto, On }
+    private static ConfigEntry<InventoryButtonMode> _restockButtonMode = null!;
+    private static ConfigEntry<InventoryButtonMode> _autoPickupButtonMode = null!;
+    private static ConfigEntry<InventoryButtonMode> _trashButtonMode = null!;
+    private const string RuleButtonModeDescription = "Client-only display mode. Off hides the button without disabling saved rules. Auto shows its bottom edge and slides out only on hover; holding an item alone does not expand it. An open editor keeps its button expanded. Gamepad use expands Auto buttons. On always shows the full button. Changes apply immediately.";
+    private const string TrashButtonModeDescription = "Client-only display mode. Off hides the trash button. Auto shows its bottom edge and slides out only on hover; holding an item alone does not expand it. Gamepad use expands Auto buttons. On always shows the full button. The server's Enable Inventory Trash Panel setting must also be On. Changes apply immediately.";
     private static ItemRuleEditor? _itemRuleEditor;
     private static int _itemRuleInputClosedFrame = -1;
+    // Keep existing button visuals under the animated player grid during Hide.
+    // This does not activate hidden buttons or keep their editor/input open.
+    internal static bool IsInventoryPanelClosing(InventoryGui? gui)
+    {
+        if (gui == null || Player.m_localPlayer == null || Player.m_localPlayer.m_isLoading) return false;
+        Animator? animator = _itemRuleEditor != null && _itemRuleEditor.Owner == gui
+            ? _itemRuleEditor._animator : gui.GetComponent<Animator>();
+        return animator != null && !animator.GetBool("visible");
+    }
     internal static bool IsItemRuleInputBlocked() =>
         (_itemRuleEditor != null && _itemRuleEditor.Pinned) || _itemRuleInputClosedFrame == Time.frameCount;
 
     internal static bool IsItemRuleScrollBlocked() => IsItemRuleInputBlocked() || (_itemRuleEditor != null && _itemRuleEditor.OwnsPointer);
 
     private static bool IsItemRuleButtonEnabled(bool restock) =>
-        (restock ? _showRestockRulesButton : _showAutoPickupRulesButton)?.Value == Toggle.On;
+        (restock ? _restockButtonMode : _autoPickupButtonMode)?.Value != InventoryButtonMode.Off;
+
+    private static bool IsInventoryTrashButtonEnabled() =>
+        _enableInventoryTrashPanel?.Value == Toggle.On && _trashButtonMode?.Value != InventoryButtonMode.Off;
 
     private static int GetItemRuleColumnsFromRight(bool restock) =>
-        restock && IsItemRuleButtonEnabled(false) ? 2 : 1;
+        (IsInventoryTrashButtonEnabled() ? 1 : 0) +
+        (restock && IsItemRuleButtonEnabled(false) ? 1 : 0);
 
     private static void UpdateItemRuleUi(InventoryGui gui, Vector3 gridOrigin, int visibleRows)
     {
@@ -183,7 +202,7 @@ public sealed partial class InventoryActionsPlugin
         private float _hoverStarted = -1f, _outsideStarted = -1f;
         private bool? _hoverMode;
         private Camera? _camera;
-        private Animator? _animator;
+        internal Animator? _animator;
         private static readonly int VisibleParameter = Animator.StringToHash("visible");
         private ScrollRect _scroll = null!;
         private readonly Color _text = new(1f, 0.94f, 0.8f);
@@ -191,6 +210,7 @@ public sealed partial class InventoryActionsPlugin
 
         private ConfigEntry<string> Setting => _restock ? _restockTargetStackLimitsConfig : _autoPickupExcludedItemsConfig;
         private bool Open => _popup != null && _popup.gameObject.activeSelf;
+        internal bool IsPopupOpenFor(bool restock) => Open && _restock == restock;
         // InventoryGui.IsVisible intentionally lags Hide by up to two frames.
         // Use the same Animator obtained by vanilla Awake through the public API.
         private bool CanShow => _instance != null && _instance.isActiveAndEnabled && Owner != null && InventoryGui.IsVisible() &&
@@ -257,14 +277,14 @@ public sealed partial class InventoryActionsPlugin
 
         internal void PositionToolbar(Vector3 gridOrigin, int visibleRows)
         {
-            if (!CanShow) { Hide(); return; }
+            if (!CanShow) { EndInteraction(); return; }
             if (Open && (!IsItemRuleButtonEnabled(_restock) || HasBlockingDialog)) Close();
             InventoryGrid grid = Owner.m_playerGrid;
-            RectTransform gridRoot = grid.m_gridRoot;
-            if (_toolbar.parent != gridRoot) _toolbar.SetParent(gridRoot, false);
+            RectTransform buttonRoot = grid.m_gridRoot;
+            if (_toolbar.parent != buttonRoot) _toolbar.SetParent(buttonRoot, false);
             float size = Mathf.Clamp(Mathf.Max(1f, grid.m_elementSpace) * 0.72f, 42f, 58f);
-            // A zero-size toolbar shares the GUI origin. Convert each grid anchor
-            // separately so row growth and grid transforms affect every button.
+            // The slide content uses grid-local coordinates. Do not convert via
+            // world space here: that would cancel its animated offset.
             _toolbar.localPosition = Vector3.zero;
             Place(_restockButton, true);
             Place(_excludeButton, false);
@@ -273,10 +293,13 @@ public sealed partial class InventoryActionsPlugin
                 bool enabled = IsItemRuleButtonEnabled(restock);
                 button.gameObject.SetActive(enabled);
                 if (!enabled) return;
+                InventorySlideButton kind = restock ? InventorySlideButton.Restock : InventorySlideButton.Exclude;
+                RectTransform content = EnsureInventoryButtonSlide(Owner, gridOrigin, visibleRows, kind, _toolbar);
+                if (button.transform.parent != content) button.transform.SetParent(content, false);
                 Frame((RectTransform)button.transform, 0, 0, size, size);
                 int columns = Mathf.Max(1, grid.m_inventory != null ? grid.m_inventory.GetWidth() : 8);
                 Vector3 position = gridOrigin + CalculateInventoryBottomButtonPosition(columns, visibleRows, Mathf.Max(1f, grid.m_elementSpace), size, GetItemRuleColumnsFromRight(restock));
-                button.transform.localPosition = _toolbar.InverseTransformPoint(gridRoot.TransformPoint(position));
+                button.transform.localPosition = position;
             }
             ConfigureInventoryActionIcon(_restockButton, size, _restockIcon);
             ConfigureInventoryActionIcon(_excludeButton, size, _excludeIcon);
@@ -287,7 +310,7 @@ public sealed partial class InventoryActionsPlugin
             if (Open) PositionPopup();
         }
 
-        private void PositionPopup()
+        internal void PositionPopup()
         {
             // Follow the selected button as rows or enabled buttons change.
             // Prefer a downward dropdown; shrink the list before screen-edge clamping.
@@ -377,7 +400,7 @@ public sealed partial class InventoryActionsPlugin
         private void Update()
         {
             if (!CanShow || Player.m_localPlayer == null || Player.m_localPlayer.m_isLoading)
-            { Hide(); return; }
+            { EndInteraction(); return; }
             if (Open && !IsItemRuleButtonEnabled(_restock)) Close();
             if (!IsItemRuleButtonEnabled(true) && !IsItemRuleButtonEnabled(false)) { Hide(); return; }
             // Hover uses screen coordinates, so native modal raycasts alone do
@@ -387,8 +410,8 @@ public sealed partial class InventoryActionsPlugin
             if (Open && Pinned && (ZInput.GetKeyDown(KeyCode.Escape) || ZInput.GetButtonDown("JoyButtonB")))
             { Close(); return; }
             if (Open && !string.Equals(_snapshot, Setting.Value, StringComparison.Ordinal) && !_fields.Any(field => field.isFocused)) LoadList(_restock, Pinned);
-            bool? hovered = IsItemRuleButtonEnabled(true) && _restockButton.gameObject.activeInHierarchy && Contains((RectTransform)_restockButton.transform) ? true
-                : IsItemRuleButtonEnabled(false) && _excludeButton.gameObject.activeInHierarchy && Contains((RectTransform)_excludeButton.transform) ? false : null;
+            bool? hovered = IsPointerOverSlide(InventorySlideButton.Restock) && IsItemRuleButtonEnabled(true) && _restockButton.gameObject.activeInHierarchy && Contains((RectTransform)_restockButton.transform) ? true
+                : IsPointerOverSlide(InventorySlideButton.Exclude) && IsItemRuleButtonEnabled(false) && _excludeButton.gameObject.activeInHierarchy && Contains((RectTransform)_excludeButton.transform) ? false : null;
             if (Pinned) return;
             if (HasHeldTrashCandidate(Owner)) { if (Open) Close(); return; }
             if (hovered != _hoverMode) { _hoverMode = hovered; _hoverStarted = Time.unscaledTime; }
@@ -671,6 +694,11 @@ public sealed partial class InventoryActionsPlugin
             if (Open) Close();
             _hoverMode = null; _hoverStarted = _outsideStarted = -1f;
             if (_toolbar != null) _toolbar.gameObject.SetActive(false);
+        }
+        private void EndInteraction()
+        {
+            if (IsInventoryPanelClosing(Owner)) Close();
+            else Hide();
         }
         private void OnDisable()
         {

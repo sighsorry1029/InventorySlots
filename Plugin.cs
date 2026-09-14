@@ -104,7 +104,7 @@ public sealed partial class InventorySlotsPlugin : BaseUnityPlugin
     private const float PendingSlotActionTimeout = 30f;
     private const float InventoryPinnedJewelcraftingReservedHeight = 190f;
     private const string ProgressiveSlotsConfigSection = "2 - Progressive Slots";
-    private const string RestockConfigSection = "3 - Restock";
+    private const string InventoryButtonsConfigSection = "3 - Inventory Buttons";
     private const string ClientConfigSection = "4 - Client";
     private const string ClientUiConfigSection = "5 - Client UI";
     private const string ClientKeysConfigSection = "6 - Client Keys";

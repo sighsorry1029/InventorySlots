@@ -54,7 +54,8 @@ internal static class InventoryGuiHideInventoryActionsPatch
 {
     private static void Postfix()
     {
-        InventoryActionsPlugin.HideInventoryActionPanels();
+        InventoryActionsPlugin.HideInventoryActionPanels(
+            preservePlayerButtons: InventoryActionsPlugin.IsInventoryPanelClosing(InventoryGui.instance));
     }
 }
 
@@ -63,7 +64,8 @@ internal static class InventoryGuiCloseContainerInventoryActionsPatch
 {
     private static void Postfix()
     {
-        InventoryActionsPlugin.HideInventoryActionPanels();
+        InventoryActionsPlugin.HideInventoryActionPanels(
+            preservePlayerButtons: InventoryActionsPlugin.IsInventoryPanelClosing(InventoryGui.instance));
     }
 }
 

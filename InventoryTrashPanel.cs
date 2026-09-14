@@ -43,7 +43,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void UpdateInventoryTrashPanel(InventoryGui gui, InventoryGrid playerGrid, Player player, Vector3 gridOrigin, int viewportRows)
     {
-        if (_enableInventoryTrashPanel?.Value != Toggle.On ||
+        if (!IsInventoryTrashButtonEnabled() ||
             gui == null ||
             playerGrid == null ||
             playerGrid.m_gridRoot == null ||
@@ -51,10 +51,11 @@ public sealed partial class InventorySlotsPlugin
             !InventoryGui.IsVisible())
         {
             SetActionPanelActive(_inventoryTrashPanel, false);
+            CloseInventoryTrashConfirmDialog();
             return;
         }
 
-        _inventoryTrashPanel = EnsureActionPanel(playerGrid.m_gridRoot, InventoryTrashPanelName, _inventoryTrashPanel);
+        _inventoryTrashPanel = EnsureActionPanel(EnsureInventoryButtonSlide(gui, gridOrigin, viewportRows), InventoryTrashPanelName, _inventoryTrashPanel);
         if (_inventoryTrashPanel == null)
         {
             return;
@@ -113,7 +114,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void OnInventoryTrashPanelConfigChanged()
     {
-        if (_enableInventoryTrashPanel?.Value == Toggle.On)
+        if (IsInventoryTrashButtonEnabled())
         {
             return;
         }
@@ -314,12 +315,12 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool CanStartInventoryTrash(InventoryGui? gui, Player? player, bool showMessage)
     {
-        if (_enableInventoryTrashPanel?.Value != Toggle.On)
+        if (!IsInventoryTrashButtonEnabled())
         {
             return false;
         }
 
-        if (gui == null || player == null || !InventoryGui.IsVisible())
+        if (gui == null || player == null || !InventoryGui.IsVisible() || IsInventoryPanelClosing(gui))
         {
             return false;
         }

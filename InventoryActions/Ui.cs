@@ -24,7 +24,7 @@ public sealed partial class InventoryActionsPlugin
     {
         if (gui == null || !InventoryGui.IsVisible())
         {
-            HideInventoryActionPanels();
+            HideInventoryActionPanels(preservePlayerButtons: IsInventoryPanelClosing(gui));
             return;
         }
 
@@ -42,11 +42,12 @@ public sealed partial class InventoryActionsPlugin
         UpdateFavoriteBorders(gui.m_playerGrid, player);
     }
 
-    internal static void HideInventoryActionPanels()
+    internal static void HideInventoryActionPanels(bool preservePlayerButtons = false)
     {
-        _itemRuleEditor?.Hide();
+        if (preservePlayerButtons) _itemRuleEditor?.Close();
+        else _itemRuleEditor?.Hide();
         SetActionPanelActive(Runtime.PlayerActionPanel, false);
-        SetActionPanelActive(Runtime.TrashPanel, false);
+        if (!preservePlayerButtons) SetActionPanelActive(Runtime.TrashPanel, false);
         ReleaseContainerActionButtonLayout();
         HideContainerActionButtons();
         CloseInventoryTrashConfirmDialog();
@@ -152,7 +153,7 @@ public sealed partial class InventoryActionsPlugin
 
     private static void UpdateTrashPanel(InventoryGui gui, InventoryGrid playerGrid, Player player)
     {
-        if (_enableInventoryTrashPanel.Value != Toggle.On ||
+        if (!IsInventoryTrashButtonEnabled() ||
             gui == null ||
             playerGrid == null ||
             playerGrid.m_gridRoot == null ||
@@ -160,10 +161,11 @@ public sealed partial class InventoryActionsPlugin
             !InventoryGui.IsVisible())
         {
             SetActionPanelActive(Runtime.TrashPanel, false);
+            CloseInventoryTrashConfirmDialog();
             return;
         }
 
-        Runtime.TrashPanel = EnsureActionPanel(playerGrid.m_gridRoot, TrashPanelName, Runtime.TrashPanel);
+        Runtime.TrashPanel = EnsureActionPanel(EnsureInventoryButtonSlide(gui, GetGridOrigin(playerGrid), GetDisplayedPlayerRows(playerGrid)), TrashPanelName, Runtime.TrashPanel);
         if (Runtime.TrashPanel == null)
         {
             return;
@@ -729,12 +731,12 @@ public sealed partial class InventoryActionsPlugin
 
     private static bool CanStartInventoryTrash(InventoryGui? gui, Player? player, bool showMessage)
     {
-        if (_enableInventoryTrashPanel.Value != Toggle.On)
+        if (!IsInventoryTrashButtonEnabled())
         {
             return false;
         }
 
-        if (gui == null || player == null || !InventoryGui.IsVisible())
+        if (gui == null || player == null || !InventoryGui.IsVisible() || IsInventoryPanelClosing(gui))
         {
             return false;
         }

@@ -2,6 +2,9 @@
 
 Standalone inventory actions split from InventorySlots mod: hold containers to quick stack/restock, favorite slots, sort inventories/containers, set restock limits, and trash selected items.
 
+![](https://i.ibb.co/b5qGKm8k/Inventory-Button.gif) <br>
+Three inventory buttons: Restock limit, Auto Pickup Exclude, and Trash
+
 ![](https://i.ibb.co/xtpGM34P/quickstackchest.png) <br>
 Hovering a container shows hold actions for area quick stack and area restock. Area ranges are centered on the interacted container.
 
@@ -26,7 +29,7 @@ Two item-rule icons sit below the player inventory, to the left of the trash but
 
 The restock parcel/return-arrow and excluded-pickup icons use the trash button's native background, muted gray color and golden highlight when holding an inventory item that can be registered. They remain clickable with empty hands. Popup actions use the Craft button style, while quantity fields use the inventory grid's dark translucent slot style.
 
-In the standard eight-column inventory, trash is centered below column 8, auto pickup exclusions below column 7, and restock below column 6. All follow the last regular inventory row as it grows. Under `2 - Client`, `Show Restock Rules Button` and `Show Auto Pickup Exclude Button` default to On and can be changed live. Hiding the exclusion icon moves restock to column 7. Hiding an icon closes its editor but **does not disable any saved rules**. The three bottom icons use automatic placement; their old position settings are no longer used. The separate `Sort Button Position` setting remains available.
+Under `3 - Inventory Buttons`, `Restock Button`, `Auto Pickup Exclude Button`, and `Trash Button` use client-only **Off / Auto / On** modes, defaulting to **Auto**. Auto shows the bottom edge and expands only the hovered button; holding an item alone does not expand it. An open editor keeps its button expanded, and gamepad use expands Auto buttons. On always displays the full button; Off hides it and closes its editor without disabling saved rules. Enabled buttons pack from the right in Trash, Exclude, Restock order and follow the last regular row as it grows. The synced `1 - General / Enable Inventory Trash Panel` still controls whether trash is allowed at all. The separate `Sort Button Position` setting remains available. No old-section migration is performed.
 
 ExtraSlots is optional. When installed, its public inventory-height API provides the regular row count, excluding hidden equipment/quick-slot storage rows. This keeps buttons aligned through purchased rows and ExtraSlots row changes without changing stored items or slot permissions.
 
@@ -34,9 +37,9 @@ Equipment and Quick Slots 3.x is optional. InventoryActions uses its public visi
 
 AzuExtendedPlayerInventory 2.4.14 is optional. InventoryActions uses AzuEPI's public slot-index API so automatic sorting, quick stack, restock, favorites, and trash stay above its equipment, quick, and custom-slot rows. Bottom buttons follow AzuEPI's live separate-panel setting: they use the regular inventory bottom with a separate equipment panel and the full grid bottom when slots are inline. Explicit item moves and AzuEPI's own favorite data remain under AzuEPI's rules.
 
-Both lists use the existing client config: `3 - Restock / Restock Target Stack Limits` and `2 - Client / Auto Pickup Excluded Items`. They are not server-synced and apply to all characters using that config. In-game/Configuration Manager changes apply immediately; editing the cfg on disk requires a config reload or game restart. Rules do not add item metadata. Unresolved mod items remain in the list. Removing a restock entry can reveal a remaining internal/localized-name rule; it does not necessarily restore the default maximum.
+Both lists use client config under `3 - Inventory Buttons`: `Restock Target Stack Limits` and `Auto Pickup Excluded Items`. They are not server-synced and apply to all characters using that config. In-game/Configuration Manager changes apply immediately; editing the cfg on disk requires a config reload or game restart. Rules do not add item metadata. Unresolved mod items remain in the list. Removing a restock entry can reveal a remaining internal/localized-name rule; it does not necessarily restore the default maximum.
 
-`3 - Restock / Restock Leave One Item` defaults to **On**. Favorite restock (Alt+E by default) leaves one item of each kind in each source chest, across all stacks with the same internal item name, to keep that chest eligible for future quick stack. A chest with only one remaining item will not supply it. Turn this client-only setting Off to allow full depletion; in-game changes apply to subsequent transfers immediately. `Take stacks`, `Take All`, and manual moves are unchanged. Other players and other mods can still take the last item.
+`3 - Inventory Buttons / Restock Leave One Item` defaults to **On**. Favorite restock (Alt+E by default) leaves one item of each kind in each source chest, across all stacks with the same internal item name, to keep that chest eligible for future quick stack. A chest with only one remaining item will not supply it. Turn this client-only setting Off to allow full depletion; in-game changes apply to subsequent transfers immediately. `Take stacks`, `Take All`, and manual moves are unchanged. Other players and other mods can still take the last item.
 
 - favorite player inventory slots with `LeftAlt + left click`
 - hold `E` while hovering a container to quick stack matching non-favorited stackable items
