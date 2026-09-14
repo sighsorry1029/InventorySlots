@@ -15,8 +15,8 @@ internal static class Program
 
     private static int Main(string[] args)
     {
-        if (args.Length != 3 && (args.Length != 4 || (args[3] != "--button-offsets" && args[3] != "--ui-layout" && args[3] != "--restock-reserve" && args[3] != "--button-modes")))
-            throw new ArgumentException("Usage: <final mod.dll> <original Managed> <BepInEx core> [--ui-layout|--restock-reserve|--button-modes]");
+        if (args.Length != 3 && (args.Length != 4 || (args[3] != "--button-offsets" && args[3] != "--ui-layout" && args[3] != "--restock-reserve" && args[3] != "--button-modes" && args[3] != "--favorite-fill")))
+            throw new ArgumentException("Usage: <final mod.dll> <original Managed> <BepInEx core> [--ui-layout|--restock-reserve|--button-modes|--favorite-fill]");
         string[] roots = { Path.GetDirectoryName(Path.GetFullPath(args[0]))!, Path.GetFullPath(args[1]), Path.GetFullPath(args[2]) };
         AppDomain.CurrentDomain.AssemblyResolve += (_, request) =>
         {
@@ -45,7 +45,8 @@ internal static class Program
             threading.GetField("<Instance>k__BackingField", BindingFlags.NonPublic | BindingFlags.Static)!.SetValue(null, queue);
             Assembly mod = Assembly.LoadFrom(Path.GetFullPath(args[0]));
             plugin = mod.GetType(mod.GetName().Name + "." + mod.GetName().Name + "Plugin", true)!;
-            if (args.Length == 4 && args[3] == "--button-modes") RunButtonModeChecks();
+            if (args.Length == 4 && args[3] == "--favorite-fill") RunFavoriteFillChecks();
+            else if (args.Length == 4 && args[3] == "--button-modes") RunButtonModeChecks();
             else if (args.Length == 4 && args[3] == "--restock-reserve") RunRestockReserveChecks();
             else if (args.Length == 4) RunUiLayoutChecks();
             else Run();
@@ -368,6 +369,75 @@ internal static class Program
         Check("new live stack allows old reserve to move", Withdraw(stock, source, 50) == 1 && Amount(stock, added, 50) == 0);
         setting.BoxedValue = Enum.Parse(toggle, "Off");
         Check("turning Off releases final reserve", Withdraw(stock, added, 50) == 1 && stock.GetAllItems().Count == 0);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void RunFavoriteFillChecks()
+    {
+        // Exercise the final DLL's quantity/compatibility stage with original ItemData.
+        // Inventory.RemoveItem/Changed invoke native Player initialization; removal,
+        // notifications, target selection and the Sort button require game execution.
+        Inventory inventory = new Inventory("favorite fill", null, 8, 4);
+        ItemDrop.ItemData Stack(int count, int x, int y)
+        {
+            var item = Item(count, false);
+            item.m_gridPos = new Vector2i(x, y);
+            inventory.GetAllItems().Add(item);
+            return item;
+        }
+        bool Fill(ItemDrop.ItemData[] targets, params ItemDrop.ItemData[] sources) =>
+            (bool)Call("FillFavoriteStackAmounts", targets.ToList(), sources.ToList())!;
+
+        var first = Stack(20, 7, 1);
+        var second = Stack(35, 0, 2);
+        var normal = Stack(40, 1, 2);
+        Check("fills in row order rather than input list order", Fill(new[] { second, first }, normal) && first.m_stack == 50 && second.m_stack == 45);
+        Check("consumes donor without losing quantity", normal.m_stack == 0 && inventory.GetAllItems().Sum(item => item.m_stack) == 95);
+        Check("favorite positions remain fixed", first.m_gridPos == new Vector2i(7, 1) && second.m_gridPos == new Vector2i(0, 2));
+        first.m_stack = second.m_stack = 25;
+        Check("favorite stacks never fill each other", !Fill(new[] { first, second }) && first.m_stack == 25 && second.m_stack == 25);
+        normal = Stack(50, 1, 2);
+        Check("full ordinary donors can fill multiple favorites", Fill(new[] { first, second }, normal) && first.m_stack == 50 && second.m_stack == 50 && normal.m_stack == 0);
+        normal = Stack(30, 1, 2);
+        first.m_stack = 45;
+        Check("partial donor remainder stays in place", Fill(new[] { first }, normal) && first.m_stack == 50 && normal.m_stack == 25 && normal.m_gridPos == new Vector2i(1, 2));
+        Check("repeating fill is a no-op", !Fill(new[] { first, second }, normal) && normal.m_stack == 25);
+        first.m_stack = 20;
+        second.m_stack = 35;
+        first.m_gridPos = new Vector2i(3, 1);
+        second.m_gridPos = new Vector2i(2, 1);
+        Check("same row fills leftmost first", Fill(new[] { first, second }, normal) && second.m_stack == 50 && first.m_stack == 30);
+
+        normal = Stack(10, 1, 2);
+        first.m_stack = 20;
+        normal.m_quality++;
+        Check("different quality is not merged", !Fill(new[] { first }, normal) && normal.m_stack == 10);
+        normal.m_quality = first.m_quality;
+        normal.m_worldLevel++;
+        Check("different world level is not merged", !Fill(new[] { first }, normal));
+        normal.m_worldLevel = first.m_worldLevel;
+        normal.m_shared.m_name = "other-item";
+        Check("different item is not merged", !Fill(new[] { first }, normal));
+        normal.m_shared.m_name = first.m_shared.m_name;
+        normal.m_customData["external-mod"] = "keep";
+        Check("external donor metadata is protected", !Fill(new[] { first }, normal) && normal.m_customData["external-mod"] == "keep");
+        normal.m_customData.Clear();
+        first.m_customData["external-mod"] = "keep";
+        Check("external favorite metadata is protected", !Fill(new[] { first }, normal));
+        first.m_customData.Clear();
+        if (plugin.Namespace == "InventoryActions")
+        {
+            normal.m_cheated = true;
+            Check("cheat marker is not lost through fill", !Fill(new[] { first }, normal) && normal.m_cheated && !first.m_cheated);
+            normal.m_cheated = false;
+        }
+        first.m_stack = 0;
+        Check("empty favorite has no remembered fill target", !Fill(new[] { first }, normal));
+        first.m_stack = 60;
+        Check("overfull favorite is neither reduced nor filled", !Fill(new[] { first }, normal) && first.m_stack == 60);
+        first.m_stack = 20;
+        normal.m_stack = 5;
+        Check("last partial donor fills without moving favorite", Fill(new[] { first }, normal) && first.m_stack == 25 && normal.m_stack == 0);
     }
 
     private static ItemDrop.ItemData Item(int stack, bool cheated) => new ItemDrop.ItemData

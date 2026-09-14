@@ -147,7 +147,7 @@ public sealed partial class InventoryActionsPlugin
         Button? sortButton = EnsureActionButton(Runtime.PlayerActionPanel, gui.m_takeAllButton, "InventoryActions_PlayerSortButton", "S", () => SortPlayerInventory(Player.m_localPlayer));
         DisableActionPanelChildren(Runtime.PlayerActionPanel, sortButton);
         LayoutActionButton(sortButton, buttonSize, buttonSize);
-        SetTooltip(sortButton, "Sort inventory", "Sort non-favorited player inventory slots outside the hotbar.");
+        SetTooltip(sortButton, "Sort inventory", "Fill favorite stacks from matching non-favorite stacks outside the hotbar, then sort the remaining ordinary stacks. Favorite stacks stay in place and never merge with each other.");
         SetActionPanelActive(Runtime.PlayerActionPanel, true);
     }
 

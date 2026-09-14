@@ -48,6 +48,8 @@ Both lists use client config under `3 - Inventory Buttons`: `Restock Target Stac
 - player and container sort buttons
 - trash confirmation for held player inventory items
 
+Player inventory Sort first fills existing favorite stacks from compatible non-favorite stacks outside the hotbar, using only the ordinary slots already eligible for sorting. Favorites are filled top to bottom, left to right, up to their current maximum stack size. Favorite stacks keep their positions and never donate to each other; empty favorite slots stay empty. The remaining ordinary stacks are then merged and sorted. This is always enabled and independent of restock limits. Items filled into favorite slots become protected from quick stack. Container sorting and restock/quick-stack rules are unchanged.
+
 InventoryActions is incompatible with InventorySlots and Quick Stack Store to avoid duplicate buttons, hotkeys, and inventory mutations.
 
 Valheim 1.0 support includes purchased inventory rows: favorites can use every loaded player row, while sorting, quick stack, and trash still protect the hotbar. The action buttons follow the current inventory height. Sorting keeps cheat-marked and unmarked stacks separate when consolidating stacks, and custom-data items retain their existing stacking protection.

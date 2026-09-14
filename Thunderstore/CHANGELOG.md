@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.17
+
+- Player inventory Sort now fills existing favorite stacks from compatible non-favorite stacks in the sortable inventory area before merging and sorting the remaining ordinary stacks. Favorites are filled from top to bottom, left to right, up to the current maximum stack size.
+- Favorite stacks stay in their original slots and never donate to or merge with each other. This behavior is always enabled; restock limits do not apply. Items moved into favorite slots gain the existing favorite quick-stack protection. Container sorting, quick stack, and restock rules are unchanged.
+
 ## 1.4.16
 
 - Added independent Auto slide-out behavior for the Restock, Auto Pickup Exclude, and Trash buttons. Each button now shows only its bottom edge until hovered, stays open with its own editor, follows the inventory closing animation, and no longer expands merely because an item is being dragged.

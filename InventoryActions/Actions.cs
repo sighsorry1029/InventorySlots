@@ -583,7 +583,12 @@ public sealed partial class InventoryActionsPlugin
         List<Vector2i> allowedSlots = GetPlayerActionSlots(player, inventory);
         HashSet<Vector2i> allowedSet = new(allowedSlots);
         InventoryGui.instance?.SetupDragItem(null, null, 0);
-        SortInventoryInternal(inventory, allowedSlots, item => item?.m_shared != null && allowedSet.Contains(item.m_gridPos) && !IsFavoriteProtected(player, inventory, item));
+        bool ShouldSort(ItemData item) => item?.m_shared != null && allowedSet.Contains(item.m_gridPos) && !IsFavoriteProtected(player, inventory, item);
+        List<ItemData> targets = inventory.m_inventory.Where(item => item?.m_shared != null &&
+            IsFavoriteProtected(player, inventory, item)).ToList();
+        bool filled = FillFavoriteStacks(inventory, targets, inventory.m_inventory.Where(ShouldSort).ToList());
+        SortInventoryInternal(inventory, allowedSlots, ShouldSort);
+        if (filled) NotifyInventoryChanged(inventory);
     }
 
     private static int SortInventoryInternal(Inventory inventory, List<Vector2i> allowedSlots, Func<ItemData, bool> shouldSort)

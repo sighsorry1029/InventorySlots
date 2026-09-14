@@ -228,6 +228,8 @@ When a container is open:
 - `Take stacks` fills matching non-favorited partial player stacks from that container only.
 - Sort buttons sort the current player inventory or current container.
 
+Player inventory Sort first fills existing favorite stacks from compatible non-favorite stacks outside the hotbar, using only the ordinary slots already eligible for sorting. Favorites are filled top to bottom, left to right, up to their current maximum stack size. Favorite stacks keep their positions and never donate to each other; empty favorite slots stay empty. The remaining ordinary stacks are then merged and sorted. This is always enabled and independent of restock limits. Items filled into favorite slots become protected from quick stack. Container sorting and restock/quick-stack rules are unchanged.
+
 When hovering a container:
 
 - Hold `E` to quick stack into the hovered container and nearby eligible player-built containers.
