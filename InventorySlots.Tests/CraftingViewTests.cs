@@ -12,7 +12,7 @@ internal static class CraftingViewTests
         };
         foreach (CraftingTabAdapterKind tab in Enum.GetValues<CraftingTabAdapterKind>())
         {
-            Assert.False(CraftingViewCore.UseList(CraftingViewMode.Grid, tab), "Grid must remain the default for every adapter");
+            Assert.False(CraftingViewCore.UseList(CraftingViewMode.Grid, tab), "An explicit Grid selection must remain Grid for every adapter");
             Assert.Equal(supported.Contains(tab), CraftingViewCore.UseList(CraftingViewMode.List, tab));
         }
     }

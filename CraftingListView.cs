@@ -46,7 +46,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void UpdateCraftingViewMode(CraftingTabAdapterState adapter, bool visible)
     {
-        bool list = visible && CraftingViewCore.UseList(_craftingViewMode?.Value ?? CraftingViewMode.Grid, adapter.Kind);
+        bool list = visible && CraftingViewCore.UseList(_craftingViewMode?.Value ?? CraftingViewMode.List, adapter.Kind);
         if (_craftingListViewActive == list) return;
         _craftingListViewActive = list;
         _craftingListRevealedSelection = int.MinValue;
@@ -101,9 +101,10 @@ public sealed partial class InventorySlotsPlugin
         _craftingViewButton.gameObject.SetActive(true);
         if (_craftingSortModeButtonGroup != null)
         {
+            const float buttonWidth = 62f;
             SetTopLeftRectLayout(gui.m_crafting, _craftingViewButton,
-                _craftingSortModeButtonGroup.anchoredPosition + new Vector2(_craftingSortModeButtonGroup.sizeDelta.x + CraftingSortModeButtonGap, 0f),
-                new Vector2(62f, _craftingSortModeButtonGroup.sizeDelta.y));
+                _craftingSortModeButtonGroup.anchoredPosition - new Vector2(buttonWidth + CraftingSortModeButtonGap, 0f),
+                new Vector2(buttonWidth, _craftingSortModeButtonGroup.sizeDelta.y));
         }
         if (_craftingViewButtonLocalizationVersion != _uiLocalizationVersion || _craftingViewButtonShowsList != _craftingListViewActive)
         {

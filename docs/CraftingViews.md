@@ -4,7 +4,7 @@ Implemented on main after `83ba1cf` (2026-09-16), included in InventorySlots 1.5
 
 ## User behavior
 
-- The Grid/List button to the right of the G/T sort buttons changes the view live and remembers the last choice locally. It shares their height and 4-unit spacing. Default is `Grid`. The existing `5 - Client UI` / `Crafting View Mode` config key remains for persistence and existing selections, but is hidden from ConfigurationManager/F1 via `Browsable = false`.
+- As of 1.5.1, the Grid/List button sits to the left of the G/T sort buttons. It changes the view live and remembers the last choice locally, sharing their height and 4-unit spacing. Default is `List` when no view preference has been saved; existing saved selections are preserved. The existing `5 - Client UI` / `Crafting View Mode` config key remains for persistence and existing selections, but is hidden from ConfigurationManager/F1 via `Browsable = false`.
 - List reuses the filtered/sorted recipe model and click/favorite handlers. It shows 14 rows with names/icons on the left and selected-item details on the right. Long descriptions scroll independently; list scrolling does not select another recipe.
 - The List recipe scrollbar is 8 UI units wide; its detail scrollbar is 4. Grid keeps its 16-unit recipe scrollbar. Screen pixel widths depend on UI scaling.
 - The recipe list stays 196 UI units wide. Its 8-unit scrollbar has equal 2-unit gaps to the list and detail panel. The detail panel extends to the same right edge and retains its inner text padding.

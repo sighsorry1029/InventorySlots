@@ -15,7 +15,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void BindCraftingClientConfigs()
     {
-        _craftingViewMode = ConfigEntry(ClientUiConfigSection, "Crafting View Mode", CraftingViewMode.Grid,
+        _craftingViewMode = ConfigEntry(ClientUiConfigSection, "Crafting View Mode", CraftingViewMode.List,
             new ConfigDescription(
                 "View selected by the Grid/List button in the crafting panel. Applies live to Craft, Upgrade, Jewelcrafting Socket, and Recycle N Reclaim. Saved locally and not synced with server.",
                 null,

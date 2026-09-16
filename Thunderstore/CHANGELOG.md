@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.1
+
+- Moved the Grid/List view button to the left of the G/T sorting buttons, keeping the same button height and spacing.
+- List is now the default crafting view when no view preference has been saved. Existing saved Grid/List selections are preserved, and the button still switches views live.
+
 ## 1.5.0
 
 - Added live Grid/List switching for Craft, Upgrade, Jewelcrafting's Socket tab, and Recycle N Reclaim's Reclaim tab. The new button sits to the right of the G/T sorting buttons. Grid remains the default; the last choice is saved locally, with no separate entry in the F1 settings menu.
