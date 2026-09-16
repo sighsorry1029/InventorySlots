@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.0
+
+- Added live Grid/List switching for Craft, Upgrade, Jewelcrafting's Socket tab, and Recycle N Reclaim's Reclaim tab. The new button sits to the right of the G/T sorting buttons. Grid remains the default; the last choice is saved locally, with no separate entry in the F1 settings menu.
+- List view shows recipe names on the left and selected-item details on the right. Long descriptions support mouse-wheel scrolling and dragging, and socketed Jewelcrafting gems appear as compact icons below the item name. Slim scrollbars and balanced spacing leave more room for item descriptions.
+- Switching views preserves the shared search, filters, favorites, selected recipe/style, crafting quantity, and queue. Scrolling the list leaves the selected item unchanged. List view suppresses the automatic recipe hover popup while still allowing the pin key to pin a hovered recipe without selecting it.
+- Kept Socket costs and risk warnings, Reclaim return materials and blocking reasons, and other mods' independent crafting screens in their existing controls and layouts. Added English/Korean view labels and automated checks for supported tabs, list scrolling, and selection preservation.
+
 ## 1.4.17
 
 - Player inventory Sort now fills existing favorite stacks from compatible non-favorite stacks in the sortable inventory area before merging and sorting the remaining ordinary stacks. Favorites are filled from top to bottom, left to right, up to the current maximum stack size.

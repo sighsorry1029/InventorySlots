@@ -5,6 +5,12 @@ using UnityEngine.UI;
 
 namespace InventorySlots;
 
+[HarmonyPatch(typeof(InventoryGui), "OnDestroy")]
+internal static class InventoryGuiCraftingViewDestroyPatch
+{
+    private static void Prefix(InventoryGui __instance) => InventorySlotsPlugin.DestroyCraftingListViewUi(__instance);
+}
+
 [HarmonyPatch(typeof(ScrollRect), nameof(ScrollRect.OnScroll))]
 [HarmonyPriority(Priority.First)]
 internal static class CraftingTooltipUnderlyingScrollRectGuardPatch

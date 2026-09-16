@@ -1,5 +1,9 @@
 inventoryslots_search: Search
 inventoryslots_style: Style
+inventoryslots_view_grid: Grid
+inventoryslots_view_list: List
+inventoryslots_view_toggle: Switch between grid and list view
+inventoryslots_view_no_recipe: No matching recipes
 inventoryslots_sort_group_first: Group first
 inventoryslots_sort_group_first_tooltip: Sort by category, then resource tier.
 inventoryslots_sort_tier_first: Tier first

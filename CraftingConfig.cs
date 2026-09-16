@@ -6,6 +6,7 @@ namespace InventorySlots;
 public sealed partial class InventorySlotsPlugin
 {
     private static ConfigEntry<int> _craftingRecipeGridSize = null!;
+    private static ConfigEntry<CraftingViewMode> _craftingViewMode = null!;
     private static ConfigEntry<KeyboardShortcut> _craftingRecipeGridZoomModifier = null!;
     private static ConfigEntry<KeyboardShortcut> _craftingClearFavoritesKey = null!;
     private static ConfigEntry<Toggle> _showCraftingRecipeGridZoomHint = null!;
@@ -14,6 +15,13 @@ public sealed partial class InventorySlotsPlugin
 
     private static void BindCraftingClientConfigs()
     {
+        _craftingViewMode = ConfigEntry(ClientUiConfigSection, "Crafting View Mode", CraftingViewMode.Grid,
+            new ConfigDescription(
+                "View selected by the Grid/List button in the crafting panel. Applies live to Craft, Upgrade, Jewelcrafting Socket, and Recycle N Reclaim. Saved locally and not synced with server.",
+                null,
+                new ConfigurationManagerAttributes { Browsable = false }),
+            synchronizedSetting: false);
+        _craftingViewMode.SettingChanged += OnCraftingViewModeChanged;
         _craftingRecipeGridSize = ConfigEntry(
             ClientConfigSection,
             "Crafting Recipe Grid Size",
@@ -49,5 +57,11 @@ public sealed partial class InventorySlotsPlugin
 
         _craftingRecipeCraftableBackgroundColor = OrderedConfigEntry(ClientConfigSection, "Craftable Recipe Background Color", CraftingRecipeDefaultCraftableBackgroundColor, "Advanced color for recipe grid cells that can currently be crafted. Not synced with server.", order: 780, synchronizedSetting: false);
         _craftingRecipeCraftableBackgroundColor.SettingChanged += (_, _) => CraftingController.MarkRecipeGridLayoutDirty();
+    }
+
+    private static void OnCraftingViewModeChanged(object? sender, System.EventArgs args)
+    {
+        CraftingController.MarkRecipeGridLayoutDirty();
+        ResetCraftingFrameFastPathStamp();
     }
 }

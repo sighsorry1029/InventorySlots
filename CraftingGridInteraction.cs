@@ -15,9 +15,15 @@ public sealed partial class InventorySlotsPlugin
     private static bool HandleCraftingRecipeWheelInput(InventoryGui gui, RectTransform grid)
     {
         PrepareCraftingTooltipScrollInput(gui);
-        return HandleCraftingPinnedTooltipWheel() ||
-               HandleCraftingHoverTooltipWheel() ||
-               HandleCraftingRecipeGridZoomWheel(gui, grid) ||
+        if (HandleCraftingPinnedTooltipWheel() || HandleCraftingHoverTooltipWheel()) return true;
+        // The detail ScrollRect owns mouse wheel/drag input; pinned panels above
+        // it still take precedence. Never page the list underneath the detail.
+        if (IsMouseOverCraftingListDetails())
+        {
+            HandleCraftingListDetailGamepadScroll();
+            return false; // Scrolling details does not require rebuilding the recipe list.
+        }
+        return HandleCraftingRecipeGridZoomWheel(gui, grid) ||
                HandleCraftingRecipeGridWheel(gui, grid);
     }
 
@@ -26,7 +32,7 @@ public sealed partial class InventorySlotsPlugin
         Vector2 mouse = GetUiMousePosition();
         bool scrollbarTargetActive = IsCraftingRecipeScrollbarScrollTargetActive(mouse);
         bool modifierHeld = IsCraftingRecipeGridZoomModifierHeld();
-        if (modifierHeld && !scrollbarTargetActive)
+        if (!_craftingListViewActive && modifierHeld && !scrollbarTargetActive)
         {
             return false;
         }
@@ -54,8 +60,14 @@ public sealed partial class InventorySlotsPlugin
 
         CraftingController.ClearHoveredRecipeAndRequestMouseSync();
         CraftingController.MarkRecipeGridLayoutDirty();
-        int pageStart = _craftingRecipePage * GetCraftingRecipeGridCapacity();
-        if (pageStart >= 0 && pageStart < CraftingRecipes.View.Count)
+        if (_craftingListViewActive)
+        {
+            _craftingListRevealedSelection = GetSelectedCraftingRecipeIndexSafe(gui, acceptOneLevelHigher: false);
+            // Fast-path input can fall through into a full layout in this frame.
+            ConsumeMouseUiScrollForCurrentFrame();
+        }
+        int pageStart = GetCraftingRecipePageStart();
+        if (!_craftingListViewActive && pageStart >= 0 && pageStart < CraftingRecipes.View.Count)
         {
             SetCraftingRecipeWithStoredVariant(gui, CraftingRecipes.View[pageStart].OriginalIndex, center: false);
         }
@@ -65,6 +77,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool HandleCraftingRecipeGridZoomWheel(InventoryGui gui, RectTransform grid)
     {
+        if (_craftingListViewActive) return false;
         bool targetActive = IsCraftingRecipeGridZoomScrollTargetActive(grid, GetUiMousePosition());
         bool modifierHeld = IsCraftingRecipeGridZoomModifierHeld();
         float wheel = GetUiScrollDelta(UiScrollInputMode.Discrete);
@@ -147,7 +160,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void UpdateCraftingRecipeGridZoomHint(InventoryGui gui, RectTransform grid)
     {
-        if (gui?.m_crafting == null ||
+        if (_craftingListViewActive || gui?.m_crafting == null ||
             grid == null ||
             _showCraftingRecipeGridZoomHint == null ||
             _showCraftingRecipeGridZoomHint.Value.IsOff() ||
@@ -256,6 +269,8 @@ public sealed partial class InventorySlotsPlugin
     private static void SyncCraftingRecipePageToSelected(InventoryGui gui)
     {
         int selectedIndex = gui.GetSelectedRecipeIndex();
+        if (_craftingListViewActive && _craftingListRevealedSelection == selectedIndex) return;
+        _craftingListRevealedSelection = selectedIndex;
         if (selectedIndex < 0)
         {
             int previousPage = _craftingRecipePage;
@@ -269,9 +284,8 @@ public sealed partial class InventorySlotsPlugin
 
         int viewIndex = FindCraftingRecipeViewIndex(selectedIndex);
         int oldPage = _craftingRecipePage;
-        _craftingRecipePage = viewIndex < 0
-            ? 0
-            : Mathf.Clamp(viewIndex / GetCraftingRecipeGridCapacity(), 0, Mathf.Max(0, GetCraftingRecipePageCount(gui) - 1));
+        _craftingRecipePage = CraftingViewCore.RevealSelection(_craftingListViewActive, oldPage, viewIndex,
+            CraftingRecipes.View.Count, GetCraftingRecipeGridCapacity());
         if (_craftingRecipePage != oldPage)
         {
             CraftingController.MarkRecipeGridLayoutDirty();
@@ -291,13 +305,13 @@ public sealed partial class InventorySlotsPlugin
     private static int GetCraftingRecipePageCount(InventoryGui gui)
     {
         int count = CraftingRecipes.View.Count;
-        return count <= 0 ? 1 : Mathf.CeilToInt(count / (float)GetCraftingRecipeGridCapacity());
+        return CraftingViewCore.PageCount(_craftingListViewActive, count, GetCraftingRecipeGridCapacity());
     }
 
     private static void LayoutCraftingRecipeGrid(InventoryGui gui, RectTransform grid)
     {
         int dimension = GetCraftingRecipeGridDimension();
-        int pageStart = _craftingRecipePage * GetCraftingRecipeGridCapacity();
+        int pageStart = GetCraftingRecipePageStart();
         int selectedIndex = gui.GetSelectedRecipeIndex();
         int availabilityHash = GetCraftingRecipeGridAvailabilityHash(gui, pageStart);
         CraftingRecipeGridStamp stamp = new(
@@ -362,16 +376,15 @@ public sealed partial class InventorySlotsPlugin
         rect.anchorMin = new Vector2(0f, 1f);
         rect.anchorMax = new Vector2(0f, 1f);
         rect.pivot = new Vector2(0f, 1f);
-        rect.sizeDelta = new Vector2(cellSize, cellSize);
+        rect.sizeDelta = new Vector2(_craftingListViewActive ? CraftingListWidth : cellSize, cellSize);
         rect.anchoredPosition = new Vector2(column * cellSpace, -row * cellSpace);
         rect.localScale = Vector3.one;
         rect.localRotation = Quaternion.identity;
-        ConfigureCraftingRecipeCellOverlays(cell, cellSize);
+        ConfigureCraftingRecipeCellOverlays(cell);
 
+        bool actionAvailable = !IsVeiledRecipeMasked(pair) && IsCraftingRecipeActionAvailable(gui, pair, index);
         if (cell.Background != null)
         {
-            bool veiledMasked = IsVeiledRecipeMasked(pair);
-            bool actionAvailable = !veiledMasked && IsCraftingRecipeActionAvailable(gui, pair, index);
             cell.Background.raycastTarget = true;
             cell.Background.color = craftingSelected
                 ? CraftingRecipeSelectedBackgroundColor
@@ -393,6 +406,8 @@ public sealed partial class InventorySlotsPlugin
         SetCraftingRecipeFavoriteBorder(cell, IsFavoriteCraftingRecipe(pair), IsUpgradeFavoritePair(pair));
         SetCraftingRecipePinnedTooltipMarker(cell, tooltipPinned, cellSize);
         ConfigureCraftingRecipeVneiTooltip(cell.Tooltip, pair);
+        if (_craftingListViewActive) ConfigureCraftingListRow(cell, pair, cellSize, actionAvailable);
+        else if (cell.Name != null) cell.Name.gameObject.SetActive(false);
 
         CraftingRecipeGridMarker marker = cell.Marker;
         marker.Index = index;
@@ -472,6 +487,13 @@ public sealed partial class InventorySlotsPlugin
 
     private static void SetCraftingRecipeHover(int index, UITooltip? tooltip)
     {
+        if (_craftingListViewActive)
+        {
+            // Pinning still targets the hovered row; List only suppresses the
+            // automatic popup and does not claim the global vanilla tooltip.
+            CraftingController.SetHoveredRecipe(index);
+            return;
+        }
         if (CraftingController.IsHoveredRecipe(index))
         {
             SetCurrentCraftingRecipeTooltip(tooltip);
@@ -505,7 +527,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         Vector2 mouse = GetUiMousePosition();
-        int pageStart = _craftingRecipePage * GetCraftingRecipeGridCapacity();
+        int pageStart = GetCraftingRecipePageStart();
         for (int slotIndex = 0; slotIndex < CraftingRecipes.GridCells.Count; slotIndex++)
         {
             CraftingRecipeGridCell cell = CraftingRecipes.GridCells[slotIndex];
@@ -613,7 +635,7 @@ public sealed partial class InventorySlotsPlugin
         return Localization.instance != null ? Localization.instance.Localize(sharedName) : sharedName;
     }
 
-    private static void ConfigureCraftingRecipeCellOverlays(CraftingRecipeGridCell cell, float cellSize)
+    private static void ConfigureCraftingRecipeCellOverlays(CraftingRecipeGridCell cell)
     {
         foreach (Transform child in cell.Rect)
         {
@@ -636,7 +658,7 @@ public sealed partial class InventorySlotsPlugin
             rect.anchorMax = new Vector2(0f, 1f);
             rect.pivot = new Vector2(0f, 1f);
             rect.anchoredPosition = Vector2.zero;
-            rect.sizeDelta = new Vector2(cellSize, cellSize);
+            rect.sizeDelta = cell.Rect.sizeDelta;
             rect.localScale = Vector3.one;
             rect.localRotation = Quaternion.identity;
         }
@@ -1179,7 +1201,7 @@ public sealed partial class InventorySlotsPlugin
         Rect recipeIconArea = new(
             0f,
             -CraftingRecipeIconRows * CraftingRecipeGridCellSpace,
-            CraftingRecipeGridColumns * CraftingRecipeGridCellSpace,
+            _craftingListViewActive ? CraftingListWidth : CraftingRecipeGridColumns * CraftingRecipeGridCellSpace,
             CraftingRecipeIconRows * CraftingRecipeGridCellSpace);
         return recipeIconArea.Contains(localPoint);
     }

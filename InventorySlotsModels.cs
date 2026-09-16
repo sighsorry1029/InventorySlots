@@ -220,6 +220,7 @@ internal sealed class CraftingRecipeGridCell
     public Image? Icon { get; }
     public TMP_Text? Amount { get; }
     public TMP_Text? Quality { get; }
+    public TMP_Text? Name { get; set; }
     public GameObject? Selected { get; }
     public GameObject? Equipped { get; }
     public GameObject? Queued { get; }

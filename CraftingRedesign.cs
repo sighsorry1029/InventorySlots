@@ -20,6 +20,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         bool shouldShowRedesign = ShouldShowCraftingPanelRedesign(gui, adapter);
+        UpdateCraftingViewMode(adapter, shouldShowRedesign);
         if (!shouldShowRedesign)
         {
             UpdateCraftingTabAdapterSuppression(gui, shouldSuppress: false, adapter);
@@ -81,6 +82,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         bool viewChanged = UpdateCraftingRecipeView(gui);
+        if (viewChanged) _craftingListRevealedSelection = int.MinValue;
         EnsureSelectedCraftingRecipeVisible(gui);
         bool recipeWheelHandled = HandleCraftingRecipeWheelInput(gui, grid);
         if (!recipeWheelHandled)
@@ -95,6 +97,7 @@ public sealed partial class InventorySlotsPlugin
         UpdateCraftingTooltipRecipeOverlay(gui);
         LayoutCraftingTabAdapterBottomControls(gui, grid, adapter);
         UpdateCraftingRecipeGridZoomHint(gui, grid);
+        UpdateCraftingViewControls(gui, grid, adapter);
         RepairCraftingPinnedTooltipTextVisibility();
         FinalizeCraftingTabAdapterFrame(gui, adapter, firstApply, reason, viewChanged);
 
@@ -405,6 +408,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void HideOwnedCraftingRedesignUi()
     {
+        HideCraftingListViewUi();
         if (_craftingRecipeGrid != null)
         {
             _craftingRecipeGrid.gameObject.SetActive(false);

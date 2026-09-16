@@ -127,6 +127,8 @@ public sealed partial class InventorySlotsPlugin
 
     private void OnDestroy()
     {
+        if (_craftingViewMode != null) _craftingViewMode.SettingChanged -= OnCraftingViewModeChanged;
+        DestroyCraftingListViewUi();
         ShutdownItemRules();
         ShutdownEpicLootCompatibility();
         CancelContainerAreaTransfer();

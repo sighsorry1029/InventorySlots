@@ -127,6 +127,8 @@ public sealed partial class InventorySlotsPlugin
                       _craftingCountInputRect,
                       CraftingUi.SearchInputRect,
                       _craftingSortModeButtonGroup,
+                      _craftingViewButton,
+                      _craftingListDetails.Root,
                       _craftingControlsBackground
                   })
         {

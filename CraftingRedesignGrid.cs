@@ -59,10 +59,11 @@ public sealed partial class InventorySlotsPlugin
     }
 
     private static int GetCraftingRecipeGridDimension() =>
-        Mathf.Clamp(_craftingRecipeGridSize?.Value ?? CraftingRecipeGridMaxDimension, CraftingRecipeGridMinDimension, CraftingRecipeGridMaxDimension);
+        _craftingListViewActive ? 1 : Mathf.Clamp(_craftingRecipeGridSize?.Value ?? CraftingRecipeGridMaxDimension, CraftingRecipeGridMinDimension, CraftingRecipeGridMaxDimension);
 
     private static int GetCraftingRecipeGridCapacity()
     {
+        if (_craftingListViewActive) return CraftingViewCore.ListRows;
         int dimension = GetCraftingRecipeGridDimension();
         return dimension * dimension;
     }
@@ -72,12 +73,13 @@ public sealed partial class InventorySlotsPlugin
 
     private static float GetCraftingRecipeDynamicCellSpace()
     {
+        if (_craftingListViewActive) return GetCraftingRecipeIconAreaSize() / CraftingViewCore.ListRows;
         int dimension = GetCraftingRecipeGridDimension();
         return GetCraftingRecipeIconAreaSize() / dimension;
     }
 
     private static float GetCraftingRecipeDynamicCellSize(float cellSpace) =>
-        Mathf.Max(24f, cellSpace - 8f);
+        Mathf.Max(24f, cellSpace - (_craftingListViewActive ? 2f : 8f));
 
     private static void EnsureCraftingRecipeCells(InventoryGui gui, RectTransform grid)
     {

@@ -1,5 +1,9 @@
 inventoryslots_search: 검색
 inventoryslots_style: 스타일
+inventoryslots_view_grid: 격자
+inventoryslots_view_list: 목록
+inventoryslots_view_toggle: 격자와 목록 보기 전환
+inventoryslots_view_no_recipe: 일치하는 제작법 없음
 inventoryslots_sort_group_first: 그룹 우선
 inventoryslots_sort_group_first_tooltip: 분류를 먼저, 그다음 자원 티어로 정렬합니다.
 inventoryslots_sort_tier_first: 티어 우선

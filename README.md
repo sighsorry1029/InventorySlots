@@ -6,6 +6,12 @@ It adds progressive inventory rows, equipment slots, quick slots, favorites, kee
 
 ## Visual Overview
 
+![](https://i.ibb.co/ynW5TXnN/Screenshot-2026-09-16-095942.png) <br>
+Listing view on crafting station is now available.
+
+![](https://i.ibb.co/8gDsSjJM/gridchangeenglish.gif) <br>
+Change between grid view and list view can be applied live with a button. <br>
+
 ![](https://i.ibb.co/b5qGKm8k/Inventory-Button.gif) <br>
 Three inventory buttons: Restock limit, Auto Pickup Exclude, and Trash
 
@@ -24,6 +30,8 @@ Key hints show the current favorite and tooltip hotkeys, including mouse/control
 
 ![](https://i.ibb.co/pBJJ84sJ/craftingpanellook.png) <br>
 Crafting stations are redesigned into an icon-grid browser with search, group filters, favorites, sorting buttons, page scrolling, and hover/pinned tooltip support.
+
+Use the **Grid / List** button beside the sorting controls to switch live. Grid is the default, and your selection is saved locally between sessions. List shows recipe names on the left and the selected recipe's scrollable details on the right, without a recipe hover popup. Search, filters, favorites, selection, crafting quantity, and queued crafting are shared between views. List scrolling leaves the selected recipe unchanged. Craft, Upgrade, Jewelcrafting's Socket tab, and Recycle N Reclaim's Reclaim tab support both views. Socket costs and risk warnings, and Reclaim's return materials and blocking reasons, stay in their existing bottom controls. Other external crafting tabs keep their existing layouts.
 
 ![](https://i.ibb.co/0yP8R3vf/gridsizefavorite.gif) <br>
 Mark favorite recipes and resize the crafting grid with mouse-wheel zoom.

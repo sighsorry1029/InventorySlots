@@ -201,7 +201,7 @@ public sealed partial class InventorySlotsPlugin
 
         int viewIndex = FindCraftingRecipeViewIndex(index);
         int capacity = GetCraftingRecipeGridCapacity();
-        int slotIndex = viewIndex - _craftingRecipePage * capacity;
+        int slotIndex = viewIndex - GetCraftingRecipePageStart();
         if (viewIndex < 0 ||
             slotIndex < 0 ||
             slotIndex >= capacity ||

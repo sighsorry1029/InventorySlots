@@ -19,8 +19,14 @@ public sealed partial class InventorySlotsPlugin
 
     private static void UpdateCraftingTooltipRecipeOverlay(InventoryGui gui)
     {
+        // Scrolling/reusing cells can change the row under a stationary pointer.
+        // Keep the pin target current even when List hides the hover popup.
         SyncCraftingRecipeHoverWithMouseIfRequested();
-
+        if (_craftingListViewActive)
+        {
+            HideCraftingTooltipRecipeOverlay();
+            return;
+        }
         if (!IsCraftingHoverTooltipEnabled() ||
             CraftingController.HoveredRecipeIndex < 0 ||
             !IsCraftingTooltipRecipeOverlayTargetValid() ||
@@ -157,7 +163,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         int capacity = GetCraftingRecipeGridCapacity();
-        int pageStart = _craftingRecipePage * capacity;
+        int pageStart = GetCraftingRecipePageStart();
         int slotIndex = viewIndex - pageStart;
         if (slotIndex < 0 || slotIndex >= capacity || slotIndex >= CraftingRecipes.GridCells.Count)
         {

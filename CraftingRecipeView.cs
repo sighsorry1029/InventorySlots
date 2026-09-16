@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using HarmonyLib;
 using UnityEngine;
 using ItemData = ItemDrop.ItemData;
 using ItemType = ItemDrop.ItemData.ItemType;
@@ -10,6 +11,12 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
+    // GetSelectedRecipeIndex is private in the original Valheim assembly.
+    // Cache the accessor, not its changing selection result.
+    private static readonly Func<InventoryGui, bool, int> CraftingSelectedRecipeIndex =
+        AccessTools.MethodDelegate<Func<InventoryGui, bool, int>>(
+            AccessTools.Method(typeof(InventoryGui), "GetSelectedRecipeIndex", new[] { typeof(bool) }));
+
     internal static void OnCraftingRecipeListUpdated(InventoryGui gui)
     {
         if (gui == null)
@@ -209,11 +216,11 @@ public sealed partial class InventorySlotsPlugin
         return $"list={listId}|count={count}|craft={IsCraftingCraftTabSelected(gui)}|upgrade={IsCraftingUpgradeTabSelected(gui)}|adapter={currentAdapter.Kind}|rnr={recycleNReclaimSignature}";
     }
 
-    private static int GetSelectedCraftingRecipeIndexSafe(InventoryGui gui)
+    private static int GetSelectedCraftingRecipeIndexSafe(InventoryGui gui, bool acceptOneLevelHigher = true)
     {
         try
         {
-            return gui.GetSelectedRecipeIndex(acceptOneLevelHigher: true);
+            return CraftingSelectedRecipeIndex(gui, acceptOneLevelHigher);
         }
         catch
         {

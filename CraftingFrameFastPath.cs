@@ -66,6 +66,7 @@ public sealed partial class InventorySlotsPlugin
         LayoutCraftingTabAdapterBottomControls(gui, grid, adapter);
         UpdateCraftingRecipeGridZoomHint(gui, grid);
         UpdateCraftingTooltipRecipeOverlay(gui);
+        UpdateCraftingViewControls(gui, grid, adapter);
         if (HasActiveCraftingPinnedTooltip())
         {
             RepairCraftingPinnedTooltipTextVisibility();

@@ -45,10 +45,12 @@ public sealed partial class InventorySlotsPlugin
             marker.Initialized = true;
         }
 
-        SetTopLeftRectLayout(gui.m_crafting, rect, GetCraftingRecipeScrollbarPosition(gui, grid), new Vector2(16f, CraftingRecipeIconRows * CraftingRecipeGridCellSpace - 6f));
+        SetTopLeftRectLayout(gui.m_crafting, rect, GetCraftingRecipeScrollbarPosition(gui, grid), new Vector2(_craftingListViewActive ? CraftingListScrollbarWidth : 16f, CraftingRecipeIconRows * CraftingRecipeGridCellSpace - 6f));
         SetCraftingRecipeScrollbarGraphicsVisible(rect, visible: true);
         scrollbar.direction = Scrollbar.Direction.BottomToTop;
-        scrollbar.size = Mathf.Clamp01(1f / pageCount);
+        scrollbar.size = _craftingListViewActive
+            ? Mathf.Clamp01(GetCraftingRecipeGridCapacity() / (float)Mathf.Max(1, CraftingRecipes.View.Count))
+            : Mathf.Clamp01(1f / pageCount);
 
         CraftingScrollbar.UpdatingRecipeScrollbar = true;
         scrollbar.value = pageCount <= 1 ? 1f : 1f - _craftingRecipePage / (float)(pageCount - 1);
@@ -69,6 +71,8 @@ public sealed partial class InventorySlotsPlugin
 
     private static Vector2 GetCraftingRecipeScrollbarPosition(InventoryGui gui, RectTransform grid)
     {
+        if (_craftingListViewActive)
+            return grid.anchoredPosition + new Vector2(CraftingListWidth + CraftingListScrollbarGap, 0f);
         Vector2 offset = CraftingRecipeScrollbarFixedOffset;
         float panelRight = GetRectWidth(gui.m_crafting);
         if (panelRight <= 1f)
@@ -209,7 +213,7 @@ public sealed partial class InventorySlotsPlugin
             }
 
             Transform transform = scrollbar.transform;
-            if (transform.name.StartsWith("InventorySlots_", StringComparison.Ordinal) ||
+            if (IsOwnedCraftingUiTransform(transform) ||
                 IsForeignCraftingUiTransform(gui, transform))
             {
                 continue;
@@ -289,10 +293,12 @@ public sealed partial class InventorySlotsPlugin
         }
 
         _craftingRecipePage = page;
+        if (_craftingListViewActive)
+            _craftingListRevealedSelection = GetSelectedCraftingRecipeIndexSafe(gui, acceptOneLevelHigher: false);
         CraftingController.ClearHoveredRecipe();
         CraftingController.MarkRecipeGridLayoutDirty();
-        int pageStart = _craftingRecipePage * GetCraftingRecipeGridCapacity();
-        if (pageStart >= 0 && pageStart < CraftingRecipes.View.Count)
+        int pageStart = GetCraftingRecipePageStart();
+        if (!_craftingListViewActive && pageStart >= 0 && pageStart < CraftingRecipes.View.Count)
         {
             SetCraftingRecipeWithStoredVariant(gui, CraftingRecipes.View[pageStart].OriginalIndex, center: false);
         }

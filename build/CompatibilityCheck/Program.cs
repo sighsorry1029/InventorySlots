@@ -203,6 +203,9 @@ if (Types(mod.MainModule.Types).Any(t => t.FullName == "InventorySlots.Inventory
     if (runtimeFields.Contains("LoadSharedContainerAreaInventory"))
         CheckReflectedMethod("Container", "Load", "System.Boolean", false);
 
+    if (runtimeFields.Contains("CraftingSelectedRecipeIndex"))
+        CheckReflectedMethod("InventoryGui", "GetSelectedRecipeIndex", "System.Int32", false, "System.Boolean");
+
     if (runtimeFields.Contains("SharedContainerLocalInUse"))
     {
         CheckReflectedField("Container", "m_inUse", "System.Boolean", false);
