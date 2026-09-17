@@ -228,6 +228,12 @@ public sealed partial class InventorySlotsPlugin
         IReadOnlyList<RecycleNReclaimYieldTextEntry> yields)
     {
         string text = BuildRecycleNReclaimHudText(gui, hasSummary, impediments, yields);
+        if (_craftingListViewActive)
+        {
+            _craftingListStatusText = text;
+            HideRecycleNReclaimHud();
+            return;
+        }
         if (string.IsNullOrWhiteSpace(text))
         {
             HideRecycleNReclaimHud();

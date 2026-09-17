@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.2
+
+- Deferred custom equipment visual restoration until Valheim's material manager has finished initializing. This prevents restored equipment from registering renderers against an uninitialized material block during startup, which could leave `MaterialMan.Update()` throwing repeatedly. Inventory restoration, saved slots, and network behavior are unchanged.
+- In crafting List view, moved Jewelcrafting Socket warnings and Recycle N Reclaim status/blocking messages into the scrollable item-details pane. Grid view keeps the existing bottom messages, while costs, returned-item icons, and action buttons remain below in both views.
+- Moved the Grid/List toggle immediately to the left of the search field so it follows the search layout and optional crafting-tab offsets.
+
 ## 1.5.1
 
 - Moved the Grid/List view button to the left of the G/T sorting buttons, keeping the same button height and spacing.

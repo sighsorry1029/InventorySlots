@@ -18,6 +18,7 @@ public sealed partial class InventorySlotsPlugin
     private static TMP_Text? _craftingViewButtonLabel;
     private static int _craftingViewButtonLocalizationVersion = -1;
     private static bool _craftingViewButtonShowsList;
+    private static string _craftingListStatusText = "";
     private static CraftingListDetailState _craftingListDetails = new();
 
     private sealed class CraftingListDetailState
@@ -42,6 +43,7 @@ public sealed partial class InventorySlotsPlugin
         public float NextRefresh;
         public string BodyText = "";
         public string TitleText = "";
+        public string StatusText = "";
     }
 
     private static void UpdateCraftingViewMode(CraftingTabAdapterState adapter, bool visible)
@@ -99,12 +101,13 @@ public sealed partial class InventorySlotsPlugin
         }
 
         _craftingViewButton.gameObject.SetActive(true);
-        if (_craftingSortModeButtonGroup != null)
+        if (CraftingUi.SearchInputRect != null)
         {
             const float buttonWidth = 62f;
+            RectTransform search = CraftingUi.SearchInputRect;
             SetTopLeftRectLayout(gui.m_crafting, _craftingViewButton,
-                _craftingSortModeButtonGroup.anchoredPosition - new Vector2(buttonWidth + CraftingSortModeButtonGap, 0f),
-                new Vector2(buttonWidth, _craftingSortModeButtonGroup.sizeDelta.y));
+                search.anchoredPosition - new Vector2(buttonWidth + CraftingSortModeButtonGap, 0f),
+                new Vector2(buttonWidth, search.sizeDelta.y));
         }
         if (_craftingViewButtonLocalizationVersion != _uiLocalizationVersion || _craftingViewButtonShowsList != _craftingListViewActive)
         {
@@ -225,7 +228,8 @@ public sealed partial class InventorySlotsPlugin
         bool selectionChanged = state.Tab != adapter.Kind || state.Recipe != pair.Recipe ||
             !ReferenceEquals(state.Item, pair.ItemData) || state.Variant != variant;
         bool localizationChanged = state.LocalizationVersion != _uiLocalizationVersion;
-        if (!selectionChanged && !localizationChanged && state.CanCraft == pair.CanCraft && Time.unscaledTime < state.NextRefresh) return;
+        bool statusChanged = state.StatusText != _craftingListStatusText;
+        if (!selectionChanged && !localizationChanged && !statusChanged && state.CanCraft == pair.CanCraft && Time.unscaledTime < state.NextRefresh) return;
         state.NextRefresh = Time.unscaledTime + 0.25f;
         state.Tab = adapter.Kind;
         state.LocalizationVersion = _uiLocalizationVersion;
@@ -233,8 +237,15 @@ public sealed partial class InventorySlotsPlugin
         state.Item = pair.ItemData;
         state.Variant = variant;
         state.CanCraft = pair.CanCraft;
+        state.StatusText = _craftingListStatusText;
         string title = GetCraftingRecipeDisplayName(pair);
         string body = GetCraftingRecipeTooltip(pair);
+        if (!string.IsNullOrWhiteSpace(state.StatusText))
+        {
+            // Keep action warnings inside the scrollable description, ahead of
+            // item stats, without imposing the bottom HUD's fixed-height limit.
+            body = $"<color=#FFB847>{state.StatusText}</color>\n\n{body}";
+        }
         ItemDrop.ItemData? gemItem = HasJewelcraftingActive && !IsVeiledRecipeMasked(pair)
             ? GetCraftingJewelcraftingTooltipItem(pair) : null;
         string gemSignature = GetCraftingHoverGemIconSignature(gemItem);
@@ -281,7 +292,7 @@ public sealed partial class InventorySlotsPlugin
         }
         float textWidth = width - 28f;
         float contentHeight = Mathf.Max(1f, state.Body.GetPreferredValues(body, textWidth, 10000f).y);
-        float offset = selectionChanged ? 0f : state.Scroll.Content!.anchoredPosition.y;
+        float offset = selectionChanged || statusChanged ? 0f : state.Scroll.Content!.anchoredPosition.y;
         state.Scroll.ScrollView!.gameObject.SetActive(true);
         ScrollableTooltipBody.LayoutPixelScroll(state.Scroll, state.Body, textWidth, 12f, top, height - top - 12f,
             contentHeight, offset, -8f, 4f, enableScrollRectWhenNeeded: true);
@@ -306,6 +317,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void HideCraftingListViewUi()
     {
+        _craftingListStatusText = "";
         if (_craftingViewButton != null) _craftingViewButton.gameObject.SetActive(false);
         if (_craftingListDetails.Root != null) _craftingListDetails.Root.gameObject.SetActive(false);
     }

@@ -45,6 +45,7 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
+        ProcessDeferredEquipmentVisuals();
         ApplyMyLittleUICraftingCompatibility();
 
         if (!InventoryGui.IsVisible())
@@ -127,6 +128,7 @@ public sealed partial class InventorySlotsPlugin
 
     private void OnDestroy()
     {
+        PendingEquipmentVisualPlayers.Clear();
         if (_craftingViewMode != null) _craftingViewMode.SettingChanged -= OnCraftingViewModeChanged;
         DestroyCraftingListViewUi();
         ShutdownItemRules();

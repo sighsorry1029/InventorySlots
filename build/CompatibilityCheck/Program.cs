@@ -200,6 +200,8 @@ if (Types(mod.MainModule.Types).Any(t => t.FullName == "InventorySlots.Inventory
     var runtimeFields = Types(mod.MainModule.Types)
         .Where(t => t.FullName == "InventorySlots.InventorySlotsPlugin")
         .SelectMany(t => t.Fields).Select(f => f.Name).ToHashSet(StringComparer.Ordinal);
+    if (runtimeFields.Contains("MaterialManagerPropertyBlock"))
+        CheckReflectedField("MaterialMan", "m_propertyBlock", "UnityEngine.MaterialPropertyBlock", false);
     if (runtimeFields.Contains("LoadSharedContainerAreaInventory"))
         CheckReflectedMethod("Container", "Load", "System.Boolean", false);
 

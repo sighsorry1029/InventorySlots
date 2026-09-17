@@ -76,6 +76,9 @@ public sealed partial class InventorySlotsPlugin
 
     private static void LayoutCraftingTabAdapterBottomControls(InventoryGui gui, RectTransform grid, CraftingTabAdapterState adapter)
     {
+        // Bottom controls prepare the selected action's status before List details
+        // render on both the full update and fast path. Clear it for empty/new tabs.
+        _craftingListStatusText = "";
         if (adapter.UsesRecycleNReclaimBottomControls)
         {
             LayoutRecycleNReclaimBottomControls(gui, grid);

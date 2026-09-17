@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using BepInEx.Configuration;
@@ -15,8 +16,8 @@ internal static class Program
 
     private static int Main(string[] args)
     {
-        if (args.Length != 3 && (args.Length != 4 || (args[3] != "--button-offsets" && args[3] != "--ui-layout" && args[3] != "--restock-reserve" && args[3] != "--button-modes" && args[3] != "--favorite-fill")))
-            throw new ArgumentException("Usage: <final mod.dll> <original Managed> <BepInEx core> [--ui-layout|--restock-reserve|--button-modes|--favorite-fill]");
+        if (args.Length != 3 && (args.Length != 4 || (args[3] != "--button-offsets" && args[3] != "--ui-layout" && args[3] != "--restock-reserve" && args[3] != "--button-modes" && args[3] != "--favorite-fill" && args[3] != "--material-access")))
+            throw new ArgumentException("Usage: <final mod.dll> <original Managed> <BepInEx core> [--ui-layout|--restock-reserve|--button-modes|--favorite-fill|--material-access]");
         string[] roots = { Path.GetDirectoryName(Path.GetFullPath(args[0]))!, Path.GetFullPath(args[1]), Path.GetFullPath(args[2]) };
         AppDomain.CurrentDomain.AssemblyResolve += (_, request) =>
         {
@@ -45,7 +46,8 @@ internal static class Program
             threading.GetField("<Instance>k__BackingField", BindingFlags.NonPublic | BindingFlags.Static)!.SetValue(null, queue);
             Assembly mod = Assembly.LoadFrom(Path.GetFullPath(args[0]));
             plugin = mod.GetType(mod.GetName().Name + "." + mod.GetName().Name + "Plugin", true)!;
-            if (args.Length == 4 && args[3] == "--favorite-fill") RunFavoriteFillChecks();
+            if (args.Length == 4 && args[3] == "--material-access") RunMaterialAccessChecks();
+            else if (args.Length == 4 && args[3] == "--favorite-fill") RunFavoriteFillChecks();
             else if (args.Length == 4 && args[3] == "--button-modes") RunButtonModeChecks();
             else if (args.Length == 4 && args[3] == "--restock-reserve") RunRestockReserveChecks();
             else if (args.Length == 4) RunUiLayoutChecks();
@@ -62,6 +64,27 @@ internal static class Program
 
     private static object? Call(string name, params object?[] args) =>
         plugin.GetMethod(name, BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, args);
+
+    private static void RunMaterialAccessChecks()
+    {
+        FieldInfo original = typeof(MaterialMan).GetField("m_propertyBlock", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        Check("original material property block remains private", original != null && original.IsPrivate);
+        Delegate reader = (Delegate)plugin.GetField("MaterialManagerPropertyBlock", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
+        // Invoke the actual compiled FieldRef delegate, dereferencing its ref return.
+        // No MaterialMan constructor, singleton, Shader call, or native block is created.
+        var thunk = new DynamicMethod("ReadMaterialBlock", typeof(object), new[] { typeof(object), typeof(object) }, typeof(Program), true);
+        ILGenerator il = thunk.GetILGenerator();
+        il.Emit(OpCodes.Ldarg_0);
+        il.Emit(OpCodes.Castclass, reader.GetType());
+        il.Emit(OpCodes.Ldarg_1);
+        il.Emit(OpCodes.Castclass, typeof(MaterialMan));
+        il.Emit(OpCodes.Callvirt, reader.GetType().GetMethod("Invoke")!);
+        il.Emit(OpCodes.Ldind_Ref);
+        il.Emit(OpCodes.Ret);
+        var read = (Func<object, object, object>)thunk.CreateDelegate(typeof(Func<object, object, object>));
+        object manager = FormatterServices.GetUninitializedObject(typeof(MaterialMan));
+        Check("compiled accessor reads the original private field before initialization", read(reader, manager) == null);
+    }
 
     private static void Check(string name, bool condition)
     {

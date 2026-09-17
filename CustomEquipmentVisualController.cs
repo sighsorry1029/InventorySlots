@@ -14,6 +14,38 @@ public sealed partial class InventorySlotsPlugin
     private const string CustomEquipmentVisualVariantZdoPrefix = "InventorySlots_CustomEquipmentVisual_Variant_";
     private const string CustomEquipmentVisualQualityZdoPrefix = "InventorySlots_CustomEquipmentVisual_Quality_";
 
+    private static readonly AccessTools.FieldRef<MaterialMan, MaterialPropertyBlock> MaterialManagerPropertyBlock =
+        AccessTools.FieldRefAccess<MaterialMan, MaterialPropertyBlock>("m_propertyBlock");
+    private static readonly HashSet<Player> PendingEquipmentVisualPlayers = new();
+
+    private static bool IsEquipmentMaterialManagerReady()
+    {
+        MaterialMan manager = MaterialMan.instance;
+        // Awake publishes the manager before Start creates its shared block. Registering
+        // renderers in that interval permanently captures a null block in the game.
+        return !IsUnityNull(manager) && MaterialManagerPropertyBlock(manager) != null;
+    }
+
+    private static void ProcessDeferredEquipmentVisuals()
+    {
+        if (PendingEquipmentVisualPlayers.Count == 0) return;
+        PendingEquipmentVisualPlayers.RemoveWhere(player => IsUnityNull(player));
+        if (PendingEquipmentVisualPlayers.Count == 0 || !IsEquipmentMaterialManagerReady()) return;
+
+        Player[] pending = PendingEquipmentVisualPlayers.ToArray();
+        PendingEquipmentVisualPlayers.Clear();
+        foreach (Player player in pending)
+        {
+            if (IsUnityNull(player)) continue;
+            if (player.m_isLoading)
+            {
+                PendingEquipmentVisualPlayers.Add(player);
+                continue;
+            }
+            UpdateCustomEquipmentVisuals(player);
+        }
+    }
+
     private static readonly Func<VisEquipment, int, int, Transform, bool, bool, int, GameObject> AttachCustomItem =
         AccessTools.MethodDelegate<Func<VisEquipment, int, int, Transform, bool, bool, int, GameObject>>(
             AccessTools.Method(typeof(VisEquipment), "AttachItem", new[] { typeof(int), typeof(int), typeof(Transform), typeof(bool), typeof(bool), typeof(int) }));
@@ -49,6 +81,13 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
+        if (!IsEquipmentMaterialManagerReady())
+        {
+            PendingEquipmentVisualPlayers.Add(player);
+            return;
+        }
+        PendingEquipmentVisualPlayers.Remove(player);
+
         SyncBackpackCompatState(player);
         SyncMagicSupremacyCompatState(player);
 
@@ -73,7 +112,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void UpdateCustomEquipmentVisualsFromZdo(VisEquipment visEquipment)
     {
-        if (IsDedicatedServer || IsUnityNull(visEquipment) || IsUnityNull(ObjectDB.instance))
+        if (IsDedicatedServer || IsUnityNull(visEquipment) || IsUnityNull(ObjectDB.instance) || !IsEquipmentMaterialManagerReady())
         {
             return;
         }

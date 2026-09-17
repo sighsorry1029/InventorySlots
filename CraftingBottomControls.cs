@@ -264,6 +264,12 @@ public sealed partial class InventorySlotsPlugin
     private static void LayoutCraftingStatusHud(InventoryGui gui, RectTransform grid, bool updateLayout)
     {
         string warning = GetCraftingStatusHudText(gui);
+        if (_craftingListViewActive && IsJewelcraftingSocketTabActive(gui))
+        {
+            _craftingListStatusText = warning;
+            HideCraftingSocketWarning();
+            return;
+        }
         if (string.IsNullOrWhiteSpace(warning))
         {
             HideCraftingSocketWarning();
