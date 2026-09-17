@@ -175,7 +175,7 @@ public sealed partial class InventorySlotsPlugin
     {
         try
         {
-            return ZInput.GetJoyRightStickY(true);
+            return ZInput.GetJoyRightStickY();
         }
         catch
         {

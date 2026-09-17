@@ -397,6 +397,7 @@ internal static class Program
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void RunFavoriteFillChecks()
     {
+        RunStackIdentityChecks();
         // Exercise the final DLL's quantity/compatibility stage with original ItemData.
         // Inventory.RemoveItem/Changed invoke native Player initialization; removal,
         // notifications, target selection and the Sort button require game execution.
@@ -448,12 +449,14 @@ internal static class Program
         first.m_customData["external-mod"] = "keep";
         Check("external favorite metadata is protected", !Fill(new[] { first }, normal));
         first.m_customData.Clear();
-        if (plugin.Namespace == "InventoryActions")
-        {
-            normal.m_cheated = true;
-            Check("cheat marker is not lost through fill", !Fill(new[] { first }, normal) && normal.m_cheated && !first.m_cheated);
-            normal.m_cheated = false;
-        }
+        normal.m_cheated = true;
+        Check("cheat marker is not lost through fill", !Fill(new[] { first }, normal) && normal.m_cheated && !first.m_cheated);
+        first.m_cheated = true;
+        Check("matching cheated favorites fill normally", Fill(new[] { first }, normal) && first.m_stack == 30 && normal.m_stack == 0 && first.m_cheated);
+        normal.m_stack = 10;
+        normal.m_cheated = false;
+        Check("normal donors do not fill cheated favorites", !Fill(new[] { first }, normal) && normal.m_stack == 10 && first.m_stack == 30);
+        first.m_cheated = false;
         first.m_stack = 0;
         Check("empty favorite has no remembered fill target", !Fill(new[] { first }, normal));
         first.m_stack = 60;
@@ -461,6 +464,52 @@ internal static class Program
         first.m_stack = 20;
         normal.m_stack = 5;
         Check("last partial donor fills without moving favorite", Fill(new[] { first }, normal) && first.m_stack == 25 && normal.m_stack == 0);
+    }
+
+    private static void RunStackIdentityChecks()
+    {
+        var target = Item(20, false);
+        var source = Item(10, true);
+        bool slots = plugin.Namespace == "InventorySlots";
+        string identity = slots ? "CanShareInventoryStack" : "HasSameStackIdentity";
+        Check("mixed cheat identities cannot stack", !(bool)Call(identity, target, source)!);
+        Check("mixed cheat identities cannot restock", !(bool)Call("CanRestockFromContainerItem", target, source)!);
+        source.m_cheated = false;
+        Check("normal matching identities can stack", (bool)Call(identity, target, source)!);
+        Check("normal matching identities can restock", (bool)Call("CanRestockFromContainerItem", target, source)!);
+        target.m_cheated = source.m_cheated = true;
+        Check("cheated matching identities can stack", (bool)Call(identity, target, source)!);
+        Check("cheated matching identities can restock", (bool)Call("CanRestockFromContainerItem", target, source)!);
+        if (slots)
+        {
+            // The new native bool must be honored even without an AddItem lookup scope.
+            bool Lookup(bool cheated) => (bool)Call("CanStackIntoItem", target, null,
+                target.m_shared.m_name, target.m_quality, (float)target.m_worldLevel, cheated)!;
+            Check("lookup without source rejects a different cheat marker", !Lookup(false));
+            Check("lookup without source accepts the requested cheat marker", Lookup(true));
+            target.m_cheated = false;
+            Check("lookup without source rejects reversed marker mismatch", !Lookup(true));
+            Check("lookup without source accepts normal stacks", Lookup(false));
+        }
+        else
+        {
+            source.m_cheated = false;
+            Check("quickstack target rejects mixed markers", !(bool)Call("CanStackIntoTargetForTopFirstMove", target, source)!);
+            source.m_cheated = true;
+            Check("quickstack target accepts matching markers", (bool)Call("CanStackIntoTargetForTopFirstMove", target, source)!);
+        }
+        Check("identity lookups do not mutate stacks", target.m_stack == 20 && source.m_stack == 10);
+        Inventory inventory = new Inventory("sort identity", null, 8, 4);
+        target.m_stack = source.m_stack = 30;
+        target.m_cheated = false;
+        source.m_cheated = true;
+        var stacks = new List<ItemDrop.ItemData> { target, source };
+        inventory.GetAllItems().AddRange(stacks);
+        Check("sort keeps mixed markers separate", !(bool)Call("MergeSortableStacks", stacks, inventory)! &&
+            target.m_stack == 30 && source.m_stack == 30 && !target.m_cheated && source.m_cheated);
+        target.m_cheated = true;
+        Check("sort consolidates matching markers without losing quantity", (bool)Call("MergeSortableStacks", stacks, inventory)! &&
+            target.m_stack == 50 && source.m_stack == 10 && target.m_cheated && source.m_cheated && stacks.Count == 2);
     }
 
     private static ItemDrop.ItemData Item(int stack, bool cheated) => new ItemDrop.ItemData

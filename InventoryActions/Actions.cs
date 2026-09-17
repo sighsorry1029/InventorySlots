@@ -1468,7 +1468,8 @@ public sealed partial class InventoryActionsPlugin
                right?.m_shared != null &&
                string.Equals(left.m_shared.m_name, right.m_shared.m_name, StringComparison.OrdinalIgnoreCase) &&
                left.m_quality == right.m_quality &&
-               (float)left.m_worldLevel == (float)right.m_worldLevel;
+               (float)left.m_worldLevel == (float)right.m_worldLevel &&
+               left.m_cheated == right.m_cheated;
     }
 
     private static int CountMovedFromContainerSource(Inventory sourceInventory, ItemData sourceItem, int before, int requestedAmount, bool moveSucceeded)

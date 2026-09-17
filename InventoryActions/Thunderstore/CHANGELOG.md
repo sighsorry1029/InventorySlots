@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.18
+
+- Updated stack identity handling for Valheim 1.0.14. Quick stack and restock no longer combine normal items with otherwise matching cheat-marked items, matching the game's new native stacking rule.
+- Retained matching-origin sorting and favorite filling, compatible custom-data protection, container authorization, ownership leases, saved favorites, settings, and network contracts.
+
 ## 1.0.17
 
 - Player inventory Sort now fills existing favorite stacks from compatible non-favorite stacks in the sortable inventory area before merging and sorting the remaining ordinary stacks. Favorites are filled from top to bottom, left to right, up to the current maximum stack size.

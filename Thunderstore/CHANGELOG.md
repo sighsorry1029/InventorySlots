@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.3
+
+- Updated for Valheim 1.0.14's parameterless gamepad-stick API, restoring controller scrolling in long item-detail and tooltip views without changing the selected scroll source or direction.
+- Updated the inventory stack-placement patch for Valheim 1.0.14's new cheat-origin argument. Automatic placement, quick stack, restock, take-all, sorting, favorite filling, and related recovery paths now keep normal and cheat-marked stacks separate while still merging compatible stacks with matching origins.
+- Kept existing favorite positions, custom metadata handling, locked-cell placement, container authorization, ownership leases, saved data, settings, and network contracts unchanged.
+
 ## 1.5.2
 
 - Deferred custom equipment visual restoration until Valheim's material manager has finished initializing. This prevents restored equipment from registering renderers against an uninitialized material block during startup, which could leave `MaterialMan.Update()` throwing repeatedly. Inventory restoration, saved slots, and network behavior are unchanged.

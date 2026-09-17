@@ -35,12 +35,12 @@ internal static class InventoryFindEmptySlotPatch
     }
 }
 
-[HarmonyPatch(typeof(Inventory), "FindFreeStackItem")]
+[HarmonyPatch(typeof(Inventory), "FindFreeStackItem", typeof(string), typeof(int), typeof(float), typeof(bool))]
 internal static class InventoryFindFreeStackItemPatch
 {
-    private static bool Prefix(Inventory __instance, string name, int quality, float worldLevel, ref ItemData? __result)
+    private static bool Prefix(Inventory __instance, string name, int quality, float worldLevel, bool cheated, ref ItemData? __result)
     {
-        return InventorySlotsPlugin.TryOverrideFindFreeStackItem(__instance, name, quality, worldLevel, ref __result);
+        return InventorySlotsPlugin.TryOverrideFindFreeStackItem(__instance, name, quality, worldLevel, cheated, ref __result);
     }
 }
 

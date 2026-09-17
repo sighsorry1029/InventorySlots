@@ -190,10 +190,8 @@ public sealed partial class InventorySlotsPlugin
 
     private static void MergeStackMetadata(ItemData? destination, ItemData? source)
     {
-        if (destination != null && source != null && source.m_cheated && !PlayerProfile.s_bypassCheatChecks)
-        {
-            destination.m_cheated = true;
-        }
+        // Sort/Fill only merge matching cheat markers, as required by 1.0.14.
+        // Preserve that identity; only the supported custom metadata needs merging.
         if (destination?.m_customData != null && source != null)
         {
             StackMetadataPolicy.MergeInto(
