@@ -122,7 +122,7 @@ public sealed partial class InventorySlotsPlugin
             : new Vector2i(-1, -1);
     }
 
-    internal static bool TryOverrideFindFreeStackItem(Inventory inventory, string name, int quality, float worldLevel, bool cheated, ref ItemData? result)
+    internal static bool TryOverrideFindFreeStackItem(Inventory inventory, string name, int quality, float worldLevel, ref ItemData? result)
     {
         result = null;
         if (inventory == null || string.IsNullOrWhiteSpace(name))
@@ -155,8 +155,7 @@ public sealed partial class InventorySlotsPlugin
                     sourceItem,
                     name,
                     quality,
-                    worldLevel,
-                    cheated))
+                    worldLevel))
             {
                 continue;
             }
@@ -246,11 +245,9 @@ public sealed partial class InventorySlotsPlugin
         ItemData? source,
         string name,
         int quality,
-        float worldLevel,
-        bool cheated)
+        float worldLevel)
     {
         return item?.m_shared != null &&
-               item.m_cheated == cheated &&
                (source == null
                    ? (item.m_customData == null || item.m_customData.Count == 0)
                    : CanShareInventoryStack(item, source)) &&

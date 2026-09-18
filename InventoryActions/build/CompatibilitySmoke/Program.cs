@@ -482,14 +482,14 @@ internal static class Program
         Check("cheated matching identities can restock", (bool)Call("CanRestockFromContainerItem", target, source)!);
         if (slots)
         {
-            // The new native bool must be honored even without an AddItem lookup scope.
-            bool Lookup(bool cheated) => (bool)Call("CanStackIntoItem", target, null,
-                target.m_shared.m_name, target.m_quality, (float)target.m_worldLevel, cheated)!;
-            Check("lookup without source rejects a different cheat marker", !Lookup(false));
-            Check("lookup without source accepts the requested cheat marker", Lookup(true));
+            // 1.0.15 removed the bool again. Use a known source's identity, never invent one.
+            bool Lookup(ItemDrop.ItemData? incoming) => (bool)Call("CanStackIntoItem", target, incoming,
+                target.m_shared.m_name, target.m_quality, (float)target.m_worldLevel)!;
+            Check("lookup with source accepts matching cheat markers", Lookup(source));
+            Check("source-less lookup accepts cheated stacks like native 1.0.15", Lookup(null));
             target.m_cheated = false;
-            Check("lookup without source rejects reversed marker mismatch", !Lookup(true));
-            Check("lookup without source accepts normal stacks", Lookup(false));
+            Check("lookup with source rejects mixed cheat markers", !Lookup(source));
+            Check("source-less lookup accepts normal stacks", Lookup(null));
         }
         else
         {

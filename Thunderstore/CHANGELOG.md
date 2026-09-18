@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.4
+
+- Updated the inventory stack-placement Harmony target for Valheim 1.0.15, which restored the three-argument `Inventory.FindFreeStackItem` signature. This prevents InventorySlots from aborting during startup with an undefined target-method error.
+- Preserved locked-cell placement and source-aware stack identity/metadata checks. When the game performs a source-less lookup, InventorySlots now follows Valheim 1.0.15 instead of inventing the removed cheat-origin argument.
+- Kept InventoryActions unchanged because it does not patch or call the affected method and its Valheim 1.0.15 compatibility scan reports no unresolved targets or references.
+
 ## 1.5.3
 
 - Updated for Valheim 1.0.14's parameterless gamepad-stick API, restoring controller scrolling in long item-detail and tooltip views without changing the selected scroll source or direction.
