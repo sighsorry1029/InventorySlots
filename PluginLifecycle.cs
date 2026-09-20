@@ -128,10 +128,12 @@ public sealed partial class InventorySlotsPlugin
 
     private void OnDestroy()
     {
+        RememberFavoriteSlotItems(Player.m_localPlayer, flush: true);
         PendingEquipmentVisualPlayers.Clear();
         if (_craftingViewMode != null) _craftingViewMode.SettingChanged -= OnCraftingViewModeChanged;
         DestroyCraftingListViewUi();
         ShutdownItemRules();
+        DestroyRestockModeIcons();
         ShutdownEpicLootCompatibility();
         CancelContainerAreaTransfer();
         SharedContainerLocalViewers.Clear();

@@ -359,7 +359,7 @@ dotnet build InventoryActions/build/CompatibilitySmoke/CompatibilitySmoke.csproj
 # Check $LASTEXITCODE as well as the PASS summary.
 ```
 
-## Empty favorite restock — 2026-09-20
+## Empty favorite restock — 2026-09-20 (as released in 1.5.5 / 1.0.19)
 
 Both mods now offer a per-item **Refill empty** checkbox in the Restock targets
 panel and F1 rule editor. Unchecked by default. Panel rows use one line:
@@ -438,3 +438,191 @@ Final Release DLL SHA-256:
 | --- | --- |
 | InventorySlots 1.5.5 | `95308D234AE56DE23CB659C3378D29339AB82E746819F143562A6FD901E1EA75` |
 | InventoryActions 1.0.19 | `0F6185C173F98FF7CB20022ED1BEE64C15163C52BD272BE065003E7E51178EE2` |
+
+## Remember favorite destinations — 2026-09-20 (unreleased)
+
+The checkbox/config format described in this section was subsequently replaced
+by the three-state mode described below; the slot-memory behavior remains.
+
+This update supersedes the anonymous-slot-only selection described above. Both
+mods now remember the last observed item prefab at each eligible favorite cell,
+per character. Empty cells retain their binding; another observed item replaces
+it, and unfavoriting deletes it. Slots adds `prefab` to the existing `favoriteSlots`
+records in `config/InventorySlots/ClientState.yml`. Actions extends its existing
+`InventoryActions.Favorites.<playerId>.txt` rows from `x,y` to
+`x,y,<URI-escaped-prefab>`; coordinate-only records still load without a binding.
+Memory stores item kind, not quantity, quality or a serialized item instance.
+
+With `refill` enabled and a positive target, Alt+E restores eligible remembered
+empty cells for that prefab before considering an unassigned cell. Other items'
+remembered cells remain reserved even when their source chest is processed later
+or has no stock. Occupied/locked/out-of-bounds/incompatible original cells are not
+replaced and do not cause fallback to another slot. Multiple remembered cells for
+one prefab may be restored even if another favorite stack already exists. Each
+new target is filled from compatible sources in that chest before the next cell.
+Without any remembered cell or existing favorite stack, the old single anonymous
+favorite fallback remains. Unobserved items consumed before this update cannot be
+recovered from history. Existing access, ownership, stack metadata, transfer
+accounting, target-zero and chest leave-one policies remain in the transfer path.
+The panel still has only its checkbox, quantity and remove controls.
+
+`Shared/ItemRules/FavoriteSlotMemory.cs` marks observations pending from
+`Player.OnInventoryChanged` and captures after synchronous changes in LateUpdate.
+Slots additionally waits for pending inventory maintenance, slot equip/unequip,
+backup restoration, loading, progression reset and initial config synchronization.
+`Player.Save` and plugin teardown flush safe observations. Changed associations
+are persisted; quantity-only changes do not rewrite the file. Failed writes stay
+pending for retry (five seconds) and explicit save/teardown can retry immediately.
+The original private `Player.m_isLoading` is accessed through a cached Harmony
+FieldRef in a lazy nested class, not directly through publicized visibility.
+
+Verification:
+
+- Baseline and final Debug/deploy builds of both mods: zero warnings/errors.
+- Existing 171-check suite passed; the added character-separated YAML round-trip
+  test brings it to 172. The suite retains the pre-existing nullable warnings in
+  `StuWardCompat.cs` when recompiled.
+- Shared source-linked rule/memory tests: 90 checks for each mod. Scenarios include
+  opposite chest order, original-slot preference, unavailable/reserved cells,
+  multiple remembered cells, replacement/unfavorite, no-op quantity changes,
+  and coordinate/prefab persistence including escaped mod-prefab names.
+- Original 1.0.15 client static contracts: Slots 1028 references / 137 Harmony
+  targets / 42 reflected contracts; Actions 564 / 31 / 0, zero failures. Existing
+  manual-review entries remain. The new Player loading field was checked against
+  its original private declaration; static checks do not prove Unity execution.
+- Actions compiled `--empty-favorite` config/F1/reserve harness: 28 checks and
+  clean desktop CLR exit. An initial eager Player accessor broke that standalone
+  initialization with a game default-interface TypeLoadException; lazy resolution
+  removed it. This does not exercise live Player access or actual item moves.
+- Steam plugin copies match the final merged Debug DLLs by SHA-256.
+
+Not run: actual game UI, reconnect/death/slot-layout changes, modded player
+inventories and host/dedicated multiplayer transfers. These need in-game checks;
+pure selection/storage tests are not a claim that those sessions were exercised.
+No version bump, Release ZIP, commit, push or site publication was performed.
+
+## Three-state restock mode — 2026-09-21 (unreleased)
+
+Both mods replace the refill checkbox with one compact icon button. It cycles
+Off (dash), Existing (circular arrow), IncludeEmpty (arrow with plus), then Off.
+New items default to Existing. Hover text explains the mode and its cycle. The
+quantity and remove controls remain; no separate enable checkbox is added.
+The in-game panel and F1 editor use the same three modes. Off preserves the
+configured quantity, and editing that quantity does not enable the rule.
+
+Rules now require an explicit positive target and mode:
+
+```text
+Wood: 30 | Off
+Stone: 20 | Existing
+Coins: 500 | IncludeEmpty
+```
+
+Existing tops up remaining favorite stacks. IncludeEmpty additionally restores
+remembered empty favorite destinations under the selection policy above. The
+quantity field clamps to 1 through the current item maximum when editing ends.
+Only the runtime target for Off is zero; zero is not a saved target quantity.
+
+At the user's request there is no legacy rule interpretation or migration:
+numeric-only entries, zero targets and the old `| refill` suffix are invalid.
+Runtime parsing and both editors ignore those entries instead of converting
+them. Re-register them in the panel or edit their config text. With no valid
+rule, existing favorite stacks use the normal maximum-stack default, so an old
+disabled rule no longer disables restocking. Unedited unsupported raw text may
+remain on disk; retaining raw text does not make it an active rule. This change
+is confined to Restock rule syntax, not unrelated character persistence.
+
+`RestockTargetLimitCore` owns strict parsing, mode cycling and serialization;
+`ItemRuleConfigCore` supplies those same entries to both editors. Mode icons are
+three lazily created sprites, independent of font glyphs, released at plugin
+teardown. Mode-save failures restore the previous UI state. Existing favorite
+memory, chest access, ownership, transfer accounting and leave-one rules remain.
+
+Verification:
+
+- Both final Debug/deploy builds succeeded with zero warnings/errors. The
+  installed Steam plugin copies match their final merged DLLs by SHA-256.
+- 172 main tests and 102 source-linked rule/memory checks for each mod passed.
+  Coverage includes rejecting old rules, mode/quantity independence, mode
+  cycling, duplicate/alias precedence, repeated edits and remembered slots.
+- InventoryActions' final compiled DLL passed 31 isolated config/F1/reserve
+  checks against original game assemblies with a clean desktop CLR exit.
+- Original Valheim 1.0.15 static contract scans reported zero failures:
+  Slots 1038 references / 137 Harmony targets / 42 reflected contracts;
+  Actions 574 / 31 / 0. Existing manual-review entries remain (9 / 1).
+- Read-only code review found no blocking issue; `git diff --check` passed.
+
+Not run: actual Unity icon appearance, hover/click/F1 interaction, item transfers
+or host/dedicated multiplayer. Builds and isolated tests do not validate these.
+No version bump, Release ZIP, commit, push or site publication was performed.
+
+### Icon orientation and live tooltip follow-up — 2026-09-21
+
+The drawing helper already converts top-down coordinates to texture pixels.
+The original circular-arrow math used the opposite Y convention, placing its
+gap and arrowhead at the bottom. Both active mode icons now open at the top with
+the arrowhead at the upper left; IncludeEmpty puts the plus in the center of the
+ring, following the supplied sketch. Their existing gold color and button style
+are retained. A preview rendered from the actual pixel-drawing code was visually
+checked at enlarged and 28-pixel sizes; this is not a Unity screenshot.
+
+Changing `m_topic`/`m_text` alone left the visible tooltip's text elements stale.
+Mode clicks now call the original public `UITooltip.Set(string, string,
+RectTransform, Vector2)` API, which updates the current tooltip without hiding
+it or restarting the hover delay. No private accessor or new Harmony patch is
+needed. Disabled tooltips lacking a prefab do not call Set, avoiding its automatic
+hover-start branch. The rule controls remain outside the owned item-tooltip
+scrolling/pinning paths.
+
+Baseline and final Debug/deploy builds passed with zero warnings/errors for both
+mods. Final DLLs match their Steam plugin copies by SHA-256. Original 1.0.15
+static checks passed: Slots 1038 references / 137 Harmony targets / 42 reflected
+contracts, Actions 576 / 31 / 0, zero failures (existing manual entries 9 / 1).
+Read-only tooltip review and `git diff --check` passed. Actual game hover/click
+behavior still requires checking in Unity; no Release build or commit was made.
+
+### Shared parcel symbol follow-up — 2026-09-21
+
+The rule mode icons now reuse the main Restock button's two circular arrows:
+Existing has arrows only, IncludeEmpty adds its central outlined parcel, and
+Off remains a dash. This supersedes the plus icon described above. Mode icons
+retain their warm yellow color; the main button retains its existing tint.
+Both symbols use the original thin line geometry so the parcel faces remain
+distinct at 28 pixels. `DrawRestockSymbol` is shared by both sprite factories;
+their separate caches and destruction paths are unchanged. Click behavior and
+live `UITooltip.Set` updates are unchanged.
+
+Checked enlarged and 28-pixel previews rendered from the actual drawing code.
+Both baseline and final Debug/deploy builds succeeded with zero warnings/errors;
+both installed Steam DLLs match the final outputs by SHA-256. Read-only review
+and `git diff --check` passed. No behavior tests were added for this drawing-only
+change. Actual Unity rendering remains unverified. No Release build, version
+change, commit or push was performed.
+
+## Release 1.5.6 / 1.1.0 — 2026-09-21
+
+The favorite-destination memory, three-state restock rules, strict rule format,
+live tooltips and final yellow parcel icons described in the development
+checkpoints above are included in InventorySlots 1.5.6 and InventoryActions
+1.1.0. Changelogs explicitly explain re-registering old target rules and the
+maximum-stack default when an old numeric/zero/refill rule is ignored.
+
+- Debug/deploy and ordinary Release/package builds passed with zero warnings
+  or errors for both mods. Installed Steam plugins match final Debug outputs.
+- Main suite: 172 checks. Source-linked rule/memory suite: 102 per mod.
+- Final Release static checks against original Valheim 1.0.15 client assemblies:
+  Slots 1038 references / 137 Harmony targets / 42 reflected contracts; Actions
+  576 / 31 / 0. Zero failures; existing manual-review entries remain (9 / 1).
+- Actions Release config/F1/reserve isolation harness: 31 checks, clean desktop
+  CLR exit. This does not execute Unity, real inventory transfers or networking.
+- Both Thunderstore ZIPs contain exactly the expected six files, all matching
+  the source DLL, README, changelog, manifest, icon and English translation.
+  The InventorySlots Nexus ZIP contains its matching Release DLL only. DLL and
+  manifest versions agree; BepInEx dependency remains 5.4.2350.
+- Final diff and independent read-only review found no blocking issue. Actual
+  game/UI/multiplayer and site publication were not verified.
+
+| Final Release DLL | SHA-256 |
+| --- | --- |
+| InventorySlots 1.5.6 | `261ADA8965906643CC4A3F2CD59D1467866E02D2026BC1AE1DEE1D85CFAE7D5E` |
+| InventoryActions 1.1.0 | `3936AF80DEFDBC74196DB8697959162911CBB0C3C08EA36EBABEE14DB2FEF65D` |

@@ -18,10 +18,15 @@ inventoryactions_container_not_ready: 컨테이너를 사용할 수 없습니다
 inventoryactions_hold_to_restock: 누르고 있으면 보충
 inventoryactions_feature_guide: "<b>InventoryActions 빠른 가이드</b>\n플레이어 인벤토리 칸에서 <color=#FFA94D>[{favoriteKey} + 왼쪽 클릭]</color>: 즐겨찾기 등록/해제\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 즐겨찾기가 아닌 같은 종류의 아이템을 해당 상자와 주변 상자에 보관\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 즐겨찾기 스택을 해당 상자와 주변 상자에서 목표 수량까지 보충\n아이템을 <color=#FFA94D>보충 대상</color> 아이콘에 놓기: 즐겨찾기 스택의 목표 수량 등록\n아이템을 <color=#FFA94D>자동 줍기 제외 / 휴지통</color> 아이콘에 놓기: 자동 줍기 제외 등록 / 확인 후 삭제\n가이드 숨기기: <color=#FFA94D>F1 → InventoryActions → Show Feature Guide → Off</color>"
 inventoryactions_rules_restock_title: 보충 대상
-inventoryactions_rules_refill_title: 빈 즐겨찾기 칸 보충
-inventoryactions_rules_refill_help: "즐겨찾기 칸에 이 아이템이 없으면 빈 즐겨찾기 칸 한 곳에 목표 수량까지 보충합니다. 사용 가능한 빈 즐겨찾기 칸이 없으면 옮기지 않습니다. 수량 0은 보충 비활성화입니다."
+inventoryactions_rules_mode_off: "보충: 끄기"
+inventoryactions_rules_mode_existing: "보충: 남아 있는 스택"
+inventoryactions_rules_mode_includeempty: "보충: 빈 칸 포함"
+inventoryactions_rules_mode_off_help: "이 아이템을 보충하지 않습니다. 설정한 목표 수량은 유지합니다."
+inventoryactions_rules_mode_existing_help: "이 아이템이 남아 있는 즐겨찾기 스택만 목표 수량까지 보충합니다."
+inventoryactions_rules_mode_includeempty_help: "이 아이템을 기억한 빈 즐겨찾기 칸도 보충합니다. 기억한 칸도 남아 있는 즐겨찾기 스택도 없으면 미지정 빈 즐겨찾기 칸 한 곳을 사용합니다. 다른 아이템은 덮어쓰지 않습니다."
+inventoryactions_rules_mode_cycle: "클릭하여 변경: 끄기 → 남아 있는 스택 → 빈 칸 포함."
 inventoryactions_rules_exclude_title: 자동 줍기 제외
-inventoryactions_rules_restock_scope: "{key} · 즐겨찾기 스택당 목표 수량 · 0은 보충 안 함"
+inventoryactions_rules_restock_scope: "{key} · 즐겨찾기 칸별 보충 방식과 목표 수량"
 inventoryactions_rules_exclude_scope: E로 직접 줍기는 가능합니다
 inventoryactions_rules_quantity: 목표 수량
 inventoryactions_rules_cancel: 취소
@@ -34,6 +39,6 @@ inventoryactions_rules_empty: 등록된 아이템 없음
 inventoryactions_rules_registered: 등록됨
 inventoryactions_rules_saved: 저장됨
 inventoryactions_rules_conflict: 설정이 변경되었습니다. 입력을 마치면 다시 불러옵니다.
-inventoryactions_rules_invalid: 표시된 범위 내에서 0 이상의 수량을 입력해 주세요.
+inventoryactions_rules_invalid: "1부터 해당 아이템의 최대 스택까지 입력하세요."
 inventoryactions_rules_save_failed: 설정을 저장하지 못했습니다.
 inventoryactions_rules_restored: 마지막으로 저장한 수량으로 복원했습니다

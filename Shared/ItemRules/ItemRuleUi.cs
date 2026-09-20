@@ -461,7 +461,19 @@ public sealed partial class InventoryActionsPlugin
             bool added = entry == null;
             if (entry == null)
             {
-                entry = new ItemRuleConfigCore.Entry { Start = -1, Key = key, Amount = GetRestockTargetStack(item).ToString(CultureInfo.InvariantCulture) };
+                ItemRuleConfigCore.Entry? effective = null;
+                if (restock)
+                    foreach (string? token in GetRestockTargetLookupTokens(item))
+                    {
+                        string normalized = RuleTokens.NormalizeResourceToken(token);
+                        effective = _entries.LastOrDefault(e => RuleTokens.NormalizeResourceToken(e.Key) == normalized);
+                        if (effective != null) break;
+                    }
+                entry = new ItemRuleConfigCore.Entry
+                {
+                    Start = -1, Key = key, Mode = effective?.Mode ?? RestockRuleMode.Existing,
+                    Amount = RestockTargetLimitCore.ClampAmountForEditor(effective?.Amount ?? item.m_shared.m_maxStackSize.ToString(CultureInfo.InvariantCulture), item.m_shared.m_maxStackSize)
+                };
                 _entries.Add(entry);
             }
             _resolved[entry.Key] = item;
@@ -473,7 +485,7 @@ public sealed partial class InventoryActionsPlugin
             }
             if (restock)
             {
-                _registration = entry; _registrationMax = Mathf.Max(0, item.m_shared.m_maxStackSize);
+                _registration = entry; _registrationMax = Mathf.Max(1, item.m_shared.m_maxStackSize);
                 Pin(); Render();
                 if (_fields.Count > 0) { _fields[0].Select(); _fields[0].ActivateInputField(); }
             }
@@ -570,8 +582,8 @@ public sealed partial class InventoryActionsPlugin
             Frame(_scope.rectTransform, 12, -39, inner, 34);
             _title.text = _restock ? L("restock_title", "Restock targets") : L("exclude_title", "Auto pickup exclusions");
             _title.color = _gold;
-            _scope.text = _registration != null ? L("quantity", "Target quantity") + " (0–" + _registrationMax + ")"
-                : _restock ? L("restock_scope", "{key} · target per favorite stack; 0 disables restock").Replace("{key}", GetContainerRestockKeyDisplayText()) : L("exclude_scope", "Manual E pickup is still available");
+            _scope.text = _registration != null ? L("quantity", "Target quantity") + " (1–" + _registrationMax + ")"
+                : _restock ? L("restock_scope", "{key} · mode and target per favorite stack").Replace("{key}", GetContainerRestockKeyDisplayText()) : L("exclude_scope", "Manual E pickup is still available");
             Frame(_viewport, 12, -78, inner, viewHeight);
             _content.sizeDelta = new Vector2(inner, Mathf.Max(1, visible.Count) * RowHeight);
             _content.anchoredPosition = Vector2.zero;
@@ -588,10 +600,10 @@ public sealed partial class InventoryActionsPlugin
                 RectTransform row = Rect("Row", _content, new Vector2(inner, RowHeight), new Vector2(0, -i * RowHeight));
                 row.gameObject.AddComponent<Image>().color = Color.clear;
                 float quantityX = inner - (_registration != null ? 58 : 94);
-                float checkboxX = quantityX - 38;
-                float itemWidth = _restock ? checkboxX - 6 : inner - 74;
+                float modeX = quantityX - 38;
+                float itemWidth = _restock ? modeX - 6 : inner - 74;
                 // Keep the item's hover target separate from the controls: a
-                // parent UITooltip can otherwise replace the checkbox explanation.
+                // parent UITooltip can otherwise replace the mode explanation.
                 RectTransform itemInfo = Rect("ItemInfo", row, new Vector2(itemWidth, RowHeight), Vector2.zero);
                 itemInfo.gameObject.AddComponent<Image>().color = Color.clear;
                 ItemData? item = Resolve(entry.Key);
@@ -609,33 +621,32 @@ public sealed partial class InventoryActionsPlugin
                 {
                     TMP_InputField field = NumberField(row, entry, item);
                     Frame((RectTransform)field.transform, quantityX, -2, 58, 32);
-                    RectTransform check = null!;
-                    Button refill = Button(row, "RefillEmpty", "", () =>
+                    Image modeIcon = null!;
+                    UITooltip modeTip = null!;
+                    void RefreshMode()
+                    {
+                        modeIcon.sprite = GetRestockModeIcon(entry.Mode);
+                        // Set also refreshes the currently visible tooltip;
+                        // assigning its fields only affects the next hover.
+                        if (modeTip.enabled)
+                            modeTip.Set(GetRestockModeTitle(entry.Mode), GetRestockModeHelp(entry.Mode));
+                    }
+                    Button modeButton = Button(row, "RestockMode", "", () =>
                     {
                         Pin();
-                        entry.RefillEmpty = !entry.RefillEmpty;
-                        if (!Save()) entry.RefillEmpty = !entry.RefillEmpty;
-                        check.gameObject.SetActive(entry.RefillEmpty);
+                        RestockRuleMode previous = entry.Mode;
+                        entry.Mode = RestockTargetLimitCore.NextMode(entry.Mode);
+                        if (!Save()) entry.Mode = previous;
+                        RefreshMode();
                     });
-                    ApplyCraftButtonStyle(refill);
-                    Frame((RectTransform)refill.transform, checkboxX, -2, 32, 32);
-                    check = Rect("Check", refill.transform, new Vector2(22, 22), new Vector2(5, -5));
-                    // Draw a check with two UI strokes, independent of font glyphs.
-                    void CheckStroke(string strokeName, float x, float y, float length, float angle)
-                    {
-                        RectTransform stroke = Rect(strokeName, check, new Vector2(length, 2.5f), new Vector2(x, y));
-                        stroke.pivot = new Vector2(0, 0.5f);
-                        stroke.localEulerAngles = new Vector3(0, 0, angle);
-                        Image line = stroke.gameObject.AddComponent<Image>(); line.color = _gold; line.raycastTarget = false;
-                    }
-                    CheckStroke("Short", 3, -10, 8, -45);
-                    CheckStroke("Long", 8, -15, 15, 45);
-                    check.gameObject.SetActive(entry.RefillEmpty);
-                    UITooltip refillTip = refill.gameObject.AddComponent<UITooltip>(); EnsureTooltipPrefab(refillTip);
-                    refillTip.enabled = refillTip.m_tooltipPrefab != null;
-                    refillTip.m_topic = L("refill_title", "Refill empty favorite slots");
-                    refillTip.m_text = L("refill_help", "If this item is absent from your favorite slots, restock it into one empty favorite slot up to the target quantity. No empty favorite slot means no transfer. 0 still disables restock.");
-                    _rowButtons.Add(refill);
+                    ApplyCraftButtonStyle(modeButton);
+                    Frame((RectTransform)modeButton.transform, modeX, -2, 32, 32);
+                    modeIcon = Rect("ModeIcon", modeButton.transform, new Vector2(28, 28), new Vector2(2, -2)).gameObject.AddComponent<Image>();
+                    modeIcon.raycastTarget = false;
+                    modeTip = modeButton.gameObject.AddComponent<UITooltip>(); EnsureTooltipPrefab(modeTip);
+                    modeTip.enabled = modeTip.m_tooltipPrefab != null;
+                    RefreshMode();
+                    _rowButtons.Add(modeButton);
                 }
                 if (_registration == null)
                 {
@@ -655,7 +666,7 @@ public sealed partial class InventoryActionsPlugin
         private TMP_InputField NumberField(RectTransform parent, ItemRuleConfigCore.Entry entry, ItemData? item)
         {
             int? maximumAmount = item?.m_shared != null
-                ? Mathf.Max(0, item.m_shared.m_maxStackSize)
+                ? Mathf.Max(1, item.m_shared.m_maxStackSize)
                 : null;
             RectTransform rect = Rect("Quantity", parent, new Vector2(58, 32), Vector2.zero);
             rect.gameObject.SetActive(false);
@@ -681,9 +692,9 @@ public sealed partial class InventoryActionsPlugin
                 Pin();
                 // An empty/invalid edit buffer must never disable restock or be
                 // written to config. Keep the last successfully saved quantity.
-                if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int amount) || amount < 0 ||
+                if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int amount) || amount < 1 ||
                     (maximumAmount.HasValue && amount > maximumAmount.Value))
-                { _status.text = L("invalid", "Enter a valid non-negative quantity."); return; }
+                { _status.text = L("invalid", "Enter a quantity from 1 to the item's maximum stack."); return; }
                 string previous = entry.Amount;
                 entry.Amount = text;
                 if (!Save()) { entry.Amount = previous; input.SetTextWithoutNotify(previous); }
@@ -842,26 +853,9 @@ public sealed partial class InventoryActionsPlugin
         {
             // White line art on transparency, tinted with exactly the same colors as trash.
             Color[] drawing = new Color[64 * 64];
-            void Draw(int x, int y, int xx, int yy) => DrawTrashLine(drawing, 64, x, y, xx, yy, 1, Color.white);
-            void Arc(float from, float to)
-            {
-                int x = Mathf.RoundToInt(32 + 22 * Mathf.Cos(from * Mathf.Deg2Rad));
-                int y = Mathf.RoundToInt(32 + 22 * Mathf.Sin(from * Mathf.Deg2Rad));
-                for (float angle = from + 5; angle <= to; angle += 5)
-                {
-                    int nextX = Mathf.RoundToInt(32 + 22 * Mathf.Cos(angle * Mathf.Deg2Rad));
-                    int nextY = Mathf.RoundToInt(32 + 22 * Mathf.Sin(angle * Mathf.Deg2Rad));
-                    Draw(x, y, nextX, nextY); x = nextX; y = nextY;
-                }
-            }
             if (restock)
             {
-                // Parcel surrounded by two return arrows; omit tiny details at HUD size.
-                Arc(-70, 90); Draw(32, 54, 38, 49); Draw(32, 54, 38, 59);
-                Arc(110, 270); Draw(32, 10, 26, 5); Draw(32, 10, 26, 15);
-                Draw(23, 27, 32, 22); Draw(32, 22, 41, 27); Draw(41, 27, 41, 38);
-                Draw(41, 38, 32, 43); Draw(32, 43, 23, 38); Draw(23, 38, 23, 27);
-                Draw(23, 27, 32, 32); Draw(32, 32, 41, 27); Draw(32, 32, 32, 43);
+                DrawRestockSymbol(drawing, Color.white, includeParcel: true);
             }
             else
             {

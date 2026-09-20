@@ -18,10 +18,15 @@ inventoryactions_container_not_ready: Container is not ready.
 inventoryactions_hold_to_restock: Hold to restock
 inventoryactions_feature_guide: "<b>InventoryActions quick guide</b>\n<color=#FFA94D>[{favoriteKey} + Left Click]</color> on a player inventory slot: Toggle favorite\nWhile looking at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching non-favorited items in it and nearby chests\nWhile looking at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill favorite stacks from it and nearby chests up to their targets\nDrop a held item on <color=#FFA94D>Restock targets</color>: Set its favorite-stack target\nDrop a held item on <color=#FFA94D>Auto pickup exclusions / Trash</color>: Exclude auto pickup / delete after confirmation\nHide this guide: <color=#FFA94D>F1 → InventoryActions → Show Feature Guide → Off</color>"
 inventoryactions_rules_restock_title: Restock targets
-inventoryactions_rules_refill_title: Refill empty favorite slots
-inventoryactions_rules_refill_help: "If this item is absent from your favorite slots, restock it into one empty favorite slot up to the target quantity. No empty favorite slot means no transfer. 0 still disables restock."
+inventoryactions_rules_mode_off: "Restock: Off"
+inventoryactions_rules_mode_existing: "Restock: Existing stacks"
+inventoryactions_rules_mode_includeempty: "Restock: Include empty slots"
+inventoryactions_rules_mode_off_help: "Do not restock this item. Keep the configured target quantity."
+inventoryactions_rules_mode_existing_help: "Only top up this item's existing favorite stacks to the target quantity."
+inventoryactions_rules_mode_includeempty_help: "Also restore remembered empty favorite slots. If no slot is remembered and no favorite stack remains, use one unassigned empty favorite slot. Occupied slots are never replaced."
+inventoryactions_rules_mode_cycle: "Click to change: Off → Existing → Include empty."
 inventoryactions_rules_exclude_title: Auto pickup exclusions
-inventoryactions_rules_restock_scope: "{key} · target per favorite stack; 0 disables restock"
+inventoryactions_rules_restock_scope: "{key} · mode and target per favorite stack"
 inventoryactions_rules_exclude_scope: Manual E pickup is still available
 inventoryactions_rules_quantity: Target quantity
 inventoryactions_rules_cancel: Cancel
@@ -34,6 +39,6 @@ inventoryactions_rules_empty: No registered items
 inventoryactions_rules_registered: Registered
 inventoryactions_rules_saved: Saved
 inventoryactions_rules_conflict: Config changed. Finish editing to reload.
-inventoryactions_rules_invalid: Enter a valid non-negative quantity within the shown limit.
+inventoryactions_rules_invalid: "Enter a quantity from 1 to the item's maximum stack."
 inventoryactions_rules_save_failed: Could not save config.
 inventoryactions_rules_restored: Last saved quantity restored

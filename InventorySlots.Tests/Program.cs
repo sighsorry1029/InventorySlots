@@ -1,6 +1,7 @@
 using InventorySlots;
 
 TestRunner.Run(
+    ("Favorite item memory survives YAML and remains character-specific", FavoriteMemoryPersistenceTests.RoundTripAndCharacterIsolation),
     ("Native pockets and three progression rows add independently", Tests.NativePocketsAndProgressionRowsAddIndependently),
     ("Native resize keeps the player panel root at its base size", Tests.NativeResizeKeepsPlayerPanelRootAtBaseSize),
     ("Container preview follows GUI lifecycle and cached hover state", Tests.ContainerPreviewFollowsGuiLifecycleAndCachedHoverState),
@@ -4992,7 +4993,7 @@ internal static class Tests
 
     public static void RestockTargetLimitsParseConfigEntries()
     {
-        Dictionary<string, int> limits = RestockTargetLimitCore.Parse("Stone: 10, Coins = 500; BadEntry; Wood: -5 # comment");
+        Dictionary<string, int> limits = RestockTargetLimitCore.Parse("Stone: 10 | Existing, Coins = 500 | IncludeEmpty; BadEntry; Wood: 30 | Off # comment");
 
         Assert.Equal(3, limits.Count);
         Assert.Equal(10, limits["stone"]);
@@ -5005,31 +5006,29 @@ internal static class Tests
         string slotsAmount = RestockTargetLimitCore.NormalizeAmountForEditor(" -5 ");
         string actionsAmount = InventoryActions.RestockTargetLimitCore.NormalizeAmountForEditor(" -5 ");
 
-        Assert.Equal("0", slotsAmount);
+        Assert.Equal("1", slotsAmount);
         Assert.Equal(slotsAmount, actionsAmount);
         Assert.Equal("7", RestockTargetLimitCore.NormalizeAmountForEditor(" +7 "));
         Assert.Equal("", RestockTargetLimitCore.NormalizeAmountForEditor("invalid"));
-        Assert.Equal("", RestockTargetLimitCore.NormalizeAmountForEditor("2147483648"));
+        Assert.Equal("2147483647", RestockTargetLimitCore.NormalizeAmountForEditor("2147483648"));
         Assert.Equal("30", RestockTargetLimitCore.ClampAmountForEditor("40", 30));
         Assert.Equal("30", RestockTargetLimitCore.ClampAmountForEditor("230", 30));
-        Assert.Equal("0", RestockTargetLimitCore.ClampAmountForEditor("-5", 30));
+        Assert.Equal("1", RestockTargetLimitCore.ClampAmountForEditor("-5", 30));
         Assert.Equal("30", RestockTargetLimitCore.ClampAmountForEditor("9999999999", 30));
         Assert.Equal("", RestockTargetLimitCore.ClampAmountForEditor("invalid", 30));
         Assert.Equal(
             RestockTargetLimitCore.ClampAmountForEditor("230", 30),
             InventoryActions.RestockTargetLimitCore.ClampAmountForEditor("230", 30));
 
-        Assert.Equal(
-            RestockTargetLimitCore.Parse("Wood: -5")["wood"],
-            RestockTargetLimitCore.Parse($"Wood: {slotsAmount}")["wood"]);
-        Assert.Equal(
-            InventoryActions.RestockTargetLimitCore.Parse("Wood: -5")["wood"],
-            InventoryActions.RestockTargetLimitCore.Parse($"Wood: {actionsAmount}")["wood"]);
+        Assert.Equal(0, RestockTargetLimitCore.Parse("Wood: -5").Count);
+        Assert.Equal(0, InventoryActions.RestockTargetLimitCore.Parse("Wood: 0").Count);
+        Assert.Equal(1, RestockTargetLimitCore.Parse($"Wood: {slotsAmount} | Existing")["wood"]);
+        Assert.Equal(0, InventoryActions.RestockTargetLimitCore.Parse($"Wood: {actionsAmount} | Off")["wood"]);
     }
 
     public static void RestockTargetLimitResolvesAliasesAndClampsToMaxStack()
     {
-        Dictionary<string, int> limits = RestockTargetLimitCore.Parse("Stone: 250, Coins: 500");
+        Dictionary<string, int> limits = RestockTargetLimitCore.Parse("Stone: 250 | Existing, Coins: 500 | Existing");
         int stoneLimit = RestockTargetLimitCore.ResolveTargetStackLimit(
             limits,
             new[] { "$item_stone", "Stone" },
@@ -5050,7 +5049,7 @@ internal static class Tests
 
     public static void RestockTargetLimitResolvesLocalizedItemNames()
     {
-        Dictionary<string, int> limits = RestockTargetLimitCore.Parse("수지: 20");
+        Dictionary<string, int> limits = RestockTargetLimitCore.Parse("수지: 20 | Existing");
         int localizedLimit = RestockTargetLimitCore.ResolveTargetStackLimit(
             limits,
             new[] { "$item_resin", "resin", "수지" },
@@ -5061,7 +5060,7 @@ internal static class Tests
 
     public static void InventoryActionsRestockTargetLimitCopyMirrorsInventorySlotsBehavior()
     {
-        string raw = "Stone: 250, $item_Coins = 500; Resin(Clone): 20; BadEntry; Wood: -5 # comment";
+        string raw = "Stone: 250 | Existing, $item_Coins = 500 | IncludeEmpty; Resin(Clone): 20 | Existing; BadEntry; Wood: 30 | Off # comment";
         Dictionary<string, int> slotsLimits = RestockTargetLimitCore.Parse(raw);
         Dictionary<string, int> actionsLimits = InventoryActions.RestockTargetLimitCore.Parse(raw);
 

@@ -56,10 +56,15 @@ inventoryslots_inventory_limit_reached: "{item}: you can carry at most {max}."
 inventoryslots_upgrade_safety_canceled: Upgrade canceled because the equipped item could not be returned to its slot safely.
 
 inventoryslots_rules_restock_title: Restock targets
-inventoryslots_rules_refill_title: Refill empty favorite slots
-inventoryslots_rules_refill_help: "If this item is absent from your favorite slots, restock it into one empty favorite slot up to the target quantity. No empty favorite slot means no transfer. 0 still disables restock."
+inventoryslots_rules_mode_off: "Restock: Off"
+inventoryslots_rules_mode_existing: "Restock: Existing stacks"
+inventoryslots_rules_mode_includeempty: "Restock: Include empty slots"
+inventoryslots_rules_mode_off_help: "Do not restock this item. Keep the configured target quantity."
+inventoryslots_rules_mode_existing_help: "Only top up this item's existing favorite stacks to the target quantity."
+inventoryslots_rules_mode_includeempty_help: "Also restore remembered empty favorite slots. If no slot is remembered and no favorite stack remains, use one unassigned empty favorite slot. Occupied slots are never replaced."
+inventoryslots_rules_mode_cycle: "Click to change: Off → Existing → Include empty."
 inventoryslots_rules_exclude_title: Auto pickup exclusions
-inventoryslots_rules_restock_scope: "{key} · target per favorite stack; 0 disables restock"
+inventoryslots_rules_restock_scope: "{key} · mode and target per favorite stack"
 inventoryslots_rules_exclude_scope: Manual E pickup is still available
 inventoryslots_rules_quantity: Target quantity
 inventoryslots_rules_cancel: Cancel
@@ -72,6 +77,6 @@ inventoryslots_rules_empty: No registered items
 inventoryslots_rules_registered: Registered
 inventoryslots_rules_saved: Saved
 inventoryslots_rules_conflict: Config changed. Finish editing to reload.
-inventoryslots_rules_invalid: Enter a valid non-negative quantity within the shown limit.
+inventoryslots_rules_invalid: "Enter a quantity from 1 to the item's maximum stack."
 inventoryslots_rules_save_failed: Could not save config.
 inventoryslots_rules_restored: Last saved quantity restored

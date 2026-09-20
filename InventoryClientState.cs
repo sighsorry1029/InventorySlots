@@ -39,7 +39,7 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
-    private static void SaveClientState()
+    private static bool SaveClientState()
     {
         string? tempPath = null;
         try
@@ -64,10 +64,12 @@ public sealed partial class InventorySlotsPlugin
             }
 
             tempPath = null;
+            return true;
         }
         catch (Exception ex)
         {
             Log.LogWarning($"Failed to save InventorySlots client state: {ex.Message}");
+            return false;
         }
         finally
         {

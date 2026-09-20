@@ -5,6 +5,8 @@ using System.Linq;
 
 namespace InventoryActions;
 
+internal enum RestockRuleMode { Off, Existing, IncludeEmpty }
+
 internal static class RestockTargetLimitCore
 {
     public static Dictionary<string, int> Parse(string? raw) => Parse(raw, out _);
@@ -33,29 +35,45 @@ internal static class RestockTargetLimitCore
             }
 
             string token = NormalizeResourceToken(trimmed.Substring(0, separator));
-            SplitRuleValue(trimmed.Substring(separator + 1), out string amountText, out bool refillEmpty);
-            if (token.Length == 0 || !TryParseAmount(amountText, out int amount))
+            if (token.Length == 0 || !TryParseRuleValue(trimmed.Substring(separator + 1), out string amountText, out RestockRuleMode mode))
             {
                 continue;
             }
 
-            result[token] = amount;
-            // Last duplicate wins for both quantity and opt-in, in config order.
+            result[token] = mode == RestockRuleMode.Off ? 0 : int.Parse(amountText, CultureInfo.InvariantCulture);
+            // Last valid duplicate wins for both quantity and mode.
             refillEmptyKeys.Remove(token);
-            if (refillEmpty && amount > 0) refillEmptyKeys.Add(token);
+            if (mode == RestockRuleMode.IncludeEmpty) refillEmptyKeys.Add(token);
         }
 
         return result;
     }
 
-    internal static void SplitRuleValue(string value, out string amount, out bool refillEmpty)
+    internal static bool TryParseRuleValue(string value, out string amount, out RestockRuleMode mode)
     {
         int separator = value.IndexOf('|');
-        refillEmpty = separator >= 0 &&
-            string.Equals(value.Substring(separator + 1).Trim(), "refill", StringComparison.OrdinalIgnoreCase);
-        // Unknown suffixes stay invalid rather than silently opting into a new policy.
-        amount = (refillEmpty ? value.Substring(0, separator) : value).Trim();
+        amount = "";
+        mode = RestockRuleMode.Existing;
+        // A rule always declares a positive target and one of the three modes.
+        // No numeric-only, zero-as-Off, or old checkbox-suffix compatibility.
+        if (separator <= 0 || !TryParseAmount(value.Substring(0, separator), out int parsed)) return false;
+        string name = value.Substring(separator + 1).Trim();
+        if (string.Equals(name, "Off", StringComparison.OrdinalIgnoreCase)) mode = RestockRuleMode.Off;
+        else if (string.Equals(name, "Existing", StringComparison.OrdinalIgnoreCase)) mode = RestockRuleMode.Existing;
+        else if (string.Equals(name, "IncludeEmpty", StringComparison.OrdinalIgnoreCase)) mode = RestockRuleMode.IncludeEmpty;
+        else return false;
+        amount = parsed.ToString(CultureInfo.InvariantCulture);
+        return true;
     }
+
+    internal static string FormatRuleValue(string amount, RestockRuleMode mode) => amount + " | " + mode;
+
+    internal static RestockRuleMode NextMode(RestockRuleMode mode) => mode switch
+    {
+        RestockRuleMode.Off => RestockRuleMode.Existing,
+        RestockRuleMode.Existing => RestockRuleMode.IncludeEmpty,
+        _ => RestockRuleMode.Off
+    };
 
     public static int ResolveTargetStackLimit(Dictionary<string, int>? limits, IEnumerable<string?> lookupTokens, int itemMaxStack)
     {
@@ -110,9 +128,7 @@ internal static class RestockTargetLimitCore
 
     internal static string NormalizeAmountForEditor(string? value)
     {
-        return TryParseAmount(value, out int amount)
-            ? amount.ToString(CultureInfo.InvariantCulture)
-            : "";
+        return ClampAmountForEditor(value, int.MaxValue);
     }
 
     internal static string ClampAmountForEditor(string? value, int maximumAmount)
@@ -122,7 +138,7 @@ internal static class RestockTargetLimitCore
             return "";
         }
 
-        long clamped = Math.Min(Math.Max(0L, parsed), Math.Max(0, maximumAmount));
+        long clamped = Math.Min(Math.Max(1L, parsed), Math.Max(1, maximumAmount));
         return clamped.ToString(CultureInfo.InvariantCulture);
     }
 
@@ -156,9 +172,9 @@ internal static class RestockTargetLimitCore
 
     private static bool TryParseAmount(string? value, out int amount)
     {
-        if (int.TryParse(value?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed))
+        if (int.TryParse(value?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed) && parsed > 0)
         {
-            amount = Math.Max(0, parsed);
+            amount = parsed;
             return true;
         }
 

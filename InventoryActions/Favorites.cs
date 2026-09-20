@@ -65,8 +65,10 @@ public sealed partial class InventoryActionsPlugin
         if (!added)
         {
             Runtime.FavoriteSlots.Remove(pos);
+            FavoriteSlotItems.Remove(pos);
         }
 
+        RefreshFavoriteSlotMemory(player, out _);
         SaveFavorites(player);
         RefreshFavoriteBorders();
     }
@@ -98,6 +100,8 @@ public sealed partial class InventoryActionsPlugin
         }
 
         Runtime.FavoriteSlots.Clear();
+        FavoriteSlotItems.Clear();
+        _favoriteMemoryPending = true;
         Runtime.LoadedFavoritesPlayerId = playerId;
         string path = GetFavoriteFilePath(playerId);
         if (!File.Exists(path))
@@ -115,17 +119,13 @@ public sealed partial class InventoryActionsPlugin
                     continue;
                 }
 
-                string[] parts = line.Split(',');
-                if (parts.Length != 2 ||
-                    !int.TryParse(parts[0].Trim(), out int x) ||
-                    !int.TryParse(parts[1].Trim(), out int y) ||
-                    x < 0 ||
-                    y < 0)
+                if (!FavoriteSlotMemoryCore.TryReadLine(line, out int x, out int y, out string prefab))
                 {
                     continue;
                 }
 
                 Runtime.FavoriteSlots.Add(new Vector2i(x, y));
+                if (prefab.Length > 0) FavoriteSlotItems[new Vector2i(x, y)] = prefab;
             }
         }
         catch (Exception ex)
@@ -144,14 +144,22 @@ public sealed partial class InventoryActionsPlugin
         string playerId = GetPlayerId(player);
         Runtime.LoadedFavoritesPlayerId = playerId;
         string path = GetFavoriteFilePath(playerId);
+        _favoriteMemorySavePending = true;
+        _favoriteMemorySaveRetryAt = Time.unscaledTime + 5f;
         try
         {
             string[] lines = Runtime.FavoriteSlots
                 .OrderBy(slot => slot.y)
                 .ThenBy(slot => slot.x)
-                .Select(slot => $"{slot.x},{slot.y}")
+                .Select(slot => FavoriteSlotMemoryCore.WriteLine(slot.x, slot.y,
+                    FavoriteSlotItems.TryGetValue(slot, out string prefab) ? prefab : ""))
                 .ToArray();
-            File.WriteAllLines(path, lines);
+            string tempPath = path + ".tmp";
+            File.WriteAllLines(tempPath, lines);
+            if (File.Exists(path)) File.Replace(tempPath, path, null);
+            else File.Move(tempPath, path);
+            _favoriteMemorySavePending = false;
+            _favoriteMemorySaveRetryAt = 0f;
         }
         catch (Exception ex)
         {

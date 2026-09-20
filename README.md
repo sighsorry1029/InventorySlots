@@ -81,7 +81,7 @@ Hold `Alt+E` by default to restock favorited inventory stacks from the hovered c
 Take stacks pulls only matching stackable items that are not favorited.
 
 ![](https://i.ibb.co/yFQWpxjF/restocklimit.png) <br>
-Client restock limits can cap favorite restock targets per prefab, such as `Stone: 10` or `Coins: 500`.
+Client restock targets set a quantity and mode per prefab, such as `Stone: 10 | Existing` or `Coins: 500 | IncludeEmpty`.
 
 ### Mod Compatibility Examples
 
@@ -256,14 +256,18 @@ Container actions retain access and ward restrictions. Tombstones, ships and uns
 Restock target limits can cap favorite restock targets per item:
 
 ```text
-Stone: 10, Coins: 500
+Stone: 10 | Existing, Coins: 500 | IncludeEmpty, Wood: 30 | Off
 ```
 
-Items not listed refill to their normal max stack. A target of `0` prevents restocking that item.
+Items without a valid rule refill existing favorite stacks to their normal max stack. Quantities range from 1 to the current maximum stack. Use **Off** to disable an item's restock while preserving its configured quantity.
 
-Each item in the **Restock targets** panel also has a **Refill empty** checkbox to the left of its quantity, **unchecked by default**. When checked, Alt+E can refill one eligible empty favorite slot if that item has no stack in any eligible favorite slot. It uses the same target quantity (capped at the current max stack); `0` still disables all restocking. For example, `Wood: 30 | refill` restores up to 30 wood after your favorite wood stack is completely consumed. Existing favorite stacks are topped up normally and are never replaced. A full or incompatible variant of the same item already in a favorite slot prevents an additional stack from being created.
+Each item in the **Restock targets** panel has a compact mode button to the left of its quantity. Clicking cycles **Off** (dash), **Existing** (circular arrows), and **IncludeEmpty** (the same arrows with a box in the center); hovering explains the current mode. New entries default to Existing. Existing tops up only favorite stacks that still contain the item. IncludeEmpty also lets Alt+E restore that item to its remembered empty favorite slots, up to the target per slot. For example, `Wood: 30 | IncludeEmpty` restores up to 30 wood in each remembered wood slot after consumption. Occupied slots are never replaced.
 
-Refill requires an empty favorite slot that accepts the item; it does not use ordinary empty slots or remember the old item's position. Slots are chosen top to bottom, left to right. Rules use their config order within each chest; an available item can fill the slot before another chest is checked. Existing stackability/metadata restrictions, chest access and ownership checks, and `Restock Leave One Item` still apply. The toggle saves immediately with the target quantity in the existing client config and applies to all characters using it. The F1 rule editor also exposes it. Hiding the button does not disable saved rules. This affects Alt+E favorite restock only, not Sort, Take stacks, manual moves or material consumption.
+Only the explicit `Item: positive quantity | Off/Existing/IncludeEmpty` format is supported. Numeric-only rules, zero targets, and the old `| refill` suffix are ignored and are not migrated. Re-register old rules through the panel or update their config text; an ignored rule behaves like an unlisted item.
+
+The last item prefab in each eligible favorite slot is remembered per character in `config/InventorySlots/ClientState.yml`. Emptying the slot keeps its memory; placing another item there updates it, and removing favorite protection clears it. Remembered slots are reserved for their item during restock even if a different chest is checked first. Occupied, locked, removed or incompatible slots are skipped. Several remembered slots of the same item can be restored, in row/column order. Items already consumed before the mod could observe them cannot be identified retroactively.
+
+In IncludeEmpty mode, if an item has neither a remembered slot nor an existing favorite stack, refill may use one unassigned empty favorite slot, top to bottom and left to right. It never uses ordinary empty cells or another item's remembered slot. Existing stackability/metadata restrictions, chest access and ownership checks, and `Restock Leave One Item` still apply. The mode and quantity remain client config shared across characters; only slot memory is character-specific. The F1 rule editor also exposes the mode button. Hiding the button does not disable saved rules. This affects Alt+E favorite restock only, not Sort, Take stacks, manual moves or material consumption.
 
 `3 - Inventory Buttons / Restock Leave One Item` defaults to **On**. Favorite restock (Alt+E by default) leaves one item of each kind in each source chest, across all stacks with the same internal item name, to keep that chest eligible for future quick stack. A chest with only one remaining item will not supply it. Turn this client-only setting Off to allow full depletion; in-game changes apply to subsequent transfers immediately. `Take stacks`, `Take All`, and manual moves are unchanged. Other players and other mods can still take the last item.
 

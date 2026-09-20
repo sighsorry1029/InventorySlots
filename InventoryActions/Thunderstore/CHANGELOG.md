@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0
+
+- Remembered favorite-slot item types per character in `InventoryActions.Favorites.<playerId>.txt`. IncludeEmpty restock restores items to their remembered empty slots instead of assigning them by chest order, including multiple remembered slots of the same item. Occupied slots and slots remembered for other items are never replaced. Replacing an item updates its association; removing favorite protection clears it.
+- Replaced the Refill empty checkbox with three modes: Off preserves the target quantity without restocking, Existing tops up remaining favorite stacks, and IncludeEmpty also restores empty favorite slots. New entries default to Existing. Quantity editing now clamps to `1..current max stack` and does not change the selected mode.
+- Added compact yellow mode icons: a dash for Off, circular arrows for Existing, and the same arrows with a central box for IncludeEmpty. Both the panel and F1 editor support the modes, and visible panel tooltips update immediately when a mode changes.
+- **Configuration change:** rules now require a positive quantity and explicit mode, for example `Wood: 30 | IncludeEmpty`. Old numeric-only rules, zero targets, and `| refill` are ignored without migration. Re-register old rules or edit their config text. Without a valid rule, existing favorite stacks refill to the normal maximum, so an old zero rule no longer disables restocking.
+- Favorite memory records only items observed in eligible slots; it cannot identify items consumed before they were observed. Unassigned empty favorite fallback, current stack compatibility, special-slot exclusions, chest access/ownership checks, and Restock Leave One Item remain in effect.
+
 ## 1.0.19
 
 - Added a per-item Refill empty checkbox to Restock targets, unchecked by default. When enabled, Alt+E can refill one eligible empty favorite slot up to the target quantity after that item's favorite stack has been completely consumed. Existing favorite stacks keep their positions and prevent additional stacks from being created.

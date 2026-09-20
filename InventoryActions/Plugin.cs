@@ -17,7 +17,7 @@ namespace InventoryActions;
 public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
 {
     internal const string ModName = "InventoryActions";
-    internal const string ModVersion = "1.0.19";
+    internal const string ModVersion = "1.1.0";
     internal const string Author = "sighsorry";
     internal const string ModGUID = $"{Author}.{ModName}";
     private const string ExternalMultiUserChestGuid = "com.maxsch.valheim.MultiUserChest";
@@ -117,6 +117,7 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
 
     private void OnDestroy()
     {
+        RememberFavoriteSlotItems(Player.m_localPlayer, flush: true);
         _extraSlotsPlugin = null;
         _extraSlotsPlayerRows = null;
         _equipmentAndQuickSlotsVisibleRows = null;
@@ -130,6 +131,7 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
         _azuEpiDisplaysEquipmentInSeparatePanel = null;
         DestroyFeatureGuideHud();
         DestroyItemRuleUi();
+        DestroyRestockModeIcons();
         _autoPickupExcludedItemsConfig.SettingChanged -= RefreshAutoPickupExclusions;
         _autoPickupExcludedItems.Clear();
         CancelAreaContainerTransfer();

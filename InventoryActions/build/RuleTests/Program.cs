@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Collections.Generic;
 #if INVENTORY_SLOTS
 using InventorySlots;
 #else
@@ -8,123 +9,149 @@ using InventoryActions;
 
 int checks = 0;
 void Check(string name, bool result) { if (!result) throw new Exception(name); checks++; }
-const string raw = "# personal limits\r\nStone = 10 # keep note\r\nWood: 30; $item_stone: 8, UnknownModItem: 999\r\n";
+const string raw = "# personal limits\r\nStone = 10 | Existing # keep note\r\nWood: 30 | Off; $item_stone: 8 | IncludeEmpty, UnknownModItem: 999 | Existing\r\n";
 var entries = ItemRuleConfigCore.Read(raw, true);
-Check("four editable rows", entries.Count == 4);
+Check("four valid editable rows", entries.Count == 4);
 Check("no-op preserves exact text", ItemRuleConfigCore.Write(raw, entries, true) == raw);
-entries[0].Amount = "0";
+Check("mode and amount are independent", entries[1].Mode == RestockRuleMode.Off && entries[1].Amount == "30");
+entries[0].Amount = "12";
 string changed = ItemRuleConfigCore.Write(raw, entries, true);
-Check("edited zero and comment preserved", changed.Contains("Stone: 0 # keep note"));
-Check("unrelated aliases and unknown mod item survive", changed.Contains("Wood: 30; $item_stone: 8, UnknownModItem: 999\r\n"));
+Check("edited amount and comment preserved", changed.Contains("Stone: 12 | Existing # keep note"));
+Check("unrelated aliases and unknown mod item survive", changed.Contains("Wood: 30 | Off; $item_stone: 8 | IncludeEmpty, UnknownModItem: 999 | Existing\r\n"));
 Check("last normalized duplicate retains priority", RestockTargetLimitCore.ResolveTargetStackLimit(RestockTargetLimitCore.Parse(changed), new[] { "Stone", "$item_stone" }, 50) == 8);
-entries[2].Amount = "0";
-Check("zero in effective entry blocks restock", RestockTargetLimitCore.ResolveTargetStackLimit(RestockTargetLimitCore.Parse(ItemRuleConfigCore.Write(raw, entries, true)), new[] { "Stone" }, 50) == 0);
-entries[2].Amount = "8";
+entries[2].Mode = RestockRuleMode.Off;
+changed = ItemRuleConfigCore.Write(raw, entries, true);
+Check("Off preserves configured amount", changed.Contains("$item_stone: 8 | Off"));
+Check("Off disables runtime target", RestockTargetLimitCore.ResolveTargetStackLimit(RestockTargetLimitCore.Parse(changed), new[] { "Stone" }, 50) == 0);
+entries[2].Amount = "25";
+Check("editing amount cannot enable Off", RestockTargetLimitCore.Parse(ItemRuleConfigCore.Write(raw, entries, true))["stone"] == 0);
+entries[2].Mode = RestockRuleMode.Existing;
+Check("re-enabling uses saved amount", RestockTargetLimitCore.Parse(ItemRuleConfigCore.Write(raw, entries, true))["stone"] == 25);
 entries[0].Removed = true;
 changed = ItemRuleConfigCore.Write(raw, entries, true);
-Check("deletion preserves remaining alias policy", RestockTargetLimitCore.ResolveTargetStackLimit(RestockTargetLimitCore.Parse(changed), new[] { "Stone", "$item_stone" }, 50) == 8);
+Check("deletion preserves remaining alias policy", RestockTargetLimitCore.ResolveTargetStackLimit(RestockTargetLimitCore.Parse(changed), new[] { "Stone" }, 50) == 25);
 entries.Add(new ItemRuleConfigCore.Entry { Start = -1, Key = "Resin", Amount = "5" });
 changed = ItemRuleConfigCore.Write(raw, entries, true);
-Check("new row readable", RestockTargetLimitCore.Parse(changed).ContainsKey("resin"));
-Check("unknown maximum clamped only during resolution", RestockTargetLimitCore.ResolveTargetStackLimit(RestockTargetLimitCore.Parse(raw), new[] { "UnknownModItem" }, 50) == 50);
-var excluded = ItemRuleConfigCore.ParseExclusions("# note\nResin; Stone(Clone), resin\nmod-item:variant");
-Check("exclusions deduplicate", excluded.Count == 3);
-Check("prefab matching case insensitive", excluded.Contains("RESIN"));
-Check("clone suffix stripped", excluded.Contains("Stone"));
-Check("exclusion identity keeps punctuation", excluded.Contains("mod-item:variant") && !excluded.Contains("moditemvariant"));
-Check("empty config preserves pickup", ItemRuleConfigCore.ParseExclusions("").Count == 0);
-var excludes = ItemRuleConfigCore.Read("Resin # comment\nStone", false);
-excludes[0].Removed = true;
-Check("remove exclusion", ItemRuleConfigCore.ParseExclusions(ItemRuleConfigCore.Write("Resin # comment\nStone", excludes, false)).SetEquals(new[] { "Stone" }));
-var reloaded = ItemRuleConfigCore.Read(changed, true);
-reloaded.Last(e => e.Key == "Resin").Removed = true;
-string deleted = ItemRuleConfigCore.Write(changed, reloaded, true);
-var registeredAgain = ItemRuleConfigCore.Read(deleted, true);
-registeredAgain.Add(new ItemRuleConfigCore.Entry { Start = -1, Key = "Resin", Amount = "15" });
-string final = ItemRuleConfigCore.Write(deleted, registeredAgain, true);
-Check("save delete reload register has fresh spans", RestockTargetLimitCore.Parse(final)["resin"] == 15);
-Check("multi-save preserves other rules", final.Contains("Wood: 30; $item_stone: 8, UnknownModItem: 999"));
+Check("new rules default to existing stacks", changed.Contains("Resin: 5 | Existing"));
+Check("unresolved items keep target until runtime max is known", RestockTargetLimitCore.ResolveTargetStackLimit(RestockTargetLimitCore.Parse(raw), new[] { "UnknownModItem" }, 50) == 50);
+Check("unlisted items keep normal maximum", RestockTargetLimitCore.ResolveTargetStackLimit(RestockTargetLimitCore.Parse(raw), new[] { "Coal" }, 50) == 50);
 
-// Live inputs retain their Entry object across saves. Exercise shifted spans,
-// duplicate keys and a newly appended row without rebuilding the editor.
-string live = "# limits\r\nStone = 9 # first\r\nStone: 8; UnknownModItem: invalid\r\n";
+var mode = RestockRuleMode.Off;
+foreach (var expected in new[] { RestockRuleMode.Existing, RestockRuleMode.IncludeEmpty, RestockRuleMode.Off })
+{
+    mode = RestockTargetLimitCore.NextMode(mode);
+    Check("mode cycle " + expected, mode == expected);
+    string value = RestockTargetLimitCore.FormatRuleValue("30", mode);
+    Check("mode round trip retains amount " + expected, RestockTargetLimitCore.TryParseRuleValue(value, out string amount, out var readMode) && amount == "30" && readMode == expected);
+    var limits = RestockTargetLimitCore.Parse("Wood: " + value, out var enabled);
+    Check("runtime target " + expected, limits["wood"] == (mode == RestockRuleMode.Off ? 0 : 30));
+    Check("empty refill membership " + expected, enabled.Contains("wood") == (mode == RestockRuleMode.IncludeEmpty));
+}
+foreach (string invalid in new[] { "30", "0", "30 | refill", "0 | Off", "-1 | Existing", "30 | unknown", "30 | IncludeEmpty | Off", "2147483648 | Existing" })
+{
+    Check("unsupported rule rejected: " + invalid, RestockTargetLimitCore.Parse("Wood: " + invalid).Count == 0);
+    Check("unsupported rule has no editor conversion: " + invalid, ItemRuleConfigCore.Read("Wood: " + invalid, true).Count == 0);
+}
+var rules = RestockTargetLimitCore.Parse("Wood: 30 | includeempty; $item_wood: 20 | off", out var refillKeys);
+Check("last valid duplicate disables empty refill", rules["wood"] == 0 && refillKeys.Count == 0);
+rules = RestockTargetLimitCore.Parse("Wood: 30 | Off; $item_wood: 20 | IncludeEmpty", out refillKeys);
+Check("last valid duplicate enables empty refill", rules["wood"] == 20 && refillKeys.SequenceEqual(new[] { "wood" }));
+rules = RestockTargetLimitCore.Parse("Wood: 30 | IncludeEmpty; Wood: invalid", out refillKeys);
+Check("invalid later row cannot override valid rule", rules["wood"] == 30 && refillKeys.SequenceEqual(new[] { "wood" }));
+rules = RestockTargetLimitCore.Parse("WoodPrefab: 30 | Off; $item_wood: 40 | IncludeEmpty", out refillKeys);
+string? effectiveKey = RestockTargetLimitCore.ResolveConfiguredKey(rules, new[] { "WoodPrefab", "$item_wood" });
+Check("prefab Off overrides lower priority alias", effectiveKey == "woodprefab" && !refillKeys.Contains(effectiveKey) && RestockTargetLimitCore.ResolveTargetStackLimit(rules, new[] { "WoodPrefab", "$item_wood" }, 50) == 0);
+Check("positive editor clamps zero", RestockTargetLimitCore.ClampAmountForEditor("0", 30) == "1");
+Check("positive editor clamps negatives", RestockTargetLimitCore.ClampAmountForEditor("-5", 30) == "1");
+Check("editor clamps complete overshoot", RestockTargetLimitCore.ClampAmountForEditor("230", 30) == "30");
+Check("editor supports long numeric input before clamp", RestockTargetLimitCore.ClampAmountForEditor("9999999999", 30) == "30");
+Check("incomplete edit is not a target", RestockTargetLimitCore.ClampAmountForEditor("", 30) == "");
+
+// Repeated saves keep focused Entry identities and all text spans valid.
+string live = "# targets\r\nWood = 30 | Existing # keep\r\nStone: 12 | Off\r\nBad: invalid\r\n";
 var liveEntries = ItemRuleConfigCore.Read(live, true);
 var first = liveEntries[0];
-var duplicate = liveEntries[1];
 void CommitLive()
 {
     live = ItemRuleConfigCore.Write(live, liveEntries, true);
-    var saved = ItemRuleConfigCore.Read(live, true);
-    ItemRuleConfigCore.AcceptSaved(liveEntries, saved);
+    ItemRuleConfigCore.AcceptSaved(liveEntries, ItemRuleConfigCore.Read(live, true));
     Check("rebased no-op preserves saved bytes", ItemRuleConfigCore.Write(live, liveEntries, true) == live);
+}
+foreach (var targetMode in new[] { RestockRuleMode.IncludeEmpty, RestockRuleMode.Off, RestockRuleMode.Existing })
+{
+    first.Mode = targetMode; CommitLive();
+    Check("mode saves retain Entry identity and quantity", ReferenceEquals(first, liveEntries[0]) && first.Amount == "30");
 }
 foreach (string amount in new[] { "10", "1000", "2" })
 {
     first.Amount = amount; CommitLive();
-    Check("focused entry identity survives", ReferenceEquals(first, liveEntries[0]));
-    Check("duplicate entry remains separate", ReferenceEquals(duplicate, liveEntries[1]) && duplicate.Amount == "8");
+    Check("quantity saves keep mode and later rows", first.Mode == RestockRuleMode.Existing && liveEntries[1].Mode == RestockRuleMode.Off && liveEntries[1].Amount == "12");
 }
-Check("comments CRLF and invalid untouched row survive", live == "# limits\r\nStone: 2 # first\r\nStone: 8; UnknownModItem: invalid\r\n");
+Check("comments CRLF and invalid raw rows survive unrelated edits", live.Contains("# keep\r\n") && live.Contains("Bad: invalid\r\n"));
 first.Removed = true; CommitLive();
-duplicate.Amount = "12"; CommitLive();
-Check("delete then edit duplicate changes the surviving row", liveEntries.Count == 2 && RestockTargetLimitCore.Parse(live)["stone"] == 12);
-var added = new ItemRuleConfigCore.Entry { Start = -1, Key = "Resin", Amount = "5" };
-liveEntries.Add(added); CommitLive();
-added.Amount = "50"; CommitLive();
-Check("registered row updates without a second append", liveEntries.Count(e => e.Key == "Resin") == 1 && RestockTargetLimitCore.Parse(live)["resin"] == 50);
-Check("registered entry identity and saved span retained", ReferenceEquals(added, liveEntries.Last()) && added.Start >= 0);
-added.Removed = true; CommitLive();
-liveEntries.Add(new ItemRuleConfigCore.Entry { Start = -1, Key = "Resin", Amount = "6" }); CommitLive();
-Check("delete and re-register uses a new valid span", liveEntries.Count(e => e.Key == "Resin") == 1 && RestockTargetLimitCore.Parse(live)["resin"] == 6);
-// Quantity and empty-slot opt-in are one saved rule. Old configs remain Off.
-var legacyLimits = RestockTargetLimitCore.Parse("Wood: 30", out var refillKeys);
-Check("old quantity config keeps empty refill off", legacyLimits["wood"] == 30 && refillKeys.Count == 0);
-const string refillRaw = "# targets\r\nWood = 30 | ReFiLl # reserve\r\nStone: 12\r\n";
-var refillEntries = ItemRuleConfigCore.Read(refillRaw, true);
-Check("editor reads amount separately from opt-in", refillEntries[0].Amount == "30" && refillEntries[0].RefillEmpty && !refillEntries[1].RefillEmpty);
-Check("untouched extended rule keeps spelling and comments", ItemRuleConfigCore.Write(refillRaw, refillEntries, true) == refillRaw);
-RestockTargetLimitCore.Parse(refillRaw, out refillKeys);
-Check("extended rule enables normalized key", refillKeys.SequenceEqual(new[] { "wood" }));
-var duplicateLimits = RestockTargetLimitCore.Parse("Wood: 30 | refill; $item_wood: 8", out refillKeys);
-Check("later duplicate switches quantity and policy off together", duplicateLimits["wood"] == 8 && refillKeys.Count == 0);
-duplicateLimits = RestockTargetLimitCore.Parse("Wood: 30; $item_wood: 8 | refill", out refillKeys);
-Check("later duplicate switches on without duplicate refill keys", duplicateLimits["wood"] == 8 && refillKeys.SequenceEqual(new[] { "wood" }));
-foreach (string amount in new[] { "0", "-4" })
-{
-    string zeroRule = "Wood: " + amount + " | refill";
-    var zeroLimits = RestockTargetLimitCore.Parse(zeroRule, out refillKeys);
-    Check("zero or negative cannot seed empty slots: " + amount, zeroLimits["wood"] == 0 && refillKeys.Count == 0);
-    Check("disabled rule remembers opt-in for later positive edits: " + amount, ItemRuleConfigCore.Read(zeroRule, true)[0].RefillEmpty);
-}
-foreach (string invalid in new[] { "30 | unknown", "30 | refill | refill", "2147483648 | refill" })
-{
-    var invalidLimits = RestockTargetLimitCore.Parse("Wood: 20 | refill; Wood: " + invalid, out refillKeys);
-    Check("invalid later rule cannot override valid rule: " + invalid, invalidLimits["wood"] == 20 && refillKeys.SequenceEqual(new[] { "wood" }));
-}
-var aliases = RestockTargetLimitCore.Parse("WoodPrefab: 0; $item_wood: 30 | refill", out refillKeys);
-string? effectiveKey = RestockTargetLimitCore.ResolveConfiguredKey(aliases, new[] { "WoodPrefab", "$item_wood", "Wood" });
-Check("prefab override blocks lower priority refill alias", effectiveKey == "woodprefab" && !refillKeys.Contains(effectiveKey));
-Check("quantity and refill use same lookup precedence", RestockTargetLimitCore.ResolveTargetStackLimit(aliases, new[] { "WoodPrefab", "$item_wood" }, 50) == 0);
-aliases = RestockTargetLimitCore.Parse("WoodPrefab: 100 | refill; $item_wood: 0", out refillKeys);
-effectiveKey = RestockTargetLimitCore.ResolveConfiguredKey(aliases, new[] { "WoodPrefab", "$item_wood" });
-Check("explicit positive prefab target can override disabled alias", effectiveKey == "woodprefab" && refillKeys.Contains(effectiveKey) && RestockTargetLimitCore.ResolveTargetStackLimit(aliases, new[] { "WoodPrefab", "$item_wood" }, 50) == 50);
+liveEntries[0].Amount = "25"; CommitLive();
+Check("delete then edit keeps correct row", RestockTargetLimitCore.Parse(live)["stone"] == 0 && live.Contains("Stone: 25 | Off"));
+liveEntries.Add(new ItemRuleConfigCore.Entry { Start = -1, Key = "Wood", Amount = "15", Mode = RestockRuleMode.IncludeEmpty }); CommitLive();
+liveEntries.Last().Amount = "30"; CommitLive();
+Check("new row edit never duplicates append", ItemRuleConfigCore.Read(live, true).Count(e => e.Key == "Wood") == 1);
+Check("new row serializes mode and quantity", RestockTargetLimitCore.Parse(live, out refillKeys)["wood"] == 30 && refillKeys.SequenceEqual(new[] { "wood" }));
 
-string refillLive = refillRaw;
-void CommitRefill()
+var excluded = ItemRuleConfigCore.ParseExclusions("# note\nResin; Stone(Clone), resin\nmod-item:variant");
+Check("exclusions still deduplicate", excluded.Count == 3);
+Check("exclusions remain case insensitive", excluded.Contains("RESIN"));
+Check("clone suffix stripped", excluded.Contains("Stone"));
+Check("exclusion identity keeps punctuation", excluded.Contains("mod-item:variant") && !excluded.Contains("moditemvariant"));
+var excludes = ItemRuleConfigCore.Read("Resin # comment\nStone", false);
+excludes[0].Removed = true;
+Check("exclusion removal unchanged", ItemRuleConfigCore.ParseExclusions(ItemRuleConfigCore.Write("Resin # comment\nStone", excludes, false)).SetEquals(new[] { "Stone" }));
+
+// The actual shared memory/selection policy; cells use integers here so this
+// regression scenario does not need a running Unity player.
+var memory = new Dictionary<int, string>();
+var favoriteCells = new HashSet<int> { 0, 1, 2, 3 };
+var occupied = new Dictionary<int, string> { [1] = "Wood", [2] = "Stone" };
+bool Observe() => FavoriteSlotMemoryCore.Observe(memory, favoriteCells,
+    cell => occupied.TryGetValue(cell, out string? prefab) ? prefab : null);
+bool Select(string prefab, bool existing, out int cell, int blocked = -1) =>
+    FavoriteSlotMemoryCore.TrySelect(favoriteCells.OrderBy(x => x).ToArray(), memory, prefab, existing,
+        candidate => candidate != blocked && !occupied.ContainsKey(candidate), out cell);
+Check("occupied favorites record prefab", Observe() && memory[1] == "Wood" && memory[2] == "Stone");
+Check("quantity-only changes need no memory save", !Observe());
+occupied.Clear();
+Check("consuming all stacks retains associations", !Observe() && memory.Count == 2);
+Check("stone from first chest keeps original later slot", Select("Stone", false, out int destination) && destination == 2);
+occupied[destination] = "Stone";
+Check("wood from later chest keeps original slot ahead of anonymous cells", Select("Wood", false, out destination) && destination == 1);
+occupied[destination] = "Wood";
+Check("full remembered slot cannot fall back", !Select("Wood", true, out destination));
+occupied.Remove(1);
+Check("locked or incompatible original slot cannot fall back", !Select("Wood", false, out destination, blocked: 1));
+Check("unremembered item can use anonymous empty favorite", Select("Resin", false, out destination) && destination == 0);
+Check("existing favorite suppresses anonymous duplicate", !Select("Resin", true, out destination));
+memory[0] = "Wood";
+Check("second remembered slot restores even if same item remains elsewhere", Select("Wood", true, out destination) && destination == 0);
+occupied[destination] = "Wood";
+Check("multiple remembered empty slots restore in grid order", Select("Wood", true, out destination) && destination == 1);
+occupied[destination] = "Wood";
+Check("restored remembered slots cannot create extra anonymous stacks", !Select("Wood", true, out destination));
+occupied[1] = "Coal";
+Check("manual replacement changes remembered prefab", Observe() && memory[1] == "Coal");
+occupied.Remove(1);
+Check("replacement remains remembered after consumption", !Observe() && Select("Coal", false, out destination) && destination == 1);
+favoriteCells.Remove(1);
+Check("unfavorite removes binding", Observe() && !memory.ContainsKey(1));
+favoriteCells.Add(1);
+Check("refavorite empty slot does not resurrect binding", !Observe() && !memory.ContainsKey(1));
+favoriteCells.Clear(); favoriteCells.UnionWith(new[] { 0, 2 }); occupied.Clear(); Observe();
+Check("unavailable remembered items reserve every remaining favorite cell", !Select("Resin", false, out destination));
+
+foreach (string prefab in new[] { "", "Wood", "Mod:木,材%Special" })
 {
-    refillLive = ItemRuleConfigCore.Write(refillLive, refillEntries, true);
-    ItemRuleConfigCore.AcceptSaved(refillEntries, ItemRuleConfigCore.Read(refillLive, true));
-    Check("toggle saves rebase all entry spans", ItemRuleConfigCore.Write(refillLive, refillEntries, true) == refillLive);
+    string line = FavoriteSlotMemoryCore.WriteLine(2, 3, prefab);
+    Check("Actions favorite persistence round trip: " + prefab,
+        FavoriteSlotMemoryCore.TryReadLine(line, out int x, out int y, out string saved) && x == 2 && y == 3 && saved == prefab);
 }
-refillEntries[0].RefillEmpty = false; CommitRefill();
-refillEntries[1].Amount = "5"; CommitRefill();
-refillEntries[0].RefillEmpty = true; CommitRefill();
-Check("toggle and subsequent quantity edits keep comments and unrelated rows", refillLive == "# targets\r\nWood: 30 | refill # reserve\r\nStone: 5\r\n");
-refillEntries[0].Removed = true; CommitRefill();
-refillEntries[0].RefillEmpty = true; CommitRefill();
-Check("removing preceding row does not break following toggle", RestockTargetLimitCore.Parse(refillLive, out refillKeys)["stone"] == 5 && refillKeys.SequenceEqual(new[] { "stone" }));
-refillEntries.Add(new ItemRuleConfigCore.Entry { Start = -1, Key = "Wood", Amount = "30" }); CommitRefill();
-Check("re-registering deleted item defaults off", !refillEntries.Last().RefillEmpty);
-refillEntries.Last().RefillEmpty = true; CommitRefill();
-Check("new entry toggles without duplicate append", ItemRuleConfigCore.Read(refillLive, true).Count(e => e.Key == "Wood") == 1 && RestockTargetLimitCore.Parse(refillLive, out refillKeys)["wood"] == 30 && refillKeys.SequenceEqual(new[] { "stone", "wood" }));
-Console.WriteLine($"PASS: {checks} item rule config checks");
+Check("old coordinate-only favorites remain readable", FavoriteSlotMemoryCore.TryReadLine(" 2, 3 ", out _, out _, out string oldPrefab) && oldPrefab == "");
+foreach (string invalid in new[] { "# comment", "-1,2,Wood", "a,1", "1,2,Wood,Stone", "2" })
+    Check("invalid favorite record ignored: " + invalid, !FavoriteSlotMemoryCore.TryReadLine(invalid, out _, out _, out _));
+Console.WriteLine($"PASS: {checks} item rule and favorite memory checks");

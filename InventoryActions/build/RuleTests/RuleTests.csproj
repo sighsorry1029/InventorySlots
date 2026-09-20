@@ -9,6 +9,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../../Shared/ItemRules/ItemRuleConfigCore.cs" Link="ItemRuleConfigCore.cs" />
+    <Compile Include="../../../Shared/ItemRules/FavoriteSlotMemoryCore.cs" Link="FavoriteSlotMemoryCore.cs" />
     <Compile Include="../../RestockTargetLimitCore.cs" Link="RestockTargetLimitCore.cs" Condition="'$(RuleTarget)' != 'InventorySlots'" />
   </ItemGroup>
   <ItemGroup Condition="'$(RuleTarget)' == 'InventorySlots'">

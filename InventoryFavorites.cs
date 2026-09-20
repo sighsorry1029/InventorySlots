@@ -183,8 +183,10 @@ public sealed partial class InventorySlotsPlugin
         if (!added)
         {
             FavoriteSlots.Remove(pos);
+            FavoriteSlotItems.Remove(pos);
         }
 
+        RefreshFavoriteSlotMemory(player, out _);
         SaveFavorites(player);
     }
 
@@ -202,6 +204,8 @@ public sealed partial class InventorySlotsPlugin
         }
 
         FavoriteSlots.Clear();
+        FavoriteSlotItems.Clear();
+        _favoriteMemoryPending = true;
         InventoryClient.LoadedFavoritesPlayerId = playerId;
 
         try
@@ -214,6 +218,8 @@ public sealed partial class InventorySlotsPlugin
                     if (slot.X >= 0 && slot.Y >= 0)
                     {
                         FavoriteSlots.Add(new Vector2i(slot.X, slot.Y));
+                        if (!string.IsNullOrEmpty(slot.Prefab))
+                            FavoriteSlotItems[new Vector2i(slot.X, slot.Y)] = slot.Prefab;
                     }
                 }
             }
@@ -243,6 +249,7 @@ public sealed partial class InventorySlotsPlugin
         EnsureFavoritesLoaded(player);
         if (ApplyAutoFavoriteHotbarSwitchRow(player))
         {
+            RefreshFavoriteSlotMemory(player, out _);
             SaveFavorites(player);
         }
     }
@@ -282,15 +289,22 @@ public sealed partial class InventorySlotsPlugin
 
         string playerId = GetPlayerId(player);
         InventoryClient.LoadedFavoritesPlayerId = playerId;
+        _favoriteMemorySavePending = true;
+        _favoriteMemorySaveRetryAt = Time.unscaledTime + 5f;
         try
         {
             InventorySlotsClientPlayerState data = GetClientPlayerState(playerId, create: true)!;
             data.FavoriteSlots = FavoriteSlots
                 .OrderBy(slot => slot.y)
                 .ThenBy(slot => slot.x)
-                .Select(slot => new InventorySlotsFavoriteSlot { X = slot.x, Y = slot.y })
+                .Select(slot => new InventorySlotsFavoriteSlot
+                {
+                    X = slot.x, Y = slot.y,
+                    Prefab = FavoriteSlotItems.TryGetValue(slot, out string prefab) ? prefab : ""
+                })
                 .ToList();
-            SaveClientState();
+            _favoriteMemorySavePending = !SaveClientState();
+            if (!_favoriteMemorySavePending) _favoriteMemorySaveRetryAt = 0f;
         }
         catch (Exception ex)
         {

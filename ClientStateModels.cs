@@ -7,6 +7,7 @@ internal sealed class InventorySlotsFavoriteSlot
 {
     public int X { get; set; }
     public int Y { get; set; }
+    public string Prefab { get; set; } = "";
 }
 
 internal sealed class InventorySlotsClientState

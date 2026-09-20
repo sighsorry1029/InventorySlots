@@ -18,6 +18,10 @@ public sealed partial class InventoryActionsPlugin
     private static int RestockMissingFavoriteItems(Player player, Inventory inventory, Inventory containerInventory)
     {
         if (_emptyFavoriteRestockKeys.Count == 0) return 0;
+        // Loading saved bindings must not depend on whether live inventory
+        // observation is currently deferred by slot maintenance.
+        EnsureFavoritesLoaded(player);
+        RememberFavoriteSlotItems(player);
 #if INVENTORY_SLOTS
         Dictionary<string, int> limits = InventoryDefinitions.RestockTargetStackLimits;
         const ContainerTakeStacksMode mode = ContainerTakeStacksMode.AreaFavoriteRestock;
@@ -34,30 +38,35 @@ public sealed partial class InventoryActionsPlugin
             {
                 if (source?.m_shared == null || source.m_stack <= 0 || source.m_shared.m_maxStackSize <= 1 ||
                     !containerInventory.GetAllItems().Contains(source) || !CanUseContainerActionStacking(source) ||
-                    RestockTargetLimitCore.ResolveConfiguredKey(limits, GetRestockTargetLookupTokens(source)) != key ||
-                    HasExistingFavoriteRestockItem(player, inventory, source)) continue;
+                    RestockTargetLimitCore.ResolveConfiguredKey(limits, GetRestockTargetLookupTokens(source)) != key) continue;
 
-                int amount = GetRestockTransferAmount(containerInventory, source, GetRestockTargetStack(source), mode);
-                if (amount <= 0 || !TryFindEmptyFavoriteRestockCell(player, inventory, source, out Vector2i cell)) continue;
+                while (source.m_stack > 0 && containerInventory.GetAllItems().Contains(source) &&
+                       TryFindEmptyFavoriteRestockCell(player, inventory, source, out Vector2i cell))
+                {
+                    int amount = GetRestockTransferAmount(containerInventory, source, GetRestockTargetStack(source), mode);
+                    if (amount <= 0) break;
 
-                int before = source.m_stack;
-                // Native positional transfer clones the actual source, preserving
-                // quality, custom data and cheat identity. Never fabricate a prefab item.
-                bool movedOk = inventory.MoveItemToThis(containerInventory, source, amount, cell.x, cell.y);
-                int moved = CountMovedFromContainerSource(containerInventory, source, before, amount, movedOk);
-                if (moved <= 0) continue;
-                movedAmount += moved;
-                ItemData target = inventory.GetItemAt(cell.x, cell.y);
-                if (target != null) seededTargets.Add(target);
-                break; // At most one new favorite stack for this rule.
+                    int before = source.m_stack;
+                    // Native positional transfer clones the actual source, preserving
+                    // quality, custom data and cheat identity. Never fabricate a prefab item.
+                    bool movedOk = inventory.MoveItemToThis(containerInventory, source, amount, cell.x, cell.y);
+                    int moved = CountMovedFromContainerSource(containerInventory, source, before, amount, movedOk);
+                    if (moved <= 0) break;
+                    movedAmount += moved;
+                    ItemData target = inventory.GetItemAt(cell.x, cell.y);
+                    if (target == null) break;
+                    seededTargets.Clear();
+                    seededTargets.Add(target);
+                    // Finish this slot before restoring a second remembered slot
+                    // of the same item. The source snapshot is revalidated above.
+                    movedAmount += RestockTargetsFromContainer(inventory, containerInventory, seededTargets, mode);
+                }
             }
         }
 
         if (movedAmount > 0)
         {
-            // Finish partial seeds from other compatible stacks in this chest.
-            // Subsequent chests find these through the normal restock target scan.
-            movedAmount += RestockTargetsFromContainer(inventory, containerInventory, seededTargets, mode);
+            RememberFavoriteSlotItems(player);
 #if INVENTORY_SLOTS
             containerInventory.Changed();
 #else
@@ -69,8 +78,8 @@ public sealed partial class InventoryActionsPlugin
 
     private static bool HasExistingFavoriteRestockItem(Player player, Inventory inventory, ItemData source)
     {
-        // Full stacks, disabled quantities and incompatible variants still occupy
-        // the favorite for this item kind. They must not cause repeated new stacks.
+        // Existing stacks suppress anonymous fallback, but do not erase the
+        // player's choice to keep this item in several remembered favorite slots.
         return inventory.GetAllItems().Any(item => item?.m_shared != null && item.m_stack > 0 &&
             string.Equals(item.m_shared.m_name, source.m_shared.m_name, StringComparison.OrdinalIgnoreCase) &&
             IsEligibleFavoriteRestockCell(player, inventory, item.m_gridPos));
@@ -78,20 +87,18 @@ public sealed partial class InventoryActionsPlugin
 
     private static bool TryFindEmptyFavoriteRestockCell(Player player, Inventory inventory, ItemData source, out Vector2i cell)
     {
-        for (int y = 0; y < inventory.GetHeight(); y++)
-        for (int x = 0; x < inventory.GetWidth(); x++)
+        List<Vector2i> orderedFavorites = RememberedFavoriteCells.OrderBy(pos => pos.y).ThenBy(pos => pos.x).ToList();
+        return FavoriteSlotMemoryCore.TrySelect(orderedFavorites, FavoriteSlotItems, GetFavoriteMemoryPrefab(source),
+            HasExistingFavoriteRestockItem(player, inventory, source), candidate =>
         {
-            Vector2i candidate = new(x, y);
-            if (!IsEligibleFavoriteRestockCell(player, inventory, candidate) || inventory.GetItemAt(x, y) != null) continue;
+            if (candidate.x < 0 || candidate.y < 0 || candidate.x >= inventory.GetWidth() || candidate.y >= inventory.GetHeight() ||
+                !IsEligibleFavoriteRestockCell(player, inventory, candidate) || inventory.GetItemAt(candidate.x, candidate.y) != null) return false;
 #if INVENTORY_SLOTS
             // Quick slots can restrict which item types they accept.
-            if (!CanUseCell(player, inventory, source, candidate)) continue;
+            if (!CanUseCell(player, inventory, source, candidate)) return false;
 #endif
-            cell = candidate;
             return true;
-        }
-        cell = default;
-        return false;
+        }, out cell);
     }
 
     private static bool IsEligibleFavoriteRestockCell(Player player, Inventory inventory, Vector2i cell)

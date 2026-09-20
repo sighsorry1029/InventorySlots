@@ -524,27 +524,35 @@ internal static class Program
         plugin.GetField("_restockTargetStackLimitsConfig", BindingFlags.NonPublic | BindingFlags.Static)!.SetValue(null, limits);
         void Rules(string value) { limits.Value = value; Call("RefreshRestockTargetStackLimits"); }
         List<string> Keys() => (List<string>)plugin.GetField("_emptyFavoriteRestockKeys", BindingFlags.NonPublic | BindingFlags.Static)!.GetValue(null)!;
-        Rules("Wood: 30");
-        Check("old rules default empty refill to off", Keys().Count == 0);
-        Rules("Wood: 30 | refill; Stone: 0 | refill");
-        Check("compiled refresh enables only positive opted-in targets", Keys().SequenceEqual(new[] { "wood" }));
-        Rules("Wood: 30 | refill; $item_wood: 10");
+        Rules("Wood: 30 | Existing");
+        Check("Existing does not seed empty slots", Keys().Count == 0);
+        Rules("Wood: 30 | IncludeEmpty; Stone: 30 | Off");
+        Check("compiled refresh enables only IncludeEmpty targets", Keys().SequenceEqual(new[] { "wood" }));
+        Rules("Wood: 30 | IncludeEmpty; $item_wood: 10 | Existing");
         Check("compiled refresh applies later duplicate opt-out", Keys().Count == 0);
-        Rules("Wood: 30 | refill");
+        Rules("Wood: 30 | IncludeEmpty");
         Check("live enable updates refill keys", Keys().SequenceEqual(new[] { "wood" }));
         Rules("");
         Check("clearing config removes stale refill keys", Keys().Count == 0);
 
         // F1 uses a separate editor; changing another row must retain this flag.
-        var rows = (System.Collections.IList)Call("ParseRestockTargetLimitEditorRows", "Wood: 30 | refill\nStone: 4")!;
+        Rules("Wood: 0; Stone: 30 | refill");
+        Check("unsupported old rules do not receive conversion", Keys().Count == 0 &&
+            ((System.Collections.IList)Call("ParseRestockTargetLimitEditorRows", "Wood: 0; Stone: 30 | refill")!).Count == 0);
+        var rows = (System.Collections.IList)Call("ParseRestockTargetLimitEditorRows", "Wood: 30 | IncludeEmpty\nStone: 4 | Existing")!;
         object row = rows[0]!;
-        Check("F1 parser separates quantity and empty refill", (string)row.GetType().GetProperty("Amount")!.GetValue(row)! == "30" && (bool)row.GetType().GetProperty("RefillEmpty")!.GetValue(row)!);
+        var modeProperty = row.GetType().GetProperty("Mode")!;
+        Check("F1 parser separates quantity and mode", (string)row.GetType().GetProperty("Amount")!.GetValue(row)! == "30" && modeProperty.GetValue(row)!.ToString() == "IncludeEmpty");
         var editor = (System.Collections.IList)plugin.GetField("RestockTargetLimitEditorRows", BindingFlags.NonPublic | BindingFlags.Static)!.GetValue(null)!;
         editor.Clear(); foreach (object entry in rows) editor.Add(entry);
         rows[1]!.GetType().GetProperty("Amount")!.SetValue(rows[1], "8");
-        Check("F1 edit of other row preserves opt-in", (string)Call("SerializeRestockTargetLimitEditorRows")! == "Wood: 30 | refill\nStone: 8");
-        row.GetType().GetProperty("RefillEmpty")!.SetValue(row, false);
-        Check("F1 toggle off preserves quantity", (string)Call("SerializeRestockTargetLimitEditorRows")! == "Wood: 30\nStone: 8");
+        Check("F1 edit of other row preserves mode", (string)Call("SerializeRestockTargetLimitEditorRows")! == "Wood: 30 | IncludeEmpty\nStone: 8 | Existing");
+        modeProperty.SetValue(row, Enum.Parse(modeProperty.PropertyType, "Off"));
+        Check("F1 Off preserves quantity", (string)Call("SerializeRestockTargetLimitEditorRows")! == "Wood: 30 | Off\nStone: 8 | Existing");
+        row.GetType().GetProperty("Amount")!.SetValue(row, "20");
+        Check("F1 amount edit cannot enable Off", (string)Call("SerializeRestockTargetLimitEditorRows")! == "Wood: 20 | Off\nStone: 8 | Existing");
+        modeProperty.SetValue(row, Enum.Parse(modeProperty.PropertyType, "Existing"));
+        Check("F1 enabling restores saved quantity", (string)Call("SerializeRestockTargetLimitEditorRows")! == "Wood: 20 | Existing\nStone: 8 | Existing");
         RunRestockReserveChecks();
         System.Console.WriteLine("NOT RUN: empty-favorite slot selection/moves, Unity UI, Harmony integration, ownership and multiplayer.");
     }
