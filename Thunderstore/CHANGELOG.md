@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.5.7
+
+- Added configurable controller inventory actions: hold the right-stick click by default, then press A to toggle the selected player slot's favorite protection, X to sort the focused inventory, Y to open Restock targets, or B to open Auto Pickup Exclude. Opening a rules panel with a picked-up player item registers that item.
+- Added controller favorite restock by holding the game's alternate-action modifier with Use while looking at a chest. This follows the selected controller layout and preserves target quantities, restock modes, remembered empty slots, chest access checks, and the leave-one-item setting.
+- Added controller navigation to both rules panels: up/down selects an entry, left/right adjusts its quantity, A changes its mode, X removes it, and B closes the panel. Changes save immediately, and the quick guide and chest hints show the active bindings.
+- Prevented controller actions from also triggering native pickup, use, tab, submit, or close commands. Existing favorite controls now use the selected gamepad cell, competing hotkeys and scrolling pause during rule editing, and cloned action buttons no longer inherit Take All shortcuts.
+- Made the Configuration Manager restock editor fit the available width with compact item, mode, quantity, and remove controls. Narrow views wrap without forcing horizontal scrolling, and long item names stay inside their fields.
+- Made the controller hotkey editor adapt its preset columns and wrap binding/status text. Current bindings use readable text instead of unsupported sprite markup.
+
 ## 1.5.6
 
 - Remembered favorite-slot item types per character in `ClientState.yml`. IncludeEmpty restock restores items to their remembered empty slots instead of assigning them by chest order, including multiple remembered slots of the same item. Occupied slots and slots remembered for other items are never replaced. Replacing an item updates its association; removing favorite protection clears it.

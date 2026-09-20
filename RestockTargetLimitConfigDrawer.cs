@@ -21,46 +21,48 @@ public sealed partial class InventorySlotsPlugin
             _restockTargetLimitEditorLastValue = currentValue;
         }
 
-        GUILayout.BeginVertical();
-        for (int i = 0; i < RestockTargetLimitEditorRows.Count; i++)
+        const float gap = 4f;
+        float width = GetConfigDrawerLayoutWidth(entry);
+        float lineHeight = ConfigDrawerLineHeight();
+        bool stacked = width < 126f + Mathf.Max(72f, GUI.skin.textField.fontSize * 4.5f);
+        float rowHeight = stacked ? lineHeight * 2f + gap : lineHeight;
+        Rect area = ReserveConfigDrawerArea(entry, RestockTargetLimitEditorRows.Count * (rowHeight + gap) + lineHeight);
+        GUI.BeginGroup(area);
+        try
         {
-            RestockTargetLimitEditorRow row = RestockTargetLimitEditorRows[i];
-            GUILayout.BeginHorizontal();
-            GUILayout.Label("Item", GUILayout.Width(44f));
-            string item = GUILayout.TextField(row.Item, GUILayout.MinWidth(130f));
-            GUILayout.Label("Target", GUILayout.Width(44f));
-            string amount = FilterUnsignedIntText(GUILayout.TextField(row.Amount, GUILayout.Width(58f)));
-            RestockRuleMode mode = DrawRestockModeConfigButton(row.Mode);
-            bool remove = GUILayout.Button("-", GUILayout.Width(24f));
-            GUILayout.EndHorizontal();
-
-            if (remove)
+            for (int i = 0; i < RestockTargetLimitEditorRows.Count; i++)
             {
-                RestockTargetLimitEditorRows.RemoveAt(i--);
-                UpdateRestockTargetStackLimitsConfigEntry(entry);
-                continue;
+                RestockTargetLimitEditorRow row = RestockTargetLimitEditorRows[i];
+                string item = row.Item, amount = row.Amount;
+                RestockRuleMode mode = row.Mode;
+                bool remove = DrawRestockTargetConfigRow(
+                    new Rect(0f, i * (rowHeight + gap), Mathf.Max(0f, area.width), rowHeight),
+                    stacked, ref item, ref amount, ref mode);
+                if (remove)
+                {
+                    RestockTargetLimitEditorRows.RemoveAt(i);
+                    UpdateRestockTargetStackLimitsConfigEntry(entry);
+                    break;
+                }
+
+                if (!string.Equals(item, row.Item, StringComparison.Ordinal) ||
+                    !string.Equals(amount, row.Amount, StringComparison.Ordinal) || mode != row.Mode)
+                {
+                    row.Item = item;
+                    row.Amount = amount;
+                    row.Mode = mode;
+                    UpdateRestockTargetStackLimitsConfigEntry(entry);
+                }
             }
 
-            if (!string.Equals(item, row.Item, StringComparison.Ordinal) ||
-                !string.Equals(amount, row.Amount, StringComparison.Ordinal) || mode != row.Mode)
+            Rect add = new(0f, RestockTargetLimitEditorRows.Count * (rowHeight + gap), Mathf.Max(0f, area.width), lineHeight);
+            if (GUI.Button(add, "+ Add restock target"))
             {
-                row.Item = item;
-                row.Amount = amount;
-                row.Mode = mode;
+                RestockTargetLimitEditorRows.Add(new RestockTargetLimitEditorRow("", "1"));
                 UpdateRestockTargetStackLimitsConfigEntry(entry);
             }
         }
-
-        GUILayout.BeginHorizontal();
-        if (GUILayout.Button("+", GUILayout.Width(24f)))
-        {
-            RestockTargetLimitEditorRows.Add(new RestockTargetLimitEditorRow("", "1"));
-            UpdateRestockTargetStackLimitsConfigEntry(entry);
-        }
-
-        GUILayout.Label("Add restock target");
-        GUILayout.EndHorizontal();
-        GUILayout.EndVertical();
+        finally { GUI.EndGroup(); }
     }
 
     private static List<RestockTargetLimitEditorRow> ParseRestockTargetLimitEditorRows(string raw)

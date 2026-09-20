@@ -250,15 +250,23 @@ public sealed partial class InventoryActionsPlugin
         }
 
         _nextFeatureGuideTextRefreshTime = Time.unscaledTime + 0.25f;
-        string guide = LocalizeUi(
+        bool controllerHints = UseInventoryControllerHints();
+        string guide = controllerHints ? GetControllerFeatureGuideText() : LocalizeUi(
             "$inventoryactions_feature_guide",
             "<b>InventoryActions quick guide</b>\n<color=#FFA94D>[{favoriteKey} + Left Click]</color> on a player inventory slot: Toggle favorite\nWhile looking at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching non-favorited items in it and nearby chests\nWhile looking at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill favorite stacks from it and nearby chests up to their targets\nDrop a held item on <color=#FFA94D>Restock targets</color>: Set its favorite-stack target\nDrop a held item on <color=#FFA94D>Auto pickup exclusions / Trash</color>: Exclude auto pickup / delete after confirmation\nHide this guide: <color=#FFA94D>F1 → InventoryActions → Show Feature Guide → Off</color>");
         string favoriteKey = _favoriteModifierKey != null ? GetShortcutDisplayText(_favoriteModifierKey.Value) : "";
-        string restockKey = GetContainerRestockKeyDisplayText();
+        string restockKey = controllerHints ? GetFavoriteRestockControllerDisplay() : GetContainerRestockKeyDisplayText();
         string expanded = guide
             .Replace("{favoriteKey}", string.IsNullOrWhiteSpace(favoriteKey) ? "—" : favoriteKey)
             .Replace("{useKey}", GetFeatureGuideUseKeyDisplayText())
-            .Replace("{restockKey}", string.IsNullOrWhiteSpace(restockKey) ? "—" : restockKey);
+            .Replace("{restockKey}", string.IsNullOrWhiteSpace(restockKey) ? "—" : restockKey)
+            .Replace("{favoriteAction}", DisplayFeatureGuideBinding(GetInventoryControllerChordDisplay("JoyButtonA")))
+            .Replace("{sortAction}", DisplayFeatureGuideBinding(GetInventoryControllerChordDisplay("JoyButtonX")))
+            .Replace("{rulesAction}", DisplayFeatureGuideBinding(GetInventoryControllerChordDisplay("JoyButtonY")))
+            .Replace("{excludeAction}", DisplayFeatureGuideBinding(GetInventoryControllerChordDisplay("JoyButtonB")))
+            .Replace("{modeAction}", GetInventoryControllerActionDisplay("JoyButtonA"))
+            .Replace("{removeAction}", GetInventoryControllerActionDisplay("JoyButtonX"))
+            .Replace("{closeAction}", GetInventoryControllerActionDisplay("JoyButtonB"));
         if (!string.Equals(_featureGuideExpandedText, expanded, StringComparison.Ordinal))
         {
             _featureGuideExpandedText = expanded;
@@ -274,6 +282,16 @@ public sealed partial class InventoryActionsPlugin
                 : 180f;
             InvalidateFeatureGuideMeasurement();
         }
+    }
+
+    private static string DisplayFeatureGuideBinding(string value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
+
+    private static string GetControllerFeatureGuideText()
+    {
+        bool korean = string.Equals(Localization.instance?.GetSelectedLanguage(), "Korean", StringComparison.OrdinalIgnoreCase);
+        return LocalizeUi("$inventoryactions_feature_guide_controller", korean
+            ? "<b>InventoryActions 빠른 가이드</b>\n선택한 플레이어 칸에서 <color=#FFA94D>[{favoriteAction}]</color>: 즐겨찾기 · <color=#FFA94D>[{sortAction}]</color>: 선택 중인 인벤토리/상자 정렬\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: 보충 대상 / 자동 줍기 제외 열기 (집어 든 내 아이템이 있으면 등록)\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 즐겨찾기 외 같은 종류를 주변 상자에 보관\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 목표 수량·빈 칸 보충 모드에 따라 즐겨찾기 보충\n규칙 편집: 방향키 위/아래 행 선택 · 왼쪽/오른쪽 수량 · {modeAction} 모드 · {removeAction} 삭제 · {closeAction} 닫기\n가이드 숨기기: <color=#FFA94D>F1 → InventoryActions → Show Feature Guide → Off</color>"
+            : "<b>InventoryActions quick guide</b>\nOn the selected player slot, <color=#FFA94D>[{favoriteAction}]</color>: Favorite · <color=#FFA94D>[{sortAction}]</color>: Sort focused inventory/chest\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: Restock targets / pickup exclusions (register a picked-up player item)\nLook at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching non-favorite items nearby\nLook at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill favorites using target quantities and empty-slot modes\nRules: D-pad up/down selects rows; left/right changes quantity; {modeAction} mode; {removeAction} remove; {closeAction} close\nHide this guide: <color=#FFA94D>F1 → InventoryActions → Show Feature Guide → Off</color>");
     }
 
     private static string GetFeatureGuideUseKeyDisplayText()

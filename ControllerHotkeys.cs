@@ -23,6 +23,7 @@ public sealed partial class InventorySlotsPlugin
             _enableControllerHotkeys.Value.IsOff() ||
             entry == null ||
             entry.Value == ControllerHotkeyAction.Off ||
+            IsInventoryControllerChordHeld() ||
             !IsGamepadActiveSafe())
         {
             return false;

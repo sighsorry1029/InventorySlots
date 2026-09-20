@@ -379,6 +379,7 @@ public sealed partial class InventorySlotsPlugin
         InventoryActionButtonMarker buttonMarker = button.gameObject.GetComponent<InventoryActionButtonMarker>() ?? button.gameObject.AddComponent<InventoryActionButtonMarker>();
         if (!buttonMarker.Initialized)
         {
+            RemoveClonedControllerShortcuts(button);
             button.onClick.RemoveAllListeners();
             button.onClick.AddListener(action);
             buttonMarker.Initialized = true;

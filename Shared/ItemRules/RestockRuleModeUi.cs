@@ -68,15 +68,14 @@ public sealed partial class InventoryActionsPlugin
         Line(23, 27, 32, 32); Line(32, 32, 41, 27); Line(32, 32, 32, 43);
     }
 
-    private static RestockRuleMode DrawRestockModeConfigButton(RestockRuleMode mode)
+    private static RestockRuleMode DrawRestockModeConfigButton(RestockRuleMode mode, Rect rect)
     {
-        bool clicked = GUILayout.Button(new GUIContent("", GetRestockModeTitle(mode) + "\n" + GetRestockModeHelp(mode)),
-            GUILayout.Width(32f), GUILayout.Height(32f));
+        bool clicked = GUI.Button(rect, new GUIContent("", GetRestockModeTitle(mode) + "\n" + GetRestockModeHelp(mode)));
         if (clicked) mode = RestockTargetLimitCore.NextMode(mode);
         if (Event.current.type == EventType.Repaint)
         {
-            Rect rect = GUILayoutUtility.GetLastRect();
-            rect.x += 3; rect.y += 3; rect.width -= 6; rect.height -= 6;
+            float inset = Mathf.Min(3f, Mathf.Min(rect.width, rect.height) * 0.25f);
+            rect.x += inset; rect.y += inset; rect.width -= inset * 2f; rect.height -= inset * 2f;
             GUI.DrawTexture(rect, GetRestockModeIcon(mode).texture, ScaleMode.ScaleToFit, true);
         }
         return mode;

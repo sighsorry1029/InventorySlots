@@ -49,6 +49,12 @@ public sealed partial class InventoryActionsPlugin
 
     internal static bool IsItemRuleScrollBlocked() => IsItemRuleInputBlocked() || (_itemRuleEditor != null && _itemRuleEditor.OwnsPointer);
 
+    // Called before vanilla InventoryGui.Update reads controller input. The
+    // component's Update also calls this, with a frame guard for either order.
+    internal static void UpdateItemRuleControllerInput() => _itemRuleEditor?.UpdateControllerInput();
+
+    internal static void OpenControllerItemRules(bool restock) => _itemRuleEditor?.OpenController(restock);
+
     private static bool IsItemRuleButtonEnabled(bool restock) =>
         (restock ? _restockButtonMode : _autoPickupButtonMode)?.Value != InventoryButtonMode.Off;
 
@@ -192,6 +198,11 @@ public sealed partial class InventoryActionsPlugin
         private Material _fontMaterial = null!;
         private readonly List<Button> _rowButtons = new();
         private readonly List<TMP_InputField> _fields = new();
+        private readonly List<ControllerRow> _controllerRows = new();
+        private int _controllerRowIndex;
+        private int _controllerInputFrame = -1;
+        private bool _controllerActive, _controllerStatus;
+        private string _mouseScope = "";
         private readonly List<Sprite> _ownedIcons = new();
         private readonly Dictionary<string, ItemData?> _resolved = new(StringComparer.Ordinal);
         private List<ItemRuleConfigCore.Entry> _entries = new();
@@ -207,6 +218,15 @@ public sealed partial class InventoryActionsPlugin
         private ScrollRect _scroll = null!;
         private readonly Color _text = new(1f, 0.94f, 0.8f);
         private readonly Color _gold = new(1f, 0.8f, 0.36f);
+
+        private sealed class ControllerRow
+        {
+            internal ItemRuleConfigCore.Entry Entry = null!;
+            internal Image Background = null!;
+            internal TMP_InputField? Quantity;
+            internal Button? Mode;
+            internal int MaximumAmount = int.MaxValue;
+        }
 
         private ConfigEntry<string> Setting => _restock ? _restockTargetStackLimitsConfig : _autoPickupExcludedItemsConfig;
         private bool Open => _popup != null && _popup.gameObject.activeSelf;
@@ -397,6 +417,153 @@ public sealed partial class InventoryActionsPlugin
         internal bool OwnsPointer => Open && Contains(_popup);
 
         private bool Contains(RectTransform rect) => RectTransformUtility.RectangleContainsScreenPoint(rect, Input.mousePosition, _camera);
+
+        internal void OpenController(bool restock)
+        {
+            ClickTool(restock);
+            if (!Open || !Pinned) return;
+            // The shortcut which opened the editor must not edit its first row.
+            _controllerInputFrame = Time.frameCount;
+            SetControllerActive(ZInput.IsExclusiveGamepadActive());
+        }
+
+        internal void UpdateControllerInput()
+        {
+            if (_controllerInputFrame == Time.frameCount) return;
+            _controllerInputFrame = Time.frameCount;
+            if (!Open || !Pinned) return;
+            if (!CanShow || Player.m_localPlayer == null || FavoriteMemoryAccess.IsLoading(Player.m_localPlayer) ||
+                HasBlockingDialog || !IsItemRuleButtonEnabled(_restock))
+            { Close(); return; }
+            SetControllerActive(ZInput.IsExclusiveGamepadActive());
+            if (!_controllerActive) return;
+            // We own A/Submit here. Selecting Unity Buttons at the same time
+            // would allow the EventSystem to execute their click a second time.
+            ClearControllerSubmitTarget();
+            if (TakeControllerButton("JoyButtonB")) { Close(); return; }
+            if (!string.Equals(_snapshot, Setting.Value, StringComparison.Ordinal)) LoadList(_restock, true);
+            if (_controllerRows.Count == 0) return;
+            bool up = IsControllerDirectionDown("JoyDPadUp", "JoyLStickUp");
+            bool down = IsControllerDirectionDown("JoyDPadDown", "JoyLStickDown");
+            if (up != down)
+            {
+                _controllerRowIndex = Mathf.Clamp(_controllerRowIndex + (down ? 1 : -1), 0, _controllerRows.Count - 1);
+                RefreshControllerSelection();
+                return;
+            }
+            ControllerRow row = _controllerRows[_controllerRowIndex];
+            if (TakeControllerButton("JoyButtonX"))
+            {
+                RemoveEntry(row.Entry);
+                return;
+            }
+            if (TakeControllerButton("JoyButtonA") && row.Mode != null)
+            {
+                RestockRuleMode previous = row.Entry.Mode;
+                row.Mode.onClick.Invoke();
+                RefreshControllerSelection(updateStatus: row.Entry.Mode != previous);
+                return;
+            }
+            bool left = IsControllerDirectionDown("JoyDPadLeft", "JoyLStickLeft");
+            bool right = IsControllerDirectionDown("JoyDPadRight", "JoyLStickRight");
+            if (_restock && left != right && row.Quantity != null &&
+                int.TryParse(row.Entry.Amount, NumberStyles.Integer, CultureInfo.InvariantCulture, out int current))
+            {
+                int next = (int)Math.Min(row.MaximumAmount, Math.Max(1L, (long)current + (right ? 1 : -1)));
+                if (next == current) return;
+                string previous = row.Entry.Amount;
+                row.Entry.Amount = next.ToString(CultureInfo.InvariantCulture);
+                bool saved = Save();
+                if (!saved) row.Entry.Amount = previous;
+                row.Quantity.SetTextWithoutNotify(row.Entry.Amount);
+                RefreshControllerSelection(updateStatus: saved);
+            }
+        }
+
+        private static bool TakeControllerButton(string button)
+        {
+            if (!ZInput.GetButtonDown(button)) return false;
+            ZInput.ResetButtonStatus(button);
+            // InventoryGui.Update can read a semantic alias of the same face
+            // button before consulting its gamepad groups (and without Chat).
+            ZInput.ResetButtonStatus("Inventory");
+            ZInput.ResetButtonStatus("Use");
+            ZInput.ResetButtonStatus("JoyUse");
+            return true;
+        }
+
+        private static bool IsControllerDirectionDown(string dpad, string stick)
+        {
+            // Vanilla registers both at a 0.3-second delay / 0.1-second repeat.
+            // ResetButtonStatus clears their held state and stops that repeat.
+            // Pinned blocks grid navigation and we clear EventSystem selection.
+            return ZInput.GetButtonDown(dpad) || ZInput.GetButtonDown(stick);
+        }
+
+        private void ClearControllerSubmitTarget()
+        {
+            GameObject? selected = EventSystem.current != null ? EventSystem.current.currentSelectedGameObject : null;
+            if (selected != null && (selected.transform.IsChildOf(Owner.transform) || selected.transform.IsChildOf(_root)))
+                EventSystem.current!.SetSelectedGameObject(null);
+        }
+
+        private void SetControllerActive(bool active)
+        {
+            if (_controllerActive == active) return;
+            _controllerActive = active;
+            bool hadFocusedField = false;
+            if (active)
+            {
+                foreach (TMP_InputField field in _fields)
+                    if (field != null && field.isFocused)
+                    {
+                        hadFocusedField = true;
+                        field.DeactivateInputField();
+                    }
+                ClearControllerSubmitTarget();
+            }
+            else if (_controllerStatus)
+            {
+                _status.text = "";
+                _controllerStatus = false;
+            }
+            // Deactivation can run onEndEdit and report a failed save. Keep
+            // that message instead of replacing it with the selected mode.
+            RefreshControllerSelection(updateStatus: !hadFocusedField);
+        }
+
+        private void RefreshControllerSelection(bool updateStatus = true)
+        {
+            _controllerRowIndex = Mathf.Clamp(_controllerRowIndex, 0, Mathf.Max(0, _controllerRows.Count - 1));
+            for (int i = 0; i < _controllerRows.Count; i++)
+                _controllerRows[i].Background.color = _controllerActive && i == _controllerRowIndex
+                    ? new Color(0.95f, 0.70f, 0.24f, 0.20f) : Color.clear;
+            bool korean = string.Equals(Localization.instance?.GetSelectedLanguage(), "Korean", StringComparison.OrdinalIgnoreCase);
+            _scope.text = !_controllerActive ? _mouseScope : (_restock
+                ? L("pad_restock", korean ? "위/아래: 항목 · 좌/우: 수량\n{mode}: 모드 · {remove}: 삭제 · {close}: 닫기"
+                    : "Up/Down: item · Left/Right: quantity\n{mode}: mode · {remove}: remove · {close}: close")
+                : L("pad_exclude", korean ? "위/아래: 항목 · {remove}: 삭제 · {close}: 닫기"
+                    : "Up/Down: item · {remove}: remove · {close}: close"))
+                .Replace("{mode}", GetInventoryControllerActionDisplay("JoyButtonA"))
+                .Replace("{remove}", GetInventoryControllerActionDisplay("JoyButtonX"))
+                .Replace("{close}", GetInventoryControllerActionDisplay("JoyButtonB"));
+            if (!_controllerActive || _controllerRows.Count == 0) return;
+            if (updateStatus)
+            {
+                ControllerRow row = _controllerRows[_controllerRowIndex];
+                _status.text = _restock ? GetRestockModeTitle(row.Entry.Mode) : row.Entry.Key;
+                _controllerStatus = true;
+            }
+            float top = _controllerRowIndex * RowHeight;
+            float offset = _content.anchoredPosition.y;
+            if (top < offset) offset = top;
+            else if (top + RowHeight > offset + _viewport.rect.height) offset = top + RowHeight - _viewport.rect.height;
+            _scroll.velocity = Vector2.zero;
+            Vector2 position = _content.anchoredPosition;
+            position.y = Mathf.Clamp(offset, 0, Mathf.Max(0, _content.rect.height - _viewport.rect.height));
+            _content.anchoredPosition = position;
+        }
+
         private void Update()
         {
             if (!CanShow || Player.m_localPlayer == null || Player.m_localPlayer.m_isLoading)
@@ -407,6 +574,7 @@ public sealed partial class InventoryActionsPlugin
             // not stop it from reopening a popup behind the dialog.
             if (HasBlockingDialog)
             { Close(); return; }
+            UpdateControllerInput();
             if (Open && Pinned && (ZInput.GetKeyDown(KeyCode.Escape) || ZInput.GetButtonDown("JoyButtonB")))
             { Close(); return; }
             if (Open && !string.Equals(_snapshot, Setting.Value, StringComparison.Ordinal) && !_fields.Any(field => field.isFocused)) LoadList(_restock, Pinned);
@@ -439,6 +607,7 @@ public sealed partial class InventoryActionsPlugin
         {
             if (!CanShow || HasBlockingDialog || !IsItemRuleButtonEnabled(restock)) return;
             CloseInventoryTrashConfirmDialog();
+            if (_restock != restock) { _controllerRowIndex = 0; _controllerRows.Clear(); }
             _restock = restock; _snapshot = Setting.Value;
             _entries = ItemRuleConfigCore.Read(_snapshot, restock);
             _resolved.Clear(); _registration = null;
@@ -487,7 +656,7 @@ public sealed partial class InventoryActionsPlugin
             {
                 _registration = entry; _registrationMax = Mathf.Max(1, item.m_shared.m_maxStackSize);
                 Pin(); Render();
-                if (_fields.Count > 0) { _fields[0].Select(); _fields[0].ActivateInputField(); }
+                if (_fields.Count > 0 && !ZInput.IsExclusiveGamepadActive()) { _fields[0].Select(); _fields[0].ActivateInputField(); }
             }
             else
             {
@@ -504,6 +673,7 @@ public sealed partial class InventoryActionsPlugin
 
         private bool Save()
         {
+            _controllerStatus = false;
             if (!string.Equals(Setting.Value, _snapshot, StringComparison.Ordinal))
             { _status.text = L("conflict", "Config changed. Finish editing to reload."); return false; }
             string next = ItemRuleConfigCore.Write(_snapshot, _entries, _restock);
@@ -555,7 +725,7 @@ public sealed partial class InventoryActionsPlugin
 
         private void ClearRows()
         {
-            if (_content == null) { _fields.Clear(); _rowButtons.Clear(); return; }
+            if (_content == null) { _fields.Clear(); _rowButtons.Clear(); _controllerRows.Clear(); return; }
             if (EventSystem.current != null && EventSystem.current.currentSelectedGameObject != null &&
                 EventSystem.current.currentSelectedGameObject.transform.IsChildOf(_content)) EventSystem.current.SetSelectedGameObject(null);
             foreach (TMP_InputField field in _fields)
@@ -565,12 +735,14 @@ public sealed partial class InventoryActionsPlugin
                 field.DeactivateInputField();
             }
             foreach (Button button in _rowButtons) if (button != null) button.onClick.RemoveAllListeners();
-            _fields.Clear(); _rowButtons.Clear();
+            _fields.Clear(); _rowButtons.Clear(); _controllerRows.Clear();
             for (int i = _content.childCount - 1; i >= 0; i--) { GameObject child = _content.GetChild(i).gameObject; child.SetActive(false); Object.Destroy(child); }
         }
 
         private void Render()
         {
+            string? selectedKey = _controllerRowIndex >= 0 && _controllerRowIndex < _controllerRows.Count
+                ? _controllerRows[_controllerRowIndex].Entry.Key : null;
             ClearRows();
             float width = Mathf.Clamp(_root.rect.width - 16f, 260f, PopupWidth);
             float inner = width - 24f;
@@ -582,8 +754,9 @@ public sealed partial class InventoryActionsPlugin
             Frame(_scope.rectTransform, 12, -39, inner, 34);
             _title.text = _restock ? L("restock_title", "Restock targets") : L("exclude_title", "Auto pickup exclusions");
             _title.color = _gold;
-            _scope.text = _registration != null ? L("quantity", "Target quantity") + " (1–" + _registrationMax + ")"
+            _mouseScope = _registration != null ? L("quantity", "Target quantity") + " (1–" + _registrationMax + ")"
                 : _restock ? L("restock_scope", "{key} · mode and target per favorite stack").Replace("{key}", GetContainerRestockKeyDisplayText()) : L("exclude_scope", "Manual E pickup is still available");
+            _scope.text = _mouseScope;
             Frame(_viewport, 12, -78, inner, viewHeight);
             _content.sizeDelta = new Vector2(inner, Mathf.Max(1, visible.Count) * RowHeight);
             _content.anchoredPosition = Vector2.zero;
@@ -598,7 +771,9 @@ public sealed partial class InventoryActionsPlugin
             {
                 ItemRuleConfigCore.Entry entry = visible[i];
                 RectTransform row = Rect("Row", _content, new Vector2(inner, RowHeight), new Vector2(0, -i * RowHeight));
-                row.gameObject.AddComponent<Image>().color = Color.clear;
+                Image rowBackground = row.gameObject.AddComponent<Image>(); rowBackground.color = Color.clear;
+                ControllerRow controllerRow = new() { Entry = entry, Background = rowBackground };
+                _controllerRows.Add(controllerRow);
                 float quantityX = inner - (_registration != null ? 58 : 94);
                 float modeX = quantityX - 38;
                 float itemWidth = _restock ? modeX - 6 : inner - 74;
@@ -620,6 +795,8 @@ public sealed partial class InventoryActionsPlugin
                 if (_restock)
                 {
                     TMP_InputField field = NumberField(row, entry, item);
+                    controllerRow.Quantity = field;
+                    controllerRow.MaximumAmount = item?.m_shared != null ? Mathf.Max(1, item.m_shared.m_maxStackSize) : int.MaxValue;
                     Frame((RectTransform)field.transform, quantityX, -2, 58, 32);
                     Image modeIcon = null!;
                     UITooltip modeTip = null!;
@@ -647,20 +824,27 @@ public sealed partial class InventoryActionsPlugin
                     modeTip.enabled = modeTip.m_tooltipPrefab != null;
                     RefreshMode();
                     _rowButtons.Add(modeButton);
+                    controllerRow.Mode = modeButton;
                 }
                 if (_registration == null)
                 {
-                    Button remove = Button(row, "Remove", _restock ? "×" : L("remove", "Remove"), () =>
-                    {
-                        Pin(); entry.Removed = true;
-                        if (Save()) Render();
-                        else entry.Removed = false;
-                    });
+                    Button remove = Button(row, "Remove", _restock ? "×" : L("remove", "Remove"), () => RemoveEntry(entry));
                     Frame((RectTransform)remove.transform, inner - (_restock ? 30 : 68), -2, _restock ? 30 : 68, 32);
                     _rowButtons.Add(remove);
                 }
             }
             PositionPopup();
+            int rememberedIndex = selectedKey == null ? -1 : _controllerRows.FindIndex(row => row.Entry.Key == selectedKey);
+            if (rememberedIndex >= 0) _controllerRowIndex = rememberedIndex;
+            RefreshControllerSelection();
+        }
+
+        private void RemoveEntry(ItemRuleConfigCore.Entry entry)
+        {
+            Pin(); entry.Removed = true;
+            if (!Save()) { entry.Removed = false; return; }
+            if (ReferenceEquals(_registration, entry)) _registration = null;
+            Render();
         }
 
         private TMP_InputField NumberField(RectTransform parent, ItemRuleConfigCore.Entry entry, ItemData? item)
@@ -728,6 +912,9 @@ public sealed partial class InventoryActionsPlugin
         internal void Close()
         {
             if (Pinned) _itemRuleInputClosedFrame = Time.frameCount;
+            SetControllerActive(false);
+            _controllerRowIndex = 0;
+            _controllerInputFrame = Time.frameCount;
             Pinned = false; _registration = null;
             _hoverMode = null; _hoverStarted = _outsideStarted = -1f;
             if (_popup == null) return;

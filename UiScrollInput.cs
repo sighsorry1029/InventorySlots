@@ -128,7 +128,8 @@ public sealed partial class InventorySlotsPlugin
     private static bool IsGamepadUiScrollActive(out float delta)
     {
         delta = 0f;
-        if (_enableGamepadUiScroll == null || _enableGamepadUiScroll.Value.IsOff() || !IsGamepadActiveSafe())
+        if (IsItemRuleInputBlocked() || IsInventoryControllerChordHeld() ||
+            _enableGamepadUiScroll == null || _enableGamepadUiScroll.Value.IsOff() || !IsGamepadActiveSafe())
         {
             _nextGamepadUiScrollStepTime = 0f;
             return false;

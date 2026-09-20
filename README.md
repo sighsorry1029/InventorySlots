@@ -458,6 +458,21 @@ These options are stored in the root-level `sighsorry.InventorySlots.cfg`:
 
 Controller support is client-side. InventorySlots stores controller hotkeys as a fixed action enum and exposes them through a custom Configuration Manager editor with capture, clear, and preset controls.
 
+With `Enable Controller Hotkeys` enabled, hold `Inventory Action Modifier` (right-stick click / `JoyRStick` by default) while the inventory is open:
+
+| Button | Action |
+| --- | --- |
+| A | Toggle the selected player inventory slot's favorite status. |
+| X | Sort the focused player inventory or open container. |
+| Y | Open Restock targets. A picked-up item from your player inventory is registered. |
+| B | Open Auto pickup exclusions. A picked-up item from your player inventory is registered. |
+
+While looking at a chest with the inventory closed, hold `Favorite Restock Modifier` (`JoyAltKeys`, the game's alternate-action modifier, by default) together with Use (`JoyUse`) to restock favorites from that chest and nearby eligible chests. Holding Use alone keeps the existing quick-stack action. Favorite restock applies target quantities, per-item modes, remembered empty slots and the leave-one-item setting. The open-container **Take stacks** button still fills matching non-favorite stacks; it is a separate action.
+
+In a restock/exclusion editor, release the modifier: D-pad up/down selects an entry, left/right changes its restock quantity, A cycles its restock mode, X removes it and B closes the editor. Changes save immediately. These controller commands work without hovering the inventory buttons; their visibility settings remain independent of saved rules. The quick guide and chest hints show current bindings when controller input is active. Keyboard and mouse controls remain available.
+
+The two modifier settings can be changed client-side or set to Off independently. The inventory action modifier reserves its button while the inventory is open; choose a binding that does not conflict with another mod's inventory controls. These commands are unavailable during other input dialogs, and sorting/favoriting do not act on a picked-up item.
+
 `Controller DPad Hotkey Mode` defaults to `InventoryNavigation`, leaving DPad input available for vanilla inventory movement. It can also allow DPad hotkeys directly or only while a configured modifier is held.
 
 ## Compatibility

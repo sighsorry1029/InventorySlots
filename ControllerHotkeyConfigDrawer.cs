@@ -66,96 +66,122 @@ public sealed partial class InventorySlotsPlugin
         string entryKey = GetConfigDrawerEntryKey(entry);
         ControllerHotkeyAction currentValue = GetControllerHotkeyConfigValue(entry);
         bool isCapturing = IsCapturingControllerHotkey(entryKey);
-
-        GUILayout.BeginVertical();
-        GUILayout.BeginHorizontal();
-
-        string display = GetControllerHotkeyDisplayText(currentValue);
-        GUILayout.Label($"Current: {(string.IsNullOrWhiteSpace(display) ? "Off" : display)}", GUILayout.ExpandWidth(true));
-
-        if (GUILayout.Button(isCapturing ? "Stop" : "Capture", GUILayout.Width(70f)))
+        if (isCapturing)
         {
-            if (isCapturing)
+            ControllerHotkeyAction captured = TryCaptureControllerHotkeyAction();
+            if (captured != ControllerHotkeyAction.Off)
             {
+                SetControllerHotkeyConfigValue(entry, captured);
+                currentValue = captured;
                 StopControllerHotkeyCapture();
+                isCapturing = false;
             }
-            else
+        }
+
+        const float gap = 4f;
+        float layoutWidth = GetConfigDrawerLayoutWidth(entry);
+        float lineHeight = ConfigDrawerLineHeight();
+        GUIStyle labelStyle = ConfigDrawerWrappedLabelStyle();
+        string display = currentValue.ToString();
+        foreach (ControllerActionOption option in ControllerActionOptions)
+        {
+            if (option.Action != currentValue) continue;
+            display = option.Label;
+            break;
+        }
+
+        string currentText = $"Current: {display}";
+        float currentWidth = GetControllerConfigCurrentWidth(layoutWidth, gap, out _, out _);
+        float headerHeight = Mathf.Max(lineHeight, labelStyle.CalcHeight(new GUIContent(currentText), currentWidth));
+        string status = GetControllerHotkeyStatus(currentValue, isCapturing);
+        float statusHeight = status.Length == 0 ? 0f : labelStyle.CalcHeight(new GUIContent(status), layoutWidth);
+        bool expanded = ExpandedControllerHotkeyPresetDrawers.Contains(entryKey);
+        int columns = Mathf.Clamp(Mathf.FloorToInt((layoutWidth + gap) / (88f + gap)), 1, 4);
+        int rows = (ControllerActionOptions.Length + columns - 1) / columns;
+        float height = headerHeight + gap + lineHeight;
+        if (statusHeight > 0f) height += gap + statusHeight;
+        if (expanded) height += gap + rows * (lineHeight + gap) - gap;
+
+        // One elastic layout entry keeps long labels and preset buttons from
+        // contributing their preferred widths to the manager's scroll view.
+        Rect area = ReserveConfigDrawerArea(entry, height);
+        GUI.BeginGroup(area);
+        try
+        {
+            float width = Mathf.Max(1f, area.width);
+            float actualGap = Mathf.Min(gap, width / 8f);
+            currentWidth = GetControllerConfigCurrentWidth(width, actualGap, out float captureWidth, out float clearWidth);
+            GUI.Label(new Rect(0f, 0f, currentWidth, headerHeight), currentText, labelStyle);
+            float buttonY = Mathf.Max(0f, (headerHeight - lineHeight) / 2f);
+            if (GUI.Button(new Rect(currentWidth + actualGap, buttonY, captureWidth, lineHeight), isCapturing ? "Stop" : "Capture"))
             {
-                StartControllerHotkeyCapture(entryKey);
+                if (isCapturing) StopControllerHotkeyCapture();
+                else StartControllerHotkeyCapture(entryKey);
             }
-        }
 
-        if (GUILayout.Button("Clear", GUILayout.Width(48f)))
-        {
-            SetControllerHotkeyConfigValue(entry, ControllerHotkeyAction.Off);
-            currentValue = ControllerHotkeyAction.Off;
-        }
-
-        GUILayout.EndHorizontal();
-
-        DrawControllerHotkeyStatus(entry, currentValue, isCapturing);
-
-        if (GUILayout.Button(ExpandedControllerHotkeyPresetDrawers.Contains(entryKey) ? "Hide Presets" : "Presets", GUILayout.Width(110f)))
-        {
-            if (!ExpandedControllerHotkeyPresetDrawers.Add(entryKey))
+            if (GUI.Button(new Rect(width - clearWidth, buttonY, clearWidth, lineHeight), "Clear"))
             {
-                ExpandedControllerHotkeyPresetDrawers.Remove(entryKey);
+                SetControllerHotkeyConfigValue(entry, ControllerHotkeyAction.Off);
             }
-        }
 
-        if (ExpandedControllerHotkeyPresetDrawers.Contains(entryKey))
-        {
-            DrawControllerHotkeyPresetButtons(entry, currentValue);
-        }
+            float y = headerHeight + gap;
+            if (statusHeight > 0f)
+            {
+                GUI.Label(new Rect(0f, y, width, statusHeight), status, labelStyle);
+                y += statusHeight + gap;
+            }
 
-        GUILayout.EndVertical();
+            if (GUI.Button(new Rect(0f, y, Mathf.Min(110f, width), lineHeight), expanded ? "Hide Presets" : "Presets"))
+            {
+                if (!ExpandedControllerHotkeyPresetDrawers.Add(entryKey))
+                    ExpandedControllerHotkeyPresetDrawers.Remove(entryKey);
+            }
+
+            if (expanded)
+                DrawControllerHotkeyPresetButtons(entry, currentValue, width, y + lineHeight + gap, lineHeight, columns);
+        }
+        finally { GUI.EndGroup(); }
     }
 
-    private static void DrawControllerHotkeyStatus(ConfigEntryBase entry, ControllerHotkeyAction currentValue, bool isCapturing)
+    private static float GetControllerConfigCurrentWidth(float width, float gap, out float captureWidth, out float clearWidth)
     {
+        float available = Mathf.Max(1f, width - gap * 2f);
+        captureWidth = Mathf.Min(70f, available * 0.38f);
+        clearWidth = Mathf.Min(48f, available * 0.27f);
+        return Mathf.Max(1f, available - captureWidth - clearWidth);
+    }
+
+    private static string GetControllerHotkeyStatus(ControllerHotkeyAction currentValue, bool isCapturing)
+    {
+        string status = "";
         if (IsControllerDPadAction(currentValue) &&
             (_controllerDPadHotkeyMode?.Value ?? ControllerDPadHotkeyMode.InventoryNavigation) == ControllerDPadHotkeyMode.InventoryNavigation)
         {
-            GUILayout.Label("DPad actions are ignored until Controller DPad Hotkey Mode allows hotkeys.");
+            status = "DPad actions are ignored until Controller DPad Hotkey Mode allows hotkeys.";
         }
 
-        if (!isCapturing)
+        if (isCapturing)
         {
-            return;
+            float remaining = Mathf.Max(0f, _controllerHotkeyCaptureEndTime - Time.unscaledTime);
+            if (status.Length > 0) status += "\n";
+            status += $"Listening for controller input... {remaining:0.0}s";
         }
-
-        ControllerHotkeyAction captured = TryCaptureControllerHotkeyAction();
-        if (captured != ControllerHotkeyAction.Off)
-        {
-            SetControllerHotkeyConfigValue(entry, captured);
-            StopControllerHotkeyCapture();
-            return;
-        }
-
-        float remaining = Mathf.Max(0f, _controllerHotkeyCaptureEndTime - Time.unscaledTime);
-        GUILayout.Label($"Listening for controller input... {remaining:0.0}s");
+        return status;
     }
 
-    private static void DrawControllerHotkeyPresetButtons(ConfigEntryBase entry, ControllerHotkeyAction currentValue)
+    private static void DrawControllerHotkeyPresetButtons(ConfigEntryBase entry, ControllerHotkeyAction currentValue,
+        float width, float y, float lineHeight, int columns)
     {
-        const int columns = 4;
+        float gap = Mathf.Min(4f, width / (columns * 2f));
+        float buttonWidth = Mathf.Max(0.1f, (width - gap * (columns - 1)) / columns);
         for (int i = 0; i < ControllerActionOptions.Length; i++)
         {
-            if (i % columns == 0)
-            {
-                GUILayout.BeginHorizontal();
-            }
-
             ControllerActionOption option = ControllerActionOptions[i];
             string label = currentValue == option.Action ? $"* {option.Label}" : option.Label;
-            if (GUILayout.Button(label, GUILayout.Width(88f)))
+            Rect rect = new((i % columns) * (buttonWidth + gap), y + (i / columns) * (lineHeight + gap), buttonWidth, lineHeight);
+            if (GUI.Button(rect, new GUIContent(label, option.Label)))
             {
                 SetControllerHotkeyConfigValue(entry, option.Action);
-            }
-
-            if (i % columns == columns - 1 || i == ControllerActionOptions.Length - 1)
-            {
-                GUILayout.EndHorizontal();
             }
         }
     }

@@ -33,6 +33,12 @@ public sealed partial class InventoryActionsPlugin
     internal static bool TryHandleContainerStackAll(Container container)
     {
         Player? player = Player.m_localPlayer;
+        // Alt+Use can reach vanilla StackAll while held. Keep it reserved for
+        // favorite restock even before a remote container grants ownership.
+        if (player != null && !InventoryGui.IsVisible() && IsContainerRestockShortcutHeld() && GetHoveredContainer(player) == container)
+        {
+            return true;
+        }
         if (player == null || player.m_isLoading || container == null || container.m_inventory == null)
         {
             return false;
@@ -925,9 +931,10 @@ public sealed partial class InventoryActionsPlugin
     private static bool IsContainerRestockShortcutHeld() =>
         _containerRestockKey != null &&
         _containerRestockKey.Value.MainKey != KeyCode.None &&
-        IsShortcutHeldAllowingAltPair(_containerRestockKey.Value);
+        IsShortcutHeldAllowingAltPair(_containerRestockKey.Value) || IsFavoriteRestockControllerHeld();
 
     private static string GetContainerRestockKeyDisplayText() =>
+        UseInventoryControllerHints() ? GetFavoriteRestockControllerDisplay() :
         _containerRestockKey != null ? GetShortcutDisplayText(_containerRestockKey.Value) : "";
 
     private static List<Container> GetActionContainers(

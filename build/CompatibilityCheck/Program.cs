@@ -125,6 +125,27 @@ foreach (var type in Types(mod.MainModule.Types))
     }
 }
 // String-resolved AccessTools members do not appear as direct game references.
+if (Types(mod.MainModule.Types).Any(t => t.Name == "InventoryControllerAccess"))
+{
+    using var game = AssemblyDefinition.ReadAssembly(Path.Combine(args[1], "assembly_valheim.dll"));
+    foreach (var expected in new[]
+    {
+        (owner: "InventoryGrid", name: "m_selected", type: "Vector2i"),
+        (owner: "InventoryGui", name: "m_dragGo", type: "UnityEngine.GameObject")
+    })
+    {
+        var field = Types(game.MainModule.Types).Single(t => t.FullName == expected.owner).Fields.SingleOrDefault(f => f.Name == expected.name);
+        if (field == null || field.FieldType.FullName != expected.type || field.IsStatic || field.IsLiteral)
+            failures.Add($"Controller field accessor mismatch: {expected.owner}.{expected.name}");
+        else reflectedContracts.Add($"Controller: {field.FullName} [{field.Attributes}]");
+    }
+    using var input = AssemblyDefinition.ReadAssembly(Path.Combine(args[1], "Unity.InputSystem.dll"));
+    var navigation = Types(input.MainModule.Types).Single(t => t.FullName == "UnityEngine.InputSystem.UI.InputSystemUIInputModule")
+        .Methods.Where(m => m.Name == "ProcessNavigation").ToArray();
+    if (navigation.Length != 1 || navigation[0].IsStatic || navigation[0].IsPublic || navigation[0].ReturnType.FullName != "System.Void")
+        failures.Add("Controller navigation patch target mismatch: InputSystemUIInputModule.ProcessNavigation");
+    else reflectedContracts.Add($"Controller: {navigation[0].FullName} [{navigation[0].Attributes}]");
+}
 // Check the bounded area-handoff contract only in candidates containing that runtime.
 if (Types(mod.MainModule.Types).Any(t => t.FullName == "InventorySlots.InventorySlotsPlugin" &&
     t.Fields.Any(f => f.Name == "ContainerAreaView")))

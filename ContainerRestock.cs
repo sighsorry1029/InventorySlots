@@ -159,16 +159,16 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool IsContainerRestockKeyConfigured() =>
         _containerRestockKey != null && _containerRestockKey.Value.MainKey != KeyCode.None ||
-        IsControllerHotkeyConfigured(_controllerContainerRestockButton);
+        IsControllerHotkeyConfigured(_controllerContainerRestockButton) || GetFavoriteRestockControllerDisplay().Length > 0;
 
     private static bool IsContainerRestockShortcutHeld() =>
         _containerRestockKey != null &&
         _containerRestockKey.Value.MainKey != KeyCode.None &&
         IsShortcutHeldAllowingAltPair(_containerRestockKey.Value) ||
-        IsControllerHotkeyHeld(_controllerContainerRestockButton);
+        IsControllerHotkeyHeld(_controllerContainerRestockButton) || IsFavoriteRestockControllerHeld();
 
     private static string GetContainerRestockKeyDisplayText() =>
-        JoinShortcutDisplayTexts(
+        UseInventoryControllerHints() ? JoinShortcutDisplayTexts(GetFavoriteRestockControllerDisplay(), GetControllerHotkeyDisplayText(_controllerContainerRestockButton)) : JoinShortcutDisplayTexts(
             _containerRestockKey != null ? _containerRestockKey.Value.GetCompactDisplayText() : "",
             GetControllerHotkeyDisplayText(_controllerContainerRestockButton));
 

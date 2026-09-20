@@ -643,14 +643,22 @@ public sealed partial class InventorySlotsPlugin
             Time.unscaledTime >= TooltipUi.NextFeatureGuideTextRefreshTime)
         {
             TooltipUi.NextFeatureGuideTextRefreshTime = Time.unscaledTime + 0.25f;
-            string guide = LocalizeUi(
+            bool controllerHints = UseInventoryControllerHints();
+            string guide = controllerHints ? GetControllerFeatureGuideText() : LocalizeUi(
                 "$inventoryslots_feature_guide",
                 "<b>InventorySlots quick guide</b>\n<color=#FFA94D>[{tooltipKey}]</color> over an inventory or chest item, or a crafting recipe: Pin tooltip\n<color=#FFA94D>[{favoriteKey}]</color> over an inventory slot or crafting recipe: Toggle favorite\nWhile looking at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching items nearby (favorite slots excluded)\nWhile looking at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill existing items in favorite slots from nearby chests up to their targets\nCustom slots and rules: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>\nHide this guide now: <color=#FFA94D>F1 → InventorySlots → Show Feature Guide → Off</color>");
             TooltipUi.FeatureGuideExpandedText = guide
                 .Replace("{tooltipKey}", GetPinnedTooltipKeyDisplayText())
                 .Replace("{favoriteKey}", GetFavoriteKeyHintDisplayText())
                 .Replace("{useKey}", GetContainerQuickStackKeyDisplayText())
-                .Replace("{restockKey}", GetContainerRestockKeyDisplayText());
+                .Replace("{restockKey}", controllerHints ? DisplayFeatureGuideBinding(GetFavoriteRestockControllerDisplay()) : GetContainerRestockKeyDisplayText())
+                .Replace("{favoriteAction}", DisplayFeatureGuideBinding(GetInventoryControllerChordDisplay("JoyButtonA")))
+                .Replace("{sortAction}", DisplayFeatureGuideBinding(GetInventoryControllerChordDisplay("JoyButtonX")))
+                .Replace("{rulesAction}", DisplayFeatureGuideBinding(GetInventoryControllerChordDisplay("JoyButtonY")))
+                .Replace("{excludeAction}", DisplayFeatureGuideBinding(GetInventoryControllerChordDisplay("JoyButtonB")))
+                .Replace("{modeAction}", GetInventoryControllerActionDisplay("JoyButtonA"))
+                .Replace("{removeAction}", GetInventoryControllerActionDisplay("JoyButtonX"))
+                .Replace("{closeAction}", GetInventoryControllerActionDisplay("JoyButtonB"));
         }
 
         string titleValue = GetFeatureGuideTitle(TooltipUi.FeatureGuideExpandedText);
@@ -663,6 +671,16 @@ public sealed partial class InventorySlotsPlugin
         {
             body.text = bodyValue;
         }
+    }
+
+    private static string DisplayFeatureGuideBinding(string value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
+
+    private static string GetControllerFeatureGuideText()
+    {
+        bool korean = string.Equals(Localization.instance?.GetSelectedLanguage(), "Korean", StringComparison.OrdinalIgnoreCase);
+        return LocalizeUi("$inventoryslots_feature_guide_controller", korean
+            ? "<b>InventorySlots 빠른 가이드</b>\n선택한 플레이어 칸에서 <color=#FFA94D>[{favoriteAction}]</color>: 즐겨찾기 · <color=#FFA94D>[{sortAction}]</color>: 선택 중인 인벤토리/상자 정렬\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: 보충 대상 / 자동 줍기 제외 열기 (집어 든 내 아이템이 있으면 등록)\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 즐겨찾기 외 같은 종류를 주변 상자에 보관\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 목표 수량·빈 칸 보충 모드에 따라 즐겨찾기 보충\n규칙 편집: 방향키 위/아래 행 선택 · 왼쪽/오른쪽 수량 · {modeAction} 모드 · {removeAction} 삭제 · {closeAction} 닫기\n커스텀 슬롯·규칙: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>\n가이드 숨기기: <color=#FFA94D>F1 → InventorySlots → Show Feature Guide → Off</color>"
+            : "<b>InventorySlots quick guide</b>\nOn the selected player slot, <color=#FFA94D>[{favoriteAction}]</color>: Favorite · <color=#FFA94D>[{sortAction}]</color>: Sort focused inventory/chest\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: Restock targets / pickup exclusions (register a picked-up player item)\nLook at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching non-favorite items nearby\nLook at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill favorites using target quantities and empty-slot modes\nRules: D-pad up/down selects rows; left/right changes quantity; {modeAction} mode; {removeAction} remove; {closeAction} close\nCustom slots and rules: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>\nHide this guide: <color=#FFA94D>F1 → InventorySlots → Show Feature Guide → Off</color>");
     }
 
     private static string GetFeatureGuideTitle(string expandedText)

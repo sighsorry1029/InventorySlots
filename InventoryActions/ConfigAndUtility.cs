@@ -53,6 +53,7 @@ public sealed partial class InventoryActionsPlugin
 
     private static void BindConfigs()
     {
+        BindInventoryControllerConfig();
         _serverConfigLocked = ConfigEntry(GeneralConfigSection, "Lock Configuration", Toggle.On, "When enabled, only server admins can modify this mod's synced configuration.");
         _ = ConfigSync.AddLockingConfigEntry(_serverConfigLocked);
 
