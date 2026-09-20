@@ -20,6 +20,7 @@ internal static class ItemRuleConfigCore
         public int Length;
         public string Key = "";
         public string Amount = "";
+        public bool RefillEmpty;
         public string Comment = "";
         public bool Removed = false;
     }
@@ -33,11 +34,14 @@ internal static class ItemRuleConfigCore
             if (text.Length == 0) continue;
             int separator = restock ? RestockTargetLimitCore.FindSeparator(text) : -1;
             int comment = match.Value.IndexOf('#');
+            string amount = separator > 0 ? text.Substring(separator + 1).Trim() : "";
+            bool refillEmpty = false;
+            if (restock) RestockTargetLimitCore.SplitRuleValue(amount, out amount, out refillEmpty);
             entries.Add(new Entry
             {
                 Start = match.Index, Length = match.Length,
                 Key = separator > 0 ? text.Substring(0, separator).Trim() : text,
-                Amount = separator > 0 ? text.Substring(separator + 1).Trim() : "",
+                Amount = amount, RefillEmpty = refillEmpty,
                 Comment = comment < 0 ? "" : " " + match.Value.Substring(comment)
             });
         }
@@ -52,7 +56,8 @@ internal static class ItemRuleConfigCore
             string replacement = entry.Removed ? "" : Format(entry, restock) + entry.Comment;
             // Leave unedited entries byte-for-byte intact, including whitespace and '='.
             Entry? previous = Read(original.Substring(entry.Start, entry.Length), restock).FirstOrDefault();
-            if (!entry.Removed && previous != null && previous.Key == entry.Key && previous.Amount == entry.Amount) continue;
+            if (!entry.Removed && previous != null && previous.Key == entry.Key && previous.Amount == entry.Amount &&
+                previous.RefillEmpty == entry.RefillEmpty) continue;
             result.Remove(entry.Start, entry.Length).Insert(entry.Start, replacement);
         }
         foreach (Entry entry in entries.Where(e => e.Start < 0 && !e.Removed))
@@ -78,7 +83,7 @@ internal static class ItemRuleConfigCore
     }
 
     private static string Format(Entry entry, bool restock) =>
-        restock ? entry.Key + ": " + entry.Amount : entry.Key;
+        restock ? entry.Key + ": " + entry.Amount + (entry.RefillEmpty ? " | refill" : "") : entry.Key;
 
     internal static string PrefabKey(string name) => name.Replace("(Clone)", "").Trim();
 

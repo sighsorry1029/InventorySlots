@@ -6,8 +6,11 @@ namespace InventorySlots;
 
 internal static class RestockTargetLimitCore
 {
-    public static Dictionary<string, int> Parse(string? raw)
+    public static Dictionary<string, int> Parse(string? raw) => Parse(raw, out _);
+
+    public static Dictionary<string, int> Parse(string? raw, out List<string> refillEmptyKeys)
     {
+        refillEmptyKeys = new List<string>();
         Dictionary<string, int> result = new(StringComparer.OrdinalIgnoreCase);
         if (string.IsNullOrWhiteSpace(raw))
         {
@@ -29,16 +32,28 @@ internal static class RestockTargetLimitCore
             }
 
             string token = InventorySlotsConfigCore.NormalizeResourceToken(trimmed.Substring(0, separator));
-            string amountText = trimmed.Substring(separator + 1).Trim();
+            SplitRuleValue(trimmed.Substring(separator + 1), out string amountText, out bool refillEmpty);
             if (token.Length == 0 || !TryParseAmount(amountText, out int amount))
             {
                 continue;
             }
 
             result[token] = amount;
+            // Last duplicate wins for both quantity and opt-in, in config order.
+            refillEmptyKeys.Remove(token);
+            if (refillEmpty && amount > 0) refillEmptyKeys.Add(token);
         }
 
         return result;
+    }
+
+    internal static void SplitRuleValue(string value, out string amount, out bool refillEmpty)
+    {
+        int separator = value.IndexOf('|');
+        refillEmpty = separator >= 0 &&
+            string.Equals(value.Substring(separator + 1).Trim(), "refill", StringComparison.OrdinalIgnoreCase);
+        // Unknown suffixes stay invalid rather than silently opting into a new policy.
+        amount = (refillEmpty ? value.Substring(0, separator) : value).Trim();
     }
 
     public static int ResolveTargetStackLimit(Dictionary<string, int>? limits, IEnumerable<string?> lookupTokens, int itemMaxStack)
@@ -49,16 +64,22 @@ internal static class RestockTargetLimitCore
             return fallback;
         }
 
+        string? key = ResolveConfiguredKey(limits, lookupTokens);
+        return key == null ? fallback : Math.Min(fallback, Math.Max(0, limits[key]));
+    }
+
+    internal static string? ResolveConfiguredKey(Dictionary<string, int> limits, IEnumerable<string?> lookupTokens)
+    {
         foreach (string? lookupToken in lookupTokens)
         {
             string token = InventorySlotsConfigCore.NormalizeResourceToken(lookupToken);
-            if (token.Length > 0 && limits.TryGetValue(token, out int configuredLimit))
+            if (token.Length > 0 && limits.ContainsKey(token))
             {
-                return Math.Min(fallback, Math.Max(0, configuredLimit));
+                return token;
             }
         }
 
-        return fallback;
+        return null;
     }
 
     internal static string NormalizeAmountForEditor(string? value)

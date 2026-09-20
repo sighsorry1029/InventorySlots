@@ -477,11 +477,12 @@ public sealed partial class InventoryActionsPlugin
             session.Player,
             session.PlayerInventory,
             RestockMode.AreaFavoriteRestock);
-        return RestockTargetsFromContainer(
+        int moved = RestockTargetsFromContainer(
             session.PlayerInventory,
             target.m_inventory,
             targets,
             RestockMode.AreaFavoriteRestock);
+        return moved + RestockMissingFavoriteItems(session.Player, session.PlayerInventory, target.m_inventory);
     }
 
     private static void RecordAreaContainerTransfer(

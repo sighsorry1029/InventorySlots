@@ -17,7 +17,8 @@ public sealed partial class InventorySlotsPlugin
 
     private static void RefreshRestockTargetStackLimits()
     {
-        InventoryDefinitions.RestockTargetStackLimits = RestockTargetLimitCore.Parse(_restockTargetStackLimitsConfig?.Value);
+        InventoryDefinitions.RestockTargetStackLimits = RestockTargetLimitCore.Parse(
+            _restockTargetStackLimitsConfig?.Value, out _emptyFavoriteRestockKeys);
     }
 
     private static void RestockFromCurrentContainer(Player? player)

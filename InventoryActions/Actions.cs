@@ -344,7 +344,8 @@ public sealed partial class InventoryActionsPlugin
 
     private static void RefreshRestockTargetStackLimits()
     {
-        Runtime.RestockTargetStackLimits = RestockTargetLimitCore.Parse(_restockTargetStackLimitsConfig?.Value);
+        Runtime.RestockTargetStackLimits = RestockTargetLimitCore.Parse(
+            _restockTargetStackLimitsConfig?.Value, out _emptyFavoriteRestockKeys);
     }
 
     private static void RestockFromContainer(Player localPlayer, Inventory playerInventory, Container container, RestockMode mode)

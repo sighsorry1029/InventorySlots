@@ -175,8 +175,9 @@ public sealed partial class InventorySlotsPlugin
             .Where(item => ShouldTakeStacksTarget(player, inventory, item,
                 ContainerTakeStacksMode.AreaFavoriteRestock)).ToList();
         targets.Sort((a, b) => -CompareGridOrder(a.m_gridPos, b.m_gridPos));
-        return RestockTargetsFromContainer(inventory, container.GetInventory(), targets,
+        int moved = RestockTargetsFromContainer(inventory, container.GetInventory(), targets,
             ContainerTakeStacksMode.AreaFavoriteRestock);
+        return moved + RestockMissingFavoriteItems(player, inventory, container.GetInventory());
     }
 
     private static void CompleteContainerAreaTransfer(

@@ -76,4 +76,55 @@ Check("registered entry identity and saved span retained", ReferenceEquals(added
 added.Removed = true; CommitLive();
 liveEntries.Add(new ItemRuleConfigCore.Entry { Start = -1, Key = "Resin", Amount = "6" }); CommitLive();
 Check("delete and re-register uses a new valid span", liveEntries.Count(e => e.Key == "Resin") == 1 && RestockTargetLimitCore.Parse(live)["resin"] == 6);
+// Quantity and empty-slot opt-in are one saved rule. Old configs remain Off.
+var legacyLimits = RestockTargetLimitCore.Parse("Wood: 30", out var refillKeys);
+Check("old quantity config keeps empty refill off", legacyLimits["wood"] == 30 && refillKeys.Count == 0);
+const string refillRaw = "# targets\r\nWood = 30 | ReFiLl # reserve\r\nStone: 12\r\n";
+var refillEntries = ItemRuleConfigCore.Read(refillRaw, true);
+Check("editor reads amount separately from opt-in", refillEntries[0].Amount == "30" && refillEntries[0].RefillEmpty && !refillEntries[1].RefillEmpty);
+Check("untouched extended rule keeps spelling and comments", ItemRuleConfigCore.Write(refillRaw, refillEntries, true) == refillRaw);
+RestockTargetLimitCore.Parse(refillRaw, out refillKeys);
+Check("extended rule enables normalized key", refillKeys.SequenceEqual(new[] { "wood" }));
+var duplicateLimits = RestockTargetLimitCore.Parse("Wood: 30 | refill; $item_wood: 8", out refillKeys);
+Check("later duplicate switches quantity and policy off together", duplicateLimits["wood"] == 8 && refillKeys.Count == 0);
+duplicateLimits = RestockTargetLimitCore.Parse("Wood: 30; $item_wood: 8 | refill", out refillKeys);
+Check("later duplicate switches on without duplicate refill keys", duplicateLimits["wood"] == 8 && refillKeys.SequenceEqual(new[] { "wood" }));
+foreach (string amount in new[] { "0", "-4" })
+{
+    string zeroRule = "Wood: " + amount + " | refill";
+    var zeroLimits = RestockTargetLimitCore.Parse(zeroRule, out refillKeys);
+    Check("zero or negative cannot seed empty slots: " + amount, zeroLimits["wood"] == 0 && refillKeys.Count == 0);
+    Check("disabled rule remembers opt-in for later positive edits: " + amount, ItemRuleConfigCore.Read(zeroRule, true)[0].RefillEmpty);
+}
+foreach (string invalid in new[] { "30 | unknown", "30 | refill | refill", "2147483648 | refill" })
+{
+    var invalidLimits = RestockTargetLimitCore.Parse("Wood: 20 | refill; Wood: " + invalid, out refillKeys);
+    Check("invalid later rule cannot override valid rule: " + invalid, invalidLimits["wood"] == 20 && refillKeys.SequenceEqual(new[] { "wood" }));
+}
+var aliases = RestockTargetLimitCore.Parse("WoodPrefab: 0; $item_wood: 30 | refill", out refillKeys);
+string? effectiveKey = RestockTargetLimitCore.ResolveConfiguredKey(aliases, new[] { "WoodPrefab", "$item_wood", "Wood" });
+Check("prefab override blocks lower priority refill alias", effectiveKey == "woodprefab" && !refillKeys.Contains(effectiveKey));
+Check("quantity and refill use same lookup precedence", RestockTargetLimitCore.ResolveTargetStackLimit(aliases, new[] { "WoodPrefab", "$item_wood" }, 50) == 0);
+aliases = RestockTargetLimitCore.Parse("WoodPrefab: 100 | refill; $item_wood: 0", out refillKeys);
+effectiveKey = RestockTargetLimitCore.ResolveConfiguredKey(aliases, new[] { "WoodPrefab", "$item_wood" });
+Check("explicit positive prefab target can override disabled alias", effectiveKey == "woodprefab" && refillKeys.Contains(effectiveKey) && RestockTargetLimitCore.ResolveTargetStackLimit(aliases, new[] { "WoodPrefab", "$item_wood" }, 50) == 50);
+
+string refillLive = refillRaw;
+void CommitRefill()
+{
+    refillLive = ItemRuleConfigCore.Write(refillLive, refillEntries, true);
+    ItemRuleConfigCore.AcceptSaved(refillEntries, ItemRuleConfigCore.Read(refillLive, true));
+    Check("toggle saves rebase all entry spans", ItemRuleConfigCore.Write(refillLive, refillEntries, true) == refillLive);
+}
+refillEntries[0].RefillEmpty = false; CommitRefill();
+refillEntries[1].Amount = "5"; CommitRefill();
+refillEntries[0].RefillEmpty = true; CommitRefill();
+Check("toggle and subsequent quantity edits keep comments and unrelated rows", refillLive == "# targets\r\nWood: 30 | refill # reserve\r\nStone: 5\r\n");
+refillEntries[0].Removed = true; CommitRefill();
+refillEntries[0].RefillEmpty = true; CommitRefill();
+Check("removing preceding row does not break following toggle", RestockTargetLimitCore.Parse(refillLive, out refillKeys)["stone"] == 5 && refillKeys.SequenceEqual(new[] { "stone" }));
+refillEntries.Add(new ItemRuleConfigCore.Entry { Start = -1, Key = "Wood", Amount = "30" }); CommitRefill();
+Check("re-registering deleted item defaults off", !refillEntries.Last().RefillEmpty);
+refillEntries.Last().RefillEmpty = true; CommitRefill();
+Check("new entry toggles without duplicate append", ItemRuleConfigCore.Read(refillLive, true).Count(e => e.Key == "Wood") == 1 && RestockTargetLimitCore.Parse(refillLive, out refillKeys)["wood"] == 30 && refillKeys.SequenceEqual(new[] { "stone", "wood" }));
 Console.WriteLine($"PASS: {checks} item rule config checks");

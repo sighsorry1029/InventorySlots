@@ -3,7 +3,7 @@
 Standalone inventory actions split from InventorySlots mod: hold containers to quick stack/restock, favorite slots, sort inventories/containers, set restock limits, and trash selected items.
 
 ![](https://i.ibb.co/b5qGKm8k/Inventory-Button.gif) <br>
-Three inventory buttons: Restock limit, Auto Pickup Exclude, and Trash
+Three inventory buttons: Restock targets, Auto Pickup Exclude, and Trash
 
 ![](https://i.ibb.co/xtpGM34P/quickstackchest.png) <br>
 Hovering a container shows hold actions for area quick stack and area restock. Area ranges are centered on the interacted container.
@@ -23,7 +23,7 @@ Client restock limits can cap favorite restock targets per prefab, such as `Ston
 
 Two item-rule icons sit below the player inventory, to the left of the trash button:
 
-- **Restock limits:** drop an item from your inventory on the icon to register it and enter its target quantity. Valid quantities save immediately. The item stays in your inventory. Limits apply to Alt+E favorite-stack restock, not the opened-container Take stacks button; 0 prevents restocking and quantities are capped at the item's maximum stack.
+- **Restock targets:** drop an item from your inventory on the icon to register it and enter its target quantity. Valid quantities save immediately. The item stays in your inventory. Limits apply to Alt+E favorite-stack restock, not the opened-container Take stacks button; 0 prevents restocking and quantities are capped at the item's maximum stack.
 - **Auto pickup exclusions:** dropping an inventory item immediately registers its prefab and opens the list. Repeating it shows the existing entry. Excluded types stay on the ground when you walk near them; manual E pickup still works. This does not delete items or change quick stack/restock.
 - Hover an icon for a list preview, or click to pin it. The wooden dropdown opens below that icon and shows up to six rows, with scrolling when space is limited. At the screen edge the panel is kept on-screen so its controls remain reachable. Valid quantities and removals save immediately. Incomplete or invalid input restores the last saved quantity when editing ends.
 
@@ -38,6 +38,10 @@ Equipment and Quick Slots 3.x is optional. InventoryActions uses its public visi
 AzuExtendedPlayerInventory 2.4.14 is optional. InventoryActions uses AzuEPI's public slot-index API so automatic sorting, quick stack, restock, favorites, and trash stay above its equipment, quick, and custom-slot rows. Bottom buttons follow AzuEPI's live separate-panel setting: they use the regular inventory bottom with a separate equipment panel and the full grid bottom when slots are inline. Explicit item moves and AzuEPI's own favorite data remain under AzuEPI's rules.
 
 Both lists use client config under `3 - Inventory Buttons`: `Restock Target Stack Limits` and `Auto Pickup Excluded Items`. They are not server-synced and apply to all characters using that config. In-game/Configuration Manager changes apply immediately; editing the cfg on disk requires a config reload or game restart. Rules do not add item metadata. Unresolved mod items remain in the list. Removing a restock entry can reveal a remaining internal/localized-name rule; it does not necessarily restore the default maximum.
+
+Each restock item has a **Refill empty** checkbox to the left of its quantity, **unchecked by default**. When checked, Alt+E can refill one eligible empty favorite slot if that item has no stack in any eligible favorite slot. For example, `Wood: 30 | refill` restores up to 30 wood after your favorite wood stack is completely consumed. The quantity remains capped at the current max stack, and `0` still disables restocking. Full or incompatible variants already in favorite slots block additional stacks; existing favorites are never replaced. The toggle saves immediately with the quantity and is also editable in F1.
+
+Refill uses only an eligible empty favorite slot, top to bottom and left to right; it does not remember the old position or use ordinary empty slots. Rules use their config order within each chest, so an available item may fill the slot before another chest is checked. Existing stackability/metadata restrictions, special-slot exclusions, chest access/ownership checks and `Restock Leave One Item` remain in effect. Sort, Take stacks, manual moves and material consumption are unchanged.
 
 `3 - Inventory Buttons / Restock Leave One Item` defaults to **On**. Favorite restock (Alt+E by default) leaves one item of each kind in each source chest, across all stacks with the same internal item name, to keep that chest eligible for future quick stack. A chest with only one remaining item will not supply it. Turn this client-only setting Off to allow full depletion; in-game changes apply to subsequent transfers immediately. `Take stacks`, `Take All`, and manual moves are unchanged. Other players and other mods can still take the last item.
 

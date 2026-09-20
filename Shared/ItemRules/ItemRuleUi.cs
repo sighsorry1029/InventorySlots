@@ -568,7 +568,7 @@ public sealed partial class InventoryActionsPlugin
             _popup.sizeDelta = new Vector2(width, PopupChromeHeight + viewHeight);
             Frame(_title.rectTransform, 12, -10, inner, 28);
             Frame(_scope.rectTransform, 12, -39, inner, 34);
-            _title.text = _restock ? L("restock_title", "Restock limits") : L("exclude_title", "Auto pickup exclusions");
+            _title.text = _restock ? L("restock_title", "Restock targets") : L("exclude_title", "Auto pickup exclusions");
             _title.color = _gold;
             _scope.text = _registration != null ? L("quantity", "Target quantity") + " (0–" + _registrationMax + ")"
                 : _restock ? L("restock_scope", "{key} · target per favorite stack; 0 disables restock").Replace("{key}", GetContainerRestockKeyDisplayText()) : L("exclude_scope", "Manual E pickup is still available");
@@ -587,20 +587,55 @@ public sealed partial class InventoryActionsPlugin
                 ItemRuleConfigCore.Entry entry = visible[i];
                 RectTransform row = Rect("Row", _content, new Vector2(inner, RowHeight), new Vector2(0, -i * RowHeight));
                 row.gameObject.AddComponent<Image>().color = Color.clear;
+                float quantityX = inner - (_registration != null ? 58 : 94);
+                float checkboxX = quantityX - 38;
+                float itemWidth = _restock ? checkboxX - 6 : inner - 74;
+                // Keep the item's hover target separate from the controls: a
+                // parent UITooltip can otherwise replace the checkbox explanation.
+                RectTransform itemInfo = Rect("ItemInfo", row, new Vector2(itemWidth, RowHeight), Vector2.zero);
+                itemInfo.gameObject.AddComponent<Image>().color = Color.clear;
                 ItemData? item = Resolve(entry.Key);
-                RectTransform icon = Rect("Icon", row, new Vector2(26, 26), new Vector2(0, -5));
+                RectTransform icon = Rect("Icon", itemInfo, new Vector2(26, 26), new Vector2(0, -5));
                 Image graphic = icon.gameObject.AddComponent<Image>(); graphic.raycastTarget = false;
                 graphic.sprite = item?.GetIcon(); graphic.enabled = graphic.sprite != null; graphic.preserveAspect = true;
-                TMP_Text name = Text(row, "Name", item == null ? entry.Key : GetLocalizedItemName(item), 16);
+                TMP_Text name = Text(itemInfo, "Name", item == null ? entry.Key : GetLocalizedItemName(item), 16);
+                name.textWrappingMode = TextWrappingModes.NoWrap;
                 name.overflowMode = TextOverflowModes.Ellipsis;
-                Frame(name.rectTransform, 32, -2, inner - (_restock ? 130 : 104), 32);
-                UITooltip tooltip = row.gameObject.AddComponent<UITooltip>(); EnsureTooltipPrefab(tooltip);
+                Frame(name.rectTransform, 32, -2, itemWidth - 32, 32);
+                UITooltip tooltip = itemInfo.gameObject.AddComponent<UITooltip>(); EnsureTooltipPrefab(tooltip);
                 tooltip.enabled = tooltip.m_tooltipPrefab != null;
                 tooltip.m_topic = item == null ? entry.Key : GetLocalizedItemName(item); tooltip.m_text = entry.Key;
                 if (_restock)
                 {
                     TMP_InputField field = NumberField(row, entry, item);
-                    Frame((RectTransform)field.transform, inner - 94, -2, _registration != null ? 94 : 58, 32);
+                    Frame((RectTransform)field.transform, quantityX, -2, 58, 32);
+                    RectTransform check = null!;
+                    Button refill = Button(row, "RefillEmpty", "", () =>
+                    {
+                        Pin();
+                        entry.RefillEmpty = !entry.RefillEmpty;
+                        if (!Save()) entry.RefillEmpty = !entry.RefillEmpty;
+                        check.gameObject.SetActive(entry.RefillEmpty);
+                    });
+                    ApplyCraftButtonStyle(refill);
+                    Frame((RectTransform)refill.transform, checkboxX, -2, 32, 32);
+                    check = Rect("Check", refill.transform, new Vector2(22, 22), new Vector2(5, -5));
+                    // Draw a check with two UI strokes, independent of font glyphs.
+                    void CheckStroke(string strokeName, float x, float y, float length, float angle)
+                    {
+                        RectTransform stroke = Rect(strokeName, check, new Vector2(length, 2.5f), new Vector2(x, y));
+                        stroke.pivot = new Vector2(0, 0.5f);
+                        stroke.localEulerAngles = new Vector3(0, 0, angle);
+                        Image line = stroke.gameObject.AddComponent<Image>(); line.color = _gold; line.raycastTarget = false;
+                    }
+                    CheckStroke("Short", 3, -10, 8, -45);
+                    CheckStroke("Long", 8, -15, 15, 45);
+                    check.gameObject.SetActive(entry.RefillEmpty);
+                    UITooltip refillTip = refill.gameObject.AddComponent<UITooltip>(); EnsureTooltipPrefab(refillTip);
+                    refillTip.enabled = refillTip.m_tooltipPrefab != null;
+                    refillTip.m_topic = L("refill_title", "Refill empty favorite slots");
+                    refillTip.m_text = L("refill_help", "If this item is absent from your favorite slots, restock it into one empty favorite slot up to the target quantity. No empty favorite slot means no transfer. 0 still disables restock.");
+                    _rowButtons.Add(refill);
                 }
                 if (_registration == null)
                 {
@@ -761,10 +796,7 @@ public sealed partial class InventoryActionsPlugin
             {
                 // Borrow Craft's visuals only, without its click action, controller
                 // shortcut, interactability or crafting-specific components.
-                Button source = Owner.m_craftButton != null ? Owner.m_craftButton : Owner.m_takeAllButton;
-                if (source.image != null) CopyImageStyle(source.image, image);
-                button.spriteState = source.spriteState; button.colors = source.colors; button.transition = source.transition;
-                button.navigation = new Navigation { mode = Navigation.Mode.None };
+                Button source = ApplyCraftButtonStyle(button);
                 TMP_Text label = Text(rect, "Label", text, 16); Stretch(label.rectTransform); label.alignment = TextAlignmentOptions.Center;
                 TMP_Text? sourceLabel = source.GetComponentInChildren<TMP_Text>(true);
                 if (sourceLabel != null && sourceLabel.font != null)
@@ -776,6 +808,15 @@ public sealed partial class InventoryActionsPlugin
                 }
             }
             return button;
+        }
+
+        private Button ApplyCraftButtonStyle(Button button)
+        {
+            Button source = Owner.m_craftButton != null ? Owner.m_craftButton : Owner.m_takeAllButton;
+            if (source.image != null) CopyImageStyle(source.image, button.image);
+            button.spriteState = source.spriteState; button.colors = source.colors; button.transition = source.transition;
+            button.navigation = new Navigation { mode = Navigation.Mode.None };
+            return source;
         }
 
         private static void CopyImageStyle(Image source, Image target)

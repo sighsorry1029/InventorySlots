@@ -112,7 +112,7 @@ public sealed partial class InventoryActionsPlugin
             "Restock Target Stack Limits",
             "",
             new ConfigDescription(
-                "Client-only per-item target stack caps for Take stacks/restock into favorite slots. Keys may be prefab names, internal item names, or localized item names in the current client language, such as Stone: 10, Coins: 500. Separate entries with commas, semicolons, or new lines. Empty uses each item's normal max stack; 0 prevents restocking that item.",
+                "Client-only per-item targets for favorite restock (Alt+E). Keys may be prefab names, internal item names, or localized item names in the current client language, such as Stone: 10, Coins: 500. Separate entries with commas, semicolons, or new lines. Unlisted items use their normal max stack; 0 disables restocking that item. Refill empty is Off by default. Enable it per item in the panel or append | refill, e.g. Wood: 30 | refill, to fill one eligible empty favorite slot when no favorite stack of that item exists. Quantities are capped by the item's current max stack. Existing favorites are never moved or replaced.",
                 null,
                 new ConfigurationManagerAttributes
                 {

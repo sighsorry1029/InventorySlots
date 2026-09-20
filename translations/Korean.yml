@@ -55,7 +55,9 @@ inventoryslots_clear_favorites_hint_format: "{key}: 즐겨찾기 해제"
 inventoryslots_inventory_limit_reached: "{item}: 최대 {max}개까지 지닐 수 있습니다."
 inventoryslots_upgrade_safety_canceled: 장착 아이템을 슬롯에 안전하게 되돌릴 수 없어 업그레이드를 취소했습니다.
 
-inventoryslots_rules_restock_title: 보충 수량
+inventoryslots_rules_restock_title: 보충 대상
+inventoryslots_rules_refill_title: 빈 즐겨찾기 칸 보충
+inventoryslots_rules_refill_help: "즐겨찾기 칸에 이 아이템이 없으면 빈 즐겨찾기 칸 한 곳에 목표 수량까지 보충합니다. 사용 가능한 빈 즐겨찾기 칸이 없으면 옮기지 않습니다. 수량 0은 보충 비활성화입니다."
 inventoryslots_rules_exclude_title: 자동 줍기 제외
 inventoryslots_rules_restock_scope: "{key} · 즐겨찾기 스택당 목표 수량 · 0은 보충 안 함"
 inventoryslots_rules_exclude_scope: E로 직접 줍기는 가능합니다

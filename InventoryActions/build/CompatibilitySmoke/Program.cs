@@ -16,8 +16,8 @@ internal static class Program
 
     private static int Main(string[] args)
     {
-        if (args.Length != 3 && (args.Length != 4 || (args[3] != "--button-offsets" && args[3] != "--ui-layout" && args[3] != "--restock-reserve" && args[3] != "--button-modes" && args[3] != "--favorite-fill" && args[3] != "--material-access")))
-            throw new ArgumentException("Usage: <final mod.dll> <original Managed> <BepInEx core> [--ui-layout|--restock-reserve|--button-modes|--favorite-fill|--material-access]");
+        if (args.Length != 3 && (args.Length != 4 || (args[3] != "--button-offsets" && args[3] != "--ui-layout" && args[3] != "--restock-reserve" && args[3] != "--button-modes" && args[3] != "--favorite-fill" && args[3] != "--material-access" && args[3] != "--empty-favorite")))
+            throw new ArgumentException("Usage: <final mod.dll> <original Managed> <BepInEx core> [--ui-layout|--restock-reserve|--button-modes|--favorite-fill|--material-access|--empty-favorite]");
         string[] roots = { Path.GetDirectoryName(Path.GetFullPath(args[0]))!, Path.GetFullPath(args[1]), Path.GetFullPath(args[2]) };
         AppDomain.CurrentDomain.AssemblyResolve += (_, request) =>
         {
@@ -47,6 +47,7 @@ internal static class Program
             Assembly mod = Assembly.LoadFrom(Path.GetFullPath(args[0]));
             plugin = mod.GetType(mod.GetName().Name + "." + mod.GetName().Name + "Plugin", true)!;
             if (args.Length == 4 && args[3] == "--material-access") RunMaterialAccessChecks();
+            else if (args.Length == 4 && args[3] == "--empty-favorite") RunEmptyFavoriteChecks();
             else if (args.Length == 4 && args[3] == "--favorite-fill") RunFavoriteFillChecks();
             else if (args.Length == 4 && args[3] == "--button-modes") RunButtonModeChecks();
             else if (args.Length == 4 && args[3] == "--restock-reserve") RunRestockReserveChecks();
@@ -510,6 +511,42 @@ internal static class Program
         target.m_cheated = true;
         Check("sort consolidates matching markers without losing quantity", (bool)Call("MergeSortableStacks", stacks, inventory)! &&
             target.m_stack == 50 && source.m_stack == 10 && target.m_cheated && source.m_cheated && stacks.Count == 2);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void RunEmptyFavoriteChecks()
+    {
+        // Real ConfigEntry and compiled refresh/F1 helpers, without Unity objects.
+        // Selection/transfer methods reach Unity.Object static initialization and
+        // cannot be exercised in standalone Mono. Validate those in the game.
+        ConfigFile config = new ConfigFile(Path.Combine(Path.GetTempPath(), "Empty-favorite-" + Guid.NewGuid() + ".cfg"), false) { SaveOnConfigSet = false };
+        ConfigEntry<string> limits = config.Bind("test", "targets", "", "");
+        plugin.GetField("_restockTargetStackLimitsConfig", BindingFlags.NonPublic | BindingFlags.Static)!.SetValue(null, limits);
+        void Rules(string value) { limits.Value = value; Call("RefreshRestockTargetStackLimits"); }
+        List<string> Keys() => (List<string>)plugin.GetField("_emptyFavoriteRestockKeys", BindingFlags.NonPublic | BindingFlags.Static)!.GetValue(null)!;
+        Rules("Wood: 30");
+        Check("old rules default empty refill to off", Keys().Count == 0);
+        Rules("Wood: 30 | refill; Stone: 0 | refill");
+        Check("compiled refresh enables only positive opted-in targets", Keys().SequenceEqual(new[] { "wood" }));
+        Rules("Wood: 30 | refill; $item_wood: 10");
+        Check("compiled refresh applies later duplicate opt-out", Keys().Count == 0);
+        Rules("Wood: 30 | refill");
+        Check("live enable updates refill keys", Keys().SequenceEqual(new[] { "wood" }));
+        Rules("");
+        Check("clearing config removes stale refill keys", Keys().Count == 0);
+
+        // F1 uses a separate editor; changing another row must retain this flag.
+        var rows = (System.Collections.IList)Call("ParseRestockTargetLimitEditorRows", "Wood: 30 | refill\nStone: 4")!;
+        object row = rows[0]!;
+        Check("F1 parser separates quantity and empty refill", (string)row.GetType().GetProperty("Amount")!.GetValue(row)! == "30" && (bool)row.GetType().GetProperty("RefillEmpty")!.GetValue(row)!);
+        var editor = (System.Collections.IList)plugin.GetField("RestockTargetLimitEditorRows", BindingFlags.NonPublic | BindingFlags.Static)!.GetValue(null)!;
+        editor.Clear(); foreach (object entry in rows) editor.Add(entry);
+        rows[1]!.GetType().GetProperty("Amount")!.SetValue(rows[1], "8");
+        Check("F1 edit of other row preserves opt-in", (string)Call("SerializeRestockTargetLimitEditorRows")! == "Wood: 30 | refill\nStone: 8");
+        row.GetType().GetProperty("RefillEmpty")!.SetValue(row, false);
+        Check("F1 toggle off preserves quantity", (string)Call("SerializeRestockTargetLimitEditorRows")! == "Wood: 30\nStone: 8");
+        RunRestockReserveChecks();
+        System.Console.WriteLine("NOT RUN: empty-favorite slot selection/moves, Unity UI, Harmony integration, ownership and multiplayer.");
     }
 
     private static ItemDrop.ItemData Item(int stack, bool cheated) => new ItemDrop.ItemData

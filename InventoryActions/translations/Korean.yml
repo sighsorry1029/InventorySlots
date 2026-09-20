@@ -16,8 +16,10 @@ inventoryactions_action_sort: 정렬
 inventoryactions_action_result_format: "{action}: {count}"
 inventoryactions_container_not_ready: 컨테이너를 사용할 수 없습니다.
 inventoryactions_hold_to_restock: 누르고 있으면 보충
-inventoryactions_feature_guide: "<b>InventoryActions 빠른 가이드</b>\n플레이어 인벤토리 칸에서 <color=#FFA94D>[{favoriteKey} + 왼쪽 클릭]</color>: 즐겨찾기 등록/해제\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 즐겨찾기가 아닌 같은 종류의 아이템을 해당 상자와 주변 상자에 보관\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 즐겨찾기 스택을 해당 상자와 주변 상자에서 목표 수량까지 보충\n아이템을 <color=#FFA94D>보충 수량</color> 아이콘에 놓기: 즐겨찾기 스택의 목표 수량 등록\n아이템을 <color=#FFA94D>자동 줍기 제외 / 휴지통</color> 아이콘에 놓기: 자동 줍기 제외 등록 / 확인 후 삭제\n가이드 숨기기: <color=#FFA94D>F1 → InventoryActions → Show Feature Guide → Off</color>"
-inventoryactions_rules_restock_title: 보충 수량
+inventoryactions_feature_guide: "<b>InventoryActions 빠른 가이드</b>\n플레이어 인벤토리 칸에서 <color=#FFA94D>[{favoriteKey} + 왼쪽 클릭]</color>: 즐겨찾기 등록/해제\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 즐겨찾기가 아닌 같은 종류의 아이템을 해당 상자와 주변 상자에 보관\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 즐겨찾기 스택을 해당 상자와 주변 상자에서 목표 수량까지 보충\n아이템을 <color=#FFA94D>보충 대상</color> 아이콘에 놓기: 즐겨찾기 스택의 목표 수량 등록\n아이템을 <color=#FFA94D>자동 줍기 제외 / 휴지통</color> 아이콘에 놓기: 자동 줍기 제외 등록 / 확인 후 삭제\n가이드 숨기기: <color=#FFA94D>F1 → InventoryActions → Show Feature Guide → Off</color>"
+inventoryactions_rules_restock_title: 보충 대상
+inventoryactions_rules_refill_title: 빈 즐겨찾기 칸 보충
+inventoryactions_rules_refill_help: "즐겨찾기 칸에 이 아이템이 없으면 빈 즐겨찾기 칸 한 곳에 목표 수량까지 보충합니다. 사용 가능한 빈 즐겨찾기 칸이 없으면 옮기지 않습니다. 수량 0은 보충 비활성화입니다."
 inventoryactions_rules_exclude_title: 자동 줍기 제외
 inventoryactions_rules_restock_scope: "{key} · 즐겨찾기 스택당 목표 수량 · 0은 보충 안 함"
 inventoryactions_rules_exclude_scope: E로 직접 줍기는 가능합니다

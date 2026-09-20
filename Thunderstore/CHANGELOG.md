@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.5
+
+- Added a per-item Refill empty checkbox to Restock targets, unchecked by default. When enabled, Alt+E can refill one eligible empty favorite slot up to the target quantity after that item's favorite stack has been completely consumed. Existing favorite stacks keep their positions and prevent additional stacks from being created.
+- Condensed Restock targets into single-line rows with a checkbox immediately left of the quantity field. Checkbox hover explanations are separate from item-name tooltips, long names use ellipsis, and changes save immediately. The F1 rule editor also supports the option.
+- Saved the option with each client-side target rule, for example `Wood: 30 | refill`. A quantity of 0 still disables restocking. Current maximum-stack limits, item compatibility, eligible-slot restrictions, chest access/ownership checks, and Restock Leave One Item continue to apply.
+
 ## 1.5.4
 
 - Updated the inventory stack-placement Harmony target for Valheim 1.0.15, which restored the three-argument `Inventory.FindFreeStackItem` signature. This prevents InventorySlots from aborting during startup with an undefined target-method error.

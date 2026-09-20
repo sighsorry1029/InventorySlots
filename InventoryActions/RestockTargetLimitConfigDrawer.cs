@@ -28,8 +28,10 @@ public sealed partial class InventoryActionsPlugin
             GUILayout.BeginHorizontal();
             GUILayout.Label("Item", GUILayout.Width(44f));
             string item = GUILayout.TextField(row.Item, GUILayout.MinWidth(130f));
-            GUILayout.Label("Max", GUILayout.Width(28f));
+            GUILayout.Label("Target", GUILayout.Width(44f));
             string amount = FilterUnsignedIntText(GUILayout.TextField(row.Amount, GUILayout.Width(58f)));
+            bool refillEmpty = GUILayout.Toggle(row.RefillEmpty,
+                new GUIContent("Refill empty", "Restock into one empty favorite slot when this item has no favorite stack. 0 disables restock."));
             bool remove = GUILayout.Button("-", GUILayout.Width(24f));
             GUILayout.EndHorizontal();
 
@@ -41,10 +43,11 @@ public sealed partial class InventoryActionsPlugin
             }
 
             if (!string.Equals(item, row.Item, StringComparison.Ordinal) ||
-                !string.Equals(amount, row.Amount, StringComparison.Ordinal))
+                !string.Equals(amount, row.Amount, StringComparison.Ordinal) || refillEmpty != row.RefillEmpty)
             {
                 row.Item = item;
                 row.Amount = amount;
+                row.RefillEmpty = refillEmpty;
                 UpdateRestockTargetStackLimitsConfigEntry(entry);
             }
         }
@@ -56,7 +59,7 @@ public sealed partial class InventoryActionsPlugin
             UpdateRestockTargetStackLimitsConfigEntry(entry);
         }
 
-        GUILayout.Label("Add restock limit");
+        GUILayout.Label("Add restock target");
         GUILayout.EndHorizontal();
         GUILayout.EndVertical();
     }
@@ -79,9 +82,10 @@ public sealed partial class InventoryActionsPlugin
                 continue;
             }
 
+            RestockTargetLimitCore.SplitRuleValue(trimmed.Substring(separator + 1), out string amount, out bool refillEmpty);
             rows.Add(new RestockTargetLimitEditorRow(
                 trimmed.Substring(0, separator).Trim(),
-                RestockTargetLimitCore.NormalizeAmountForEditor(trimmed.Substring(separator + 1))));
+                RestockTargetLimitCore.NormalizeAmountForEditor(amount), refillEmpty));
         }
 
         return rows;
@@ -110,18 +114,20 @@ public sealed partial class InventoryActionsPlugin
             "\n",
             RestockTargetLimitEditorRows
                 .Where(row => !string.IsNullOrWhiteSpace(row.Item) || !string.IsNullOrWhiteSpace(row.Amount))
-                .Select(row => $"{row.Item.Trim()}: {row.Amount.Trim()}"));
+                .Select(row => $"{row.Item.Trim()}: {row.Amount.Trim()}" + (row.RefillEmpty ? " | refill" : "")));
     }
 
     private sealed class RestockTargetLimitEditorRow
     {
-        public RestockTargetLimitEditorRow(string item, string amount)
+        public RestockTargetLimitEditorRow(string item, string amount, bool refillEmpty = false)
         {
             Item = item;
             Amount = amount;
+            RefillEmpty = refillEmpty;
         }
 
         public string Item { get; set; }
         public string Amount { get; set; }
+        public bool RefillEmpty { get; set; }
     }
 }

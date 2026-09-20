@@ -358,3 +358,83 @@ dotnet build InventoryActions/build/CompatibilitySmoke/CompatibilitySmoke.csproj
   'C:/Program Files (x86)/Steam/steamapps/common/Valheim/BepInEx/core' --button-modes
 # Check $LASTEXITCODE as well as the PASS summary.
 ```
+
+## Empty favorite restock — 2026-09-20
+
+Both mods now offer a per-item **Refill empty** checkbox in the Restock targets
+panel and F1 rule editor. Unchecked by default. Panel rows use one line:
+item icon/name, checkbox, quantity, delete. The checkbox retains its hover
+explanation; item-name and checkbox tooltips use separate sibling hit areas.
+The existing client setting stores the
+quantity and flag together, e.g. `Wood: 30 | refill`; `Wood: 30` stays Off and
+`Wood: 0 | refill` remembers On but disables all restocking. No new server
+setting, character/item metadata, slot binding, RPC or consumption patch exists.
+
+`Shared/ItemRules/EmptyFavoriteRestock.cs` runs only in the existing area-restock
+executor after chest access/ownership and inventory-refresh checks. Existing
+favorite stacks are filled first. An opted-in item missing from all eligible
+favorite cells may seed one eligible empty favorite cell, scanning rows then
+columns. Full stacks and incompatible variants of the same internal item name
+still suppress seeding. Ordinary empty cells, locked/special/reserved cells
+outside each mod's favorite-restock policy and incompatible quick slots are not
+destinations. Rules are considered in config order within each chest; unavailable
+items do not reserve cells ahead of later chests.
+
+Native positional movement clones the actual source. The source must pass the
+existing stackability and metadata checks; non-stackable items remain excluded.
+The same target/max-stack cap, leave-one calculation and actual moved-quantity
+accounting apply. Other compatible source stacks can finish the new target through
+the ordinary restock routine. The opened-container Take stacks button, Sort and
+automatic material consumption keep their previous behavior.
+
+Verification:
+
+- Both final Debug/deploy builds passed with zero warnings/errors. InventorySlots'
+  first attempt failed in ILRepack's native PDB writer; the normal retry succeeded
+  without changing build settings. Deployed Steam DLL hashes matched both outputs.
+- Existing InventorySlots suite: 171 checks passed; the test project retains two
+  nullable warnings in unchanged `StuWardCompat.cs`.
+- Source-linked rule tests: 64 checks for each mod, including default Off, zero,
+  duplicate/alias precedence, max-stack clamping, toggle/quantity persistence and
+  live text-span rebasing.
+- Compiled `CompatibilitySmoke --empty-favorite`: 28 assertions completed for each
+  mod against original game assemblies (config refresh/F1 serialization and the
+  existing leave-one helper). InventoryActions passed under desktop CLR with exit
+  0. InventorySlots required Mono and still faulted during process shutdown after
+  all assertions; this is not a clean end-to-end harness pass.
+- A broader selection/movement harness attempt could not enter Unity-dependent
+  code because `UnityEngine.Object` needs native initialization. It is not counted
+  as passed, and the retained harness explicitly reports this scope as NOT RUN.
+- Original client 1.0.15 static contract checks: InventorySlots 1028 references,
+  135 Harmony targets, 42 reflected contracts; InventoryActions 564 references,
+  29 Harmony targets. Zero failures. Existing dynamic/manual-review entries remain.
+
+No actual game/UI/multiplayer run was performed. In-game checks remain for empty
+favorite restoration after consumption, partial supply across multiple chests,
+repeated Alt+E, existing full/incompatible favorites, no eligible vacancy,
+locked/quick/third-party reserved cells, leave-one behavior, live/reloaded rules,
+and non-owner multiplayer transfers. The implementation verification above did
+not include a version bump, Release package or push.
+
+### Authorized release — InventorySlots 1.5.5 / InventoryActions 1.0.19
+
+- Bumped both plugin/assembly and manifest versions; added matching changelog
+  entries for optional empty-favorite refilling and the single-line checkbox UI.
+- Both final Debug/deploy and ordinary Release/package builds completed with zero
+  warnings/errors. Steam plugin copies matched the final Debug DLL hashes.
+- The 171-check suite and both 64-check rule suites passed. Final Release static
+  contract scans against original Valheim 1.0.15 client assemblies reported zero
+  failures with the same reference/target counts listed above. The InventoryActions
+  Release DLL passed all 28 `--empty-favorite` isolated checks under desktop CLR.
+- Verified both Thunderstore ZIPs' six entries against their source DLL, README,
+  changelog, manifest, icon and English translation. Assembly and manifest versions
+  match, and BepInEx dependency remains 5.4.2350. The InventorySlots Nexus ZIP's
+  sole DLL matches the Release output. ZIPs are ignored build outputs.
+- Actual game/UI/multiplayer execution and site publication were not verified.
+
+Final Release DLL SHA-256:
+
+| Mod | SHA-256 |
+| --- | --- |
+| InventorySlots 1.5.5 | `95308D234AE56DE23CB659C3378D29339AB82E746819F143562A6FD901E1EA75` |
+| InventoryActions 1.0.19 | `0F6185C173F98FF7CB20022ED1BEE64C15163C52BD272BE065003E7E51178EE2` |

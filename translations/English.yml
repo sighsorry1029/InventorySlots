@@ -55,7 +55,9 @@ inventoryslots_clear_favorites_hint_format: "{key}: clear favorites"
 inventoryslots_inventory_limit_reached: "{item}: you can carry at most {max}."
 inventoryslots_upgrade_safety_canceled: Upgrade canceled because the equipped item could not be returned to its slot safely.
 
-inventoryslots_rules_restock_title: Restock limits
+inventoryslots_rules_restock_title: Restock targets
+inventoryslots_rules_refill_title: Refill empty favorite slots
+inventoryslots_rules_refill_help: "If this item is absent from your favorite slots, restock it into one empty favorite slot up to the target quantity. No empty favorite slot means no transfer. 0 still disables restock."
 inventoryslots_rules_exclude_title: Auto pickup exclusions
 inventoryslots_rules_restock_scope: "{key} · target per favorite stack; 0 disables restock"
 inventoryslots_rules_exclude_scope: Manual E pickup is still available
