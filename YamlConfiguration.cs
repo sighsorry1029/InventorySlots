@@ -694,6 +694,11 @@ public sealed partial class InventorySlotsPlugin
             SlotDefinitions.Add(new SlotDefinition($"quick{displayIndex}", name, SlotKind.Quick, QuickSlotAcceptsItem, quickSlotIndex));
         }
 
+        foreach (SlotDefinition slot in SlotDefinitions)
+        {
+            slot.ApplyArmor = GetYamlSlot(slot.Id)?.ApplyArmor ?? false;
+        }
+
         InvalidateSlotDefinitionCaches();
         Log.LogInfo($"InventorySlots slot definitions rebuilt: {SlotDefinitions.Count} special slots, {PredefinedGroupDefinitions.Count} YAML custom groups.");
     }

@@ -786,6 +786,7 @@ public sealed partial class InventorySlotsPlugin
         InventoryDefinitions.QuickPanelSlotCache.Clear();
         InventoryDefinitions.QuickSlotDefinitionCache.Clear();
         InvalidateVisibleCustomPanelSlots();
+        InvalidateCustomEquipmentProjectionCache();
     }
 
     private static void InvalidateVisibleCustomPanelSlots()

@@ -65,7 +65,7 @@ internal static class PlayerGetBodyArmorInventorySlotsPatch
     {
         if (__instance == Player.m_localPlayer)
         {
-            __result += InventorySlotsPlugin.GetCustomEquipmentArmor(__instance);
+            __result += InventorySlotsPlugin.GetProjectedEquipmentArmor(__instance);
         }
     }
 }

@@ -110,9 +110,10 @@ public sealed partial class InventorySlotsPlugin
 
             _customEquipmentCacheWeight += item.m_shared.m_weight;
             _customEquipmentCacheEitrRegen += item.m_shared.m_eitrRegenModifier;
-            if (item.m_shared.m_armor > 0f)
+            SlotDefinition? slot = GetSlotFromItemMarker(item);
+            if (slot?.Kind == SlotKind.CustomEquipment)
             {
-                _customEquipmentCacheArmor += item.GetArmor();
+                _customEquipmentCacheArmor += GetSlotItemArmor(item, slot);
             }
 
             string setName = item.m_shared.m_setName;

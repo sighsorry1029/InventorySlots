@@ -161,17 +161,29 @@ Built-in equipment slots:
 - `utility`
 - `trinket`
 
-Custom equipment slots can be added with YAML. Each custom slot has a stable `id`, a display `name`, and an optional `items` list.
+Custom equipment slots can be added with YAML. Each custom slot has a stable `id`, a display `name`, an optional `items` list, and an optional `applyArmor` boolean.
+
+`applyArmor` controls the armor InventorySlots adds for custom equipment slots and the built-in `utility` and `trinket` slots. Omitted or `false` means no additional armor; `true` includes the equipped item's positive armor value and its quality bonuses. The meaning of an omitted value is the same for every slot. Native armor from the built-in helmet, chest, legs, and cape slots remains unchanged and is never counted a second time. Equipped effects, resistances, set bonuses, and other equipment modifiers are unaffected. Armor added independently by another mod is outside this setting's scope.
+
+New default YAML explicitly enables `applyArmor` for Circlet and disables it for the other accessory/custom slots, including Wishbone and Demister. Existing YAML is preserved: add `applyArmor: true` to any custom slot whose previous armor contribution you want to retain, including an existing Circlet entry. YAML reloads and server-synced changes update armor without requiring the item to be re-equipped.
 
 ```yaml
 Slots:
   - id: wishbone
     name: Wishbone
+    applyArmor: false
     items:
       - Wishbone
 
+  - id: circlet
+    name: Circlet
+    applyArmor: true
+    items:
+      - HelmetDverger
+
   - id: pickaxe
     name: Pickaxe
+    applyArmor: false
     items:
       - pickaxe
       - custom_pickaxes
@@ -415,8 +427,10 @@ Slots:
     name: Cape
   - id: utility
     name: Utility
+    applyArmor: false
   - id: trinket
     name: Trinket
+    applyArmor: false
 
 Groups:
   Melee:

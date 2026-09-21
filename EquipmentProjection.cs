@@ -121,11 +121,6 @@ public sealed partial class InventorySlotsPlugin
         return player == null ? 0f : GetCachedCustomEquipmentEitrRegen(player);
     }
 
-    internal static float GetCustomEquipmentArmor(Player player)
-    {
-        return player == null ? 0f : GetCachedCustomEquipmentArmor(player);
-    }
-
     internal static void ApplyCustomEquipmentDamageModifiers(Player player, ref HitData.DamageModifiers modifiers)
     {
         if (player == null)

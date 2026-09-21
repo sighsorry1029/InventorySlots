@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.9
+
+- Added per-slot `applyArmor` in `InventorySlots/InventorySlots.yml` for custom equipment slots and the built-in Utility and Trinket slots. Omitted or `false` disables InventorySlots' additional armor contribution; `true` includes the equipped item's positive armor value and quality bonuses.
+- Prevented hidden default armor on items such as Wishbone and Demister from contributing unless explicitly enabled. New default YAML enables `applyArmor` only for Circlet and explicitly disables it for the other accessory/custom slots.
+- **Configuration change:** existing YAML is preserved, and omitted `applyArmor` now means `false` for every slot. Add `applyArmor: true` to existing custom slots whose previous armor contribution you want to retain, including Circlet.
+- Armor settings update after YAML reload or server synchronization without re-equipping. Native helmet, chest, legs, and cape armor, along with other equipped effects, remains unchanged. Armor independently added by another mod is outside this setting's scope.
+
 ## 1.5.8
 
 - Allowed client-only installation when joining vanilla servers, using local settings. If the server installs InventorySlots, all connecting clients must still use the same version and receive its synced settings.

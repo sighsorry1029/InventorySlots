@@ -43,6 +43,7 @@ internal sealed class SlotDefinition
     public string Name { get; }
     public SlotKind Kind { get; }
     public int QuickSlotIndex { get; }
+    public bool ApplyArmor { get; set; }
 
     public bool Accepts(ItemData? item) => _accepts(item);
 }

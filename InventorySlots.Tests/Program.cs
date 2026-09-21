@@ -7,6 +7,8 @@ TestRunner.Run(
     ("Container preview follows GUI lifecycle and cached hover state", Tests.ContainerPreviewFollowsGuiLifecycleAndCachedHoverState),
     ("Occupied locked rows remain visible without opening equipment storage", Tests.OccupiedLockedRowsRemainVisible),
     ("Default YAML parses with expected sections", Tests.DefaultYamlParsesWithExpectedSections),
+    ("Slot armor opt-in defaults false for every YAML slot identity", Tests.SlotArmorOptInDefaultsFalse),
+    ("Default YAML explicitly opts in circlet armor only", Tests.DefaultYamlHasExplicitAccessoryArmorPolicy),
     ("Malformed YAML is rejected", Tests.MalformedYamlIsRejected),
     ("Null YAML slot entry is rejected", Tests.NullYamlSlotEntryIsRejected),
     ("Unknown YAML property is rejected", Tests.UnknownYamlPropertyIsRejected),
@@ -285,6 +287,44 @@ internal static class Tests
         Assert.Equal(1, root.InventoryLimits["FishingRod"]);
         Assert.Equal(3, root.InventoryLimits["tankards"]);
         Assert.Equal(3, root.InventoryLimits["FLG_TamingOrb"]);
+    }
+
+    public static void SlotArmorOptInDefaultsFalse()
+    {
+        foreach (string id in new[] { "utility", "trinket", "circlet", "wishbone", "demister", "jewelcrafting.ring", "smoothbrainbackpacks.backpack", "arbitrary.custom" })
+        {
+            YamlRoot omitted = InventorySlotsConfigCore.ParseYaml($"Slots:\n  - id: {id}\n    name: Example\n");
+            Assert.False(omitted.Slots[0].ApplyArmor, $"omitted applyArmor must be false for {id}");
+            YamlRoot enabled = InventorySlotsConfigCore.ParseYaml($"Slots:\n  - id: {id}\n    applyArmor: true\n");
+            Assert.True(enabled.Slots[0].ApplyArmor, $"explicit true must be accepted for {id}");
+            YamlRoot disabled = InventorySlotsConfigCore.ParseYaml($"Slots:\n  - id: {id}\n    applyArmor: false\n");
+            Assert.False(disabled.Slots[0].ApplyArmor, $"explicit false must be accepted for {id}");
+        }
+
+        Assert.False(InventorySlotsConfigCore.TryParseYaml("Slots:\n  - id: custom\n    applyArmor: invalid\n", out _, out _),
+            "invalid armor policy should fail YAML parsing rather than silently grant armor");
+    }
+
+    public static void DefaultYamlHasExplicitAccessoryArmorPolicy()
+    {
+        YamlRoot root = InventorySlotsConfigCore.ParseYaml(InventorySlotsPlugin.DefaultYaml);
+        var document = new YamlDotNet.RepresentationModel.YamlStream();
+        using var reader = new StringReader(InventorySlotsPlugin.DefaultYaml);
+        document.Load(reader);
+        var mapping = (YamlDotNet.RepresentationModel.YamlMappingNode)document.Documents[0].RootNode;
+        var entries = (YamlDotNet.RepresentationModel.YamlSequenceNode)mapping.Children[new YamlDotNet.RepresentationModel.YamlScalarNode("Slots")];
+        foreach (YamlSlot slot in root.Slots)
+        {
+            if (slot.Id is "helmet" or "chest" or "legs" or "cape")
+                continue;
+            Assert.Equal(slot.Id == "circlet", slot.ApplyArmor, $"default armor policy for {slot.Id}");
+            var entry = entries.Children.Cast<YamlDotNet.RepresentationModel.YamlMappingNode>()
+                .Single(candidate => candidate.Children[new YamlDotNet.RepresentationModel.YamlScalarNode("id")].ToString() == slot.Id);
+            Assert.True(entry.Children.ContainsKey(new YamlDotNet.RepresentationModel.YamlScalarNode("applyArmor")),
+                $"generated {slot.Id} should explicitly document its armor policy");
+        }
+
+        Assert.Contains(root.Slots.Where(slot => slot.ApplyArmor).Select(slot => slot.Id), "circlet");
     }
 
     public static void MalformedYamlIsRejected()
