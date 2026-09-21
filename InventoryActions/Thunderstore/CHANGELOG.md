@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.2
+
+- Allowed client-only installation when joining vanilla servers, using local settings. If the server installs InventoryActions, all connecting clients must still use the same version and receive its synced settings.
+- Added vanilla chest ownership requests for area quick stack and favorite restock on unmodded servers. Transfers run one chest at a time, preserve favorites and restock rules, skip occupied or inaccessible chests, and guard against stale replies and duplicate actions. Container action effects remain local on vanilla servers.
+- Added checkboxes to Auto pickup exclusions: uncheck to allow pickup while keeping the entry, or remove it to delete the rule. Changes save immediately; duplicate prefab entries are handled together, and controller A toggles the selected checkbox.
+- Added the client-only Show Rule Tooltips setting under 3 - Inventory Buttons, enabled by default. It controls help in both rule panels and the F1 restock editor without hiding item information or Configuration Manager setting descriptions.
+
 ## 1.1.1
 
 - Added configurable controller inventory actions: hold the right-stick click by default, then press A to toggle the selected player slot's favorite protection, X to sort the focused inventory, Y to open Restock targets, or B to open Auto Pickup Exclude. Opening a rules panel with a picked-up player item registers that item.

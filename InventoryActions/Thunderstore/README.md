@@ -2,6 +2,12 @@
 
 Standalone inventory actions split from InventorySlots mod: hold containers to quick stack/restock, favorite slots, sort inventories/containers, set restock limits, and trash selected items.
 
+## Multiplayer installation
+
+You can install InventoryActions only on your client and join a vanilla server. Other players do not need the mod in that setup. Your local settings apply, and holding Use to quick stack or the restock shortcut still works through the game's normal chest access and ownership requests. Occupied or inaccessible chests are skipped, and container action effects are local.
+
+If the server installs InventoryActions, every connecting client must install the same version. Server-synced settings then follow the server as before. InventorySlots is a separate alternative; do not install both mods together.
+
 ![](https://i.ibb.co/b5qGKm8k/Inventory-Button.gif) <br>
 Three inventory buttons: Restock targets, Auto Pickup Exclude, and Trash
 
@@ -24,7 +30,7 @@ Client restock targets set a quantity and mode per prefab, such as `Stone: 10 | 
 Two item-rule icons sit below the player inventory, to the left of the trash button:
 
 - **Restock targets:** drop an item from your inventory on the icon to register it and enter its target quantity. Valid quantities save immediately. The item stays in your inventory. Targets apply to Alt+E favorite-stack restock, not the opened-container Take stacks button. Quantities range from 1 to the item's maximum stack; Off disables restocking while preserving the quantity.
-- **Auto pickup exclusions:** dropping an inventory item immediately registers its prefab and opens the list. Repeating it shows the existing entry. Excluded types stay on the ground when you walk near them; manual E pickup still works. This does not delete items or change quick stack/restock.
+- **Auto pickup exclusions:** dropping an inventory item immediately registers its prefab and opens the list. Each entry has a checkbox: checked excludes automatic pickup; unchecked allows pickup while keeping the entry. Changes save immediately. Excluded types stay on the ground when you walk near them; manual E pickup still works. Removing an entry deletes it from the list. This does not delete items or change quick stack/restock.
 - Hover an icon for a list preview, or click to pin it. The wooden dropdown opens below that icon and shows up to six rows, with scrolling when space is limited. At the screen edge the panel is kept on-screen so its controls remain reachable. Valid quantities and removals save immediately. Incomplete or invalid input restores the last saved quantity when editing ends.
 
 The restock parcel/return-arrow and excluded-pickup icons use the trash button's native background, muted gray color and golden highlight when holding an inventory item that can be registered. They remain clickable with empty hands. Popup actions use the Craft button style, while quantity fields use the inventory grid's dark translucent slot style.
@@ -38,6 +44,8 @@ Equipment and Quick Slots 3.x is optional. InventoryActions uses its public visi
 AzuExtendedPlayerInventory 2.4.14 is optional. InventoryActions uses AzuEPI's public slot-index API so automatic sorting, quick stack, restock, favorites, and trash stay above its equipment, quick, and custom-slot rows. Bottom buttons follow AzuEPI's live separate-panel setting: they use the regular inventory bottom with a separate equipment panel and the full grid bottom when slots are inline. Explicit item moves and AzuEPI's own favorite data remain under AzuEPI's rules.
 
 Both lists use client config under `3 - Inventory Buttons`: `Restock Target Stack Limits` and `Auto Pickup Excluded Items`. They are not server-synced and apply to all characters using that config. In-game/Configuration Manager changes apply immediately; editing the cfg on disk requires a config reload or game restart. Rules do not add item metadata. Unresolved mod items remain in the list. Removing a restock entry can reveal a remaining internal/localized-name rule; it does not necessarily restore the default maximum.
+
+In `Auto Pickup Excluded Items`, `Wood` or `Wood | On` enables exclusion, while `Wood | Off` keeps the item listed with exclusion disabled. `3 - Inventory Buttons / Show Rule Tooltips` defaults to **On** and controls hover help in both rule panels and the F1 restock-entry controls. Changing it applies immediately without changing saved rules. Item information tooltips and Configuration Manager setting descriptions remain available.
 
 Each restock item has a compact mode button to the left of its quantity. Clicking cycles **Off** (dash), **Existing** (circular arrows), and **IncludeEmpty** (the same arrows with a box in the center); hovering explains the current mode. New entries default to Existing. Existing tops up only favorite stacks that still contain the item. IncludeEmpty also lets Alt+E restore that item to its remembered empty favorite slots. For example, `Wood: 30 | IncludeEmpty` restores up to 30 wood in each remembered wood slot after consumption. The target applies per slot and remains capped at the current max stack. Occupied slots are never replaced. The mode saves immediately with the quantity and is also editable in F1.
 
@@ -75,13 +83,13 @@ Controller support is client-side. With `Enable Controller Hotkeys` enabled, hol
 
 While looking at a chest with the inventory closed, hold `Favorite Restock Modifier` (`JoyAltKeys`, the game's alternate-action modifier, by default) together with Use (`JoyUse`) to restock favorites from that chest and nearby eligible chests. Holding Use alone keeps the existing quick-stack action. Favorite restock applies target quantities, per-item modes, remembered empty slots and the leave-one-item setting. The open-container **Take stacks** button still fills matching non-favorite stacks; it is a separate action.
 
-In a restock/exclusion editor, release the modifier: D-pad up/down selects an entry, left/right changes its restock quantity, A cycles its restock mode, X removes it and B closes the editor. Changes save immediately. These controller commands work without hovering the inventory buttons; their visibility settings remain independent of saved rules. The quick guide and chest hints show current bindings when controller input is active. Keyboard and mouse controls remain available.
+In a restock/exclusion editor, release the modifier: D-pad up/down selects an entry, left/right changes its restock quantity, A cycles its restock mode or toggles its pickup-exclusion checkbox, X removes it and B closes the editor. Changes save immediately. These controller commands work without hovering the inventory buttons; their visibility settings remain independent of saved rules. The quick guide and chest hints show current bindings when controller input is active. Keyboard and mouse controls remain available.
 
 The two modifier settings can be changed client-side or set to Off independently. The inventory action modifier reserves its button while the inventory is open; choose a binding that does not conflict with another mod's inventory controls. These commands are unavailable during other input dialogs, and sorting/favoriting do not act on a picked-up item.
 
 ## Multiplayer
 
-Install the same InventoryActions version on the dedicated server and every client. Area quick stack/restock processes eligible closed containers one at a time; when another peer owns a container, that owner validates access, range, and idle state before handing ownership to the requesting player.
+Server installation is optional. On a vanilla server, area quick stack/restock uses the game's normal chest access and ownership requests. If the server installs InventoryActions, all clients must install the same version, server settings are synchronized, and eligible closed containers use the mod's validated ownership requests. Both paths process chests one at a time and skip occupied or inaccessible targets.
 
 When MultiUserChest is detected, area quick stack/restock is disabled because MultiUserChest does not expose enough state to prove that a locally owned container has no secondary user or pending item request. With MultiUserChest 0.6.1 or newer, InventoryActions also leaves non-owner Take All to MultiUserChest.
 

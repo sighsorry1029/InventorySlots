@@ -49,6 +49,7 @@ public sealed partial class InventoryActionsPlugin
         public List<Container> Targets = null!;
         public int NextTargetIndex;
         public Container? PendingTarget;
+        public bool PendingNative;
         public AreaOwnershipRequestIdentity PendingIdentity;
         public long PendingGrantToken;
         public AreaOwnershipHandoffDecision PendingDecision;
@@ -69,6 +70,7 @@ public sealed partial class InventoryActionsPlugin
         AreaContainerActionKind action)
     {
         if (_areaContainerTransfer != null ||
+            (UsesVanillaContainerProtocol && !NativeContainerHandoff.CanBegin) ||
             AreaOwnershipHandoff.Phase != AreaOwnershipHandoffPhase.Idle ||
             player == null ||
             playerInventory == null ||
@@ -142,6 +144,36 @@ public sealed partial class InventoryActionsPlugin
         }
 
         Container? target = session.PendingTarget;
+        if (session.PendingNative)
+        {
+            NativeContainerHandoffResult result = target != null
+                ? NativeContainerHandoff.Poll(target)
+                : NativeContainerHandoffResult.Failed;
+            if (result == NativeContainerHandoffResult.Pending) return;
+            if (result == NativeContainerHandoffResult.Granted && target != null)
+            {
+                session.PendingTarget = null;
+                session.PendingNative = false;
+                session.NextTargetIndex++;
+                int moved = 0;
+                try
+                {
+                    if (CanUseAreaContainerNow(session.Player, target, session.Anchor, session.Action,
+                            requireDirectOwner: true, allowOpenQuickStackAnchor: session.AllowOpenQuickStackAnchor) &&
+                        HasLoadedCurrentContainerRevision(target))
+                        moved = ExecuteAreaContainerTransfer(session, target);
+                }
+                catch (Exception exception)
+                {
+                    Log.LogWarning($"Native area container transfer failed safely: {exception.Message}");
+                    FlushAreaTransferInventoriesAfterFailure(session, target);
+                }
+                RecordAreaContainerTransfer(session, target, moved);
+            }
+            else FinishPendingAreaContainerWithoutMutation(session);
+            ContinueAreaContainerTransfer();
+            return;
+        }
         if (target == null || AreaOwnershipHandoff.Phase == AreaOwnershipHandoffPhase.Idle)
         {
             if (target != null)
@@ -226,6 +258,11 @@ public sealed partial class InventoryActionsPlugin
                session.NextTargetIndex < session.Targets.Count)
         {
             Container target = session.Targets[session.NextTargetIndex];
+            if (NativeContainerHandoff.IsRequestBlocked(target))
+            {
+                session.NextTargetIndex++;
+                continue;
+            }
             if (session.AllowOpenQuickStackAnchor && target == session.Anchor)
             {
                 // Container.StackAll is invoked from InventoryGui.UpdateContainer while
@@ -270,8 +307,10 @@ public sealed partial class InventoryActionsPlugin
                 int moved = 0;
                 try
                 {
-                    target.CheckForChanges();
-                    if (CanUseAreaContainerNow(
+                    bool refreshed = true;
+                    if (UsesVanillaContainerProtocol) refreshed = NativeContainerHandoff.RefreshInventory(target);
+                    else target.CheckForChanges();
+                    if (refreshed && CanUseAreaContainerNow(
                             session.Player,
                             target,
                             session.Anchor,
@@ -330,6 +369,14 @@ public sealed partial class InventoryActionsPlugin
         if (zdo == null || zdo.GetOwner() == 0L)
         {
             return false;
+        }
+
+        if (UsesVanillaContainerProtocol)
+        {
+            if (!NativeContainerHandoff.TryBegin(target, session.Player)) return false;
+            session.PendingTarget = target;
+            session.PendingNative = true;
+            return true;
         }
 
         int requestId = GetNextAreaOwnershipRequestId();
@@ -567,6 +614,8 @@ public sealed partial class InventoryActionsPlugin
     private static void FinishPendingAreaContainerWithoutMutation(
         AreaContainerTransferSession session)
     {
+        if (session.PendingNative) NativeContainerHandoff.Cancel(session.PendingTarget);
+        session.PendingNative = false;
         Container? target = session.PendingTarget;
         AreaOwnershipRequestIdentity identity = session.PendingIdentity;
         long grantToken = session.PendingGrantToken;
@@ -591,6 +640,7 @@ public sealed partial class InventoryActionsPlugin
     {
         AreaContainerTransferSession? session = _areaContainerTransfer;
         Container? target = session?.PendingTarget;
+        if (session?.PendingNative == true) NativeContainerHandoff.Cancel(target);
         AreaOwnershipRequestIdentity identity = session?.PendingIdentity ?? default;
         long grantToken = session?.PendingGrantToken ?? 0L;
         Inventory? changedInventory = session?.PlayerInventoryChanged == true
@@ -601,6 +651,7 @@ public sealed partial class InventoryActionsPlugin
         AreaOwnershipHandoff.Cancel();
         if (session != null)
         {
+            session.PendingNative = false;
             session.PendingTarget = null;
             session.PendingIdentity = default;
             session.PendingGrantToken = 0L;
@@ -913,9 +964,9 @@ public sealed partial class InventoryActionsPlugin
         }
 
         float range = GetAreaContainerRange(identity.Action);
-        if (range <= 0f ||
+        if (container != anchor && (range <= 0f ||
             (container.transform.position - anchor.transform.position).sqrMagnitude >
-            range * range)
+            range * range))
         {
             return AreaOwnershipFailure.OutOfRange;
         }
@@ -1046,9 +1097,9 @@ public sealed partial class InventoryActionsPlugin
         }
 
         float range = GetAreaContainerRange(action);
-        if (range <= 0f ||
+        if (container != anchor && (range <= 0f ||
             (container.transform.position - anchor.transform.position).sqrMagnitude >
-            range * range)
+            range * range))
         {
             return false;
         }

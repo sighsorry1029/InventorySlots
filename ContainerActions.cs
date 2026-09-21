@@ -439,7 +439,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         ZNetView? nview = container.m_nview;
-        if (nview == null ||
+        if (UsesVanillaContainerProtocol || nview == null ||
             IsUnityNull(nview) ||
             !nview.IsValid() ||
             ZRoutedRpc.instance == null)

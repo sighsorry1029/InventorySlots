@@ -26,6 +26,11 @@ inventoryactions_rules_mode_existing_help: "Only top up this item's existing fav
 inventoryactions_rules_mode_includeempty_help: "Also restore remembered empty favorite slots. If no slot is remembered and no favorite stack remains, use one unassigned empty favorite slot. Occupied slots are never replaced."
 inventoryactions_rules_mode_cycle: "Click to change: Off → Existing → Include empty."
 inventoryactions_rules_exclude_title: Auto pickup exclusions
+inventoryactions_rules_exclusion_on: "Automatic pickup: Excluded"
+inventoryactions_rules_exclusion_off: "Automatic pickup: Allowed"
+inventoryactions_rules_exclusion_help: "Checked: exclude this item from automatic pickup. Unchecked: allow pickup while keeping this entry. Manual pickup remains available."
+inventoryactions_rules_remove_help: "Remove this entry from the list."
+inventoryactions_rules_pad_exclude: "Up/Down: item · {mode}: toggle\n{remove}: remove · {close}: close"
 inventoryactions_rules_restock_scope: "{key} · mode and target per favorite stack"
 inventoryactions_rules_exclude_scope: Manual E pickup is still available
 inventoryactions_rules_quantity: Target quantity

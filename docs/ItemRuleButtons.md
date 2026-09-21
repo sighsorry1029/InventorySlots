@@ -626,3 +626,66 @@ maximum-stack default when an old numeric/zero/refill rule is ignored.
 | --- | --- |
 | InventorySlots 1.5.6 | `261ADA8965906643CC4A3F2CD59D1467866E02D2026BC1AE1DEE1D85CFAE7D5E` |
 | InventoryActions 1.1.0 | `3936AF80DEFDBC74196DB8697959162911CBB0C3C08EA36EBABEE14DB2FEF65D` |
+
+## Exclusion checkboxes and rule hover help
+
+Both mods retain registered pickup rules when their checkbox is unchecked.
+Checked means automatic pickup is excluded; unchecked means pickup is allowed.
+The state saves immediately. Manual pickup remains available, and the remove
+button deletes the entry instead of merely disabling it. Config entries accept
+`Wood` or `Wood | On` for enabled exclusion and `Wood | Off` for a retained,
+disabled entry. Controller A toggles the selected exclusion checkbox.
+
+The client-only `3 - Inventory Buttons / Show Rule Tooltips` setting defaults to
+On. It controls hover help within both rule panels and F1 restock-entry controls,
+and updates an open panel immediately. Item information tooltips and the
+Configuration Manager's setting descriptions remain available. Disabling help
+does not change saved rules. The new checkbox, remove-button help and exclusion
+controller hints have English and Korean text.
+
+Duplicate prefab entries written by hand are displayed as one exclusion row.
+Its checkmark reflects the effective pickup rule; toggling or removing it updates
+all matching entries together. A failed save restores each entry's prior state.
+Re-registering a disabled item enables its exclusion again. Item names stay fully
+readable when unchecked; only their icons are dimmed.
+
+Validation: both final Debug/deploy builds passed with zero warnings/errors and
+matching installed DLL hashes. The existing main suite passed 172 checks; rule
+and favorite-memory checks passed 135 per mod, including the new exclusion-state
+round trips, comment/span preservation, deletion and rollback cases. Controller
+dispatcher checks passed 73/71 for Slots/Actions. All four English/Korean files
+parsed and contained the new keys. Original 1.0.15 client contract checks passed
+with zero failures (Slots: 1066 references / 149 Harmony targets / 49 reflected;
+Actions: 612 / 43 / 7; existing manual entries 10/2). Reports are in ignored
+`artifacts/RuleControls/`. UI review verified native `UITooltip.OnDisable` only
+hides that tooltip if it is current. Actual in-game UI/gamepad interaction was
+not executed. No Release package, version change, commit or push was made.
+
+## Release 1.5.8 / 1.1.2 — 2026-09-21
+
+The exclusion checkboxes and rule-tooltip setting above are included in this
+release together with optional client-only server installation and native chest
+handoffs. InventorySlots also restores the Armor, Weight, Jewelcrafting Synergy
+panel order and removes space reserved by hidden stat panels.
+
+- Debug/deploy and ordinary Release/package builds passed with zero warnings
+  or errors for both mods. Installed Steam plugins match the final Debug DLLs.
+- Main suite: 172 checks. Rule/favorite-memory suites: 135 per mod. Existing
+  controller dispatcher suites: 73 Slots / 71 Actions. Source-linked server
+  policy and native handoff hosts: 38 and 143 checks respectively per mod.
+- Final Release checks against original Valheim 1.0.15 client and dedicated
+  server DLLs: zero failures; Slots 1066 references / 149 Harmony targets / 49
+  reflected contracts, Actions 612 / 43 / 7. Existing manual entries remain
+  10/2. Compiled AutoPickup transpiler checks on original client IL: 10 per mod.
+- Both Thunderstore ZIPs contain the expected six files and match their source
+  DLL, README, changelog, manifest, icon and English translation by SHA-256.
+  The InventorySlots Nexus ZIP contains only its matching Release DLL. Assembly
+  and manifest versions agree; BepInEx dependency remains 5.4.2350.
+- Actual Unity UI, live multiplayer/crossplay and site publication were not
+  checked. Source-linked hosts and original-assembly checks do not prove those
+  execution paths.
+
+| Final Release DLL | SHA-256 |
+| --- | --- |
+| InventorySlots 1.5.8 | `BAF5633F70AB7632F8ECE050A908FF5A99C2370AD180EBD2EA3F9F8B6451B056` |
+| InventoryActions 1.1.2 | `E2F3463428543B121A5C7F5BA88462405A795FA05FD2DDAF86F23998DFE8EF70` |

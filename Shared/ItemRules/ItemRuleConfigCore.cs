@@ -21,6 +21,7 @@ internal static class ItemRuleConfigCore
         public string Key = "";
         public string Amount = "";
         public RestockRuleMode Mode = RestockRuleMode.Existing;
+        public bool Excluded = true;
         public string Comment = "";
         public bool Removed = false;
     }
@@ -37,11 +38,14 @@ internal static class ItemRuleConfigCore
             string amount = separator > 0 ? text.Substring(separator + 1).Trim() : "";
             RestockRuleMode mode = RestockRuleMode.Existing;
             if (restock && (separator <= 0 || !RestockTargetLimitCore.TryParseRuleValue(amount, out amount, out mode))) continue;
+            string key = separator > 0 ? text.Substring(0, separator).Trim() : text;
+            bool excluded = true;
+            if (!restock && !TryReadExclusion(text, out key, out excluded)) continue;
             entries.Add(new Entry
             {
                 Start = match.Index, Length = match.Length,
-                Key = separator > 0 ? text.Substring(0, separator).Trim() : text,
-                Amount = amount, Mode = mode,
+                Key = key,
+                Amount = amount, Mode = mode, Excluded = excluded,
                 Comment = comment < 0 ? "" : " " + match.Value.Substring(comment)
             });
         }
@@ -57,7 +61,7 @@ internal static class ItemRuleConfigCore
             // Leave unedited entries byte-for-byte intact, including whitespace and '='.
             Entry? previous = Read(original.Substring(entry.Start, entry.Length), restock).FirstOrDefault();
             if (!entry.Removed && previous != null && previous.Key == entry.Key && previous.Amount == entry.Amount &&
-                previous.Mode == entry.Mode) continue;
+                previous.Mode == entry.Mode && previous.Excluded == entry.Excluded) continue;
             result.Remove(entry.Start, entry.Length).Insert(entry.Start, replacement);
         }
         foreach (Entry entry in entries.Where(e => e.Start < 0 && !e.Removed))
@@ -83,10 +87,27 @@ internal static class ItemRuleConfigCore
     }
 
     private static string Format(Entry entry, bool restock) =>
-        restock ? entry.Key + ": " + RestockTargetLimitCore.FormatRuleValue(entry.Amount, entry.Mode) : entry.Key;
+        restock ? entry.Key + ": " + RestockTargetLimitCore.FormatRuleValue(entry.Amount, entry.Mode) :
+        entry.Key + (entry.Excluded ? "" : " | Off");
+
+    private static bool TryReadExclusion(string text, out string key, out bool excluded)
+    {
+        key = text;
+        excluded = true;
+        int separator = text.IndexOf('|');
+        if (separator < 0) return key.Length > 0;
+
+        key = text.Substring(0, separator).Trim();
+        string state = text.Substring(separator + 1).Trim();
+        if (key.Length == 0) return false;
+        if (state.Equals("On", StringComparison.OrdinalIgnoreCase)) return true;
+        if (!state.Equals("Off", StringComparison.OrdinalIgnoreCase)) return false;
+        excluded = false;
+        return true;
+    }
 
     internal static string PrefabKey(string name) => name.Replace("(Clone)", "").Trim();
 
     internal static HashSet<string> ParseExclusions(string raw) =>
-        new(Read(raw, false).Select(e => PrefabKey(e.Key)).Where(k => k.Length > 0), StringComparer.OrdinalIgnoreCase);
+        new(Read(raw, false).Where(e => e.Excluded).Select(e => PrefabKey(e.Key)).Where(k => k.Length > 0), StringComparer.OrdinalIgnoreCase);
 }

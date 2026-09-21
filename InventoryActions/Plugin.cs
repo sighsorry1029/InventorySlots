@@ -17,7 +17,7 @@ namespace InventoryActions;
 public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
 {
     internal const string ModName = "InventoryActions";
-    internal const string ModVersion = "1.1.1";
+    internal const string ModVersion = "1.1.2";
     internal const string Author = "sighsorry";
     internal const string ModGUID = $"{Author}.{ModName}";
     private const string ExternalMultiUserChestGuid = "com.maxsch.valheim.MultiUserChest";
@@ -133,6 +133,7 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
         DestroyItemRuleUi();
         DestroyRestockModeIcons();
         _autoPickupExcludedItemsConfig.SettingChanged -= RefreshAutoPickupExclusions;
+        _showRuleTooltips.SettingChanged -= RefreshRuleTooltipVisibility;
         _autoPickupExcludedItems.Clear();
         CancelAreaContainerTransfer();
         CloseInventoryTrashConfirmDialog();

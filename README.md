@@ -4,6 +4,14 @@ InventorySlots is an all-in-one Valheim inventory overhaul focused on stable slo
 
 It adds progressive inventory rows, equipment slots, quick slots, favorites, keep-on-death rules, scrollable/pinned tooltips, a crafting browser, container tools, sorting, restock, multicraft, and controller support.
 
+## Multiplayer installation
+
+You can install InventorySlots only on your client and join a vanilla server. Other players do not need the mod in that setup. Your local settings and YAML apply, and holding Use to quick stack or the restock shortcut still works through the game's normal chest access and ownership requests.
+
+If the server installs InventorySlots, every connecting client must install the same version. Server-synced settings and YAML then follow the server as before. InventoryActions is a separate alternative; do not install both mods together.
+
+On a server without InventorySlots, built-in Multi User Chest behavior falls back to the game's exclusive chest access, and container action effects are local. Occupied or inaccessible chests are skipped. Extra custom-slot equipment visuals require InventorySlots on the viewing client; unmodded players do not render those additional attachments.
+
 ## Visual Overview
 
 ![](https://i.ibb.co/ynW5TXnN/Screenshot-2026-09-16-095942.png) <br>
@@ -273,6 +281,10 @@ In IncludeEmpty mode, if an item has neither a remembered slot nor an existing f
 
 `3 - Inventory Buttons` also groups `Restock Button`, `Restock Target Stack Limits`, `Auto Pickup Exclude Button`, `Auto Pickup Excluded Items`, and `Trash Button`. The three client-only button modes default to **Auto**: show the bottom edge and expand that button on hover. Holding an item alone does not expand it; an open editor keeps its button expanded, and gamepad use expands Auto buttons. **On** always displays the full button; **Off** hides it. Saved restock and pickup rules remain active when their button is hidden. Enabled buttons pack from the right in Trash, Exclude, Restock order. The synced `1 - General / Enable Inventory Trash Panel` still controls whether trash is allowed at all. No old-section migration is performed.
 
+Each **Auto pickup exclusions** entry has a checkbox. Checked excludes that item from automatic pickup; unchecked allows pickup while keeping the item in the list. Changes save immediately, and manual pickup remains available. In `Auto Pickup Excluded Items`, `Wood` or `Wood | On` enables exclusion, while `Wood | Off` keeps it disabled. Removing an entry deletes it from the list.
+
+`3 - Inventory Buttons / Show Rule Tooltips` defaults to **On** and controls hover help in both rule panels and the F1 restock-entry controls. Changing it applies immediately without changing saved rules. Item information tooltips and Configuration Manager setting descriptions remain available.
+
 ## Crafting Browser
 
 The crafting panel is redesigned into a fast icon-grid browser.
@@ -469,7 +481,7 @@ With `Enable Controller Hotkeys` enabled, hold `Inventory Action Modifier` (righ
 
 While looking at a chest with the inventory closed, hold `Favorite Restock Modifier` (`JoyAltKeys`, the game's alternate-action modifier, by default) together with Use (`JoyUse`) to restock favorites from that chest and nearby eligible chests. Holding Use alone keeps the existing quick-stack action. Favorite restock applies target quantities, per-item modes, remembered empty slots and the leave-one-item setting. The open-container **Take stacks** button still fills matching non-favorite stacks; it is a separate action.
 
-In a restock/exclusion editor, release the modifier: D-pad up/down selects an entry, left/right changes its restock quantity, A cycles its restock mode, X removes it and B closes the editor. Changes save immediately. These controller commands work without hovering the inventory buttons; their visibility settings remain independent of saved rules. The quick guide and chest hints show current bindings when controller input is active. Keyboard and mouse controls remain available.
+In a restock/exclusion editor, release the modifier: D-pad up/down selects an entry, left/right changes its restock quantity, A cycles its restock mode or toggles its pickup-exclusion checkbox, X removes it and B closes the editor. Changes save immediately. These controller commands work without hovering the inventory buttons; their visibility settings remain independent of saved rules. The quick guide and chest hints show current bindings when controller input is active. Keyboard and mouse controls remain available.
 
 The two modifier settings can be changed client-side or set to Off independently. The inventory action modifier reserves its button while the inventory is open; choose a binding that does not conflict with another mod's inventory controls. These commands are unavailable during other input dialogs, and sorting/favoriting do not act on a picked-up item.
 

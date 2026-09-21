@@ -1,24 +1,25 @@
 {
   "candidate": "C:\\Users\\blizz\\RiderProjects\\InventorySlots\\bin\\Release\\InventorySlots.dll",
-  "sha256": "2e1b185625348a33f0c69cb34603b6715a3077747320399e305d861cc2b000bd",
-  "originalManaged": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Valheim\\valheim_Data\\Managed",
+  "sha256": "baf5633f70ab7632f8ece050a908ff5a99c2370ad180ebd2ea3f9f8b6451b056",
+  "originalManaged": "C:\\Users\\blizz\\.codex\\references\\valheim\\snapshots\\client-b25390630-windows-x64-20260918T131715Z\\original\\valheim_Data\\Managed",
   "fingerprints": [
     {
       "name": "assembly_valheim.dll",
-      "sha256": "27a766a8d23a7bd8b6a54fb9ad0452a96c305fb3629b39c40527c09a1c393a84"
+      "sha256": "59f53fb55d99d22a33e8ed094eec8d21e9f133543bce92bc3d80dce44033adb1"
     },
     {
       "name": "assembly_utils.dll",
-      "sha256": "9333361c9d2a2a941c1e6d47e76220689fed1761de8b5d123f7f42f26be3132a"
+      "sha256": "201e27467f8b1f899f9f2058b47d94a2d3532bcf9af07a02eee0ab16d4b12dd0"
     },
     {
       "name": "assembly_guiutils.dll",
-      "sha256": "96376c4e4864d54d09034bde3b00fd4ed095d75bab5ec65a5d6440c61d143463"
+      "sha256": "6b2affe3b1a6c8c53f3f81a1c530c37da7e917913be24ee785b6dd0bf979024d"
     }
   ],
-  "directGameReferences": 1013,
-  "patchCount": 133,
+  "directGameReferences": 1066,
+  "patchCount": 149,
   "patches": [
+    "InventorySlots.ContainerGridInitialElementsPatch -\u003E System.Void InventoryGrid::UpdateGui(Player,ItemDrop/ItemData)",
     "InventorySlots.InventoryGuiSafeTakeAllPatch -\u003E System.Void InventoryGui::OnTakeAll()",
     "InventorySlots.InventoryGuiPlaceStacksPatch -\u003E System.Void InventoryGui::OnStackAll()",
     "InventorySlots.InventoryGuiShowValidateInventoryPatch -\u003E System.Void InventoryGui::Show(Container,System.Int32)",
@@ -38,6 +39,7 @@
     "InventorySlots.ContainerRestockInteractPatch -\u003E System.Boolean Container::Interact(Humanoid,System.Boolean,System.Boolean)",
     "InventorySlots.ContainerAwakeTombstoneHeightPatch -\u003E System.Void Container::Awake()",
     "InventorySlots.ContainerDestroyedInventorySlotsPatch -\u003E System.Void Container::OnDestroyed()",
+    "InventorySlots.InventoryGuiCraftingViewDestroyPatch -\u003E System.Void InventoryGui::OnDestroy()",
     "InventorySlots.CraftingTooltipUnderlyingScrollRectGuardPatch -\u003E System.Void UnityEngine.UI.ScrollRect::OnScroll(UnityEngine.EventSystems.PointerEventData)",
     "InventorySlots.InventoryGuiJewelcraftingPrimaryTabPreflightPatch -\u003E System.Void InventoryGui::UpdateCraftingPanel(System.Boolean)",
     "InventorySlots.InventoryGuiCraftingPanelRedesignPatch -\u003E System.Void InventoryGui::UpdateCraftingPanel(System.Boolean)",
@@ -141,10 +143,24 @@
     "InventorySlots.InventoryGuiSharedContainerClosePatch -\u003E System.Void InventoryGui::CloseContainer()",
     "InventorySlots.InventoryGuiSharedContainerShowPatch -\u003E System.Void InventoryGui::Show(Container,System.Int32)",
     "InventorySlots.AutoPickupExclusionPatch -\u003E System.Void Player::AutoPickup(System.Single)",
+    "InventorySlots.PlayerFavoriteSlotMemoryChangedPatch -\u003E System.Void Player::OnInventoryChanged()",
+    "InventorySlots.PlayerSaveFavoriteSlotMemoryPatch -\u003E System.Void Player::Save(ZPackage)",
+    "InventorySlots.InventoryControllerUpdatePatch -\u003E System.Void InventoryGui::Update()",
+    "InventorySlots.InventoryControllerGuiInputPatch -\u003E System.Void InventoryGui::UpdateGamepad()",
+    "InventorySlots.InventoryControllerGridInputPatch -\u003E System.Void InventoryGrid::UpdateGamepad()",
+    "InventorySlots.InventoryControllerButtonInputPatch -\u003E System.Boolean UIGamePad::ButtonPressed()",
     "InventorySlots.ItemRuleEditorDestroyPatch -\u003E System.Void InventoryGui::OnDestroy()",
     "InventorySlots.ItemRuleEditorGamepadPatch -\u003E System.Void InventoryGui::UpdateGamepad()",
     "InventorySlots.ItemRuleEditorGridGamepadPatch -\u003E System.Void InventoryGrid::UpdateGamepad()",
     "InventorySlots.ItemRuleEditorButtonShortcutPatch -\u003E System.Boolean UIGamePad::ButtonPressed()",
+    "InventorySlots.NativeContainerHandoff/StackAllPatch -\u003E System.Void Container::StackAll()",
+    "InventorySlots.NativeContainerHandoff/StackResponsePatch -\u003E System.Void Container::RPC_StackResponse(System.Int64,System.Boolean)",
+    "InventorySlots.NativeContainerHandoff/DestroyedPatch -\u003E System.Void Container::OnDestroyed()",
+    "InventorySlots.NativeContainerHandoff/StopAllPatch -\u003E System.Void ZNet::StopAll(System.Boolean)",
+    "InventorySlots.OptionalServerSupportConnectionPatch -\u003E System.Void ZNet::OnNewConnection(ZNetPeer)",
+    "InventorySlots.OptionalServerSupportPeerInfoPatch -\u003E System.Void ZNet::RPC_PeerInfo(ZRpc,ZPackage)",
+    "InventorySlots.OptionalServerSupportDisconnectPatch -\u003E System.Void ZNet::Disconnect(ZNetPeer)",
+    "InventorySlots.OptionalServerSupportShutdownPatch -\u003E System.Void ZNet::StopAll(System.Boolean)",
     "ServerSync.ConfigSync/SnatchCurrentlyHandlingRPC -\u003E System.Void ZRpc::HandlePackage(ZPackage)",
     "ServerSync.ConfigSync/RegisterRPCPatch -\u003E System.Void ZNet::Awake()",
     "ServerSync.ConfigSync/RegisterClientRPCPatch -\u003E System.Void ZNet::OnNewConnection(ZNetPeer)",
@@ -153,8 +169,15 @@
     "ServerSync.ConfigSync/PreventSavingServerInfo -\u003E System.String BepInEx.Configuration.ConfigEntryBase::GetSerializedValue()",
     "ServerSync.ConfigSync/PreventConfigRereadChangingValues -\u003E System.Void BepInEx.Configuration.ConfigEntryBase::SetSerializedValue(System.String)"
   ],
-  "reflectedGameContractCount": 40,
+  "reflectedGameContractCount": 49,
   "reflectedContracts": [
+    "Controller: Vector2i InventoryGrid::m_selected [Private]",
+    "Controller: UnityEngine.GameObject InventoryGui::m_dragGo [Private]",
+    "Controller: System.Void UnityEngine.InputSystem.UI.InputSystemUIInputModule::ProcessNavigation(UnityEngine.InputSystem.UI.NavigationModel\u0026) [Assembly, HideBySig]",
+    "Native handoff: ZNetView Container::m_nview [Private]",
+    "Native handoff: System.UInt32 Container::m_lastRevision [Private]",
+    "Native handoff: System.Boolean Container::m_loading [Private]",
+    "Native handoff: System.Boolean Container::Load() [Private, HideBySig]",
     "Container.m_nview: instance ZNetView [Private]",
     "Container.m_lastRevision: instance System.UInt32 [Private]",
     "Player.m_isLoading: instance System.Boolean [Private]",
@@ -167,7 +190,9 @@
     "PrivateArea.IsEnabled(): instance System.Boolean [Private, HideBySig]",
     "PrivateArea.IsInside(UnityEngine.Vector3, System.Single): instance System.Boolean [Private, HideBySig]",
     "PrivateArea.GetPermittedPlayers(): instance System.Collections.Generic.List\u00601\u003CSystem.Collections.Generic.KeyValuePair\u00602\u003CSystem.Int64,System.String\u003E\u003E [Private, HideBySig]",
+    "MaterialMan.m_propertyBlock: instance UnityEngine.MaterialPropertyBlock [Private]",
     "Container.Load(): instance System.Boolean [Private, HideBySig]",
+    "InventoryGui.GetSelectedRecipeIndex(System.Boolean): instance System.Int32 [Private, HideBySig]",
     "Container.m_inUse: instance System.Boolean [Private]",
     "Container.UpdateUseVisual(): instance System.Void [Private, HideBySig]",
     "Container.m_open: instance UnityEngine.GameObject [Public]",
@@ -208,9 +233,11 @@
     "Dynamic Harmony targets: InventorySlots.EpicLootPatchOnHoverFixScrollbarInventorySlotsPatch",
     "Dynamic Harmony targets: InventorySlots.EpicLootPatchOnHoverFixComparisonInventorySlotsPatch",
     "Dynamic Harmony targets: InventorySlots.EpicLootPatchOnHoverFixAddScrollbarInventorySlotsPatch",
+    "Dynamic Harmony targets: InventorySlots.EpicLootCraftDialogVisibilityPatch",
     "Dynamic Harmony targets: InventorySlots.JewelcraftingApiIsJewelryEquippedInventorySlotsPatch",
     "Dynamic Harmony targets: InventorySlots.RecycleNReclaimNativePanelUpdatedInventorySlotsPatch",
     "Dynamic Harmony targets: InventorySlots.InventorySharedContainerDragLoadPatch",
+    "Dynamic Harmony targets: InventorySlots.InventoryControllerEventNavigationPatch",
     "Incomplete/method-level Harmony declaration: ServerSync.VersionCheck"
   ],
   "limitations": [

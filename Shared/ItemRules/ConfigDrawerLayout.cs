@@ -65,10 +65,10 @@ public sealed partial class InventoryActionsPlugin
         Rect amountRect = new(modeRect.xMax + spacing, controlsY, amountWidth, lineHeight);
         Rect removeRect = new(amountRect.xMax + spacing, controlsY, removeWidth, lineHeight);
         item = GUI.TextField(itemRect, item);
-        GUI.Label(itemRect, new GUIContent("", "Item prefab or name"), GUIStyle.none);
+        GUI.Label(itemRect, new GUIContent("", ShowRuleTooltips ? "Item prefab or name" : ""), GUIStyle.none);
         mode = DrawRestockModeConfigButton(mode, modeRect);
         amount = FilterUnsignedIntText(GUI.TextField(amountRect, amount));
-        GUI.Label(amountRect, new GUIContent("", "Target quantity (at least 1)"), GUIStyle.none);
-        return GUI.Button(removeRect, new GUIContent("×", "Remove restock target"));
+        GUI.Label(amountRect, new GUIContent("", ShowRuleTooltips ? "Target quantity (at least 1)" : ""), GUIStyle.none);
+        return GUI.Button(removeRect, new GUIContent("×", ShowRuleTooltips ? "Remove restock target" : ""));
     }
 }

@@ -70,7 +70,7 @@ public sealed partial class InventoryActionsPlugin
 
     private static RestockRuleMode DrawRestockModeConfigButton(RestockRuleMode mode, Rect rect)
     {
-        bool clicked = GUI.Button(rect, new GUIContent("", GetRestockModeTitle(mode) + "\n" + GetRestockModeHelp(mode)));
+        bool clicked = GUI.Button(rect, new GUIContent("", ShowRuleTooltips ? GetRestockModeTitle(mode) + "\n" + GetRestockModeHelp(mode) : ""));
         if (clicked) mode = RestockTargetLimitCore.NextMode(mode);
         if (Event.current.type == EventType.Repaint)
         {

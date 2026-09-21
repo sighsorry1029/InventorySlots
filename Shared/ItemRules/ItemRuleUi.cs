@@ -31,6 +31,10 @@ public sealed partial class InventoryActionsPlugin
     private static ConfigEntry<InventoryButtonMode> _restockButtonMode = null!;
     private static ConfigEntry<InventoryButtonMode> _autoPickupButtonMode = null!;
     private static ConfigEntry<InventoryButtonMode> _trashButtonMode = null!;
+    private static ConfigEntry<Toggle> _showRuleTooltips = null!;
+    private static bool ShowRuleTooltips => _showRuleTooltips?.Value != Toggle.Off;
+    private static void RefreshRuleTooltipVisibility(object? sender, EventArgs args) =>
+        _itemRuleEditor?.RefreshRuleTooltipVisibility();
     private const string RuleButtonModeDescription = "Client-only display mode. Off hides the button without disabling saved rules. Auto shows its bottom edge and slides out only on hover; holding an item alone does not expand it. An open editor keeps its button expanded. Gamepad use expands Auto buttons. On always shows the full button. Changes apply immediately.";
     private const string TrashButtonModeDescription = "Client-only display mode. Off hides the trash button. Auto shows its bottom edge and slides out only on hover; holding an item alone does not expand it. Gamepad use expands Auto buttons. On always shows the full button. The server's Enable Inventory Trash Panel setting must also be On. Changes apply immediately.";
     private static ItemRuleEditor? _itemRuleEditor;
@@ -197,6 +201,7 @@ public sealed partial class InventoryActionsPlugin
         private TMP_FontAsset _font = null!;
         private Material _fontMaterial = null!;
         private readonly List<Button> _rowButtons = new();
+        private readonly List<UITooltip> _ruleTooltips = new();
         private readonly List<TMP_InputField> _fields = new();
         private readonly List<ControllerRow> _controllerRows = new();
         private int _controllerRowIndex;
@@ -460,8 +465,9 @@ public sealed partial class InventoryActionsPlugin
             if (TakeControllerButton("JoyButtonA") && row.Mode != null)
             {
                 RestockRuleMode previous = row.Entry.Mode;
+                bool previouslyExcluded = row.Entry.Excluded;
                 row.Mode.onClick.Invoke();
-                RefreshControllerSelection(updateStatus: row.Entry.Mode != previous);
+                RefreshControllerSelection(updateStatus: row.Entry.Mode != previous || row.Entry.Excluded != previouslyExcluded);
                 return;
             }
             bool left = IsControllerDirectionDown("JoyDPadLeft", "JoyLStickLeft");
@@ -542,8 +548,8 @@ public sealed partial class InventoryActionsPlugin
             _scope.text = !_controllerActive ? _mouseScope : (_restock
                 ? L("pad_restock", korean ? "위/아래: 항목 · 좌/우: 수량\n{mode}: 모드 · {remove}: 삭제 · {close}: 닫기"
                     : "Up/Down: item · Left/Right: quantity\n{mode}: mode · {remove}: remove · {close}: close")
-                : L("pad_exclude", korean ? "위/아래: 항목 · {remove}: 삭제 · {close}: 닫기"
-                    : "Up/Down: item · {remove}: remove · {close}: close"))
+                : L("pad_exclude", korean ? "위/아래: 항목 · {mode}: 전환\n{remove}: 삭제 · {close}: 닫기"
+                    : "Up/Down: item · {mode}: toggle\n{remove}: remove · {close}: close"))
                 .Replace("{mode}", GetInventoryControllerActionDisplay("JoyButtonA"))
                 .Replace("{remove}", GetInventoryControllerActionDisplay("JoyButtonX"))
                 .Replace("{close}", GetInventoryControllerActionDisplay("JoyButtonB"));
@@ -551,7 +557,7 @@ public sealed partial class InventoryActionsPlugin
             if (updateStatus)
             {
                 ControllerRow row = _controllerRows[_controllerRowIndex];
-                _status.text = _restock ? GetRestockModeTitle(row.Entry.Mode) : row.Entry.Key;
+                _status.text = _restock ? GetRestockModeTitle(row.Entry.Mode) : GetExclusionTitle(row.Entry.Excluded);
                 _controllerStatus = true;
             }
             float top = _controllerRowIndex * RowHeight;
@@ -647,9 +653,12 @@ public sealed partial class InventoryActionsPlugin
             }
             _resolved[entry.Key] = item;
             Owner.SetupDragItem(null, null, 0); // Registration reads identity; no inventory mutation.
-            if (added && !Save())
+            bool previouslyExcluded = entry.Excluded;
+            if (!restock) entry.Excluded = true;
+            if ((added || !restock && !previouslyExcluded) && !Save())
             {
-                _entries.Remove(entry);
+                entry.Excluded = previouslyExcluded;
+                if (added) _entries.Remove(entry);
                 return;
             }
             if (restock)
@@ -680,7 +689,9 @@ public sealed partial class InventoryActionsPlugin
             List<ItemRuleConfigCore.Entry> saved = ItemRuleConfigCore.Read(next, _restock);
             // Validate before touching the config: a prefab containing config
             // delimiters must not save successfully and then break span rebasing.
-            if (!_entries.Where(entry => !entry.Removed).Select(entry => entry.Key).SequenceEqual(saved.Select(entry => entry.Key)))
+            if (!_entries.Where(entry => !entry.Removed)
+                    .Select(entry => (entry.Key, entry.Excluded))
+                    .SequenceEqual(saved.Select(entry => (entry.Key, entry.Excluded))))
             { _status.text = L("save_failed", "Could not save config."); return false; }
             try
             {
@@ -697,8 +708,8 @@ public sealed partial class InventoryActionsPlugin
 
         private void ScrollTo(string key)
         {
-            int index = _entries.FindLastIndex(e => e.Key == key);
-            if (index >= 0) _scroll.verticalNormalizedPosition = _entries.Count <= 1 ? 1f : 1f - (float)index / (_entries.Count - 1);
+            int index = _controllerRows.FindLastIndex(row => _restock ? row.Entry.Key == key : SameExclusion(row.Entry.Key, key));
+            if (index >= 0) _scroll.verticalNormalizedPosition = _controllerRows.Count <= 1 ? 1f : 1f - (float)index / (_controllerRows.Count - 1);
         }
 
         private ItemData? Resolve(string key)
@@ -725,6 +736,7 @@ public sealed partial class InventoryActionsPlugin
 
         private void ClearRows()
         {
+            _ruleTooltips.Clear();
             if (_content == null) { _fields.Clear(); _rowButtons.Clear(); _controllerRows.Clear(); return; }
             if (EventSystem.current != null && EventSystem.current.currentSelectedGameObject != null &&
                 EventSystem.current.currentSelectedGameObject.transform.IsChildOf(_content)) EventSystem.current.SetSelectedGameObject(null);
@@ -747,6 +759,11 @@ public sealed partial class InventoryActionsPlugin
             float width = Mathf.Clamp(_root.rect.width - 16f, 260f, PopupWidth);
             float inner = width - 24f;
             List<ItemRuleConfigCore.Entry> visible = _registration != null ? new() { _registration } : _entries.Where(e => !e.Removed).ToList();
+            if (!_restock)
+                // Manual config can contain duplicate prefab names. Present the
+                // effective state once and edit/remove all copies together.
+                visible = visible.GroupBy(entry => ItemRuleConfigCore.PrefabKey(entry.Key), StringComparer.OrdinalIgnoreCase)
+                    .Select(group => group.LastOrDefault(entry => entry.Excluded) ?? group.Last()).ToList();
             _visibleRowCount = Mathf.Max(1, visible.Count);
             float viewHeight = Mathf.Max(1, Mathf.Min(6, visible.Count)) * RowHeight;
             _popup.sizeDelta = new Vector2(width, PopupChromeHeight + viewHeight);
@@ -775,7 +792,7 @@ public sealed partial class InventoryActionsPlugin
                 ControllerRow controllerRow = new() { Entry = entry, Background = rowBackground };
                 _controllerRows.Add(controllerRow);
                 float quantityX = inner - (_registration != null ? 58 : 94);
-                float modeX = quantityX - 38;
+                float modeX = _restock ? quantityX - 38 : inner - 68;
                 float itemWidth = _restock ? modeX - 6 : inner - 74;
                 // Keep the item's hover target separate from the controls: a
                 // parent UITooltip can otherwise replace the mode explanation.
@@ -803,10 +820,7 @@ public sealed partial class InventoryActionsPlugin
                     void RefreshMode()
                     {
                         modeIcon.sprite = GetRestockModeIcon(entry.Mode);
-                        // Set also refreshes the currently visible tooltip;
-                        // assigning its fields only affects the next hover.
-                        if (modeTip.enabled)
-                            modeTip.Set(GetRestockModeTitle(entry.Mode), GetRestockModeHelp(entry.Mode));
+                        SetRuleTooltipText(modeTip, GetRestockModeTitle(entry.Mode), GetRestockModeHelp(entry.Mode));
                     }
                     Button modeButton = Button(row, "RestockMode", "", () =>
                     {
@@ -820,29 +834,107 @@ public sealed partial class InventoryActionsPlugin
                     Frame((RectTransform)modeButton.transform, modeX, -2, 32, 32);
                     modeIcon = Rect("ModeIcon", modeButton.transform, new Vector2(28, 28), new Vector2(2, -2)).gameObject.AddComponent<Image>();
                     modeIcon.raycastTarget = false;
-                    modeTip = modeButton.gameObject.AddComponent<UITooltip>(); EnsureTooltipPrefab(modeTip);
-                    modeTip.enabled = modeTip.m_tooltipPrefab != null;
+                    modeTip = RuleTooltip(modeButton);
                     RefreshMode();
                     _rowButtons.Add(modeButton);
                     controllerRow.Mode = modeButton;
                 }
+                else
+                {
+                    RectTransform checkmark = null!;
+                    UITooltip exclusionTip = null!;
+                    void RefreshExclusion()
+                    {
+                        checkmark.gameObject.SetActive(entry.Excluded);
+                        // Keep the item name readable; only its icon is subdued.
+                        graphic.color = new Color(1f, 1f, 1f, entry.Excluded ? 1f : 0.5f);
+                        SetRuleTooltipText(exclusionTip, GetExclusionTitle(entry.Excluded),
+                            L("exclusion_help", "Checked: exclude this item from automatic pickup. Unchecked: allow pickup while keeping this entry. Manual pickup remains available."));
+                    }
+                    Button checkbox = Button(row, "Excluded", "", () =>
+                    {
+                        Pin();
+                        var copies = _entries.Where(candidate => !candidate.Removed && SameExclusion(candidate.Key, entry.Key))
+                            .Select(candidate => (Entry: candidate, Previous: candidate.Excluded)).ToList();
+                        bool next = !entry.Excluded;
+                        foreach (var copy in copies) copy.Entry.Excluded = next;
+                        if (!Save()) foreach (var copy in copies) copy.Entry.Excluded = copy.Previous;
+                        RefreshExclusion();
+                    });
+                    ApplyCraftButtonStyle(checkbox);
+                    Frame((RectTransform)checkbox.transform, modeX, -2, 32, 32);
+                    checkmark = Rect("Checkmark", checkbox.transform, new Vector2(24, 24), new Vector2(4, -4));
+                    CheckmarkLine(checkmark, new Vector2(3, -12), new Vector2(9, -18));
+                    CheckmarkLine(checkmark, new Vector2(9, -18), new Vector2(21, -5));
+                    exclusionTip = RuleTooltip(checkbox);
+                    RefreshExclusion();
+                    _rowButtons.Add(checkbox);
+                    controllerRow.Mode = checkbox;
+                }
                 if (_registration == null)
                 {
-                    Button remove = Button(row, "Remove", _restock ? "×" : L("remove", "Remove"), () => RemoveEntry(entry));
-                    Frame((RectTransform)remove.transform, inner - (_restock ? 30 : 68), -2, _restock ? 30 : 68, 32);
+                    Button remove = Button(row, "Remove", "×", () => RemoveEntry(entry));
+                    Frame((RectTransform)remove.transform, inner - 30, -2, 30, 32);
+                    UITooltip removeTip = RuleTooltip(remove);
+                    SetRuleTooltipText(removeTip, L("remove", "Remove"), L("remove_help", "Remove this entry from the list."));
                     _rowButtons.Add(remove);
                 }
             }
             PositionPopup();
-            int rememberedIndex = selectedKey == null ? -1 : _controllerRows.FindIndex(row => row.Entry.Key == selectedKey);
+            int rememberedIndex = selectedKey == null ? -1 : _controllerRows.FindIndex(row =>
+                _restock ? row.Entry.Key == selectedKey : SameExclusion(row.Entry.Key, selectedKey));
             if (rememberedIndex >= 0) _controllerRowIndex = rememberedIndex;
             RefreshControllerSelection();
         }
 
+        private string GetExclusionTitle(bool excluded) => excluded
+            ? L("exclusion_on", "Automatic pickup: Excluded") : L("exclusion_off", "Automatic pickup: Allowed");
+
+        private static bool SameExclusion(string left, string right) =>
+            string.Equals(ItemRuleConfigCore.PrefabKey(left), ItemRuleConfigCore.PrefabKey(right), StringComparison.OrdinalIgnoreCase);
+
+        private void CheckmarkLine(RectTransform parent, Vector2 from, Vector2 to)
+        {
+            Vector2 delta = to - from;
+            RectTransform line = Rect("Check", parent, new Vector2(delta.magnitude, 3f), from);
+            line.pivot = new Vector2(0f, 0.5f);
+            line.localRotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg);
+            Image image = line.gameObject.AddComponent<Image>();
+            image.color = _gold; image.raycastTarget = false;
+        }
+
+        private UITooltip RuleTooltip(Button button)
+        {
+            UITooltip tooltip = button.gameObject.AddComponent<UITooltip>();
+            EnsureTooltipPrefab(tooltip);
+            tooltip.enabled = ShowRuleTooltips && tooltip.m_tooltipPrefab != null;
+            _ruleTooltips.Add(tooltip);
+            return tooltip;
+        }
+
+        private static void SetRuleTooltipText(UITooltip tooltip, string topic, string text)
+        {
+            // Set refreshes an open tooltip, but can also start a hover. Disabled
+            // rules must only store their text for when help is enabled again.
+            if (tooltip.enabled) tooltip.Set(topic, text);
+            else { tooltip.m_topic = topic; tooltip.m_text = text; }
+        }
+
+        internal void RefreshRuleTooltipVisibility()
+        {
+            foreach (UITooltip tooltip in _ruleTooltips)
+                if (tooltip != null)
+                    // Native OnDisable dismisses only this tooltip if it is current.
+                    tooltip.enabled = ShowRuleTooltips && tooltip.m_tooltipPrefab != null;
+        }
+
         private void RemoveEntry(ItemRuleConfigCore.Entry entry)
         {
-            Pin(); entry.Removed = true;
-            if (!Save()) { entry.Removed = false; return; }
+            Pin();
+            List<ItemRuleConfigCore.Entry> removed = _restock ? new() { entry } :
+                _entries.Where(candidate => !candidate.Removed && SameExclusion(candidate.Key, entry.Key)).ToList();
+            foreach (ItemRuleConfigCore.Entry candidate in removed) candidate.Removed = true;
+            if (!Save()) { foreach (ItemRuleConfigCore.Entry candidate in removed) candidate.Removed = false; return; }
             if (ReferenceEquals(_registration, entry)) _registration = null;
             Render();
         }

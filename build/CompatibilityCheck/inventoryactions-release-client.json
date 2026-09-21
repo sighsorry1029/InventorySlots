@@ -1,23 +1,23 @@
 {
   "candidate": "C:\\Users\\blizz\\RiderProjects\\InventorySlots\\InventoryActions\\bin\\Release\\InventoryActions.dll",
-  "sha256": "157667d9fc4220bec14ccacf5f3cf35564cac8dec3fb3c9aaa4894f8cf576a20",
-  "originalManaged": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Valheim\\valheim_Data\\Managed",
+  "sha256": "e2f3463428543b121a5c7f5ba88462405a795fa05fd2ddaf86f23998dfe8ef70",
+  "originalManaged": "C:\\Users\\blizz\\.codex\\references\\valheim\\snapshots\\client-b25390630-windows-x64-20260918T131715Z\\original\\valheim_Data\\Managed",
   "fingerprints": [
     {
       "name": "assembly_valheim.dll",
-      "sha256": "27a766a8d23a7bd8b6a54fb9ad0452a96c305fb3629b39c40527c09a1c393a84"
+      "sha256": "59f53fb55d99d22a33e8ed094eec8d21e9f133543bce92bc3d80dce44033adb1"
     },
     {
       "name": "assembly_utils.dll",
-      "sha256": "9333361c9d2a2a941c1e6d47e76220689fed1761de8b5d123f7f42f26be3132a"
+      "sha256": "201e27467f8b1f899f9f2058b47d94a2d3532bcf9af07a02eee0ab16d4b12dd0"
     },
     {
       "name": "assembly_guiutils.dll",
-      "sha256": "96376c4e4864d54d09034bde3b00fd4ed095d75bab5ec65a5d6440c61d143463"
+      "sha256": "6b2affe3b1a6c8c53f3f81a1c530c37da7e917913be24ee785b6dd0bf979024d"
     }
   ],
-  "directGameReferences": 512,
-  "patchCount": 29,
+  "directGameReferences": 612,
+  "patchCount": 43,
   "patches": [
     "InventoryActions.InventoryGuiSafeTakeAllPatch -\u003E System.Void InventoryGui::OnTakeAll()",
     "InventoryActions.InventoryGuiPlaceStacksPatch -\u003E System.Void InventoryGui::OnStackAll()",
@@ -36,11 +36,25 @@
     "InventoryActions.ContainerTakeAllDuringAreaLeaseInventoryActionsPatch -\u003E System.Void Container::RPC_RequestTakeAll(System.Int64,System.Int64)",
     "InventoryActions.InventoryGridFavoriteLeftClickPatch -\u003E System.Void InventoryGrid::OnLeftDown(UIInputHandler)",
     "InventoryActions.AutoPickupExclusionPatch -\u003E System.Void Player::AutoPickup(System.Single)",
+    "InventoryActions.PlayerFavoriteSlotMemoryChangedPatch -\u003E System.Void Player::OnInventoryChanged()",
+    "InventoryActions.PlayerSaveFavoriteSlotMemoryPatch -\u003E System.Void Player::Save(ZPackage)",
+    "InventoryActions.InventoryControllerUpdatePatch -\u003E System.Void InventoryGui::Update()",
+    "InventoryActions.InventoryControllerGuiInputPatch -\u003E System.Void InventoryGui::UpdateGamepad()",
+    "InventoryActions.InventoryControllerGridInputPatch -\u003E System.Void InventoryGrid::UpdateGamepad()",
+    "InventoryActions.InventoryControllerButtonInputPatch -\u003E System.Boolean UIGamePad::ButtonPressed()",
     "InventoryActions.ItemRuleEditorInputPatch -\u003E System.Boolean Chat::HasFocus()",
     "InventoryActions.ItemRuleEditorDestroyPatch -\u003E System.Void InventoryGui::OnDestroy()",
     "InventoryActions.ItemRuleEditorGamepadPatch -\u003E System.Void InventoryGui::UpdateGamepad()",
     "InventoryActions.ItemRuleEditorGridGamepadPatch -\u003E System.Void InventoryGrid::UpdateGamepad()",
     "InventoryActions.ItemRuleEditorButtonShortcutPatch -\u003E System.Boolean UIGamePad::ButtonPressed()",
+    "InventoryActions.NativeContainerHandoff/StackAllPatch -\u003E System.Void Container::StackAll()",
+    "InventoryActions.NativeContainerHandoff/StackResponsePatch -\u003E System.Void Container::RPC_StackResponse(System.Int64,System.Boolean)",
+    "InventoryActions.NativeContainerHandoff/DestroyedPatch -\u003E System.Void Container::OnDestroyed()",
+    "InventoryActions.NativeContainerHandoff/StopAllPatch -\u003E System.Void ZNet::StopAll(System.Boolean)",
+    "InventoryActions.OptionalServerSupportConnectionPatch -\u003E System.Void ZNet::OnNewConnection(ZNetPeer)",
+    "InventoryActions.OptionalServerSupportPeerInfoPatch -\u003E System.Void ZNet::RPC_PeerInfo(ZRpc,ZPackage)",
+    "InventoryActions.OptionalServerSupportDisconnectPatch -\u003E System.Void ZNet::Disconnect(ZNetPeer)",
+    "InventoryActions.OptionalServerSupportShutdownPatch -\u003E System.Void ZNet::StopAll(System.Boolean)",
     "ServerSync.ConfigSync/SnatchCurrentlyHandlingRPC -\u003E System.Void ZRpc::HandlePackage(ZPackage)",
     "ServerSync.ConfigSync/RegisterRPCPatch -\u003E System.Void ZNet::Awake()",
     "ServerSync.ConfigSync/RegisterClientRPCPatch -\u003E System.Void ZNet::OnNewConnection(ZNetPeer)",
@@ -49,9 +63,17 @@
     "ServerSync.ConfigSync/PreventSavingServerInfo -\u003E System.String BepInEx.Configuration.ConfigEntryBase::GetSerializedValue()",
     "ServerSync.ConfigSync/PreventConfigRereadChangingValues -\u003E System.Void BepInEx.Configuration.ConfigEntryBase::SetSerializedValue(System.String)"
   ],
-  "reflectedGameContractCount": 0,
-  "reflectedContracts": [],
-  "existingNonpublicAccessCount": 30,
+  "reflectedGameContractCount": 7,
+  "reflectedContracts": [
+    "Controller: Vector2i InventoryGrid::m_selected [Private]",
+    "Controller: UnityEngine.GameObject InventoryGui::m_dragGo [Private]",
+    "Controller: System.Void UnityEngine.InputSystem.UI.InputSystemUIInputModule::ProcessNavigation(UnityEngine.InputSystem.UI.NavigationModel\u0026) [Assembly, HideBySig]",
+    "Native handoff: ZNetView Container::m_nview [Private]",
+    "Native handoff: System.UInt32 Container::m_lastRevision [Private]",
+    "Native handoff: System.Boolean Container::m_loading [Private]",
+    "Native handoff: System.Boolean Container::Load() [Private, HideBySig]"
+  ],
+  "existingNonpublicAccessCount": 31,
   "runtimeAccessAttributes": [
     "assembly_guiutils",
     "assembly_utils",
@@ -59,6 +81,7 @@
   ],
   "failures": [],
   "manual": [
+    "Dynamic Harmony targets: InventoryActions.InventoryControllerEventNavigationPatch",
     "Incomplete/method-level Harmony declaration: ServerSync.VersionCheck"
   ],
   "limitations": [

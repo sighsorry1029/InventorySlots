@@ -64,12 +64,17 @@ inventoryslots_rules_mode_existing_help: "이 아이템이 남아 있는 즐겨�
 inventoryslots_rules_mode_includeempty_help: "이 아이템을 기억한 빈 즐겨찾기 칸도 보충합니다. 기억한 칸도 남아 있는 즐겨찾기 스택도 없으면 미지정 빈 즐겨찾기 칸 한 곳을 사용합니다. 다른 아이템은 덮어쓰지 않습니다."
 inventoryslots_rules_mode_cycle: "클릭하여 변경: 끄기 → 남아 있는 스택 → 빈 칸 포함."
 inventoryslots_rules_exclude_title: 자동 줍기 제외
+inventoryslots_rules_exclusion_on: "자동 줍기: 제외"
+inventoryslots_rules_exclusion_off: "자동 줍기: 허용"
+inventoryslots_rules_exclusion_help: "체크하면 이 아이템을 자동 줍기에서 제외합니다. 체크를 해제하면 항목은 유지하면서 자동 줍기를 허용합니다. 직접 줍기는 계속 가능합니다."
+inventoryslots_rules_remove_help: "이 항목을 목록에서 제거합니다."
+inventoryslots_rules_pad_exclude: "위/아래: 항목 · {mode}: 전환\n{remove}: 제거 · {close}: 닫기"
 inventoryslots_rules_restock_scope: "{key} · 즐겨찾기 칸별 보충 방식과 목표 수량"
 inventoryslots_rules_exclude_scope: E로 직접 줍기는 가능합니다
 inventoryslots_rules_quantity: 목표 수량
 inventoryslots_rules_cancel: 취소
 inventoryslots_rules_save: 저장
-inventoryslots_rules_remove: 해제
+inventoryslots_rules_remove: 삭제
 inventoryslots_rules_editing: 편집 중
 inventoryslots_rules_preview: 미리보기
 inventoryslots_rules_pinned: 고정

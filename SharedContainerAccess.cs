@@ -18,7 +18,7 @@ public sealed partial class InventorySlotsPlugin
         AccessTools.MethodDelegate<Action<Container>>(AccessTools.Method(typeof(Container), "UpdateUseVisual", Type.EmptyTypes));
 
     internal static bool IsSharedContainerEnabled(Container container) =>
-        _sharedContainersActive && !HasExternalMultiUserChestActive &&
+        _sharedContainersActive && !UsesVanillaContainerProtocol && !HasExternalMultiUserChestActive &&
         container != null && SharedContainerEligibility.TryGetValue(container, out Piece piece) &&
         piece != null && piece.IsPlacedByPlayer() &&
         GetContainerAreaView(container)?.IsValid() == true && !IsMultiUserChestIgnored(container);

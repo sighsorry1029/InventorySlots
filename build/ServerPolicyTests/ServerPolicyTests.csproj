@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <PolicyTarget Condition="'$(PolicyTarget)' == ''">InventoryActions</PolicyTarget>
+    <DefineConstants Condition="'$(PolicyTarget)' == 'InventorySlots'">$(DefineConstants);INVENTORY_SLOTS</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Shared/ItemRules/OptionalServerSupport.cs" Link="OptionalServerSupport.cs" />
+  </ItemGroup>
+</Project>

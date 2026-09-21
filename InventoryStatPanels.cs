@@ -203,9 +203,13 @@ public sealed partial class InventorySlotsPlugin
     {
         int row = 0;
         int quickButtonIndex = 0;
-        foreach (MovedPlayerStatPanel panel in InventoryPanels.MovedPlayerStatPanels.OrderBy(panel => panel.SortOrder).ThenBy(panel => panel.Kind))
+        // Native/mod UI siblings can appear between Armor and Weight. Their
+        // hierarchy order must not push the core stats apart (including when
+        // Jewelcrafting inserts its Synergy clone before Armor).
+        foreach (MovedPlayerStatPanel panel in InventoryPanels.MovedPlayerStatPanels
+                     .OrderBy(panel => GetPlayerStatPanelLayoutOrder(panel.Kind)).ThenBy(panel => panel.SortOrder))
         {
-            if (IsUnityNull(panel.Rect))
+            if (IsUnityNull(panel.Rect) || !panel.Rect.gameObject.activeSelf)
             {
                 continue;
             }
@@ -229,6 +233,15 @@ public sealed partial class InventorySlotsPlugin
             panel.Rect.SetAsLastSibling();
         }
     }
+
+    private static int GetPlayerStatPanelLayoutOrder(PlayerStatPanelKind kind) => kind switch
+    {
+        PlayerStatPanelKind.Armor => 0,
+        PlayerStatPanelKind.Weight => 1,
+        PlayerStatPanelKind.Synergy => 2,
+        PlayerStatPanelKind.Between => 3,
+        _ => 4
+    };
 
     private static Vector3 GetPlayerStatPanelOffset(PlayerStatPanelKind kind)
     {

@@ -28,7 +28,7 @@ public sealed partial class InventoryActionsPlugin
         DisplayName = ModName,
         CurrentVersion = ModVersion,
         MinimumRequiredVersion = ModVersion,
-        ModRequired = true
+        ModRequired = false
     };
 
     private static ConfigEntry<Toggle> _serverConfigLocked = null!;
@@ -99,6 +99,10 @@ public sealed partial class InventoryActionsPlugin
             new ConfigDescription(RuleButtonModeDescription, null, new ConfigurationManagerAttributes { Order = 870 }), synchronizedSetting: false);
         _trashButtonMode = ConfigEntry(InventoryButtonsConfigSection, "Trash Button", InventoryButtonMode.Auto,
             new ConfigDescription(TrashButtonModeDescription, null, new ConfigurationManagerAttributes { Order = 850 }), synchronizedSetting: false);
+        _showRuleTooltips = ConfigEntry(InventoryButtonsConfigSection, "Show Rule Tooltips", Toggle.On,
+            new ConfigDescription("Show hover help for controls in the Restock targets and Auto pickup exclusions panels and restock-entry controls in F1. Applies immediately. Item information tooltips and Configuration Manager setting descriptions remain available.",
+                null, new ConfigurationManagerAttributes { Order = 840 }), synchronizedSetting: false);
+        _showRuleTooltips.SettingChanged += RefreshRuleTooltipVisibility;
         _showFeatureGuide = ConfigEntry(ClientConfigSection, "Show Feature Guide", Toggle.On,
             new ConfigDescription("Show a compact InventoryActions guide beside the hotbar. Applies immediately.",
                 null, new ConfigurationManagerAttributes { Order = 800 }), synchronizedSetting: false);
@@ -124,7 +128,7 @@ public sealed partial class InventoryActionsPlugin
         _restockTargetStackLimitsConfig.SettingChanged += (_, _) => RefreshRestockTargetStackLimits();
         RefreshRestockTargetStackLimits();
         _autoPickupExcludedItemsConfig = ConfigEntry(InventoryButtonsConfigSection, "Auto Pickup Excluded Items", "",
-            new ConfigDescription("Client-only prefab names excluded from automatic pickup, separated by commas, semicolons or new lines. Empty preserves normal pickup. Manual E pickup remains available. Applies to all characters using this config; does not delete items or change restock rules.",
+            new ConfigDescription("Client-only automatic pickup rules, separated by commas, semicolons or new lines. A prefab name such as Wood excludes it from automatic pickup; Wood | On is equivalent. Wood | Off keeps the item listed but allows automatic pickup. The panel checkbox controls this state. Empty preserves normal pickup. Manual E pickup remains available. Applies to all characters using this config; does not delete items or change restock rules.",
                 null, new ConfigurationManagerAttributes { Order = 860 }), synchronizedSetting: false);
         _autoPickupExcludedItemsConfig.SettingChanged += RefreshAutoPickupExclusions;
         RefreshAutoPickupExclusions(null, EventArgs.Empty);

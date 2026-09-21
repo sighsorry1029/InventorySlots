@@ -146,6 +146,28 @@ if (Types(mod.MainModule.Types).Any(t => t.Name == "InventoryControllerAccess"))
         failures.Add("Controller navigation patch target mismatch: InputSystemUIInputModule.ProcessNavigation");
     else reflectedContracts.Add($"Controller: {navigation[0].FullName} [{navigation[0].Attributes}]");
 }
+// The shared native adapter resolves these private members once through AccessTools.
+if (Types(mod.MainModule.Types).Any(t => t.Name == "NativeContainerHandoff"))
+{
+    using var game = AssemblyDefinition.ReadAssembly(Path.Combine(args[1], "assembly_valheim.dll"));
+    var container = Types(game.MainModule.Types).Single(t => t.FullName == "Container");
+    foreach (var expected in new[]
+    {
+        (name: "m_nview", type: "ZNetView"),
+        (name: "m_lastRevision", type: "System.UInt32"),
+        (name: "m_loading", type: "System.Boolean")
+    })
+    {
+        var field = container.Fields.SingleOrDefault(f => f.Name == expected.name);
+        if (field == null || field.FieldType.FullName != expected.type || field.IsStatic || field.IsLiteral)
+            failures.Add($"Native handoff field accessor mismatch: Container.{expected.name}");
+        else reflectedContracts.Add($"Native handoff: {field.FullName} [{field.Attributes}]");
+    }
+    var load = container.Methods.Where(m => m.Name == "Load" && !m.HasParameters && !m.HasGenericParameters).ToArray();
+    if (load.Length != 1 || load[0].IsStatic || load[0].ReturnType.FullName != "System.Boolean")
+        failures.Add("Native handoff method accessor mismatch: Container.Load()");
+    else reflectedContracts.Add($"Native handoff: {load[0].FullName} [{load[0].Attributes}]");
+}
 // Check the bounded area-handoff contract only in candidates containing that runtime.
 if (Types(mod.MainModule.Types).Any(t => t.FullName == "InventorySlots.InventorySlotsPlugin" &&
     t.Fields.Any(f => f.Name == "ContainerAreaView")))

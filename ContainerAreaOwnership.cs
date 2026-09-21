@@ -79,6 +79,7 @@ public sealed partial class InventorySlotsPlugin
         public int Moved;
         public int Effects;
         public Container? Pending;
+        public bool PendingNative;
         public ContainerAreaRequestIdentity PendingIdentity;
         public long Token;
         public uint DataRevision;
@@ -124,6 +125,7 @@ public sealed partial class InventorySlotsPlugin
     internal static bool TryStartContainerAreaTransfer(Player player, Inventory inventory, Container anchor, bool quickStack)
     {
         if (_containerAreaSession != null ||
+            (UsesVanillaContainerProtocol && !NativeContainerHandoff.CanBegin) ||
             player == null || inventory == null || anchor == null || ContainerAreaPlayerLoading(player))
             return false;
 
@@ -177,6 +179,24 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
         Container? target = session.Pending;
+        if (session.PendingNative)
+        {
+            NativeContainerHandoffResult result = target != null
+                ? NativeContainerHandoff.Poll(target)
+                : NativeContainerHandoffResult.Failed;
+            if (result == NativeContainerHandoffResult.Pending) return;
+            if (result == NativeContainerHandoffResult.Granted)
+            {
+                // Retire this target before callbacks; a partial transfer is never retried.
+                session.Pending = null;
+                session.PendingNative = false;
+                session.Next++;
+                ExecuteOwnedContainerAreaTarget(session, target!);
+            }
+            else FinishPendingContainerAreaTarget(session);
+            ContinueContainerAreaTransfer();
+            return;
+        }
         if (target == null || ContainerAreaHandoff.Phase == ContainerAreaHandoffPhase.Idle)
         {
             // Unity's destroyed-object null comparison does not clear the C#
@@ -223,7 +243,8 @@ public sealed partial class InventorySlotsPlugin
         while (_containerAreaSession == session && session.Next < session.Targets.Count)
         {
             Container target = session.Targets[session.Next];
-            if (!CanUseContainerAreaTarget(session, target, requireOwner: false))
+            if (NativeContainerHandoff.IsRequestBlocked(target) ||
+                !CanUseContainerAreaTarget(session, target, requireOwner: false))
             {
                 session.Next++;
                 continue;
@@ -261,11 +282,15 @@ public sealed partial class InventorySlotsPlugin
             // checks for unattended chests must not discard this first target.
             if (!openAnchor && zdo != null)
             {
-                RefreshContainerAreaTargetInventory(target);
+                if (UsesVanillaContainerProtocol)
+                {
+                    if (!NativeContainerHandoff.RefreshInventory(target)) return;
+                }
+                else RefreshContainerAreaTargetInventory(target);
                 if (!CanUseContainerAreaTarget(session, target, requireOwner: true) ||
                     ContainerAreaLoadedRevision(target) != zdo.DataRevision) return;
             }
-            if (zdo != null && !HasExternalMultiUserChestActive)
+            if (zdo != null && !HasExternalMultiUserChestActive && !UsesVanillaContainerProtocol)
             {
                 if (HasContainerAreaLease(zdo)) return;
                 identity = NewContainerAreaIdentity(zdo.m_uid, session.Action);
@@ -286,6 +311,13 @@ public sealed partial class InventorySlotsPlugin
     {
         if (!CanRequestContainerAreaOwnership(target) || !IsContainerAreaEligible(session.Anchor) ||
             session.AnchorId == ZDOID.None) return false;
+        if (UsesVanillaContainerProtocol)
+        {
+            if (!NativeContainerHandoff.TryBegin(target, session.Player)) return false;
+            session.Pending = target;
+            session.PendingNative = true;
+            return true;
+        }
         ZDO zdo = view.GetZDO();
         ContainerAreaRequestIdentity identity = NewContainerAreaIdentity(zdo.m_uid, session.Action);
         if (!ContainerAreaHandoff.TryBegin(identity, zdo.GetOwner(), Time.unscaledTime + ContainerAreaResponseTimeout))
@@ -412,6 +444,8 @@ public sealed partial class InventorySlotsPlugin
 
     private static void FinishPendingContainerAreaTarget(ContainerAreaSession session)
     {
+        if (session.PendingNative) NativeContainerHandoff.Cancel(session.Pending);
+        session.PendingNative = false;
         ClearContainerAreaLease(session.Pending, session.PendingIdentity, session.Token);
         if (!ReferenceEquals(session.Pending, null)) session.Next++;
         session.Pending = null;

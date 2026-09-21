@@ -3689,11 +3689,11 @@ internal static class Tests
             movedGuard >= 0 && broadcast > movedGuard,
             "InventoryActions must broadcast VFX only after a positive confirmed move");
         Assert.Equal(
-            3,
+            4,
             CountSourceOccurrences(
                 ownershipSource,
                 "RecordAreaContainerTransfer(session, target, moved);"),
-            "open-anchor, directly owned, and handed-off targets must all use the same bounded result recorder");
+            "open-anchor, directly owned, custom handoff, and native handoff targets must all use the same bounded result recorder");
 
         string complete = ReadSourceSection(
             ownershipSource,

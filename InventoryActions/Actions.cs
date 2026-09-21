@@ -8,6 +8,8 @@ namespace InventoryActions;
 
 public sealed partial class InventoryActionsPlugin
 {
+    private static bool _vanillaQuickStackHoldConsumed;
+
     private enum RestockMode
     {
         CurrentContainerMatchingStacks,
@@ -32,6 +34,7 @@ public sealed partial class InventoryActionsPlugin
 
     internal static bool TryHandleContainerStackAll(Container container)
     {
+        if (NativeContainerHandoff.IsRequestBlocked(container)) return true;
         Player? player = Player.m_localPlayer;
         // Alt+Use can reach vanilla StackAll while held. Keep it reserved for
         // favorite restock even before a remote container grants ownership.
@@ -42,6 +45,18 @@ public sealed partial class InventoryActionsPlugin
         if (player == null || player.m_isLoading || container == null || container.m_inventory == null)
         {
             return false;
+        }
+
+        if (UsesVanillaContainerProtocol && !HasExternalMultiUserChestActive && IsAreaContainerEligible(container))
+        {
+            if (_areaContainerTransfer != null ||
+                IsContainerQuickStackShortcutHeld() && _vanillaQuickStackHoldConsumed) return true;
+            Inventory? inventory = GetPlayerInventory(player);
+            if (inventory != null)
+                QuickStackIntoContainers(player, inventory, container, includeArea: true);
+            _vanillaQuickStackHoldConsumed = IsContainerQuickStackShortcutHeld();
+            // The native response belongs to our handoff, never vanilla StackAll.
+            return true;
         }
 
         if (!CanMutateContainerDirectly(container, allowLocalWithoutZNetView: true))
@@ -784,6 +799,8 @@ public sealed partial class InventoryActionsPlugin
 
     private static void HandleHoverActions(Player player)
     {
+        if (!UsesVanillaContainerProtocol || !IsContainerQuickStackShortcutHeld())
+            _vanillaQuickStackHoldConsumed = false;
         if (InventoryGui.IsVisible() || ShouldBlockGlobalHotkeys(player))
         {
             ResetContainerHold(Runtime.AreaQuickStackHold);
@@ -794,7 +811,7 @@ public sealed partial class InventoryActionsPlugin
         HandleContainerHoldHotkey(
             player,
             Runtime.AreaQuickStackHold,
-            IsContainerQuickStackShortcutHeld() && !IsContainerRestockShortcutHeld(),
+            IsContainerQuickStackShortcutHeld() && !IsContainerRestockShortcutHeld() && !_vanillaQuickStackHoldConsumed,
             AreaContainerActionKind.QuickStack);
 
         HandleContainerHoldHotkey(
@@ -839,6 +856,7 @@ public sealed partial class InventoryActionsPlugin
         if (action == AreaContainerActionKind.QuickStack)
         {
             QuickStackIntoContainers(player, playerInventory, container, includeArea: true);
+            if (UsesVanillaContainerProtocol) _vanillaQuickStackHoldConsumed = true;
         }
         else
         {
@@ -1195,7 +1213,7 @@ public sealed partial class InventoryActionsPlugin
         }
 
         ZNetView? nview = container.m_nview;
-        if (nview == null ||
+        if (UsesVanillaContainerProtocol || nview == null ||
             IsUnityNull(nview) ||
             !nview.IsValid() ||
             ZRoutedRpc.instance == null)

@@ -38,6 +38,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static bool TryHandleContainerStackAll(Container container)
     {
+        if (NativeContainerHandoff.IsRequestBlocked(container)) return true;
         if (ShouldSuppressContainerStackAllForRestock(container))
         {
             return true;

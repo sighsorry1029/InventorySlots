@@ -105,6 +105,62 @@ var excludes = ItemRuleConfigCore.Read("Resin # comment\nStone", false);
 excludes[0].Removed = true;
 Check("exclusion removal unchanged", ItemRuleConfigCore.ParseExclusions(ItemRuleConfigCore.Write("Resin # comment\nStone", excludes, false)).SetEquals(new[] { "Stone" }));
 
+const string exclusionRaw = "# pickup rules\r\n  Resin  # keep resin note\r\nStone(Clone) | Off; mod-item:variant | On, Wood | off\r\nBad | invalid\r\n";
+var exclusionEntries = ItemRuleConfigCore.Read(exclusionRaw, false);
+Check("disabled exclusions stay editable", exclusionEntries.Count == 4 && exclusionEntries[1].Key == "Stone(Clone)" && !exclusionEntries[1].Excluded);
+Check("bare exclusions are enabled", exclusionEntries[0].Excluded);
+Check("explicit exclusion states are case insensitive", exclusionEntries[2].Excluded && !exclusionEntries[3].Excluded);
+Check("no-op retains explicit On whitespace comments and invalid lines", ItemRuleConfigCore.Write(exclusionRaw, exclusionEntries, false) == exclusionRaw);
+Check("runtime excludes enabled rows only", ItemRuleConfigCore.ParseExclusions(exclusionRaw).SetEquals(new[] { "Resin", "mod-item:variant" }));
+foreach (string invalid in new[] { "Wood |", "Wood | Disabled", "Wood | Off | On", "Wood | 0", "| Off" })
+{
+    Check("malformed exclusion state is not a prefab: " + invalid, ItemRuleConfigCore.Read(invalid, false).Count == 0);
+    Check("malformed exclusion state is not active: " + invalid, ItemRuleConfigCore.ParseExclusions(invalid).Count == 0);
+}
+
+string exclusionLive = exclusionRaw;
+var retainedEntry = exclusionEntries[0];
+void CommitExclusions()
+{
+    exclusionLive = ItemRuleConfigCore.Write(exclusionLive, exclusionEntries, false);
+    ItemRuleConfigCore.AcceptSaved(exclusionEntries, ItemRuleConfigCore.Read(exclusionLive, false));
+    Check("exclusion rebase keeps saved bytes", ItemRuleConfigCore.Write(exclusionLive, exclusionEntries, false) == exclusionLive);
+}
+retainedEntry.Excluded = false;
+CommitExclusions();
+Check("unchecked row persists with Off and comment", exclusionLive.Contains("Resin | Off # keep resin note\r\n"));
+Check("unchecked row no longer excludes pickup", !ItemRuleConfigCore.ParseExclusions(exclusionLive).Contains("Resin"));
+Check("toggling retains Entry identity", ReferenceEquals(retainedEntry, exclusionEntries[0]));
+Check("toggling leaves later raw rows untouched", exclusionLive.Contains("Stone(Clone) | Off; mod-item:variant | On, Wood | off\r\nBad | invalid\r\n"));
+retainedEntry.Excluded = true;
+CommitExclusions();
+Check("checked row resumes exclusion and uses natural bare format", exclusionLive.Contains("Resin # keep resin note\r\n") && ItemRuleConfigCore.ParseExclusions(exclusionLive).Contains("Resin"));
+exclusionEntries[1].Removed = true;
+CommitExclusions();
+Check("disabled row can be deleted completely", !ItemRuleConfigCore.Read(exclusionLive, false).Any(entry => entry.Key == "Stone(Clone)"));
+exclusionEntries[1].Excluded = false;
+CommitExclusions();
+Check("editing after disabled row deletion uses rebased span", exclusionLive.Contains("mod-item:variant | Off") && !ItemRuleConfigCore.ParseExclusions(exclusionLive).Contains("mod-item:variant"));
+exclusionEntries.Add(new ItemRuleConfigCore.Entry { Start = -1, Key = "Stone" });
+CommitExclusions();
+Check("new or re-added exclusion starts enabled", exclusionEntries.Last().Excluded && ItemRuleConfigCore.ParseExclusions(exclusionLive).Contains("Stone"));
+exclusionEntries.Last().Excluded = false;
+CommitExclusions();
+Check("new exclusion subsequent toggle does not append duplicate", ItemRuleConfigCore.Read(exclusionLive, false).Count(entry => entry.Key == "Stone") == 1 && !ItemRuleConfigCore.ParseExclusions(exclusionLive).Contains("Stone"));
+
+// A failed config write leaves snapshot/spans untouched. The UI restores only
+// the edited value, so its next save must serialize the same pre-edit snapshot.
+string beforeFailure = exclusionLive;
+int beforeFailureStart = retainedEntry.Start;
+int beforeFailureLength = retainedEntry.Length;
+bool beforeFailureExcluded = retainedEntry.Excluded;
+retainedEntry.Excluded = !beforeFailureExcluded;
+string failedCandidate = ItemRuleConfigCore.Write(exclusionLive, exclusionEntries, false);
+Check("toggle produces distinct pending save", failedCandidate != beforeFailure);
+retainedEntry.Excluded = beforeFailureExcluded;
+Check("failed toggle rollback restores no-op serialization", ItemRuleConfigCore.Write(exclusionLive, exclusionEntries, false) == beforeFailure);
+Check("failed toggle never shifts accepted spans", retainedEntry.Start == beforeFailureStart && retainedEntry.Length == beforeFailureLength);
+
 // The actual shared memory/selection policy; cells use integers here so this
 // regression scenario does not need a running Unity player.
 var memory = new Dictionary<int, string>();
