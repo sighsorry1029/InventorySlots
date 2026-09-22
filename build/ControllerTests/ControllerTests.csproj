@@ -8,5 +8,9 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../Shared/ItemRules/InventoryController.cs" Link="InventoryController.cs" />
+    <Compile Include="../../Shared/ItemRules/FeatureGuideController.cs" Link="FeatureGuideController.cs" />
+    <Compile Include="../../Shared/ItemRules/InventoryButtonNavigation.cs" Link="InventoryButtonNavigation.cs" />
+    <Compile Include="../../Shared/ItemRules/ControllerItemMenu.cs" Link="ControllerItemMenu.cs" />
+    <Compile Include="../../Shared/ItemRules/ItemRuleControllerState.cs" Link="ItemRuleControllerState.cs" />
   </ItemGroup>
 </Project>

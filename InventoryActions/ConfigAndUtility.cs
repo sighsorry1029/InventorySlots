@@ -53,7 +53,6 @@ public sealed partial class InventoryActionsPlugin
 
     private static void BindConfigs()
     {
-        BindInventoryControllerConfig();
         _serverConfigLocked = ConfigEntry(GeneralConfigSection, "Lock Configuration", Toggle.On, "When enabled, only server admins can modify this mod's synced configuration.");
         _ = ConfigSync.AddLockingConfigEntry(_serverConfigLocked);
 
@@ -132,6 +131,9 @@ public sealed partial class InventoryActionsPlugin
                 null, new ConfigurationManagerAttributes { Order = 860 }), synchronizedSetting: false);
         _autoPickupExcludedItemsConfig.SettingChanged += RefreshAutoPickupExclusions;
         RefreshAutoPickupExclusions(null, EventArgs.Empty);
+
+        // Configuration Manager preserves the order in which sections first appear.
+        BindInventoryControllerConfig();
     }
 
     private static ConfigEntry<T> ConfigEntry<T>(string group, string name, T value, string description, bool synchronizedSetting = true)
@@ -400,17 +402,6 @@ public sealed partial class InventoryActionsPlugin
         }
 
         return Path.Combine(Paths.ConfigPath, $"{ModName}.Favorites.{safeId}.txt");
-    }
-
-    private static string LocalizeUi(string token, string fallback)
-    {
-        if (Localization.instance == null || string.IsNullOrWhiteSpace(token))
-        {
-            return fallback;
-        }
-
-        string localized = Localization.instance.Localize(token);
-        return string.IsNullOrWhiteSpace(localized) || string.Equals(localized, token, StringComparison.Ordinal) ? fallback : localized;
     }
 
     private static string GetLocalizedItemName(ItemData item)

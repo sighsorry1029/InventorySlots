@@ -30,6 +30,7 @@ public sealed partial class InventoryActionsPlugin
     public static int TestRulesClosedFrame = -1;
     public static int TestFavorites, TestPlayerSorts, TestContainerSorts, TestRuleOpens;
     public static bool TestLastRestock;
+    public static GameObject? TestLastRuleDragObject;
     public static Vector2i TestLastFavorite;
     private static ConfigEntry<T> ConfigEntry<T>(string section, string name, T value, string description, bool synchronizedSetting) => new(value);
     private static bool IsInventoryPanelClosing(InventoryGui gui) => TestClosing;
@@ -43,10 +44,24 @@ public sealed partial class InventoryActionsPlugin
     private static void ToggleFavoriteSlot(Player player, Vector2i pos) { TestFavorites++; TestLastFavorite = pos; }
     private static void SortPlayerInventory(Player player) => TestPlayerSorts++;
     private static void SortCurrentContainer(Player player) => TestContainerSorts++;
-    internal static void OpenControllerItemRules(bool restock) { TestRuleOpens++; TestLastRestock = restock; }
+    internal static void OpenControllerItemRules(bool restock)
+    {
+        TestRuleOpens++;
+        TestLastRestock = restock;
+        TestLastRuleDragObject = InventoryGui.instance.m_dragGo;
+        if (TestPinRulesOnOpen) TestRulesPinned = true;
+    }
+
+    // Clone hint cleanup is exercised by ButtonCaptionTests, not this input host.
+    private static void RemoveClonedInventoryButtonHints(UnityEngine.UI.Button button) { }
 
     public static InventoryGui TestReset()
     {
+        ResetControllerItemMenu();
+        TestResetMenuAdapter();
+        TestResetGuideAdapter();
+        ResetInventoryButtonNavigation();
+        TestResetButtonAdapter();
         TestClosing = TestBlocked = TestLegacyFavoriteHeld = TestRulesPinned = false;
         TestDedicated = false;
         _instance.isActiveAndEnabled = true;
@@ -54,6 +69,7 @@ public sealed partial class InventoryActionsPlugin
         TestRulesClosedFrame = -1;
         TestFavorites = TestPlayerSorts = TestContainerSorts = TestRuleOpens = 0;
         TestLastFavorite = default;
+        TestLastRuleDragObject = null;
         ZInput.Held.Clear(); ZInput.Down.Clear(); ZInput.ResetCalls.Clear(); ZInput.Exclusive = true;
         Time.frameCount++;
         Player.m_localPlayer = new Player();
@@ -71,6 +87,7 @@ public sealed partial class InventoryActionsPlugin
 #endif
         BindInventoryControllerConfig();
         _enableControllerHotkeys.Value = Toggle.On;
+        OnControllerInputUpdated();
         return gui;
     }
     public static void TestSetInventoryModifier(string value) => _inventoryActionModifier.Value = Enum.Parse<InventoryControllerModifier>(value);

@@ -863,6 +863,7 @@ public sealed partial class InventorySlotsPlugin
                 continue;
             }
 
+            Localization.instance?.RemoveTextFromCache(text);
             ApplyDefaultFontAsset(text);
             if (text.text != label)
             {
@@ -874,6 +875,7 @@ public sealed partial class InventorySlotsPlugin
         {
             if (text != null && !IsUnityNull(text) && text.text != label)
             {
+                Localization.instance?.RemoveTextFromCache(text);
                 text.text = label;
             }
         }
@@ -1351,8 +1353,9 @@ public sealed partial class InventorySlotsPlugin
         cache.LastTextStamp = default;
         cache.LastColorStamp = default;
         cache.ProgressBaseLabel = "";
-        cache.TmpTexts = root.GetComponentsInChildren<TMP_Text>(true);
-        cache.LegacyTexts = root.GetComponentsInChildren<Text>(true);
+        Button? button = root.GetComponent<Button>();
+        cache.TmpTexts = button != null ? GetInventoryButtonCaptionTexts<TMP_Text>(button).ToArray() : root.GetComponentsInChildren<TMP_Text>(true);
+        cache.LegacyTexts = button != null ? GetInventoryButtonCaptionTexts<Text>(button).ToArray() : root.GetComponentsInChildren<Text>(true);
         return cache;
     }
 

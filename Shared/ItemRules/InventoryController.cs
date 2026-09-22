@@ -31,6 +31,7 @@ public sealed partial class InventoryActionsPlugin
 #endif
     private static ConfigEntry<InventoryControllerModifier> _inventoryActionModifier = null!;
     private static ConfigEntry<RestockControllerModifier> _favoriteRestockModifier = null!;
+    private static int _controllerInputUpdateFrame = -1;
     private static int _controllerDispatchFrame = -1;
     private static int _controllerReservedFrame = -1;
 
@@ -49,14 +50,15 @@ public sealed partial class InventoryActionsPlugin
             "Enable the inventory action chords and favorite restock controller shortcut below. Client-only.", synchronizedSetting: false);
 #endif
         _inventoryActionModifier = ConfigEntry(ControllerInputConfigSection, "Inventory Action Modifier", InventoryControllerModifier.JoyRStick,
-            "Hold this while a player/container inventory grid is selected: A toggles a player favorite, X sorts the selected inventory, Y opens Restock targets, B opens Auto Pickup Exclude. Pick up a player-inventory item first to register it with Y/B. Off disables these chords. Uses physical face-button positions in every controller layout. Client-only.", synchronizedSetting: false);
+            "Hold this while a player/container inventory grid is selected, then press A to toggle a player favorite, X to sort the selected inventory, Y to open Restock targets, or B to open Auto Pickup Exclude. Pick up a player-inventory item first to register it with Y/B. Off disables these chords. Without holding any other button, a short right-stick click and release opens the selected slot's actions menu; S and the inventory buttons can also be selected with directions. These direct UI controls remain available when hotkeys are Off. Uses physical face-button positions in every controller layout. Client-only.", synchronizedSetting: false);
         _favoriteRestockModifier = ConfigEntry(ControllerInputConfigSection, "Favorite Restock Modifier", RestockControllerModifier.JoyAltKeys,
             "Hold this together with the game's controller Use button while looking at a container to restock favorites. JoyAltKeys follows the game's alternative-action binding (normally LT; LB in the Alternative 1 layout). Off disables this chord. Uses the same targets, limits, leave-one rule and range as keyboard restock. Client-only.", synchronizedSetting: false);
     }
 
     private static bool InventoryControllerEnabled => _enableControllerHotkeys?.Value == Toggle.On;
-    private static bool UseInventoryControllerHints() => _instance != null && _instance.isActiveAndEnabled && !IsDedicatedServer &&
-        InventoryControllerEnabled && ZInput.IsExclusiveGamepadActive();
+    private static bool IsInventoryControllerActive() => _instance != null && _instance.isActiveAndEnabled && !IsDedicatedServer &&
+        ZInput.IsExclusiveGamepadActive();
+    private static bool UseInventoryControllerHints() => InventoryControllerEnabled && IsInventoryControllerActive();
     private static string GetInventoryControllerActionDisplay(string action) =>
         ZInput.instance != null ? ZInput.instance.GetBoundKeyString(action, true) : action;
     private static string GetInventoryControllerChordDisplay(string action) =>
@@ -80,22 +82,27 @@ public sealed partial class InventoryActionsPlugin
             (IsControllerGridActive(gui.m_playerGrid) || IsControllerGridActive(gui.ContainerGrid));
     }
 
-    private static InventoryGrid? GetControllerActionGrid(InventoryGui gui)
+    private static bool CanUseInventoryControllerUi(InventoryGui gui)
     {
-        if (!UseInventoryControllerHints() || !InventoryGui.IsVisible() || IsInventoryPanelClosing(gui) ||
+        if (!IsInventoryControllerActive() || !InventoryGui.IsVisible() || IsInventoryPanelClosing(gui) ||
             Player.m_localPlayer == null || FavoriteMemoryAccess.IsLoading(Player.m_localPlayer) ||
             Player.m_localPlayer.IsTeleporting() || ShouldBlockGlobalHotkeys(Player.m_localPlayer) || !CanShowItemRules(gui) ||
             (gui.m_splitDialog != null && gui.m_splitDialog.gameObject.activeInHierarchy) ||
             (gui.m_variantDialog != null && gui.m_variantDialog.gameObject.activeInHierarchy) ||
             gui.IsSkillsPanelOpen || gui.IsTextPanelOpen || gui.IsTrophisPanelOpen || gui.IsAchievementsPanelOpen)
-            return null;
+            return false;
 #if INVENTORY_SLOTS
-        if (_inventoryTrashConfirmDialog != null && _inventoryTrashConfirmDialog.activeInHierarchy) return null;
+        if (_inventoryTrashConfirmDialog != null && _inventoryTrashConfirmDialog.activeInHierarchy) return false;
 #else
-        if (Runtime.TrashConfirmDialog != null && Runtime.TrashConfirmDialog.activeInHierarchy) return null;
+        if (Runtime.TrashConfirmDialog != null && Runtime.TrashConfirmDialog.activeInHierarchy) return false;
 #endif
         GameObject? selected = EventSystem.current != null ? EventSystem.current.currentSelectedGameObject : null;
-        if (selected != null && (selected.GetComponent<TMP_InputField>() != null || selected.GetComponent<InputField>() != null)) return null;
+        return selected == null || (selected.GetComponent<TMP_InputField>() == null && selected.GetComponent<InputField>() == null);
+    }
+
+    private static InventoryGrid? GetControllerActionGrid(InventoryGui gui, bool requireHotkeys = true)
+    {
+        if (requireHotkeys && !InventoryControllerEnabled || !CanUseInventoryControllerUi(gui)) return null;
         InventoryGrid? playerGrid = gui.m_playerGrid;
         if (IsControllerGridActive(playerGrid)) return playerGrid;
         return IsControllerGridActive(gui.ContainerGrid) ? gui.ContainerGrid : null;
@@ -104,13 +111,23 @@ public sealed partial class InventoryActionsPlugin
     private static bool IsControllerGridActive(InventoryGrid? grid) => grid != null && grid.isActiveAndEnabled &&
         grid.m_uiGroup != null && grid.m_uiGroup.IsActive && grid.GetInventory() != null;
 
+    internal static bool IsControllerInputUpdated() => _controllerInputUpdateFrame == Time.frameCount;
+
+    internal static void OnControllerInputUpdated()
+    {
+        _controllerInputUpdateFrame = Time.frameCount;
+        if (InventoryGui.instance != null) UpdateInventoryControllerInput(InventoryGui.instance);
+    }
+
     // Gui.Update closes on B/Y before it updates grids. UIGamePad components
     // also run independently, so all three entry points share one dispatch.
     internal static void UpdateInventoryControllerInput(InventoryGui gui)
     {
         UpdateItemRuleControllerInput();
+        if (gui != null && UpdateControllerFeatureGuide(gui)) return;
+        if (gui != null && UpdateControllerItemMenu(gui)) return;
+        if (gui != null && UpdateInventoryButtonNavigation(gui)) return;
         if (_controllerDispatchFrame == Time.frameCount || gui == null) return;
-        _controllerDispatchFrame = Time.frameCount;
         InventoryGrid? grid = GetControllerActionGrid(gui);
         if (grid == null) return;
         bool modifier = _inventoryActionModifier != null && _inventoryActionModifier.Value != InventoryControllerModifier.Off &&
@@ -121,11 +138,18 @@ public sealed partial class InventoryActionsPlugin
         const bool favoriteOnly = false;
 #endif
         if (!modifier && !favoriteOnly) return;
+        // UI navigation can run before Game.Update ticks ZInput. Reserve its
+        // direct submit immediately, but wait for this frame's button-downs.
+        _controllerReservedFrame = Time.frameCount;
+        if (!IsControllerInputUpdated()) return;
         bool favorite = ZInput.GetButtonDown("JoyButtonA");
         bool sort = modifier && ZInput.GetButtonDown("JoyButtonX");
         bool restock = modifier && ZInput.GetButtonDown("JoyButtonY");
         bool exclude = modifier && ZInput.GetButtonDown("JoyButtonB");
-        _controllerReservedFrame = Time.frameCount;
+        // A no-input/gated poll must not prevent a later caller from seeing
+        // input or grid focus updated during the same frame.
+        if (!favorite && !sort && !restock && !exclude) return;
+        _controllerDispatchFrame = Time.frameCount;
         // Capture first, then consume aliases. Never reset the held modifier or
         // world JoyUse hold: ResetButtonStatus requires a physical re-press.
         if (favorite) ZInput.ResetButtonStatus("JoyButtonA");
@@ -165,17 +189,20 @@ public sealed partial class InventoryActionsPlugin
     internal static bool IsInventoryControllerInputReserved() => _controllerReservedFrame == Time.frameCount;
 
     internal static bool IsInventoryControllerNavigationReserved() => IsInventoryControllerInputReserved() ||
-        (ZInput.IsExclusiveGamepadActive() && IsItemRuleInputBlocked());
+        (ZInput.IsExclusiveGamepadActive() && (IsItemRuleInputBlocked() || IsControllerItemMenuOpen()));
 
     private static void RemoveClonedControllerShortcuts(Button button)
     {
-        foreach (UIGamePad shortcut in button.GetComponentsInChildren<UIGamePad>(true))
-        {
-            shortcut.enabled = false;
-            if (shortcut.m_hint != null) shortcut.m_hint.SetActive(false);
-            Object.Destroy(shortcut);
-        }
+        RemoveClonedInventoryButtonHints(button);
     }
+}
+
+// ZInput computes Pressed in Update, separately from physical input callbacks.
+// Consume chords here before vanilla InventoryGui can treat Y/B as Close.
+[HarmonyPatch(typeof(ZInput), nameof(ZInput.Update))]
+internal static class InventoryControllerInputUpdatePatch
+{
+    private static void Postfix() => ControllerPlugin.OnControllerInputUpdated();
 }
 
 // Unity's input module reads InputActions directly, independently of ZInput

@@ -1,137 +1,143 @@
 # InventorySlots
 
-올인원 인벤토리 개편 모드임. 점진적 인벤토리 행, 커스텀 장비/퀵 슬롯, 다중 제작, 사망 시 유지 규칙, 즐겨찾기, 스크롤 가능한 툴팁, 제작 그리드/검색/정렬, 컨테이너 스택/보충/정렬, 아이템 비교, 컨트롤러 지원을 제공함. EpicLoot와 Jewelcrafting 호환도 지원됨.
+장비와 퀵 슬롯, 즐겨찾기, 제작 검색, 아이템 비교, 상자 보관·보충을 한곳에서 사용할 수 있는 Valheim 인벤토리 모드입니다.
+
+[상세 가이드 · English](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/inventoryslots.md) · [컨트롤러 조작 · English](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/controller.md) · [English README](https://github.com/sighsorry1029/InventorySlots/blob/main/README.md)
+
+이미지와 GIF를 클릭하면 원본을 볼 수 있습니다.
+
+<a href="https://i.ibb.co/ynW5TXnN/Screenshot-2026-09-16-095942.png"><img src="https://i.ibb.co/ynW5TXnN/Screenshot-2026-09-16-095942.png" alt="InventorySlots 인벤토리와 제작 목록 화면" width="460"></a>
 
 ## 기능 미리보기
 
-### 안정적인 인벤토리 성장
+### 인벤토리와 퀵 슬롯
 
-![](https://i.ibb.co/QFFMsQgx/progressiveslotfinal.gif)
+| 진행형 인벤토리 | 핫바 전환 |
+| --- | --- |
+| <a href="https://i.ibb.co/QFFMsQgx/progressiveslotfinal.gif"><img src="https://i.ibb.co/QFFMsQgx/progressiveslotfinal.gif" alt="진행에 따라 늘어나는 인벤토리 행과 퀵 슬롯" width="320"></a> | <a href="https://i.ibb.co/B2RrkCH1/hotbarswitch.gif"><img src="https://i.ibb.co/B2RrkCH1/hotbarswitch.gif" alt="표시할 핫바 행 전환" width="320"></a> |
 
-점진적 인벤토리 행과 퀵 슬롯은 시간이 지나며 해금됨. 저장된 아이템 위치를 뒤섞지 않음. 클라이언트에서 현재 보이는 인벤토리 행을 펼치거나 접을 수 있음. 장비 슬롯은 `InventorySlots/InventorySlots.yml`에서 정의됨.
+아이템 위치를 유지하면서 행과 퀵 슬롯을 해금하고, 핫바를 전환해 더 많은 아이템을 바로 사용합니다.
 
-![](https://i.ibb.co/B2RrkCH1/hotbarswitch.gif)
+<a href="https://i.ibb.co/5XMjS4Cw/keyhint.png"><img src="https://i.ibb.co/5XMjS4Cw/keyhint.png" alt="인벤토리 단축키 안내" width="480"></a>
 
-핫바 전환 키로 현재 표시되는 핫바 행을 순환할 수 있음. 내부 아이템 좌표를 옮기지 않으므로 인벤토리가 커져도 핫바를 실용적으로 사용할 수 있음.
+### 제작과 강화
 
-`InventorySlots/InventorySlots.yml`의 `QuickSlots` 규칙에 맞는 새 스택은 자동 배치 시 핫바를 먼저 사용하고, 맞지 않는 아이템은 2~n행을 먼저 사용함. 기존 부분 스택 합치기와 직접 드래그 위치는 바뀌지 않음.
+<a href="https://i.ibb.co/8gDsSjJM/gridchangeenglish.gif"><img src="https://i.ibb.co/8gDsSjJM/gridchangeenglish.gif" alt="제작 목록과 그리드 보기 전환" width="240"></a>
 
-![](https://i.ibb.co/5XMjS4Cw/keyhint.png)
+처음에는 List 보기로 시작합니다. Search 옆 버튼으로 Grid와 즉시 전환할 수 있으며 선택은 로컬에 저장됩니다.
 
-키 힌트에는 현재 설정된 즐겨찾기와 툴팁 단축키가 표시됨. 클라이언트 설정에 따라 마우스와 컨트롤러 입력도 반영됨.
+<a href="https://i.ibb.co/pBJJ84sJ/craftingpanellook.png"><img src="https://i.ibb.co/pBJJ84sJ/craftingpanellook.png" alt="검색과 분류를 제공하는 제작 화면" width="480"></a>
 
-### 제작 브라우저
+| 즐겨찾기와 그리드 크기 | 정렬과 다중 제작 |
+| --- | --- |
+| <a href="https://i.ibb.co/0yP8R3vf/gridsizefavorite.gif"><img src="https://i.ibb.co/0yP8R3vf/gridsizefavorite.gif" alt="레시피 즐겨찾기와 제작 그리드 크기 조절" width="240"></a> | <a href="https://i.ibb.co/Y7586d2w/sortingandmulticraft.gif"><img src="https://i.ibb.co/Y7586d2w/sortingandmulticraft.gif" alt="레시피 정렬과 여러 개 제작 예약" width="320"></a> |
 
-![](https://i.ibb.co/pBJJ84sJ/craftingpanellook.png)
+자주 만드는 레시피를 즐겨찾기하고, 목록을 정렬한 뒤 여러 번의 제작을 예약합니다.
 
-제작대가 아이콘 그리드 기반 브라우저로 재구성됨. 검색, 그룹 필터, 즐겨찾기, 정렬 버튼, 페이지 스크롤, hover/고정 툴팁을 지원함.
+<a href="https://i.ibb.co/tPDH0MPc/upgradebenefit.png"><img src="https://i.ibb.co/tPDH0MPc/upgradebenefit.png" alt="강화로 증가하는 수치를 강조한 상세 정보" width="600"></a>
 
-![](https://i.ibb.co/0yP8R3vf/gridsizefavorite.gif)
+강화로 바뀌는 수치를 제작 전에 확인합니다.
 
-레시피를 즐겨찾기로 표시하고, 마우스 휠 줌으로 제작 그리드 크기를 조절할 수 있음.
+### 아이템 정보와 비교
 
-![](https://i.ibb.co/Y7586d2w/sortingandmulticraft.gif)
+| 설명 스크롤과 툴팁 고정 | 제작 중 정보 확인 |
+| --- | --- |
+| <a href="https://i.ibb.co/NdVdTFdk/jeweltooltiptest.gif"><img src="https://i.ibb.co/NdVdTFdk/jeweltooltiptest.gif" alt="긴 아이템 설명 스크롤과 툴팁 고정" width="400"></a> | <a href="https://i.ibb.co/bMjbRm73/recipeandgrid.gif"><img src="https://i.ibb.co/bMjbRm73/recipeandgrid.gif" alt="툴팁을 고정한 상태로 제작 목록 탐색" width="320"></a> |
 
-레시피를 그룹과 자원 티어 기준으로 정렬하고, 같은 제작 흐름 안에서 여러 개를 제작할 수 있음.
+긴 설명을 스크롤하고 툴팁을 최대 3개까지 고정해 비교합니다.
 
-![](https://i.ibb.co/bMjbRm73/recipeandgrid.gif)
+| 포션 비교 | 음식 비교 |
+| --- | --- |
+| <a href="https://i.ibb.co/JWzSGMcd/favoritecomparepotions.gif"><img src="https://i.ibb.co/JWzSGMcd/favoritecomparepotions.gif" alt="고정 툴팁으로 포션 효과 비교" width="400"></a> | <a href="https://i.ibb.co/j9bNG7Ft/comparemeal.gif"><img src="https://i.ibb.co/j9bNG7Ft/comparemeal.gif" alt="고정 툴팁으로 음식 비교" width="400"></a> |
 
-제작대에서 그리드 크기를 바꾸거나 레시피를 탐색하는 동안에도 hover 툴팁과 고정 툴팁을 계속 사용할 수 있음.
+| 장비 비교 | 음식 비교 |
+| --- | --- |
+| <a href="https://i.ibb.co/3Dv1Ct1/comparegears.png"><img src="https://i.ibb.co/3Dv1Ct1/comparegears.png" alt="장비 비교 패널" width="320"></a> | <a href="https://i.ibb.co/LXcfNxtG/comparemeals.png"><img src="https://i.ibb.co/LXcfNxtG/comparemeals.png" alt="음식 비교 패널" width="320"></a> |
 
-![](https://i.ibb.co/tPDH0MPc/upgradebenefit.png)
+<a href="https://i.ibb.co/kVJ3fjJ2/Tooltipalpha.gif"><img src="https://i.ibb.co/kVJ3fjJ2/Tooltipalpha.gif" alt="툴팁 배경 불투명도 조절" width="560"></a>
 
-업그레이드 화면에서 장비를 강화했을 때 증가하는 능력치를 확인할 수 있음. 업그레이드 탭의 즐겨찾기는 제작 탭의 즐겨찾기와 별도로 관리됨.
+화면에 맞게 툴팁 배경의 불투명도를 조절합니다.
 
-### 스크롤 가능한 툴팁과 비교
+### 보관·보충·아이템 관리
 
-![](https://i.ibb.co/NdVdTFdk/jeweltooltiptest.gif)
+<a href="https://i.ibb.co/b5qGKm8k/Inventory-Button.gif"><img src="https://i.ibb.co/b5qGKm8k/Inventory-Button.gif" alt="Restock, Exclude, Trash 버튼이 각각 펼쳐지는 모습" width="320"></a>
 
-InventorySlots 툴팁은 스크롤 가능한 패널로 확장될 수 있음. 여러 개의 고정 비교 슬롯도 지원됨.
+버튼에 커서를 올리거나 컨트롤러로 선택해 보충 목표, 자동 줍기 제외, 아이템 삭제 기능을 사용합니다. 삭제에는 확인 과정이 있습니다.
 
-![](https://i.ibb.co/JWzSGMcd/favoritecomparepotions.gif)
+| 빠른 보관 | 즐겨찾기 보충 |
+| --- | --- |
+| <a href="https://i.ibb.co/rJYRL18/quickstack.gif"><img src="https://i.ibb.co/rJYRL18/quickstack.gif" alt="상자를 보며 사용 키를 길게 눌러 주변 상자에 보관" width="400"></a> | <a href="https://i.ibb.co/kgqHWzbk/restock.gif"><img src="https://i.ibb.co/kgqHWzbk/restock.gif" alt="주변 상자에서 즐겨찾기 스택 보충" width="400"></a> |
 
-![](https://i.ibb.co/j9bNG7Ft/comparemeal.gif)
+상자를 바라보고 **E를 길게 누르면** 같은 아이템이 있는 상자에 보관하고, **Alt + E를 길게 누르면** 즐겨찾기를 보충합니다. 두 조작 모두 해당 상자와 주변의 사용 가능한 상자를 대상으로 합니다.
 
-최대 세 개의 툴팁을 고정해 레시피, 음식, 포션, 장비를 비교할 수 있음. 현재 hover 중인 대상도 잃지 않음.
+| 상자 조작 안내 | 보충 목표 |
+| --- | --- |
+| <a href="https://i.ibb.co/xtpGM34P/quickstackchest.png"><img src="https://i.ibb.co/xtpGM34P/quickstackchest.png" alt="상자의 빠른 보관과 보충 안내" width="300"></a> | <a href="https://i.ibb.co/yFQWpxjF/restocklimit.png"><img src="https://i.ibb.co/yFQWpxjF/restocklimit.png" alt="아이템별 보충 목표 설정" width="480"></a> |
 
-![](https://i.ibb.co/3Dv1Ct1/comparegears.png)
+아이템별 목표 수량과 기억된 빈 즐겨찾기 칸까지 복원할지를 설정할 수 있습니다.
 
-![](https://i.ibb.co/LXcfNxtG/comparemeals.png)
+### 다른 모드의 장비
 
-장비와 음식 비교도 같은 고정 툴팁 시스템을 사용함.
+| EpicLoot 아이템 정보 | EpicLoot 강화 |
+| --- | --- |
+| <a href="https://i.ibb.co/JWPfnMWn/epiclootcompatible.png"><img src="https://i.ibb.co/JWPfnMWn/epiclootcompatible.png" alt="InventorySlots 툴팁의 EpicLoot 아이템 정보" width="320"></a> | <a href="https://i.ibb.co/4ZD7PW47/upgradeepicloot.png"><img src="https://i.ibb.co/4ZD7PW47/upgradeepicloot.png" alt="EpicLoot 장비 강화 결과 비교" width="320"></a> |
 
-![](https://i.ibb.co/kVJ3fjJ2/Tooltipalpha.gif)
+<a href="https://i.ibb.co/ymQvwRzd/comparejewel.png"><img src="https://i.ibb.co/ymQvwRzd/comparejewel.png" alt="Jewelcrafting 소켓 장비와 보석 정보 비교" width="600"></a>
 
-인벤토리/컨테이너 hover 툴팁과 제작 hover 툴팁의 배경 투명도는 클라이언트에서 설정할 수 있음.
+EpicLoot 아이템 정보와 Jewelcrafting 소켓 정보를 툴팁·비교 패널에서 확인할 수 있습니다. 자세한 지원 범위는 [호환성 가이드 · English](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/compatibility.md)를 참고하세요.
 
-### 컨테이너 도구
+## 주요 기능
 
-![](https://i.ibb.co/xtpGM34P/quickstackchest.png)
+| 기능 | 설명 |
+| --- | --- |
+| 인벤토리 확장 | 진행형 추가 행, 장비 슬롯, 퀵 슬롯과 해금 설정. |
+| 즐겨찾기와 정렬 | 빠른 보관으로부터 즐겨찾기를 보호하고, 정렬 시 남아 있는 즐겨찾기 스택을 채운 뒤 정렬 대상 일반 칸을 정리. |
+| 상자 도구 | 내용물 미리보기, 주변 상자 보관·보충, Take stacks와 상자 정렬. |
+| 제작 브라우저 | List/Grid 실시간 전환, 검색, 분류, 즐겨찾기, 강화와 다중 제작. |
+| 아이템 비교 | 긴 설명 스크롤과 최대 3개의 고정 툴팁. |
+| 개인 규칙 | 보충 수량, 자동 줍기 제외, 삭제, YAML 아이템 그룹·소지 제한·사망 시 유지 규칙. |
 
-컨테이너에 hover하면 범위 퀵 스택과 범위 보충을 위한 홀드 액션이 표시됨. 범위는 상호작용한 컨테이너를 중심으로 계산됨.
+## 기본 조작
 
-![](https://i.ibb.co/rJYRL18/quickstack.gif)
+아래는 기본 키 설정입니다. 게임 안의 안내에는 변경한 키 설정이 반영됩니다.
 
-`E`를 길게 누르면 즐겨찾기되지 않은 플레이어 아이템 중 일치하는 아이템을 hover한 컨테이너와 주변의 유효한 컨테이너에 빠르게 넣음.
+| 할 일 | 조작 |
+| --- | --- |
+| 인벤토리 칸 즐겨찾기 | 해당 칸을 **왼쪽 Alt + 좌클릭**. |
+| 인벤토리 정렬 | 해당 인벤토리의 **S** 버튼 클릭. |
+| 주변 상자에 빠른 보관 | 상자를 바라보고 **E 길게 누르기**. |
+| 즐겨찾기 보충 | 상자를 바라보고 **왼쪽 Alt + E 길게 누르기**. |
+| 보충 목표 등록 | 아이템을 집어 **Restock** 버튼에 놓기. 아이템은 인벤토리에 남습니다. |
+| 자동 줍기 제외 | 아이템을 **Exclude** 버튼에 놓기. 수동 줍기는 계속 가능합니다. |
+| 아이템 삭제 | 아이템을 **Trash**에 놓고 삭제 확인. |
 
-즐겨찾기는 아이템 종류가 아니라 인벤토리 칸 자체에 적용됨. 즐겨찾기된 칸은 퀵 스택 대상에서 제외되며, 동시에 보충 대상 칸으로 등록됨.
+**컨트롤러:** 인벤토리에서 아이템을 집지 않은 상태로 칸을 선택하고, **오른쪽 스틱을 짧게 눌렀다 놓으면** 즐겨찾기·정렬 메뉴가 열립니다. 마지막 행에서 아래로 이동하면 Restock·Exclude·Trash 버튼을 선택할 수 있습니다. 패널 조작과 조합키는 [컨트롤러 가이드 · English](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/controller.md)에 정리했습니다.
 
-![](https://i.ibb.co/kgqHWzbk/restock.gif)
+즐겨찾기는 빠른 보관으로부터 보호하지만 제작·건설 등 **일반적인 아이템 소비를 막지는 않습니다**. 보충 목표를 **Include empty**로 설정하면 소진된 아이템을 기억된 즐겨찾기 칸에 다시 채울 수 있습니다. [즐겨찾기와 보충 상세 규칙 · English](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/inventory-actions.md).
 
-기본 설정에서는 `Alt+E`를 길게 눌러 hover한 컨테이너와 주변의 유효한 컨테이너에서 즐겨찾기된 인벤토리 스택을 보충할 수 있음.
+## 설치
 
-`Enable Multi User Chest`가 On이면 여러 플레이어가 일반 설치 상자의 창을 함께 열 수 있음. 직접 이동·스택/보충·모두 빼기·정렬은 현재 소유자의 승인과 최신 내용 도착을 기다린 뒤 실행됨. 대기 중 슬롯 내용이 달라지면 다른 아이템을 옮기지 않고 해당 클릭을 취소함. 범위 작업은 다른 사람이 보고 있는 공유 상자도 포함하여 하나씩 처리하며, 거절·시간 초과된 대상에서는 아이템을 이동하지 않음.
+Valheim 모드 매니저로 설치하거나 `InventorySlots.dll`을 `BepInEx/plugins`에 넣으세요. **BepInExPack Valheim 5.4.2350**이 필요하며, 한 번 실행하면 설정 파일이 생성됩니다.
 
-설정 기본값은 On이고 기존에 저장한 On/Off 값은 유지됨. Off이면 바닐라의 단독 열기와 사용 중이지 않은 상자의 승인식 범위 이동을 사용함. 설정을 바꾸면 인벤토리를 닫고 대기 중 작업을 취소한 뒤 다시 열어야 함. 이전 내장 구현의 원격 아이템 전송과 임시 보관·처리 기록은 사용하지 않으며 상자에 남은 기록도 삭제하지 않음. 외부 MultiUserChest 모드가 있으면 해당 모드가 우선하며 범위 작업에서 자신이 소유하지 않은 상자를 제외함.
+- **클라이언트에만 설치:** 바닐라 서버에 접속할 수 있습니다. 다른 플레이어는 설치할 필요가 없으며 내 로컬 설정이 적용됩니다.
+- **서버에도 설치:** 모든 클라이언트에 같은 버전이 필요하며 서버 동기화 설정은 서버를 따릅니다.
+- **인벤토리 개편 모드는 하나만 사용:** InventoryActions, Quick Stack Store, ExtraSlots, AzuExtendedPlayerInventory, Equipment and Quick Slots, ComfyQuickSlots와 함께 설치하지 마세요. [호환성 상세 · English](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/compatibility.md).
 
-보호석·상자 접근 권한과 특수 컨테이너의 기존 정책은 유지됨. 이 기능은 다른 모드가 직접 수정하는 인벤토리나 게임 강제 종료 시 서로 다른 캐릭터/월드 저장을 하나의 원자적 저장으로 만들지는 않음. 실제 데디케이트 서버 동시 조작은 추가 확인이 필요하며 검토·검증 범위는 `docs/SharedContainerReview.md`에 정리됨.
+현재 인벤토리 레이아웃을 유지하면서 보관·보충 등의 기능만 사용하고 싶다면 [InventoryActions](https://thunderstore.io/c/valheim/p/sighsorry/InventoryActions/)를 선택하세요.
 
-DLL을 교체하기 전에 진행 중인 아이템 이동을 마치고 게임을 정상 종료해야 함. 범위 작업의 소유권 요청 구현이 일치하도록 서버와 모든 클라이언트를 같은 빌드로 교체한 뒤 다시 시작해야 함.
+## 가이드와 문의
 
-스택 가져오기는 즐겨찾기되지 않았고, 플레이어 인벤토리와 컨테이너에 서로 일치하는 stackable 아이템만 가져옴.
+상세 가이드는 영어로 제공됩니다.
 
-![](https://i.ibb.co/yFQWpxjF/restocklimit.png)
+| 가이드 | 내용 |
+| --- | --- |
+| [InventorySlots 설정](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/inventoryslots.md) | 진행, 장비, 제작, 툴팁, YAML 그룹과 설정 파일. |
+| [즐겨찾기와 인벤토리 도구](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/inventory-actions.md) | 정렬, 보충 모드, 빈 칸 기억, 자동 줍기 제외와 삭제. |
+| [컨트롤러 조작](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/controller.md) | 메뉴, 버튼 탐색, 수량 편집과 단축키. |
+| [멀티플레이와 호환성](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/compatibility.md) | 서버 설치, 선택적 연동과 제한 사항. |
 
-클라이언트별 보충 제한을 설정하면 prefab별로 즐겨찾기 보충 목표 수량을 제한할 수 있음. 예를 들어 `Stone: 10` 또는 `Coins: 500`처럼 설정할 수 있음.
+[GitHub](https://github.com/sighsorry1029/InventorySlots) · [문제 제보](https://github.com/sighsorry1029/InventorySlots/issues) · [Discord](https://discord.gg/jkcJCq2sK5) · [변경 내역](https://github.com/sighsorry1029/InventorySlots/blob/main/Thunderstore/CHANGELOG.md)
 
-### 모드 호환 예시
+## 크레딧
 
-![](https://i.ibb.co/JWPfnMWn/epiclootcompatible.png)
-
-EpicLoot 아이템은 툴팁 정보를 유지함. `InventorySlots/InventorySlots.yml`에 설정하면 InventorySlots의 장비/커스텀 슬롯 라우팅을 사용할 수 있음.
-
-![](https://i.ibb.co/4ZD7PW47/upgradeepicloot.png)
-
-EpicLoot 장비도 업그레이드 화면에서 InventorySlots의 고정 툴팁으로 비교할 수 있음.
-
-![](https://i.ibb.co/ymQvwRzd/comparejewel.png)
-
-Jewelcrafting의 소켓과 보석 툴팁 내용은 InventorySlots의 툴팁과 비교 흐름에서 지원됨.
-
-AzuCraftyBoxes의 선택적 API를 통해 주변 제작 재료 수량과 표시 색상을 반영함. 실제 재료 소비는 AzuCraftyBoxes가 처리하며, 이 표시 연동이 여러 플레이어의 동시 제작·건축을 중재하지는 않음.
-
-## 구성 파일
-
-`BepInEx/config` 아래에서 다음 파일을 사용함.
-
-- `sighsorry.InventorySlots.cfg`: config 루트에 유지되는 BepInEx 설정 파일임. Configuration Manager에 표시되는 옵션을 저장함.
-- `InventorySlots/InventorySlots.yml`: 서버 권한 설정임. `Slots`, `Groups`, `InventoryLimits`, `QuickSlots`, `KeepOnDeath`를 저장함.
-- `InventorySlots/ResourceMap.yml`: 서버 권한 설정임. 자원 정렬 티어를 저장함.
-- `InventorySlots/ClientState.yml`: 로컬 UI 상태를 자동으로 저장하는 파일임. 서버 설정으로 배포하지 않아도 됨.
-
-`InventorySlots/ResourceMap.yml`은 티어 이름과 재료 목록을 직접 연결함. 위에서 아래 순서로 티어가 정해지며, 같은 재료가 여러 번 나오면 처음 나온 티어가 적용됨.
-
-기본 맵은 Meadows부터 DeepNorth까지 정렬 티어를 제공함. 제작 비용이나 해금 조건은 바꾸지 않음. Writhan 재료는 Swamp, Hook은 Mistlands, 용암 Blob 트로피는 AshLands에 배치하며, Fader 처치 보상은 다음 지역 진입 재료로 보아 DeepNorth에 배치함.
-
-모드를 업데이트해도 기존 `ResourceMap.yml`은 덮어쓰지 않음. 파일을 백업한 뒤 저장소의 `config/InventorySlots/ResourceMap.yml`에서 누락 항목만 해당 섹션에 병합하고 사용자 항목과 티어 순서를 유지해야 함. `DeepNorth`는 `AshLands` 뒤에 추가하며 섹션을 알파벳순으로 정렬하면 안 됨. 멀티플레이에서는 서버의 맵이 기준임. YAML 수정은 실행 중 다시 읽고 동기화하도록 되어 있으며, 제작 목록은 갱신 대상으로 표시되고 인벤토리·상자는 다음 정렬부터 새 티어를 사용함. 잘못된 YAML은 마지막 정상 맵을 유지함.
-
-```yaml
-Meadows:
-  - Wood
-  - Stone
-BlackForest:
-  - HardAntler
-  - Bronze
-```
-
-이번 버전은 config 루트의 기존 `InventorySlots.yml`, `InventorySlots.Client.yml`, 또는 `InventorySlots.yml` 내부의 `resourceMap`을 읽거나 이전하지 않음. 기존 파일은 삭제하지 않고 그대로 둠. 커스텀 설정을 새 파일에 수동으로 다시 적용하고 서버와 모든 클라이언트를 함께 업데이트해야 함.
+빠른 보관·보충·즐겨찾기는 [QuickStackStore](https://github.com/Goldenrevolver/QuickStackStore)를 참고했습니다. 상자 미리보기는 Redseiko의 ContentsWithin과 MSchmoecker의 [GPL-3.0 포크](https://github.com/MSchmoecker/ComfyMods/tree/fork-upload/ContentsWithin)를 바탕으로 합니다.

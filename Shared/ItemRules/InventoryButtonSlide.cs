@@ -157,14 +157,16 @@ public sealed partial class InventoryActionsPlugin
                 ApplyOffset();
             }
             _wasOpen = true;
-            PointerOver = HitVisibleStrip();
+            bool controller = ZInput.IsExclusiveGamepadActive();
+            PointerOver = !controller && HitVisibleStrip();
             bool editing = _kind != InventorySlideButton.Trash && _itemRuleEditor != null &&
                 _itemRuleEditor.IsPopupOpenFor(_kind == InventorySlideButton.Restock);
-            // Carrying an item does not open any button until the pointer enters
-            // its exposed area. Gamepad access remains available without hover.
-            bool expand = PointerOver || editing || ZInput.IsGamepadActive();
-            if (expand) _lastInside = Time.unscaledTime;
-            float target = expand || Time.unscaledTime - _lastInside < CloseDelay ? 1 : 0;
+            // Controller focus reveals only its own button. Ignore the parked
+            // mouse cursor and its hover grace period while using the gamepad.
+            bool expand = editing || (controller ? IsControllerInventoryButtonFocused(_kind) : PointerOver);
+            if (controller) _lastInside = float.NegativeInfinity;
+            else if (expand) _lastInside = Time.unscaledTime;
+            float target = expand || !controller && Time.unscaledTime - _lastInside < CloseDelay ? 1 : 0;
             _progress = Mode == InventoryButtonMode.On ? 1 : Mathf.MoveTowards(_progress, target, Time.unscaledDeltaTime / Duration);
             ApplyOffset();
             if (editing) _itemRuleEditor!.PositionPopup();

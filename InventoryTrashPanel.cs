@@ -99,6 +99,7 @@ public sealed partial class InventorySlotsPlugin
         RectTransform? trashRect = LayoutActionButton(trashButton, buttonSize, buttonSize);
         if (trashButton != null && trashRect != null)
         {
+            RegisterControllerInventoryButton(gui, InventorySlideButton.Trash, trashButton);
             ConfigureInventoryTrashButton(trashButton, buttonSize);
             bool canTrash = CanStartInventoryTrash(gui, player, showMessage: false);
             SetButtonInteractable(trashButton, HasHeldTrashCandidate(gui));
@@ -448,15 +449,17 @@ public sealed partial class InventorySlotsPlugin
     }
     private static void SetInventoryTrashConfirmButtonText(Button button, string label, Color color)
     {
-        foreach (TMP_Text text in button.GetComponentsInChildren<TMP_Text>(true))
+        foreach (TMP_Text text in GetInventoryButtonCaptionTexts<TMP_Text>(button))
         {
+            Localization.instance?.RemoveTextFromCache(text);
             ApplyDefaultFontAsset(text);
             text.text = label;
             text.color = color;
         }
 
-        foreach (UnityEngine.UI.Text text in button.GetComponentsInChildren<UnityEngine.UI.Text>(true))
+        foreach (UnityEngine.UI.Text text in GetInventoryButtonCaptionTexts<UnityEngine.UI.Text>(button))
         {
+            Localization.instance?.RemoveTextFromCache(text);
             text.text = label;
             text.color = color;
         }

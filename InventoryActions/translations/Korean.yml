@@ -17,6 +17,7 @@ inventoryactions_action_result_format: "{action}: {count}"
 inventoryactions_container_not_ready: 컨테이너를 사용할 수 없습니다.
 inventoryactions_hold_to_restock: 누르고 있으면 보충
 inventoryactions_feature_guide: "<b>InventoryActions 빠른 가이드</b>\n플레이어 인벤토리 칸에서 <color=#FFA94D>[{favoriteKey} + 왼쪽 클릭]</color>: 즐겨찾기 등록/해제\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 즐겨찾기가 아닌 같은 종류의 아이템을 해당 상자와 주변 상자에 보관\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 즐겨찾기 스택을 해당 상자와 주변 상자에서 목표 수량까지 보충\n아이템을 <color=#FFA94D>보충 대상</color> 아이콘에 놓기: 즐겨찾기 스택의 목표 수량 등록\n아이템을 <color=#FFA94D>자동 줍기 제외 / 휴지통</color> 아이콘에 놓기: 자동 줍기 제외 등록 / 확인 후 삭제\n가이드 숨기기: <color=#FFA94D>F1 → InventoryActions → Show Feature Guide → Off</color>"
+inventoryactions_feature_guide_controller: "<b>InventoryActions 빠른 가이드</b>\n선택한 칸에서 {menuAction} 짧게: 작업 메뉴 · ↑↓ 선택 · {modeAction} 실행 · {closeAction} 뒤로\n내 인벤토리 맨 아래 오른쪽 / 상자 맨 위 오른쪽 칸에서 →: S 선택 · {modeAction}: 정렬\n선택적 단축키: 선택한 플레이어 칸에서 <color=#FFA94D>[{favoriteAction}]</color>: 즐겨찾기 · <color=#FFA94D>[{sortAction}]</color>: 선택 중인 인벤토리/상자 정렬\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: 보충 대상 / 자동 줍기 제외 열기 (집어 든 내 아이템이 있으면 등록)\n보조키를 놓고 마지막 표시 플레이어 행에서 방향키 아래: 보충/제외/휴지통 버튼 · 왼쪽/오른쪽: 켜진 버튼 선택\nAuto: 게임패드에서도 평소 접힘 · 선택한 버튼만 펼침 · 좌우 이동/이탈 시 이전 버튼 접힘 · On: 항상 펼침 · Off: 숨김\n버튼에서 {modeAction}: 보충/제외 목록 열기 또는 집은 내 아이템 등록 · 휴지통: 집은 아이템 삭제 확인\n버튼에서 위: 플레이어 칸 · 아래: 열린 상자\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 즐겨찾기 외 같은 종류를 주변 상자에 보관\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 목표 수량·빈 칸 보충 모드에 따라 즐겨찾기 보충\n규칙: ↑↓ 행 · ←→ 조작 선택 · {modeAction} 실행/편집 · {removeAction} 제거 · {closeAction} 닫기\n수량 편집: ↑ 증가 / ↓ 감소 · {modeAction}/{closeAction} 편집 종료 (자동 저장)\n가이드 숨기기: <color=#FFA94D>F1 → InventoryActions → Show Feature Guide → Off</color>"
 inventoryactions_rules_restock_title: 보충 대상
 inventoryactions_rules_mode_off: "보충: 끄기"
 inventoryactions_rules_mode_existing: "보충: 남아 있는 스택"
@@ -30,10 +31,27 @@ inventoryactions_rules_exclusion_on: "자동 줍기: 제외"
 inventoryactions_rules_exclusion_off: "자동 줍기: 허용"
 inventoryactions_rules_exclusion_help: "체크하면 이 아이템을 자동 줍기에서 제외합니다. 체크를 해제하면 항목은 유지하면서 자동 줍기를 허용합니다. 직접 줍기는 계속 가능합니다."
 inventoryactions_rules_remove_help: "이 항목을 목록에서 제거합니다."
-inventoryactions_rules_pad_exclude: "위/아래: 항목 · {mode}: 전환\n{remove}: 제거 · {close}: 닫기"
+inventoryactions_rules_pad_browse: "↑↓: 항목 · ←→: 조작 선택\n{submit}: {action} · {remove}: 제거 · {close}: 닫기"
+inventoryactions_rules_pad_quantity_edit: "↑: 증가 · ↓: 감소\n{submit}/{close}: 편집 종료"
+inventoryactions_rules_pad_empty: "{close}: 닫기"
+inventoryactions_rules_pad_edit: "편집"
+inventoryactions_rules_pad_change: "전환"
 inventoryactions_rules_restock_scope: "{key} · 즐겨찾기 칸별 보충 방식과 목표 수량"
 inventoryactions_rules_exclude_scope: E로 직접 줍기는 가능합니다
 inventoryactions_rules_quantity: 목표 수량
+inventoryactions_controller_menu_title: "인벤토리 작업"
+inventoryactions_controller_menu_favorite: "칸 즐겨찾기 설정"
+inventoryactions_controller_menu_unfavorite: "칸 즐겨찾기 해제"
+inventoryactions_controller_menu_sort: "인벤토리 정렬"
+inventoryactions_controller_menu_help: "↑↓: 선택\n{submit}: 실행 · {back}: 뒤로"
+inventoryactions_controller_actions_hint: "{key} 짧게: 작업"
+inventoryactions_controller_tools_hint: "↓: 버튼"
+inventoryactions_controller_sort_hint: "→: 정렬"
+inventoryactions_controller_open: "열기"
+inventoryactions_controller_register: "등록"
+inventoryactions_controller_back: "뒤로"
+inventoryactions_controller_sort: "정렬"
+inventoryactions_controller_trash: "휴지통"
 inventoryactions_rules_cancel: 취소
 inventoryactions_rules_save: 저장
 inventoryactions_rules_remove: 삭제

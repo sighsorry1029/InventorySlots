@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.5.10
+
+- Added direct controller navigation for the inventory tools. Move down from the last player row to select Restock, Auto Pickup Exclude, or Trash; move right from the player or container edge to select its Sort button. Auto buttons expand only while selected, hidden buttons are skipped, and returning restores the original inventory cell.
+- Added a short right-stick click menu for Favorite and Sort without picking up an item. Existing right-stick modifier chords remain available, and menu/button focus suppresses conflicting quick-slot, scrolling, pickup, close, and world actions.
+- Reworked controller rule editing: up/down selects an item, left/right selects Mode, Quantity, or Remove, A activates or edits, X removes, and B closes or finishes quantity editing. Added focused-control highlights, safe trash confirmation navigation, and localized live help.
+- Added **LT + right-stick click** to collapse or expand the quick guide while the inventory is open. The controller chord is shown in the guide header, the saved collapsed state is reused, and releasing the stick does not open the item action menu.
+- Moved the open-inventory quick guide into the free upper area between the player and crafting panels. It measures active inventory, equipment, stat, container, and crafting panels at the current UI scale, wraps to the available width, and hides when no readable non-overlapping area remains.
+- Fixed raw localization tokens and duplicated labels appearing in controller help and confirmation buttons. Controller help now follows the selected inventory button closely and moves above it near the screen edge.
+- Rewrote the English and Korean README pages into a shorter visual overview and added focused guides for InventorySlots, shared inventory actions, controllers, and multiplayer compatibility.
+
 ## 1.5.9
 
 - Added per-slot `applyArmor` in `InventorySlots/InventorySlots.yml` for custom equipment slots and the built-in Utility and Trinket slots. Omitted or `false` disables InventorySlots' additional armor contribution; `true` includes the equipped item's positive armor value and quality bonuses.

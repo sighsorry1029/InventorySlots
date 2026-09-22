@@ -17,6 +17,7 @@ inventoryactions_action_result_format: "{action}: {count}"
 inventoryactions_container_not_ready: Container is not ready.
 inventoryactions_hold_to_restock: Hold to restock
 inventoryactions_feature_guide: "<b>InventoryActions quick guide</b>\n<color=#FFA94D>[{favoriteKey} + Left Click]</color> on a player inventory slot: Toggle favorite\nWhile looking at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching non-favorited items in it and nearby chests\nWhile looking at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill favorite stacks from it and nearby chests up to their targets\nDrop a held item on <color=#FFA94D>Restock targets</color>: Set its favorite-stack target\nDrop a held item on <color=#FFA94D>Auto pickup exclusions / Trash</color>: Exclude auto pickup / delete after confirmation\nHide this guide: <color=#FFA94D>F1 → InventoryActions → Show Feature Guide → Off</color>"
+inventoryactions_feature_guide_controller: "<b>InventoryActions quick guide</b>\nTap {menuAction} on a selected slot: actions menu; ↑↓ select, {modeAction} apply, {closeAction} back\nPlayer bottom-right / chest top-right slot →: select S; {modeAction}: sort\nOptional shortcuts on the selected player slot, <color=#FFA94D>[{favoriteAction}]</color>: Favorite · <color=#FFA94D>[{sortAction}]</color>: Sort focused inventory/chest\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: Restock targets / pickup exclusions (register a picked-up player item)\nRelease modifier; D-pad down from the last visible player row: Restock / Exclude / Trash; left/right: enabled buttons\nAuto stays collapsed on gamepad: only the selected button expands; moving away retracts it. On: always expanded; Off: hidden\n{modeAction}: Open Restock/Exclude or register a held player item; Trash: confirm held item deletion\nOn buttons, up: player inventory; down: open chest\nLook at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching non-favorite items nearby\nLook at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill favorites using target quantities and empty-slot modes\nRules: ↑↓ rows; ←→ controls; {modeAction} use/edit; {removeAction} remove; {closeAction} close\nQuantity edit: ↑ increase / ↓ decrease; {modeAction}/{closeAction} finish (auto-saved)\nHide this guide: <color=#FFA94D>F1 → InventoryActions → Show Feature Guide → Off</color>"
 inventoryactions_rules_restock_title: Restock targets
 inventoryactions_rules_mode_off: "Restock: Off"
 inventoryactions_rules_mode_existing: "Restock: Existing stacks"
@@ -30,10 +31,27 @@ inventoryactions_rules_exclusion_on: "Automatic pickup: Excluded"
 inventoryactions_rules_exclusion_off: "Automatic pickup: Allowed"
 inventoryactions_rules_exclusion_help: "Checked: exclude this item from automatic pickup. Unchecked: allow pickup while keeping this entry. Manual pickup remains available."
 inventoryactions_rules_remove_help: "Remove this entry from the list."
-inventoryactions_rules_pad_exclude: "Up/Down: item · {mode}: toggle\n{remove}: remove · {close}: close"
+inventoryactions_rules_pad_browse: "↑↓: item · ←→: control\n{submit}: {action} · {remove}: remove · {close}: close"
+inventoryactions_rules_pad_quantity_edit: "↑: increase · ↓: decrease\n{submit}/{close}: finish editing"
+inventoryactions_rules_pad_empty: "{close}: close"
+inventoryactions_rules_pad_edit: "edit"
+inventoryactions_rules_pad_change: "change"
 inventoryactions_rules_restock_scope: "{key} · mode and target per favorite stack"
 inventoryactions_rules_exclude_scope: Manual E pickup is still available
 inventoryactions_rules_quantity: Target quantity
+inventoryactions_controller_menu_title: "Inventory actions"
+inventoryactions_controller_menu_favorite: "Favorite slot"
+inventoryactions_controller_menu_unfavorite: "Remove favorite"
+inventoryactions_controller_menu_sort: "Sort inventory"
+inventoryactions_controller_menu_help: "↑↓: select\n{submit}: apply · {back}: back"
+inventoryactions_controller_actions_hint: "Tap {key}: actions"
+inventoryactions_controller_tools_hint: "↓: buttons"
+inventoryactions_controller_sort_hint: "→: Sort"
+inventoryactions_controller_open: "Open"
+inventoryactions_controller_register: "Register"
+inventoryactions_controller_back: "Back"
+inventoryactions_controller_sort: "Sort"
+inventoryactions_controller_trash: "Trash"
 inventoryactions_rules_cancel: Cancel
 inventoryactions_rules_save: Save
 inventoryactions_rules_remove: Remove

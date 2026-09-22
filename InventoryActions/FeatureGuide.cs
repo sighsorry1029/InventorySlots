@@ -24,6 +24,7 @@ public sealed partial class InventoryActionsPlugin
 
     private static RectTransform? _featureGuideRoot;
     private static TMP_Text? _featureGuideText;
+    private static TMP_Text? _featureGuideTitleText;
     private static RectTransform? _featureGuideToggle;
     private static TMP_Text? _featureGuideToggleArrow;
     private static Button? _featureGuideToggleButton;
@@ -32,6 +33,7 @@ public sealed partial class InventoryActionsPlugin
     private static TMP_FontAsset? _featureGuideFont;
     private static Material? _featureGuideFontMaterial;
     private static string _featureGuideExpandedText = "";
+    private static string _featureGuideBody = "";
     private static string _featureGuideTitle = "";
     private static string _featureGuideMeasuredText = "";
     private static int _featureGuideMeasuredFontId;
@@ -68,6 +70,7 @@ public sealed partial class InventoryActionsPlugin
         }
 
         ApplyFeatureGuideFont(_featureGuideText);
+        if (_featureGuideTitleText != null) ApplyFeatureGuideFont(_featureGuideTitleText);
         if (_featureGuideToggleArrow != null)
         {
             ApplyFeatureGuideFont(_featureGuideToggleArrow);
@@ -78,8 +81,7 @@ public sealed partial class InventoryActionsPlugin
         float elementSpace = hotbar != null && hotbar.m_elementSpace > 1f ? hotbar.m_elementSpace : 70f;
         Vector3 hotbarOrigin = hotbarTransform.localPosition;
         float hotbarRight = ResolveFeatureGuideHotbarRight(parent, hotbar, hotbarOrigin, elementSpace);
-        LayoutFeatureGuide(parent, hotbarOrigin, hotbarRight, elementSpace);
-        SetFeatureGuideActive(true);
+        SetFeatureGuideActive(LayoutFeatureGuide(parent, hotbarOrigin, hotbarRight, elementSpace));
         UpdateFeatureGuideToggleInputLayer();
     }
 
@@ -114,6 +116,9 @@ public sealed partial class InventoryActionsPlugin
         background.raycastTarget = false;
 
         TMP_Text guideText = CreateFeatureGuideText("Text", root, TextAlignmentOptions.TopLeft);
+        TMP_Text titleText = CreateFeatureGuideText("Title", root, TextAlignmentOptions.Left);
+        titleText.textWrappingMode = TextWrappingModes.NoWrap;
+        titleText.overflowMode = TextOverflowModes.Ellipsis;
 
         GameObject toggleObject = new(
             "Toggle",
@@ -150,6 +155,7 @@ public sealed partial class InventoryActionsPlugin
 
         _featureGuideRoot = root;
         _featureGuideText = guideText;
+        _featureGuideTitleText = titleText;
         _featureGuideToggle = toggle;
         _featureGuideToggleArrow = arrow;
         _featureGuideToggleButton = button;
@@ -261,6 +267,7 @@ public sealed partial class InventoryActionsPlugin
             .Replace("{useKey}", GetFeatureGuideUseKeyDisplayText())
             .Replace("{restockKey}", string.IsNullOrWhiteSpace(restockKey) ? "—" : restockKey)
             .Replace("{favoriteAction}", DisplayFeatureGuideBinding(GetInventoryControllerChordDisplay("JoyButtonA")))
+            .Replace("{menuAction}", GetInventoryControllerActionDisplay("JoyRStick"))
             .Replace("{sortAction}", DisplayFeatureGuideBinding(GetInventoryControllerChordDisplay("JoyButtonX")))
             .Replace("{rulesAction}", DisplayFeatureGuideBinding(GetInventoryControllerChordDisplay("JoyButtonY")))
             .Replace("{excludeAction}", DisplayFeatureGuideBinding(GetInventoryControllerChordDisplay("JoyButtonB")))
@@ -272,6 +279,7 @@ public sealed partial class InventoryActionsPlugin
             _featureGuideExpandedText = expanded;
             int lineBreak = expanded.IndexOf('\n');
             _featureGuideTitle = lineBreak >= 0 ? expanded.Substring(0, lineBreak) : expanded;
+            _featureGuideBody = lineBreak >= 0 ? expanded.Substring(lineBreak + 1) : "";
             Vector2 natural = _featureGuideText.GetPreferredValues(expanded);
             _featureGuideNaturalContentWidth = IsUsableFeatureGuideMeasurement(natural.x)
                 ? Mathf.Clamp(Mathf.Ceil(natural.x) + 1f, FeatureGuideMinimumSideContentWidth, FeatureGuideMaximumContentWidth)
@@ -290,8 +298,8 @@ public sealed partial class InventoryActionsPlugin
     {
         bool korean = string.Equals(Localization.instance?.GetSelectedLanguage(), "Korean", StringComparison.OrdinalIgnoreCase);
         return LocalizeUi("$inventoryactions_feature_guide_controller", korean
-            ? "<b>InventoryActions 빠른 가이드</b>\n선택한 플레이어 칸에서 <color=#FFA94D>[{favoriteAction}]</color>: 즐겨찾기 · <color=#FFA94D>[{sortAction}]</color>: 선택 중인 인벤토리/상자 정렬\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: 보충 대상 / 자동 줍기 제외 열기 (집어 든 내 아이템이 있으면 등록)\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 즐겨찾기 외 같은 종류를 주변 상자에 보관\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 목표 수량·빈 칸 보충 모드에 따라 즐겨찾기 보충\n규칙 편집: 방향키 위/아래 행 선택 · 왼쪽/오른쪽 수량 · {modeAction} 모드 · {removeAction} 삭제 · {closeAction} 닫기\n가이드 숨기기: <color=#FFA94D>F1 → InventoryActions → Show Feature Guide → Off</color>"
-            : "<b>InventoryActions quick guide</b>\nOn the selected player slot, <color=#FFA94D>[{favoriteAction}]</color>: Favorite · <color=#FFA94D>[{sortAction}]</color>: Sort focused inventory/chest\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: Restock targets / pickup exclusions (register a picked-up player item)\nLook at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching non-favorite items nearby\nLook at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill favorites using target quantities and empty-slot modes\nRules: D-pad up/down selects rows; left/right changes quantity; {modeAction} mode; {removeAction} remove; {closeAction} close\nHide this guide: <color=#FFA94D>F1 → InventoryActions → Show Feature Guide → Off</color>");
+            ? "<b>InventoryActions 빠른 가이드</b>\n선택한 칸에서 {menuAction} 짧게: 작업 메뉴 · ↑↓ 선택 · {modeAction} 실행 · {closeAction} 뒤로\n내 인벤토리 맨 아래 오른쪽 / 상자 맨 위 오른쪽 칸에서 →: S 선택 · {modeAction}: 정렬\n선택적 단축키: 선택한 플레이어 칸에서 <color=#FFA94D>[{favoriteAction}]</color>: 즐겨찾기 · <color=#FFA94D>[{sortAction}]</color>: 선택 중인 인벤토리/상자 정렬\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: 보충 대상 / 자동 줍기 제외 열기 (집어 든 내 아이템이 있으면 등록)\n보조키를 놓고 마지막 표시 플레이어 행에서 방향키 아래: 보충/제외/휴지통 버튼 · 왼쪽/오른쪽: 켜진 버튼 선택\nAuto: 게임패드에서도 평소 접힘 · 선택한 버튼만 펼침 · 좌우 이동/이탈 시 이전 버튼 접힘 · On: 항상 펼침 · Off: 숨김\n버튼에서 {modeAction}: 보충/제외 목록 열기 또는 집은 내 아이템 등록 · 휴지통: 집은 아이템 삭제 확인\n버튼에서 위: 플레이어 칸 · 아래: 열린 상자\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 즐겨찾기 외 같은 종류를 주변 상자에 보관\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 목표 수량·빈 칸 보충 모드에 따라 즐겨찾기 보충\n규칙: ↑↓ 행 · ←→ 조작 선택 · {modeAction} 실행/편집 · {removeAction} 제거 · {closeAction} 닫기\n수량 편집: ↑ 증가 / ↓ 감소 · {modeAction}/{closeAction} 편집 종료 (자동 저장)\n가이드 숨기기: <color=#FFA94D>F1 → InventoryActions → Show Feature Guide → Off</color>"
+            : "<b>InventoryActions quick guide</b>\nTap {menuAction} on a selected slot: actions menu; ↑↓ select, {modeAction} apply, {closeAction} back\nPlayer bottom-right / chest top-right slot →: select S; {modeAction}: sort\nOptional shortcuts on the selected player slot, <color=#FFA94D>[{favoriteAction}]</color>: Favorite · <color=#FFA94D>[{sortAction}]</color>: Sort focused inventory/chest\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: Restock targets / pickup exclusions (register a picked-up player item)\nRelease modifier; D-pad down from the last visible player row: Restock / Exclude / Trash; left/right: enabled buttons\nAuto stays collapsed on gamepad: only the selected button expands; moving away retracts it. On: always expanded; Off: hidden\n{modeAction}: Open Restock/Exclude or register a held player item; Trash: confirm held item deletion\nOn buttons, up: player inventory; down: open chest\nLook at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching non-favorite items nearby\nLook at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill favorites using target quantities and empty-slot modes\nRules: ↑↓ rows; ←→ controls; {modeAction} use/edit; {removeAction} remove; {closeAction} close\nQuantity edit: ↑ increase / ↓ decrease; {modeAction}/{closeAction} finish (auto-saved)\nHide this guide: <color=#FFA94D>F1 → InventoryActions → Show Feature Guide → Off</color>");
     }
 
     private static string GetFeatureGuideUseKeyDisplayText()
@@ -352,19 +360,19 @@ public sealed partial class InventoryActionsPlugin
         return float.IsNaN(right) || float.IsInfinity(right) ? fallback : right;
     }
 
-    private static void LayoutFeatureGuide(
+    private static bool LayoutFeatureGuide(
         RectTransform parent,
         Vector3 hotbarOrigin,
         float hotbarRight,
         float elementSpace)
     {
-        if (_featureGuideRoot == null || _featureGuideText == null)
+        if (_featureGuideRoot == null || _featureGuideText == null || _featureGuideTitleText == null)
         {
-            return;
+            return false;
         }
 
         bool collapsed = _featureGuideCollapsed != null && _featureGuideCollapsed.Value == Toggle.On;
-        string displayText = collapsed ? _featureGuideTitle : _featureGuideExpandedText;
+        string displayText = _featureGuideBody;
         if (!string.Equals(_featureGuideText.text, displayText, StringComparison.Ordinal))
         {
             _featureGuideText.text = displayText;
@@ -372,14 +380,21 @@ public sealed partial class InventoryActionsPlugin
         }
 
         Rect bounds = parent.rect;
-        float expandedWidth = _featureGuideNaturalContentWidth + FeatureGuideHorizontalPadding * 2f;
-        float collapsedWidth = Mathf.Min(
-            expandedWidth,
-            _featureGuideTitleWidth + FeatureGuideHorizontalPadding * 2f + FeatureGuideToggleSize);
+        float toggleWidth = ShowControllerFeatureGuideToggle() && _featureGuideToggleArrow != null
+            ? ConfigureControllerFeatureGuideLabel(_featureGuideToggleArrow) : FeatureGuideToggleSize;
+        float collapsedWidth = _featureGuideTitleWidth + FeatureGuideHorizontalPadding * 2f + toggleWidth;
+        float expandedWidth = Mathf.Max(collapsedWidth, _featureGuideNaturalContentWidth + FeatureGuideHorizontalPadding * 2f);
         float desiredWidth = collapsed ? collapsedWidth : expandedWidth;
         float left = hotbarRight + FeatureGuideGap;
         bool fallbackPlacement = false;
-        if (bounds.width > 0f && bounds.height > 0f)
+        bool besideCrafting = TryGetInventoryFeatureGuideArea(parent, out Rect inventoryArea);
+        if (besideCrafting && (inventoryArea.width < Mathf.Max(160f, toggleWidth + 36f) || inventoryArea.height < 48f)) return false;
+        if (besideCrafting)
+        {
+            desiredWidth = Mathf.Min(desiredWidth, inventoryArea.width);
+            left = inventoryArea.xMax - desiredWidth;
+        }
+        else if (bounds.width > 0f && bounds.height > 0f)
         {
             float availableRight = bounds.xMax - FeatureGuideGap - left;
             if (availableRight >= FeatureGuideMinimumSideContentWidth + FeatureGuideHorizontalPadding * 2f)
@@ -399,11 +414,9 @@ public sealed partial class InventoryActionsPlugin
         }
 
         float contentWidth = Mathf.Max(1f, desiredWidth - FeatureGuideHorizontalPadding * 2f);
-        Vector2 measured = MeasureFeatureGuideText(displayText, contentWidth);
-        float desiredHeight = Mathf.Max(
-            FeatureGuideToggleSize + FeatureGuideVerticalPadding * 2f,
-            measured.y + FeatureGuideVerticalPadding * 2f);
-        float height = bounds.height > 0f
+        float bodyHeight = collapsed || displayText.Length == 0 ? 0f : MeasureFeatureGuideText(displayText, contentWidth).y;
+        float desiredHeight = FeatureGuideToggleSize + FeatureGuideVerticalPadding * 2f + bodyHeight;
+        float height = besideCrafting ? Mathf.Min(desiredHeight, inventoryArea.height) : bounds.height > 0f
             ? Mathf.Min(desiredHeight, Mathf.Max(1f, bounds.height - FeatureGuideGap * 2f))
             : desiredHeight;
         _featureGuideText.overflowMode = height + 0.1f < desiredHeight
@@ -411,7 +424,11 @@ public sealed partial class InventoryActionsPlugin
             : TextOverflowModes.Overflow;
 
         float top = hotbarOrigin.y + elementSpace * 0.5f + FeatureGuideVerticalPadding;
-        if (bounds.width > 0f && bounds.height > 0f)
+        if (besideCrafting)
+        {
+            top = inventoryArea.yMax;
+        }
+        else if (bounds.width > 0f && bounds.height > 0f)
         {
             if (fallbackPlacement)
             {
@@ -434,11 +451,19 @@ public sealed partial class InventoryActionsPlugin
         RectTransform textRect = _featureGuideText.rectTransform;
         textRect.anchorMin = textRect.anchorMax = new Vector2(0f, 1f);
         textRect.pivot = new Vector2(0f, 1f);
-        textRect.anchoredPosition = new Vector2(FeatureGuideHorizontalPadding, -FeatureGuideVerticalPadding);
-        textRect.sizeDelta = new Vector2(contentWidth, Mathf.Max(1f, height - FeatureGuideVerticalPadding * 2f));
+        textRect.anchoredPosition = new Vector2(FeatureGuideHorizontalPadding, -FeatureGuideVerticalPadding - FeatureGuideToggleSize);
+        textRect.sizeDelta = new Vector2(contentWidth, Mathf.Max(1f, height - FeatureGuideVerticalPadding * 2f - FeatureGuideToggleSize));
         textRect.localScale = Vector3.one;
         textRect.localRotation = Quaternion.identity;
-        LayoutFeatureGuideToggle(collapsed, desiredWidth);
+        _featureGuideText.gameObject.SetActive(!collapsed);
+        _featureGuideTitleText.text = _featureGuideTitle;
+        RectTransform titleRect = _featureGuideTitleText.rectTransform;
+        titleRect.anchorMin = titleRect.anchorMax = new Vector2(0f, 1f);
+        titleRect.pivot = new Vector2(0f, 1f);
+        titleRect.anchoredPosition = new Vector2(FeatureGuideHorizontalPadding, -FeatureGuideVerticalPadding);
+        titleRect.sizeDelta = new Vector2(Mathf.Max(1f, contentWidth - toggleWidth), FeatureGuideToggleSize);
+        LayoutFeatureGuideToggle(collapsed, desiredWidth, toggleWidth);
+        return true;
     }
 
     private static Vector2 MeasureFeatureGuideText(string value, float width)
@@ -477,7 +502,7 @@ public sealed partial class InventoryActionsPlugin
         _featureGuideMeasuredWidth = -1f;
     }
 
-    private static void LayoutFeatureGuideToggle(bool collapsed, float width)
+    private static void LayoutFeatureGuideToggle(bool collapsed, float width, float toggleWidth)
     {
         if (_featureGuideToggle == null || _featureGuideToggleArrow == null)
         {
@@ -487,8 +512,8 @@ public sealed partial class InventoryActionsPlugin
         RectTransform toggle = _featureGuideToggle;
         toggle.anchorMin = toggle.anchorMax = new Vector2(0f, 1f);
         toggle.pivot = new Vector2(0f, 1f);
-        toggle.anchoredPosition = new Vector2(Mathf.Max(0f, width - FeatureGuideToggleSize - 4f), -FeatureGuideVerticalPadding);
-        toggle.sizeDelta = new Vector2(FeatureGuideToggleSize, FeatureGuideToggleSize);
+        toggle.anchoredPosition = new Vector2(Mathf.Max(0f, width - toggleWidth - 4f), -FeatureGuideVerticalPadding);
+        toggle.sizeDelta = new Vector2(toggleWidth, FeatureGuideToggleSize);
         toggle.localScale = Vector3.one;
         toggle.localRotation = Quaternion.identity;
         toggle.SetAsLastSibling();
@@ -499,7 +524,13 @@ public sealed partial class InventoryActionsPlugin
         arrow.pivot = new Vector2(0.5f, 0.5f);
         arrow.offsetMin = arrow.offsetMax = Vector2.zero;
         arrow.localScale = Vector3.one;
-        arrow.localRotation = collapsed
+        bool controller = ShowControllerFeatureGuideToggle();
+        if (!controller)
+        {
+            _featureGuideToggleArrow.text = ">";
+            _featureGuideToggleArrow.fontSize = 18f;
+        }
+        arrow.localRotation = controller ? Quaternion.identity : collapsed
             ? Quaternion.Euler(0f, 0f, -90f)
             : Quaternion.Euler(0f, 0f, 90f);
     }
@@ -607,6 +638,7 @@ public sealed partial class InventoryActionsPlugin
         _featureGuideFont = null;
         _featureGuideFontMaterial = null;
         _featureGuideExpandedText = "";
+        _featureGuideBody = "";
         _featureGuideTitle = "";
         _nextFeatureGuideTextRefreshTime = 0f;
         _nextFeatureGuideFontLookupTime = 0f;
@@ -628,6 +660,7 @@ public sealed partial class InventoryActionsPlugin
 
         _featureGuideRoot = null;
         _featureGuideText = null;
+        _featureGuideTitleText = null;
         _featureGuideToggle = null;
         _featureGuideToggleArrow = null;
         _featureGuideToggleButton = null;

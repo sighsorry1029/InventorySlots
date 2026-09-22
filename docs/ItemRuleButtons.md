@@ -263,7 +263,11 @@ button's visible area expands only that button over 0.15 seconds; leaving it for
 0.3 seconds starts its retraction. Holding an item alone does not expand any
 button: dragging and empty-handed hovering use the same pointer condition.
 An open rule popup holds only its associated button expanded and follows that
-button. Gamepad use keeps all enabled buttons expanded for access without hover.
+button. Gamepad use alone keeps Auto buttons collapsed. Down from the last
+visible player inventory row selects and expands one enabled button; Left/Right
+switches to another enabled button, expanding only the newly selected Auto
+button and retracting the previous one. Leaving the button row retracts the
+selected Auto button. On buttons stay expanded; Off buttons stay hidden.
 Enabled buttons pack from the right edge in Trash, Exclude, Restock order. With
 Trash disabled, Exclude occupies column 8 and Restock column 7; if only one rule
 button is enabled it occupies column 8. Live layout uses the same column offset
@@ -634,7 +638,8 @@ Checked means automatic pickup is excluded; unchecked means pickup is allowed.
 The state saves immediately. Manual pickup remains available, and the remove
 button deletes the entry instead of merely disabling it. Config entries accept
 `Wood` or `Wood | On` for enabled exclusion and `Wood | Off` for a retained,
-disabled entry. Controller A toggles the selected exclusion checkbox.
+disabled entry. Controller A toggles the exclusion checkbox when that control
+is selected.
 
 The client-only `3 - Inventory Buttons / Show Rule Tooltips` setting defaults to
 On. It controls hover help within both rule panels and F1 restock-entry controls,
@@ -689,3 +694,39 @@ panel order and removes space reserved by hidden stat panels.
 | --- | --- |
 | InventorySlots 1.5.8 | `BAF5633F70AB7632F8ECE050A908FF5A99C2370AD180EBD2EA3F9F8B6451B056` |
 | InventoryActions 1.1.2 | `E2F3463428543B121A5C7F5BA88462405A795FA05FD2DDAF86F23998DFE8EF70` |
+
+## Controller navigation within rule panels
+
+Both mods share the same rule-panel controls with the inventory action modifier
+released. Up/Down selects an item row. Left/Right selects Mode, Quantity or Remove
+in a restock row, or Checkbox or Remove in an exclusion row. A activates the
+selected control: cycle the restock mode, toggle the exclusion checkbox, remove
+the entry, or enter quantity editing.
+
+During quantity editing, Up increases the quantity and Down decreases it. A or B
+ends editing and returns to the row controls. Changes save immediately, so B
+retains the saved quantity. Outside quantity editing, B closes the panel. X
+continues to remove the selected entry as a shortcut.
+
+## Sequential controller actions — 2026-09-22
+
+Both mods now offer a short standalone right-stick click/release menu at the
+selected inventory cell. It uses the original favorite eligibility and sort
+entry points: favorite/unfavorite for eligible player cells, and sort for the
+selected player/container inventory. Up/Down selects, A applies, B dismisses.
+Dragged items, modal UI, mouse input, loading, changed selection/inventory, and
+closing the inventory invalidate the menu. A held chord or direction cancels the
+pending tap; a hold longer than 0.45 seconds does not open the menu on release.
+Old configurable held chords remain unchanged.
+
+Existing S buttons are controller focus targets beside the bottom-right visible
+player cell and the top-right container cell. Additional Right enters the button;
+A uses its existing listener/interactability checks, and B/Left/Up/Down returns to
+the source cell. Sorting while carrying a dragged item remains blocked. Normal
+grid hints, selected-button Open/Register/Back hints and the EN/KO guide explain
+these controls without adding configuration entries. These UI paths remain usable
+when optional controller hotkeys are disabled.
+
+Input/navigation tests compile the production state machines for both namespaces
+with stub UI adapters. Actual popup placement, device input, and visual focus still
+require an in-game check; test success does not establish those results.

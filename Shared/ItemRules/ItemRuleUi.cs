@@ -35,8 +35,8 @@ public sealed partial class InventoryActionsPlugin
     private static bool ShowRuleTooltips => _showRuleTooltips?.Value != Toggle.Off;
     private static void RefreshRuleTooltipVisibility(object? sender, EventArgs args) =>
         _itemRuleEditor?.RefreshRuleTooltipVisibility();
-    private const string RuleButtonModeDescription = "Client-only display mode. Off hides the button without disabling saved rules. Auto shows its bottom edge and slides out only on hover; holding an item alone does not expand it. An open editor keeps its button expanded. Gamepad use expands Auto buttons. On always shows the full button. Changes apply immediately.";
-    private const string TrashButtonModeDescription = "Client-only display mode. Off hides the trash button. Auto shows its bottom edge and slides out only on hover; holding an item alone does not expand it. Gamepad use expands Auto buttons. On always shows the full button. The server's Enable Inventory Trash Panel setting must also be On. Changes apply immediately.";
+    private const string RuleButtonModeDescription = "Client-only display mode. Off hides the button without disabling saved rules. Auto shows its bottom edge and slides out on hover or when selected with the gamepad; holding an item alone does not expand it. An open editor keeps its button expanded. Gamepad use alone keeps Auto buttons collapsed: Down from the last visible player row selects a button, Left/Right switches buttons, and only the selected Auto button expands. Leaving the button row retracts it. On always shows the full button. Changes apply immediately.";
+    private const string TrashButtonModeDescription = "Client-only display mode. Off hides the trash button. Auto shows its bottom edge and slides out on hover or when selected with the gamepad; holding an item alone does not expand it. Gamepad use alone keeps Auto buttons collapsed: Down from the last visible player row selects a button, Left/Right switches buttons, and only the selected Auto button expands. Leaving the button row retracts it. On always shows the full button. The server's Enable Inventory Trash Panel setting must also be On. Changes apply immediately.";
     private static ItemRuleEditor? _itemRuleEditor;
     private static int _itemRuleInputClosedFrame = -1;
     // Keep existing button visuals under the animated player grid during Hide.
@@ -51,7 +51,7 @@ public sealed partial class InventoryActionsPlugin
     internal static bool IsItemRuleInputBlocked() =>
         (_itemRuleEditor != null && _itemRuleEditor.Pinned) || _itemRuleInputClosedFrame == Time.frameCount;
 
-    internal static bool IsItemRuleScrollBlocked() => IsItemRuleInputBlocked() || (_itemRuleEditor != null && _itemRuleEditor.OwnsPointer);
+    internal static bool IsItemRuleScrollBlocked() => IsItemRuleInputBlocked() || IsControllerItemMenuOpen() || (_itemRuleEditor != null && _itemRuleEditor.OwnsPointer);
 
     // Called before vanilla InventoryGui.Update reads controller input. The
     // component's Update also calls this, with a frame guard for either order.
@@ -72,6 +72,7 @@ public sealed partial class InventoryActionsPlugin
     private static void UpdateItemRuleUi(InventoryGui gui, Vector3 gridOrigin, int visibleRows)
     {
         if (gui == null || _instance == null || !_instance.isActiveAndEnabled || IsDedicatedServer || gui.m_takeAllButton == null || gui.m_playerGrid.m_gridRoot == null) return;
+        SetControllerInventoryButtonRows(gui, visibleRows);
         if (!IsItemRuleButtonEnabled(true) && !IsItemRuleButtonEnabled(false)) { _itemRuleEditor?.Hide(); return; }
         if (_itemRuleEditor == null || _itemRuleEditor.Owner != gui)
         {
@@ -94,6 +95,10 @@ public sealed partial class InventoryActionsPlugin
 
     internal static void DestroyItemRuleUi(InventoryGui? owner = null)
     {
+        ResetControllerItemMenu(owner);
+        DestroyControllerItemMenu(owner);
+        HideControllerGridHelp();
+        ResetInventoryButtonNavigation(owner);
         if (_itemRuleEditor == null || (owner != null && _itemRuleEditor.Owner != owner)) return;
         ItemRuleEditor editor = _itemRuleEditor;
         _itemRuleEditor = null;
@@ -204,7 +209,9 @@ public sealed partial class InventoryActionsPlugin
         private readonly List<UITooltip> _ruleTooltips = new();
         private readonly List<TMP_InputField> _fields = new();
         private readonly List<ControllerRow> _controllerRows = new();
-        private int _controllerRowIndex;
+        private readonly ItemRuleControllerState _controllerFocus = new();
+        private RectTransform? _controllerCellHighlight;
+        private readonly List<Image> _controllerCellEdges = new();
         private int _controllerInputFrame = -1;
         private bool _controllerActive, _controllerStatus;
         private string _mouseScope = "";
@@ -229,7 +236,7 @@ public sealed partial class InventoryActionsPlugin
             internal ItemRuleConfigCore.Entry Entry = null!;
             internal Image Background = null!;
             internal TMP_InputField? Quantity;
-            internal Button? Mode;
+            internal Button? Mode, Remove;
             internal int MaximumAmount = int.MaxValue;
         }
 
@@ -258,7 +265,7 @@ public sealed partial class InventoryActionsPlugin
             _animator = gui.GetComponent<Animator>();
             _root = (RectTransform)transform;
             _camera = gui.GetComponentInParent<Canvas>()?.worldCamera;
-            TMP_Text? fontSource = gui.m_takeAllButton.GetComponentInChildren<TMP_Text>(true);
+            TMP_Text? fontSource = GetInventoryButtonCaptionTexts<TMP_Text>(gui.m_takeAllButton).FirstOrDefault();
             if (fontSource == null || fontSource.font == null)
                 fontSource = gui.GetComponentsInChildren<TMP_Text>(true).FirstOrDefault(text => text.font != null);
             if (fontSource == null) return false; // Wait until the game's own font is ready.
@@ -270,6 +277,8 @@ public sealed partial class InventoryActionsPlugin
             _toolbar = Rect("Toolbar", gui.m_playerGrid.m_gridRoot, Vector2.zero, Vector2.zero);
             _restockButton = RuleButton(ModName + "_RestockRules", true);
             _excludeButton = RuleButton(ModName + "_AutoPickupRules", false);
+            RegisterControllerInventoryButton(gui, InventorySlideButton.Restock, _restockButton);
+            RegisterControllerInventoryButton(gui, InventorySlideButton.Exclude, _excludeButton);
             _ruleButtonSprite = _restockButton.image.sprite;
             _restockButton.gameObject.AddComponent<UIDragHandler>().m_onReleasedOn = _ => ClickTool(true);
             _excludeButton.gameObject.AddComponent<UIDragHandler>().m_onReleasedOn = _ => ClickTool(false);
@@ -434,35 +443,49 @@ public sealed partial class InventoryActionsPlugin
 
         internal void UpdateControllerInput()
         {
-            if (_controllerInputFrame == Time.frameCount) return;
-            _controllerInputFrame = Time.frameCount;
+            if (_controllerInputFrame == Time.frameCount || !IsControllerInputUpdated()) return;
             if (!Open || !Pinned) return;
             if (!CanShow || Player.m_localPlayer == null || FavoriteMemoryAccess.IsLoading(Player.m_localPlayer) ||
                 HasBlockingDialog || !IsItemRuleButtonEnabled(_restock))
             { Close(); return; }
             SetControllerActive(ZInput.IsExclusiveGamepadActive());
+            // Global hotkey guards intentionally include this pinned editor.
+            // CanShow/HasBlockingDialog above guard its own input instead.
             if (!_controllerActive) return;
             // We own A/Submit here. Selecting Unity Buttons at the same time
             // would allow the EventSystem to execute their click a second time.
             ClearControllerSubmitTarget();
-            if (TakeControllerButton("JoyButtonB")) { Close(); return; }
             if (!string.Equals(_snapshot, Setting.Value, StringComparison.Ordinal)) LoadList(_restock, true);
-            if (_controllerRows.Count == 0) return;
+            ItemRuleControllerState.Input? input = null;
+            if (TakeControllerButton("JoyButtonB")) input = ItemRuleControllerState.Input.Cancel;
+            else if (TakeControllerButton("JoyButtonX")) input = ItemRuleControllerState.Input.QuickRemove;
+            else if (TakeControllerButton("JoyButtonA")) input = ItemRuleControllerState.Input.Submit;
             bool up = IsControllerDirectionDown("JoyDPadUp", "JoyLStickUp");
             bool down = IsControllerDirectionDown("JoyDPadDown", "JoyLStickDown");
-            if (up != down)
+            bool left = IsControllerDirectionDown("JoyDPadLeft", "JoyLStickLeft");
+            bool right = IsControllerDirectionDown("JoyDPadRight", "JoyLStickRight");
+            if (!input.HasValue && up != down) input = up ? ItemRuleControllerState.Input.Up : ItemRuleControllerState.Input.Down;
+            if (!input.HasValue && left != right) input = left ? ItemRuleControllerState.Input.Left : ItemRuleControllerState.Input.Right;
+            if (!input.HasValue) return;
+            _controllerInputFrame = Time.frameCount;
+            ItemRuleControllerState.Effect effect = _controllerFocus.Apply(input.Value, _controllerRows.Count, _restock, _registration == null);
+            if (effect == ItemRuleControllerState.Effect.Close) { Close(); return; }
+            if (effect == ItemRuleControllerState.Effect.None) return;
+            if (effect == ItemRuleControllerState.Effect.FocusChanged)
             {
-                _controllerRowIndex = Mathf.Clamp(_controllerRowIndex + (down ? 1 : -1), 0, _controllerRows.Count - 1);
                 RefreshControllerSelection();
                 return;
             }
-            ControllerRow row = _controllerRows[_controllerRowIndex];
-            if (TakeControllerButton("JoyButtonX"))
+            ControllerRow row = _controllerRows[_controllerFocus.Row];
+            if (effect == ItemRuleControllerState.Effect.Remove)
             {
                 RemoveEntry(row.Entry);
+                // A failed save may leave the row in place after X ended
+                // quantity editing. Keep its focus visuals and hints in sync.
+                RefreshControllerSelection(updateStatus: false);
                 return;
             }
-            if (TakeControllerButton("JoyButtonA") && row.Mode != null)
+            if (effect == ItemRuleControllerState.Effect.ToggleMode && row.Mode != null)
             {
                 RestockRuleMode previous = row.Entry.Mode;
                 bool previouslyExcluded = row.Entry.Excluded;
@@ -470,12 +493,11 @@ public sealed partial class InventoryActionsPlugin
                 RefreshControllerSelection(updateStatus: row.Entry.Mode != previous || row.Entry.Excluded != previouslyExcluded);
                 return;
             }
-            bool left = IsControllerDirectionDown("JoyDPadLeft", "JoyLStickLeft");
-            bool right = IsControllerDirectionDown("JoyDPadRight", "JoyLStickRight");
-            if (_restock && left != right && row.Quantity != null &&
+            if ((effect == ItemRuleControllerState.Effect.IncreaseQuantity || effect == ItemRuleControllerState.Effect.DecreaseQuantity) && row.Quantity != null &&
                 int.TryParse(row.Entry.Amount, NumberStyles.Integer, CultureInfo.InvariantCulture, out int current))
             {
-                int next = (int)Math.Min(row.MaximumAmount, Math.Max(1L, (long)current + (right ? 1 : -1)));
+                int delta = effect == ItemRuleControllerState.Effect.IncreaseQuantity ? 1 : -1;
+                int next = (int)Math.Min(row.MaximumAmount, Math.Max(1L, (long)current + delta));
                 if (next == current) return;
                 string previous = row.Entry.Amount;
                 row.Entry.Amount = next.ToString(CultureInfo.InvariantCulture);
@@ -517,6 +539,7 @@ public sealed partial class InventoryActionsPlugin
         {
             if (_controllerActive == active) return;
             _controllerActive = active;
+            _controllerFocus.EndEditing();
             bool hadFocusedField = false;
             if (active)
             {
@@ -540,27 +563,43 @@ public sealed partial class InventoryActionsPlugin
 
         private void RefreshControllerSelection(bool updateStatus = true)
         {
-            _controllerRowIndex = Mathf.Clamp(_controllerRowIndex, 0, Mathf.Max(0, _controllerRows.Count - 1));
+            _controllerFocus.Normalize(_controllerRows.Count, _restock, _registration == null);
             for (int i = 0; i < _controllerRows.Count; i++)
-                _controllerRows[i].Background.color = _controllerActive && i == _controllerRowIndex
-                    ? new Color(0.95f, 0.70f, 0.24f, 0.20f) : Color.clear;
+                _controllerRows[i].Background.color = _controllerActive && i == _controllerFocus.Row
+                    ? new Color(0.95f, 0.70f, 0.24f, 0.10f) : Color.clear;
+            ControllerRow? row = _controllerRows.Count > 0 ? _controllerRows[_controllerFocus.Row] : null;
+            Component? control = row == null ? null : _controllerFocus.Column switch
+            {
+                ItemRuleControllerState.Control.Quantity => row.Quantity,
+                ItemRuleControllerState.Control.Remove => row.Remove,
+                _ => row.Mode
+            };
+            UpdateControllerCellHighlight(_controllerActive ? control?.transform as RectTransform : null);
             bool korean = string.Equals(Localization.instance?.GetSelectedLanguage(), "Korean", StringComparison.OrdinalIgnoreCase);
-            _scope.text = !_controllerActive ? _mouseScope : (_restock
-                ? L("pad_restock", korean ? "위/아래: 항목 · 좌/우: 수량\n{mode}: 모드 · {remove}: 삭제 · {close}: 닫기"
-                    : "Up/Down: item · Left/Right: quantity\n{mode}: mode · {remove}: remove · {close}: close")
-                : L("pad_exclude", korean ? "위/아래: 항목 · {mode}: 전환\n{remove}: 삭제 · {close}: 닫기"
-                    : "Up/Down: item · {mode}: toggle\n{remove}: remove · {close}: close"))
-                .Replace("{mode}", GetInventoryControllerActionDisplay("JoyButtonA"))
+            string action = _controllerFocus.Column == ItemRuleControllerState.Control.Quantity ? L("pad_edit", korean ? "편집" : "edit") :
+                _controllerFocus.Column == ItemRuleControllerState.Control.Remove ? L("remove", "Remove") : L("pad_change", korean ? "전환" : "change");
+            _scope.text = !_controllerActive ? _mouseScope : (row == null
+                ? L("pad_empty", korean ? "{close}: 닫기" : "{close}: close")
+                : _controllerFocus.EditingQuantity
+                    ? L("pad_quantity_edit", korean ? "↑: 증가 · ↓: 감소\n{submit}/{close}: 편집 종료" : "↑: increase · ↓: decrease\n{submit}/{close}: finish editing")
+                    : L("pad_browse", korean ? "↑↓: 항목 · ←→: 조작 선택\n{submit}: {action} · {remove}: 제거 · {close}: 닫기"
+                        : "↑↓: item · ←→: control\n{submit}: {action} · {remove}: remove · {close}: close"))
+                .Replace("{submit}", GetInventoryControllerActionDisplay("JoyButtonA"))
+                .Replace("{action}", action)
                 .Replace("{remove}", GetInventoryControllerActionDisplay("JoyButtonX"))
                 .Replace("{close}", GetInventoryControllerActionDisplay("JoyButtonB"));
-            if (!_controllerActive || _controllerRows.Count == 0) return;
+            if (!_controllerActive || row == null) return;
             if (updateStatus)
             {
-                ControllerRow row = _controllerRows[_controllerRowIndex];
-                _status.text = _restock ? GetRestockModeTitle(row.Entry.Mode) : GetExclusionTitle(row.Entry.Excluded);
+                _status.text = _controllerFocus.Column switch
+                {
+                    ItemRuleControllerState.Control.Quantity => L("quantity", "Target quantity") + ": " + row.Entry.Amount + " (1–" + row.MaximumAmount + ")",
+                    ItemRuleControllerState.Control.Remove => L("remove_help", "Remove this entry from the list."),
+                    _ => _restock ? GetRestockModeTitle(row.Entry.Mode) : GetExclusionTitle(row.Entry.Excluded)
+                };
                 _controllerStatus = true;
             }
-            float top = _controllerRowIndex * RowHeight;
+            float top = _controllerFocus.Row * RowHeight;
             float offset = _content.anchoredPosition.y;
             if (top < offset) offset = top;
             else if (top + RowHeight > offset + _viewport.rect.height) offset = top + RowHeight - _viewport.rect.height;
@@ -568,6 +607,39 @@ public sealed partial class InventoryActionsPlugin
             Vector2 position = _content.anchoredPosition;
             position.y = Mathf.Clamp(offset, 0, Mathf.Max(0, _content.rect.height - _viewport.rect.height));
             _content.anchoredPosition = position;
+        }
+
+        private void UpdateControllerCellHighlight(RectTransform? target)
+        {
+            if (target == null)
+            {
+                if (_controllerCellHighlight != null) _controllerCellHighlight.gameObject.SetActive(false);
+                return;
+            }
+            if (_controllerCellHighlight == null)
+            {
+                _controllerCellEdges.Clear();
+                _controllerCellHighlight = Rect("ControllerFocus", target, Vector2.zero, Vector2.zero);
+                for (int edge = 0; edge < 4; edge++)
+                {
+                    RectTransform line = Rect("Edge", _controllerCellHighlight, Vector2.zero, Vector2.zero);
+                    bool horizontal = edge < 2;
+                    line.pivot = new Vector2(0.5f, 0.5f);
+                    line.anchorMin = horizontal ? new Vector2(0, edge) : new Vector2(edge - 2, 0);
+                    line.anchorMax = horizontal ? new Vector2(1, edge) : new Vector2(edge - 2, 1);
+                    line.sizeDelta = horizontal ? new Vector2(0, 2) : new Vector2(2, 0);
+                    Image image = line.gameObject.AddComponent<Image>();
+                    image.raycastTarget = false;
+                    _controllerCellEdges.Add(image);
+                }
+            }
+            if (_controllerCellHighlight.parent != target) _controllerCellHighlight.SetParent(target, false);
+            Stretch(_controllerCellHighlight);
+            _controllerCellHighlight.offsetMin = new Vector2(1, 1);
+            _controllerCellHighlight.offsetMax = new Vector2(-1, -1);
+            Color color = _controllerFocus.EditingQuantity ? new Color(0.45f, 0.82f, 1f) : _gold;
+            foreach (Image edge in _controllerCellEdges) edge.color = color;
+            _controllerCellHighlight.gameObject.SetActive(true);
         }
 
         private void Update()
@@ -581,7 +653,8 @@ public sealed partial class InventoryActionsPlugin
             if (HasBlockingDialog)
             { Close(); return; }
             UpdateControllerInput();
-            if (Open && Pinned && (ZInput.GetKeyDown(KeyCode.Escape) || ZInput.GetButtonDown("JoyButtonB")))
+            if (Open && Pinned && (ZInput.GetKeyDown(KeyCode.Escape) ||
+                IsControllerInputUpdated() && TakeControllerButton("JoyButtonB")))
             { Close(); return; }
             if (Open && !string.Equals(_snapshot, Setting.Value, StringComparison.Ordinal) && !_fields.Any(field => field.isFocused)) LoadList(_restock, Pinned);
             bool? hovered = IsPointerOverSlide(InventorySlideButton.Restock) && IsItemRuleButtonEnabled(true) && _restockButton.gameObject.activeInHierarchy && Contains((RectTransform)_restockButton.transform) ? true
@@ -613,7 +686,7 @@ public sealed partial class InventoryActionsPlugin
         {
             if (!CanShow || HasBlockingDialog || !IsItemRuleButtonEnabled(restock)) return;
             CloseInventoryTrashConfirmDialog();
-            if (_restock != restock) { _controllerRowIndex = 0; _controllerRows.Clear(); }
+            if (_restock != restock) { _controllerFocus.Reset(); _controllerRows.Clear(); }
             _restock = restock; _snapshot = Setting.Value;
             _entries = ItemRuleConfigCore.Read(_snapshot, restock);
             _resolved.Clear(); _registration = null;
@@ -736,6 +809,11 @@ public sealed partial class InventoryActionsPlugin
 
         private void ClearRows()
         {
+            if (_controllerCellHighlight != null)
+            {
+                _controllerCellHighlight.gameObject.SetActive(false);
+                _controllerCellHighlight.SetParent(_popup, false);
+            }
             _ruleTooltips.Clear();
             if (_content == null) { _fields.Clear(); _rowButtons.Clear(); _controllerRows.Clear(); return; }
             if (EventSystem.current != null && EventSystem.current.currentSelectedGameObject != null &&
@@ -753,8 +831,9 @@ public sealed partial class InventoryActionsPlugin
 
         private void Render()
         {
-            string? selectedKey = _controllerRowIndex >= 0 && _controllerRowIndex < _controllerRows.Count
-                ? _controllerRows[_controllerRowIndex].Entry.Key : null;
+            string? selectedKey = _controllerFocus.Row >= 0 && _controllerFocus.Row < _controllerRows.Count
+                ? _controllerRows[_controllerFocus.Row].Entry.Key : null;
+            _controllerFocus.EndEditing();
             ClearRows();
             float width = Mathf.Clamp(_root.rect.width - 16f, 260f, PopupWidth);
             float inner = width - 24f;
@@ -878,12 +957,13 @@ public sealed partial class InventoryActionsPlugin
                     UITooltip removeTip = RuleTooltip(remove);
                     SetRuleTooltipText(removeTip, L("remove", "Remove"), L("remove_help", "Remove this entry from the list."));
                     _rowButtons.Add(remove);
+                    controllerRow.Remove = remove;
                 }
             }
             PositionPopup();
             int rememberedIndex = selectedKey == null ? -1 : _controllerRows.FindIndex(row =>
                 _restock ? row.Entry.Key == selectedKey : SameExclusion(row.Entry.Key, selectedKey));
-            if (rememberedIndex >= 0) _controllerRowIndex = rememberedIndex;
+            if (rememberedIndex >= 0) _controllerFocus.Row = rememberedIndex;
             RefreshControllerSelection();
         }
 
@@ -1005,7 +1085,7 @@ public sealed partial class InventoryActionsPlugin
         {
             if (Pinned) _itemRuleInputClosedFrame = Time.frameCount;
             SetControllerActive(false);
-            _controllerRowIndex = 0;
+            _controllerFocus.Reset();
             _controllerInputFrame = Time.frameCount;
             Pinned = false; _registration = null;
             _hoverMode = null; _hoverStarted = _outsideStarted = -1f;
@@ -1088,7 +1168,7 @@ public sealed partial class InventoryActionsPlugin
                 // shortcut, interactability or crafting-specific components.
                 Button source = ApplyCraftButtonStyle(button);
                 TMP_Text label = Text(rect, "Label", text, 16); Stretch(label.rectTransform); label.alignment = TextAlignmentOptions.Center;
-                TMP_Text? sourceLabel = source.GetComponentInChildren<TMP_Text>(true);
+                TMP_Text? sourceLabel = GetInventoryButtonCaptionTexts<TMP_Text>(source).FirstOrDefault();
                 if (sourceLabel != null && sourceLabel.font != null)
                 {
                     label.font = sourceLabel.font; label.fontSharedMaterial = sourceLabel.fontSharedMaterial;

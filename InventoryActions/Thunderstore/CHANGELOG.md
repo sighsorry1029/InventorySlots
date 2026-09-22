@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.3
+
+- Added direct controller navigation for Restock, Auto Pickup Exclude, Trash, and player/container Sort. Move down from the final inventory row or right from an edge slot, then use A to activate and B or a return direction to restore the original cell. Auto buttons expand only while focused.
+- Added a short right-stick click menu for Favorite and Sort without picking up an item. Existing optional modifier chords remain available, while menu/button focus suppresses conflicting pickup, close, submit, and world actions.
+- Reworked controller rule editing: up/down selects an item, left/right selects Mode, Quantity, or Remove, A activates or edits, X removes, and B closes or finishes quantity editing. Added focused-control highlights, safe trash confirmation navigation, and localized live help.
+- Added **LT + right-stick click** to collapse or expand the quick guide while the inventory is open. The controller chord appears in the guide header and does not open the item action menu on release.
+- Moved the open-inventory quick guide into the free upper area between the player and crafting panels. It adapts to active panels and UI scale, keeps clear of the inventory and crafting UI, and hides when no readable space remains.
+- Fixed raw localization tokens and duplicated labels in controller help and confirmation buttons. Controller help follows the selected inventory button closely and moves above it near the screen edge.
+- Reworked the package README into a shorter visual overview and added linked guides for inventory actions, controllers, and multiplayer compatibility.
+
 ## 1.1.2
 
 - Allowed client-only installation when joining vanilla servers, using local settings. If the server installs InventoryActions, all connecting clients must still use the same version and receive its synced settings.

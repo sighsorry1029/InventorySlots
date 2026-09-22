@@ -8,7 +8,7 @@ using Plugin = InventorySlots.InventorySlotsPlugin;
 using Plugin = InventoryActions.InventoryActionsPlugin;
 #endif
 
-internal static class Program
+internal static partial class Program
 {
     private static int _checks;
     private static void Check(bool result, string name)
@@ -26,6 +26,83 @@ internal static class Program
     private static void Chord(string face) => ZInput.Press("JoyRStick", face);
     private static void Dispatch() => Plugin.UpdateInventoryControllerInput(InventoryGui.instance);
     private static bool NoActions => Plugin.TestFavorites + Plugin.TestPlayerSorts + Plugin.TestContainerSorts + Plugin.TestRuleOpens == 0;
+
+    private static void CheckSameFrameInputRefresh(string face)
+    {
+        InventoryGui gui = Plugin.TestReset();
+        GameObject heldItem = gui.m_dragGo = new GameObject();
+        Time.frameCount++;
+        int frame = Time.frameCount;
+        // ProcessNavigation can see the physical held state before ZInput's
+        // game tick has calculated the semantic button-down state.
+        ZInput.Held.UnionWith(new[] { "JoyRStick", face, "Inventory", "Use", "JoyUse" });
+        Check(!Prefix("InventoryControllerEventNavigationPatch"), "Early navigation reserves held chord " + face);
+        Check(NoActions && ZInput.Down.Count == 0 && ZInput.ResetCalls.Count == 0,
+            "Early held-only input does not dispatch or consume " + face);
+
+        // Simulate the later ZInput tick without advancing Unity's frame.
+        ZInput.Down.UnionWith(new[] { face, "Inventory", "Use", "JoyUse" });
+        Plugin.OnControllerInputUpdated();
+        Prefix("InventoryControllerUpdatePatch", gui);
+        Check(Time.frameCount == frame && Plugin.TestRuleOpens == 1 && Plugin.TestLastRestock == (face == "JoyButtonY") &&
+            ReferenceEquals(Plugin.TestLastRuleDragObject, heldItem),
+            "Later same-frame button-down opens rules for held item " + face);
+        Check(!ZInput.GetButtonDown(face) && !ZInput.GetButton("Inventory") && !ZInput.GetButtonDown("Inventory") &&
+            !ZInput.GetButton("Use") && !ZInput.GetButtonDown("Use") &&
+            !ZInput.GetButton("JoyUse") && !ZInput.GetButtonDown("JoyUse"),
+            "Later same-frame action consumes face and close/use aliases " + face);
+        Check(ZInput.GetButton("JoyRStick"), "Later same-frame action preserves held modifier " + face);
+
+        // A second entry point must remain blocked even if the game's input
+        // state is populated again before this frame finishes.
+        int consumed = ZInput.ResetCalls.Count;
+        ZInput.Press(face);
+        Plugin.OnControllerInputUpdated();
+        Prefix("InventoryControllerEventNavigationPatch");
+        Prefix("InventoryControllerUpdatePatch", gui);
+        Prefix("InventoryControllerGridInputPatch");
+        UIGamePad shortcut = new(); shortcut.transform.parent = gui.transform;
+        Check(!Prefix("InventoryControllerButtonInputPatch", shortcut, true), "Consumed frame still suppresses shortcut " + face);
+        Check(Plugin.TestRuleOpens == 1 && ZInput.ResetCalls.Count == consumed,
+            "Consumed action is not dispatched twice in same frame " + face);
+    }
+
+    private static void CheckStalePreviousFrameInput(string face)
+    {
+        InventoryGui gui = Plugin.TestReset();
+        gui.m_dragGo = new GameObject();
+        ZInput.Press("JoyRStick", face, "Inventory", "Use", "JoyUse");
+        Time.frameCount++;
+        Check(!Prefix("InventoryControllerEventNavigationPatch"), "Early navigation reserves stale held chord " + face);
+        Check(NoActions && ZInput.ResetCalls.Count == 0,
+            "Previous-frame button-down cannot dispatch before current input tick " + face);
+        ZInput.Down.Clear();
+        Plugin.OnControllerInputUpdated();
+        Prefix("InventoryControllerUpdatePatch", gui);
+        Check(NoActions && ZInput.ResetCalls.Count == 0,
+            "Cleared previous-frame button-down never becomes a fresh action " + face);
+    }
+
+    private static void CheckSameFrameGateRefresh(bool gamepadInactive)
+    {
+        InventoryGui gui = Plugin.TestReset();
+        string gate = gamepadInactive ? "gamepad mode" : "grid focus";
+        int frame = Time.frameCount;
+        Chord("JoyButtonA");
+        if (gamepadInactive) ZInput.Exclusive = false;
+        else gui.m_playerGrid.m_uiGroup.IsActive = false;
+        Check(Prefix("InventoryControllerEventNavigationPatch") && NoActions && !Plugin.IsInventoryControllerInputReserved(),
+            "Early inactive " + gate + " leaves input alone");
+        Check(ZInput.GetButtonDown("JoyButtonA"), "Early inactive " + gate + " retains pending action");
+
+        ZInput.Exclusive = true;
+        gui.m_playerGrid.m_uiGroup.IsActive = true;
+        Prefix("InventoryControllerUpdatePatch", gui);
+        Check(Time.frameCount == frame && Plugin.TestFavorites == 1 && !ZInput.GetButtonDown("JoyButtonA"),
+            "Later same-frame ready " + gate + " dispatches pending action");
+        Prefix("InventoryControllerGridInputPatch");
+        Check(Plugin.TestFavorites == 1, "Later same-frame ready " + gate + " dispatches only once");
+    }
 
     private static void Main()
     {
@@ -65,7 +142,7 @@ internal static class Program
 #if INVENTORY_SLOTS
         Plugin.TestReset(); Plugin.TestLegacyFavoriteHeld = true; Dispatch();
         Check(NoActions && Plugin.IsInventoryControllerInputReserved(), "Legacy favorite modifier reserves before A press");
-        Time.frameCount++; ZInput.Press("JoyButtonA"); Dispatch();
+        Time.frameCount++; ZInput.Press("JoyButtonA"); Plugin.OnControllerInputUpdated(); Dispatch();
         Check(Plugin.TestFavorites == 1, "Legacy favorite modifier activates focused cell");
 #endif
 
@@ -94,6 +171,14 @@ internal static class Program
             Check(!ZInput.GetButtonDown(face) && !ZInput.GetButton("Inventory") && !ZInput.GetButton("Use") && !ZInput.GetButton("JoyUse"), "Rule opening consumes close/use aliases " + face);
             Check(ZInput.GetButton("JoyRStick"), "Rule opening preserves modifier " + face);
         }
+
+        foreach (string face in new[] { "JoyButtonY", "JoyButtonB" })
+        {
+            CheckSameFrameInputRefresh(face);
+            CheckStalePreviousFrameInput(face);
+        }
+        CheckSameFrameGateRefresh(gamepadInactive: true);
+        CheckSameFrameGateRefresh(gamepadInactive: false);
 
         gui = Plugin.TestReset(); gui.m_playerGrid.m_selected = new Vector2i(8, 0); Chord("JoyButtonA"); Dispatch();
         Check(Plugin.TestFavorites == 0, "Out of bounds favorite rejected");
@@ -157,6 +242,10 @@ internal static class Program
         Plugin.TestSetWorldModifier("JoyAltKeys"); Plugin.TestEnable(false); Check(!Plugin.TestWorldHeld(), "Global Off disables world chord");
         Plugin.TestEnable(true); ZInput.Exclusive = false; Check(!Plugin.TestWorldHeld(), "World chord respects exclusive gamepad");
 
-        Console.WriteLine($"{typeof(Plugin).Namespace}: {_checks} controller dispatcher checks passed (source-linked fake host; no Unity/game/device execution).");
+        CheckButtonNavigation();
+        CheckControllerMenuAndSort();
+        CheckItemRuleControllerState();
+        CheckControllerFeatureGuide();
+        Console.WriteLine($"{typeof(Plugin).Namespace}: {_checks} controller dispatcher/navigation checks passed (source-linked fake host; no Unity/game/device execution).");
     }
 }

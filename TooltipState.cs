@@ -54,6 +54,7 @@ public sealed partial class InventorySlotsPlugin
         public TMP_Text? FeatureGuideHudHintText;
         public RectTransform? FeatureGuideToggle;
         public Image? FeatureGuideToggleIcon;
+        public TMP_Text? FeatureGuideToggleChord;
         public Canvas? FeatureGuideToggleCanvas;
         public GraphicRaycaster? FeatureGuideToggleRaycaster;
         public int FeatureGuideToggleInputHandlerId;

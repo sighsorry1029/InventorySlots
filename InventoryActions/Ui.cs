@@ -101,6 +101,7 @@ public sealed partial class InventoryActionsPlugin
         SetTooltip(Runtime.ContainerRestockButton, LocalizeUi("$inventoryactions_button_take_stacks", "Take stacks"), "Fill matching non-favorited partial stacks from the current container.");
 
         Runtime.ContainerSortButton = EnsureContainerSortButton(stackRect, gui.m_takeAllButton, buttonHeight);
+        RegisterControllerSortButton(gui, true, Runtime.ContainerSortButton);
         SetTooltip(Runtime.ContainerSortButton, LocalizeUi("$inventoryactions_action_sort", "Sort"), "Sort the current container.");
         SetButtonActive(Runtime.ContainerStoreAllButton, true);
         SetButtonActive(Runtime.ContainerRestockButton, true);
@@ -145,6 +146,7 @@ public sealed partial class InventoryActionsPlugin
         Vector3 position = GetInventorySortPanelPosition(playerGrid, buttonSize, rows) + (Vector3)GetSortButtonPositionOffset();
         Runtime.PlayerActionPanel.localPosition = position;
         Button? sortButton = EnsureActionButton(Runtime.PlayerActionPanel, gui.m_takeAllButton, "InventoryActions_PlayerSortButton", "S", () => SortPlayerInventory(Player.m_localPlayer));
+        RegisterControllerSortButton(gui, false, sortButton);
         DisableActionPanelChildren(Runtime.PlayerActionPanel, sortButton);
         LayoutActionButton(sortButton, buttonSize, buttonSize);
         SetTooltip(sortButton, "Sort inventory", "Fill favorite stacks from matching non-favorite stacks outside the hotbar, then sort the remaining ordinary stacks. Favorite stacks stay in place and never merge with each other.");
@@ -184,6 +186,7 @@ public sealed partial class InventoryActionsPlugin
         RectTransform? trashRect = LayoutActionButton(trashButton, buttonSize, buttonSize);
         if (trashButton != null && trashRect != null)
         {
+            RegisterControllerInventoryButton(gui, InventorySlideButton.Trash, trashButton);
             ConfigureInventoryTrashButton(trashButton, buttonSize);
             bool canTrash = CanStartInventoryTrash(gui, player, showMessage: false);
             SetButtonInteractable(trashButton, HasHeldTrashCandidate(gui));
@@ -399,8 +402,9 @@ public sealed partial class InventoryActionsPlugin
             return;
         }
 
-        foreach (TMP_Text text in button.GetComponentsInChildren<TMP_Text>(true))
+        foreach (TMP_Text text in GetInventoryButtonCaptionTexts<TMP_Text>(button))
         {
+            Localization.instance?.RemoveTextFromCache(text);
             text.enableAutoSizing = true;
             text.fontSizeMin = 10f;
             text.fontSizeMax = Mathf.Min(Mathf.Max(text.fontSize, 14f), 16f);
@@ -409,8 +413,9 @@ public sealed partial class InventoryActionsPlugin
             text.enabled = true;
         }
 
-        foreach (UnityEngine.UI.Text text in button.GetComponentsInChildren<UnityEngine.UI.Text>(true))
+        foreach (UnityEngine.UI.Text text in GetInventoryButtonCaptionTexts<UnityEngine.UI.Text>(button))
         {
+            Localization.instance?.RemoveTextFromCache(text);
             text.text = label;
             text.enabled = true;
             text.alignment = TextAnchor.MiddleCenter;
@@ -847,14 +852,16 @@ public sealed partial class InventoryActionsPlugin
     }
     private static void SetInventoryTrashConfirmButtonText(Button button, string label, Color color)
     {
-        foreach (TMP_Text text in button.GetComponentsInChildren<TMP_Text>(true))
+        foreach (TMP_Text text in GetInventoryButtonCaptionTexts<TMP_Text>(button))
         {
+            Localization.instance?.RemoveTextFromCache(text);
             text.text = label;
             text.color = color;
         }
 
-        foreach (UnityEngine.UI.Text text in button.GetComponentsInChildren<UnityEngine.UI.Text>(true))
+        foreach (UnityEngine.UI.Text text in GetInventoryButtonCaptionTexts<UnityEngine.UI.Text>(button))
         {
+            Localization.instance?.RemoveTextFromCache(text);
             text.text = label;
             text.color = color;
         }

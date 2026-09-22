@@ -467,6 +467,8 @@ public sealed partial class InventorySlotsPlugin
         RefreshFeatureGuideMeasurementCache(titleText, bodyText);
 
         bool collapsed = IsFeatureGuideCollapsed();
+        float toggleWidth = ShowControllerFeatureGuideToggle() && TooltipUi.FeatureGuideToggleChord != null
+            ? ConfigureControllerFeatureGuideLabel(TooltipUi.FeatureGuideToggleChord) : FeatureGuideToggleSize;
         Vector2 switchSize = switchVisible && TooltipUi.HotbarSwitchHudHint != null
             ? TooltipUi.HotbarSwitchHudHint.sizeDelta
             : GetHotbarSwitchHintBaseSize();
@@ -485,7 +487,7 @@ public sealed partial class InventorySlotsPlugin
             FeatureGuideHorizontalPadding +
             TooltipUi.FeatureGuideTitleWidth +
             FeatureGuideToggleGap +
-            FeatureGuideToggleSize +
+            toggleWidth +
             FeatureGuideToggleInset;
         float desiredExpandedOuterWidth = Mathf.Max(
             desiredTextWidth + FeatureGuideHorizontalPadding * 2f,
@@ -494,7 +496,18 @@ public sealed partial class InventorySlotsPlugin
         bool useFallbackPlacement = false;
 
         Rect parentRect = parent.rect;
-        if (parentRect.width > 0f && parentRect.height > 0f)
+        bool besideCrafting = TryGetInventoryFeatureGuideArea(parent, out Rect inventoryArea);
+        if (besideCrafting && (inventoryArea.width < Mathf.Max(160f, toggleWidth + 36f) || inventoryArea.height < 48f))
+        {
+            SetHintActive(TooltipUi.FeatureGuideHudHint, false);
+            UpdateFeatureGuideToggleInputLayer();
+            return;
+        }
+        if (besideCrafting)
+        {
+            expandedOuterWidth = Mathf.Min(desiredExpandedOuterWidth, inventoryArea.width);
+        }
+        else if (parentRect.width > 0f && parentRect.height > 0f)
         {
             float availableRightWidth = parentRect.xMax - FeatureGuideGap - outerLeft;
             float minimumSideOuterWidth = Mathf.Min(
@@ -534,8 +547,7 @@ public sealed partial class InventorySlotsPlugin
         {
             float maximumBodyHeight = Mathf.Max(
                 1f,
-                parentRect.height -
-                FeatureGuideGap * 2f -
+                (besideCrafting ? inventoryArea.height : parentRect.height - FeatureGuideGap * 2f) -
                 headerHeight -
                 FeatureGuideVerticalPadding * 2f);
             expandedBodyHeight = Mathf.Min(expandedBodyHeight, maximumBodyHeight);
@@ -550,7 +562,11 @@ public sealed partial class InventorySlotsPlugin
             FeatureGuideVerticalPadding * 2f;
 
         float outerTop = switchPosition.y + switchHeight * 0.5f + FeatureGuideVerticalPadding;
-        if (parentRect.width > 0f && parentRect.height > 0f)
+        if (besideCrafting)
+        {
+            outerTop = inventoryArea.yMax;
+        }
+        else if (parentRect.width > 0f && parentRect.height > 0f)
         {
             if (useFallbackPlacement)
             {
@@ -574,12 +590,13 @@ public sealed partial class InventorySlotsPlugin
         float collapsedOuterHeight = headerHeight + FeatureGuideVerticalPadding * 2f;
         float actualOuterWidth = collapsed ? collapsedOuterWidth : expandedOuterWidth;
         float actualOuterHeight = collapsed ? collapsedOuterHeight : expandedOuterHeight;
+        if (besideCrafting) outerLeft = inventoryArea.xMax - actualOuterWidth;
         float availableTitleWidth = Mathf.Max(
             1f,
             actualOuterWidth -
             FeatureGuideHorizontalPadding -
             FeatureGuideToggleGap -
-            FeatureGuideToggleSize -
+            toggleWidth -
             FeatureGuideToggleInset);
         float renderedTitleWidth = Mathf.Min(
             TooltipUi.FeatureGuideTitleWidth,
@@ -621,7 +638,7 @@ public sealed partial class InventorySlotsPlugin
         bodyRect.sizeDelta = new Vector2(expandedBodyWidth, expandedBodyHeight);
         bodyText.gameObject.SetActive(!collapsed);
 
-        LayoutFeatureGuideToggle(collapsed, headerHeight, actualOuterWidth);
+        LayoutFeatureGuideToggle(collapsed, headerHeight, actualOuterWidth, toggleWidth);
         SetHintActive(TooltipUi.FeatureGuideHudHint, true);
         UpdateFeatureGuideToggleInputLayer();
     }
@@ -653,6 +670,7 @@ public sealed partial class InventorySlotsPlugin
                 .Replace("{useKey}", GetContainerQuickStackKeyDisplayText())
                 .Replace("{restockKey}", controllerHints ? DisplayFeatureGuideBinding(GetFavoriteRestockControllerDisplay()) : GetContainerRestockKeyDisplayText())
                 .Replace("{favoriteAction}", DisplayFeatureGuideBinding(GetInventoryControllerChordDisplay("JoyButtonA")))
+                .Replace("{menuAction}", GetInventoryControllerActionDisplay("JoyRStick"))
                 .Replace("{sortAction}", DisplayFeatureGuideBinding(GetInventoryControllerChordDisplay("JoyButtonX")))
                 .Replace("{rulesAction}", DisplayFeatureGuideBinding(GetInventoryControllerChordDisplay("JoyButtonY")))
                 .Replace("{excludeAction}", DisplayFeatureGuideBinding(GetInventoryControllerChordDisplay("JoyButtonB")))
@@ -679,8 +697,8 @@ public sealed partial class InventorySlotsPlugin
     {
         bool korean = string.Equals(Localization.instance?.GetSelectedLanguage(), "Korean", StringComparison.OrdinalIgnoreCase);
         return LocalizeUi("$inventoryslots_feature_guide_controller", korean
-            ? "<b>InventorySlots 빠른 가이드</b>\n선택한 플레이어 칸에서 <color=#FFA94D>[{favoriteAction}]</color>: 즐겨찾기 · <color=#FFA94D>[{sortAction}]</color>: 선택 중인 인벤토리/상자 정렬\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: 보충 대상 / 자동 줍기 제외 열기 (집어 든 내 아이템이 있으면 등록)\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 즐겨찾기 외 같은 종류를 주변 상자에 보관\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 목표 수량·빈 칸 보충 모드에 따라 즐겨찾기 보충\n규칙 편집: 방향키 위/아래 행 선택 · 왼쪽/오른쪽 수량 · {modeAction} 모드 · {removeAction} 삭제 · {closeAction} 닫기\n커스텀 슬롯·규칙: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>\n가이드 숨기기: <color=#FFA94D>F1 → InventorySlots → Show Feature Guide → Off</color>"
-            : "<b>InventorySlots quick guide</b>\nOn the selected player slot, <color=#FFA94D>[{favoriteAction}]</color>: Favorite · <color=#FFA94D>[{sortAction}]</color>: Sort focused inventory/chest\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: Restock targets / pickup exclusions (register a picked-up player item)\nLook at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching non-favorite items nearby\nLook at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill favorites using target quantities and empty-slot modes\nRules: D-pad up/down selects rows; left/right changes quantity; {modeAction} mode; {removeAction} remove; {closeAction} close\nCustom slots and rules: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>\nHide this guide: <color=#FFA94D>F1 → InventorySlots → Show Feature Guide → Off</color>");
+            ? "<b>InventorySlots 빠른 가이드</b>\n선택한 칸에서 {menuAction} 짧게: 작업 메뉴 · ↑↓ 선택 · {modeAction} 실행 · {closeAction} 뒤로\n내 인벤토리 맨 아래 오른쪽 / 상자 맨 위 오른쪽 칸에서 →: S 선택 · {modeAction}: 정렬\n선택적 단축키: 선택한 플레이어 칸에서 <color=#FFA94D>[{favoriteAction}]</color>: 즐겨찾기 · <color=#FFA94D>[{sortAction}]</color>: 선택 중인 인벤토리/상자 정렬\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: 보충 대상 / 자동 줍기 제외 열기 (집어 든 내 아이템이 있으면 등록)\n보조키를 놓고 마지막 표시 플레이어 행에서 방향키 아래: 보충/제외/휴지통 버튼 · 왼쪽/오른쪽: 켜진 버튼 선택\nAuto: 게임패드에서도 평소 접힘 · 선택한 버튼만 펼침 · 좌우 이동/이탈 시 이전 버튼 접힘 · On: 항상 펼침 · Off: 숨김\n버튼에서 {modeAction}: 보충/제외 목록 열기 또는 집은 내 아이템 등록 · 휴지통: 집은 아이템 삭제 확인\n버튼에서 위: 플레이어 칸 · 아래: 열린 상자\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 즐겨찾기 외 같은 종류를 주변 상자에 보관\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 목표 수량·빈 칸 보충 모드에 따라 즐겨찾기 보충\n규칙: ↑↓ 행 · ←→ 조작 선택 · {modeAction} 실행/편집 · {removeAction} 제거 · {closeAction} 닫기\n수량 편집: ↑ 증가 / ↓ 감소 · {modeAction}/{closeAction} 편집 종료 (자동 저장)\n커스텀 슬롯·규칙: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>\n가이드 숨기기: <color=#FFA94D>F1 → InventorySlots → Show Feature Guide → Off</color>"
+            : "<b>InventorySlots quick guide</b>\nTap {menuAction} on a selected slot: actions menu; ↑↓ select, {modeAction} apply, {closeAction} back\nPlayer bottom-right / chest top-right slot →: select S; {modeAction}: sort\nOptional shortcuts on the selected player slot, <color=#FFA94D>[{favoriteAction}]</color>: Favorite · <color=#FFA94D>[{sortAction}]</color>: Sort focused inventory/chest\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: Restock targets / pickup exclusions (register a picked-up player item)\nRelease modifier; D-pad down from the last visible player row: Restock / Exclude / Trash; left/right: enabled buttons\nAuto stays collapsed on gamepad: only the selected button expands; moving away retracts it. On: always expanded; Off: hidden\n{modeAction}: Open Restock/Exclude or register a held player item; Trash: confirm held item deletion\nOn buttons, up: player inventory; down: open chest\nLook at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching non-favorite items nearby\nLook at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill favorites using target quantities and empty-slot modes\nRules: ↑↓ rows; ←→ controls; {modeAction} use/edit; {removeAction} remove; {closeAction} close\nQuantity edit: ↑ increase / ↓ decrease; {modeAction}/{closeAction} finish (auto-saved)\nCustom slots and rules: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>\nHide this guide: <color=#FFA94D>F1 → InventorySlots → Show Feature Guide → Off</color>");
     }
 
     private static string GetFeatureGuideTitle(string expandedText)
@@ -816,7 +834,8 @@ public sealed partial class InventorySlotsPlugin
     private static void LayoutFeatureGuideToggle(
         bool collapsed,
         float headerHeight,
-        float outerWidth)
+        float outerWidth,
+        float toggleWidth)
     {
         if (TooltipUi.FeatureGuideToggle == null || TooltipUi.FeatureGuideToggleIcon == null)
         {
@@ -828,14 +847,26 @@ public sealed partial class InventorySlotsPlugin
         toggle.anchorMax = new Vector2(0f, 1f);
         toggle.pivot = new Vector2(0f, 1f);
         toggle.anchoredPosition = new Vector2(
-            Mathf.Max(0f, outerWidth - FeatureGuideToggleInset - FeatureGuideToggleSize),
+            Mathf.Max(0f, outerWidth - FeatureGuideToggleInset - toggleWidth),
             -FeatureGuideVerticalPadding - (headerHeight - FeatureGuideToggleSize) * 0.5f);
-        toggle.sizeDelta = new Vector2(FeatureGuideToggleSize, FeatureGuideToggleSize);
+        toggle.sizeDelta = new Vector2(toggleWidth, FeatureGuideToggleSize);
         toggle.localScale = Vector3.one;
         toggle.localRotation = Quaternion.identity;
         toggle.SetAsLastSibling();
 
         Image icon = TooltipUi.FeatureGuideToggleIcon;
+        bool controller = ShowControllerFeatureGuideToggle();
+        icon.gameObject.SetActive(!controller);
+        if (TooltipUi.FeatureGuideToggleChord != null)
+        {
+            TMP_Text chord = TooltipUi.FeatureGuideToggleChord;
+            chord.gameObject.SetActive(controller);
+            chord.color = FeatureGuideToggleColor;
+            RectTransform chordRect = chord.rectTransform;
+            chordRect.anchorMin = Vector2.zero;
+            chordRect.anchorMax = Vector2.one;
+            chordRect.offsetMin = chordRect.offsetMax = Vector2.zero;
+        }
         RectTransform iconRect = icon.rectTransform;
         iconRect.anchorMin = new Vector2(0.5f, 0.5f);
         iconRect.anchorMax = new Vector2(0.5f, 0.5f);
@@ -1275,11 +1306,16 @@ public sealed partial class InventorySlotsPlugin
         toggleIcon.sprite = GetTriangleUiSprite();
         toggleIcon.preserveAspect = true;
         toggleIcon.raycastTarget = false;
+        Transform? existingChord = toggle.Find("ControllerChord");
+        TMP_Text? toggleChord = existingChord != null ? existingChord.GetComponent<TMP_Text>() : null;
+        if (toggleChord == null) CreateTextRect("ControllerChord", toggle, out toggleChord);
+        ApplyDefaultFontAsset(toggleChord);
         TooltipUi.FeatureGuideHudHint = root;
         TooltipUi.FeatureGuideHudTitleText = title;
         TooltipUi.FeatureGuideHudHintText = body;
         TooltipUi.FeatureGuideToggle = toggle;
         TooltipUi.FeatureGuideToggleIcon = toggleIcon;
+        TooltipUi.FeatureGuideToggleChord = toggleChord;
         TooltipUi.FeatureGuideToggleCanvas = toggleCanvas;
         TooltipUi.FeatureGuideToggleRaycaster = toggleRaycaster;
         root.gameObject.SetActive(true);

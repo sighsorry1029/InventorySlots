@@ -50,6 +50,7 @@ inventoryslots_hold_to_restock: Hold to restock
 inventoryslots_reclaim_blocked: Blocked
 inventoryslots_hotbar_switch_hint: "Switch [{key}]"
 inventoryslots_feature_guide: "<b>InventorySlots quick guide</b>\n<color=#FFA94D>[{tooltipKey}]</color> over an inventory or chest item, or a crafting recipe: Pin tooltip\n<color=#FFA94D>[{favoriteKey}]</color> over an inventory slot or crafting recipe: Toggle favorite\nWhile looking at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching items nearby (favorite slots excluded)\nWhile looking at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill existing items in favorite slots from nearby chests up to their targets\nCustom slots and rules: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>\nHide this guide now: <color=#FFA94D>F1 → InventorySlots → Show Feature Guide → Off</color>"
+inventoryslots_feature_guide_controller: "<b>InventorySlots quick guide</b>\nTap {menuAction} on a selected slot: actions menu; ↑↓ select, {modeAction} apply, {closeAction} back\nPlayer bottom-right / chest top-right slot →: select S; {modeAction}: sort\nOptional shortcuts on the selected player slot, <color=#FFA94D>[{favoriteAction}]</color>: Favorite · <color=#FFA94D>[{sortAction}]</color>: Sort focused inventory/chest\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: Restock targets / pickup exclusions (register a picked-up player item)\nRelease modifier; D-pad down from the last visible player row: Restock / Exclude / Trash; left/right: enabled buttons\nAuto stays collapsed on gamepad: only the selected button expands; moving away retracts it. On: always expanded; Off: hidden\n{modeAction}: Open Restock/Exclude or register a held player item; Trash: confirm held item deletion\nOn buttons, up: player inventory; down: open chest\nLook at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching non-favorite items nearby\nLook at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill favorites using target quantities and empty-slot modes\nRules: ↑↓ rows; ←→ controls; {modeAction} use/edit; {removeAction} remove; {closeAction} close\nQuantity edit: ↑ increase / ↓ decrease; {modeAction}/{closeAction} finish (auto-saved)\nCustom slots and rules: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>\nHide this guide: <color=#FFA94D>F1 → InventorySlots → Show Feature Guide → Off</color>"
 inventoryslots_quick_slot_format: "Quick {index}"
 inventoryslots_clear_favorites_hint_format: "{key}: clear favorites"
 inventoryslots_inventory_limit_reached: "{item}: you can carry at most {max}."
@@ -68,10 +69,27 @@ inventoryslots_rules_exclusion_on: "Automatic pickup: Excluded"
 inventoryslots_rules_exclusion_off: "Automatic pickup: Allowed"
 inventoryslots_rules_exclusion_help: "Checked: exclude this item from automatic pickup. Unchecked: allow pickup while keeping this entry. Manual pickup remains available."
 inventoryslots_rules_remove_help: "Remove this entry from the list."
-inventoryslots_rules_pad_exclude: "Up/Down: item · {mode}: toggle\n{remove}: remove · {close}: close"
+inventoryslots_rules_pad_browse: "↑↓: item · ←→: control\n{submit}: {action} · {remove}: remove · {close}: close"
+inventoryslots_rules_pad_quantity_edit: "↑: increase · ↓: decrease\n{submit}/{close}: finish editing"
+inventoryslots_rules_pad_empty: "{close}: close"
+inventoryslots_rules_pad_edit: "edit"
+inventoryslots_rules_pad_change: "change"
 inventoryslots_rules_restock_scope: "{key} · mode and target per favorite stack"
 inventoryslots_rules_exclude_scope: Manual E pickup is still available
 inventoryslots_rules_quantity: Target quantity
+inventoryslots_controller_menu_title: "Inventory actions"
+inventoryslots_controller_menu_favorite: "Favorite slot"
+inventoryslots_controller_menu_unfavorite: "Remove favorite"
+inventoryslots_controller_menu_sort: "Sort inventory"
+inventoryslots_controller_menu_help: "↑↓: select\n{submit}: apply · {back}: back"
+inventoryslots_controller_actions_hint: "Tap {key}: actions"
+inventoryslots_controller_tools_hint: "↓: buttons"
+inventoryslots_controller_sort_hint: "→: Sort"
+inventoryslots_controller_open: "Open"
+inventoryslots_controller_register: "Register"
+inventoryslots_controller_back: "Back"
+inventoryslots_controller_sort: "Sort"
+inventoryslots_controller_trash: "Trash"
 inventoryslots_rules_cancel: Cancel
 inventoryslots_rules_save: Save
 inventoryslots_rules_remove: Remove

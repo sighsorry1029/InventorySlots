@@ -69,6 +69,7 @@ public sealed partial class InventorySlotsPlugin
         {
             HideContainerMutationButtons();
             InventoryPanels.ContainerSortButton = EnsureContainerSortButton(stackAllRect, template, GetContainerSortButtonSize(gui), (Vector3)ContainerSortButtonFixedOffset);
+            RegisterControllerSortButton(gui, true, InventoryPanels.ContainerSortButton);
             SetButtonActive(InventoryPanels.ContainerSortButton, canRequestSort);
             SetButtonInteractable(InventoryPanels.ContainerSortButton, canRequestSort && !IsContainerSortRequestPending(currentContainer));
             return;
@@ -88,6 +89,7 @@ public sealed partial class InventorySlotsPlugin
         LayoutButtonPair(stackAllRect, InventoryPanels.ContainerRestockButton, stackAllWidth, buttonHeight, gap, false, offset);
 
         InventoryPanels.ContainerSortButton = EnsureContainerSortButton(stackAllRect, template, buttonHeight, offset + (Vector3)ContainerSortButtonFixedOffset);
+        RegisterControllerSortButton(gui, true, InventoryPanels.ContainerSortButton);
         SetButtonActive(InventoryPanels.ContainerStoreAllButton, true);
         SetButtonActive(InventoryPanels.ContainerRestockButton, true);
         SetButtonActive(InventoryPanels.ContainerSortButton, true);
@@ -145,6 +147,7 @@ public sealed partial class InventorySlotsPlugin
         DisableActionPanelChildren(InventoryPanels.InventorySortPanel);
 
         Button? sortButton = EnsureActionButton(InventoryPanels.InventorySortPanel, gui.m_takeAllButton, "InventorySlots_PlayerSortButton", "S", () => SortPlayerInventory(Player.m_localPlayer));
+        RegisterControllerSortButton(gui, false, sortButton);
         LayoutActionButton(sortButton, buttonWidth, buttonHeight);
 
         SetActionPanelActive(InventoryPanels.InventorySortPanel, true);
@@ -399,8 +402,9 @@ public sealed partial class InventorySlotsPlugin
         }
 
         SetActionButtonTextAutoSize(button);
-        foreach (TMP_Text text in button.GetComponentsInChildren<TMP_Text>(true))
+        foreach (TMP_Text text in GetInventoryButtonCaptionTexts<TMP_Text>(button))
         {
+            Localization.instance?.RemoveTextFromCache(text);
             ApplyDefaultFontAsset(text);
             if (text.text != label)
             {
@@ -408,8 +412,9 @@ public sealed partial class InventorySlotsPlugin
             }
         }
 
-        foreach (UnityEngine.UI.Text text in button.GetComponentsInChildren<UnityEngine.UI.Text>(true))
+        foreach (UnityEngine.UI.Text text in GetInventoryButtonCaptionTexts<UnityEngine.UI.Text>(button))
         {
+            Localization.instance?.RemoveTextFromCache(text);
             if (text.text != label)
             {
                 text.text = label;
@@ -432,7 +437,7 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        foreach (TMP_Text text in button.GetComponentsInChildren<TMP_Text>(true))
+        foreach (TMP_Text text in GetInventoryButtonCaptionTexts<TMP_Text>(button))
         {
             ApplyDefaultFontAsset(text);
             text.enableAutoSizing = true;

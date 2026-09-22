@@ -50,7 +50,12 @@ namespace UnityEngine
         public bool isActiveAndEnabled = true;
         public T[] GetComponentsInChildren<T>(bool includeInactive) => Array.Empty<T>();
     }
-    public static class Time { public static int frameCount; }
+    public static class Time { public static int frameCount; public static float unscaledTime; }
+    public static class Mathf
+    {
+        public static int Clamp(int value, int min, int max) => Math.Clamp(value, min, max);
+        public static int CeilToInt(float value) => (int)Math.Ceiling(value);
+    }
 }
 namespace UnityEngine.UI
 {
@@ -75,7 +80,13 @@ namespace UnityEngine.InputSystem.UI
 }
 
 public readonly record struct Vector2i(int x, int y);
-public sealed class Inventory { public int Width = 8; public int Height = 4; }
+public sealed class Inventory
+{
+    public int Width = 8;
+    public int Height = 4;
+    public int GetWidth() => Width;
+    public int GetHeight() => Height;
+}
 public class Humanoid { public Inventory Inventory = new(); public Inventory GetInventory() => Inventory; }
 public sealed class Player : Humanoid
 {
@@ -119,6 +130,7 @@ public sealed class ZInput
     public static readonly HashSet<string> Held = new();
     public static readonly HashSet<string> Down = new();
     public static readonly List<string> ResetCalls = new();
+    public static void Update(float dt) { }
     public static bool IsExclusiveGamepadActive() => Exclusive;
     public string GetBoundKeyString(string action, bool gamepad) => action;
     public static bool GetButton(string action) => Held.Contains(action);
