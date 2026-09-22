@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.4
+
+- Fixed repeated favorite-memory save failures when launchers such as NucleusCoop expose the per-player favorites file through a Windows symbolic link. InventoryActions now keeps normal atomic replacement for regular files and writes through the existing link only when Windows reports that link replacement is unsupported.
+- Gave each save attempt a unique temporary file so concurrent local instances do not collide on a shared `.tmp` name. A successful link-compatible fallback is reported once and no longer retries every few seconds.
+
 ## 1.1.3
 
 - Added direct controller navigation for Restock, Auto Pickup Exclude, Trash, and player/container Sort. Move down from the final inventory row or right from an edge slot, then use A to activate and B or a return direction to restore the original cell. Auto buttons expand only while focused.

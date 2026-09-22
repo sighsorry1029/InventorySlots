@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using BepInEx;
+using InventoryPersistence;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
@@ -8,6 +9,8 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
+    private static bool _clientStateDirectWriteFallbackLogged;
+
     private static void EnsureClientStateLoaded()
     {
         if (InventoryClient.ClientStateLoaded)
@@ -41,49 +44,32 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool SaveClientState()
     {
-        string? tempPath = null;
         try
         {
             EnsureClientStateLoaded();
             NormalizeClientState();
-            Directory.CreateDirectory(Path.GetDirectoryName(ClientStateFilePath)!);
 
             ISerializer serializer = new SerializerBuilder()
                 .WithNamingConvention(CamelCaseNamingConvention.Instance)
                 .Build();
 
-            tempPath = ClientStateFilePath + ".tmp";
-            File.WriteAllText(tempPath, serializer.Serialize(InventoryClient.ClientState));
-            if (File.Exists(ClientStateFilePath))
+            Exception? compatibilityReason = LinkCompatibleFileWriter.WriteAllText(
+                ClientStateFilePath,
+                serializer.Serialize(InventoryClient.ClientState));
+            if (compatibilityReason != null && !_clientStateDirectWriteFallbackLogged)
             {
-                File.Replace(tempPath, ClientStateFilePath, null);
-            }
-            else
-            {
-                File.Move(tempPath, ClientStateFilePath);
+                _clientStateDirectWriteFallbackLogged = true;
+                Log.LogWarning(
+                    $"InventorySlots client state is using link-compatible direct writes because atomic replacement is unavailable for {ClientStateFilePath} " +
+                    $"({compatibilityReason.GetType().Name}, 0x{compatibilityReason.HResult:X8}).");
             }
 
-            tempPath = null;
             return true;
         }
         catch (Exception ex)
         {
             Log.LogWarning($"Failed to save InventorySlots client state: {ex.Message}");
             return false;
-        }
-        finally
-        {
-            if (!string.IsNullOrEmpty(tempPath) && File.Exists(tempPath))
-            {
-                try
-                {
-                    File.Delete(tempPath);
-                }
-                catch (Exception ex)
-                {
-                    Log.LogWarning($"Failed to remove temporary InventorySlots client state: {ex.Message}");
-                }
-            }
         }
     }
 

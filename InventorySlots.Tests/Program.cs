@@ -1,4 +1,5 @@
 using InventorySlots;
+using InventoryPersistence;
 
 TestRunner.Run(
     ("Favorite item memory survives YAML and remains character-specific", FavoriteMemoryPersistenceTests.RoundTripAndCharacterIsolation),
@@ -56,6 +57,8 @@ TestRunner.Run(
     ("Client state normalize creates missing roots", Tests.ClientStateNormalizeCreatesMissingRoots),
     ("Client state normalize trims players and lists", Tests.ClientStateNormalizeTrimsPlayersAndLists),
     ("Client state normalize repairs non-finite layout values", Tests.ClientStateNormalizeRepairsNonFiniteLayoutValues),
+    ("Client state writer recognizes symbolic-link replacement failures", Tests.ClientStateWriterRecognizesSymbolicLinkFailures),
+    ("Client state writer atomically replaces ordinary files", Tests.ClientStateWriterReplacesOrdinaryFiles),
     ("Special slot grid mapping rejects horizontal aliases", Tests.SpecialSlotGridMappingRejectsHorizontalAliases),
     ("Quick slot panel position ignores equipment panel visibility", Tests.QuickSlotPanelPositionIgnoresEquipmentPanelVisibility),
     ("Custom equipped item keeps stable slot identity during auto-adopt", Tests.CustomEquippedItemKeepsStableSlotIdentityDuringAutoAdopt),
@@ -1125,6 +1128,45 @@ internal static class Tests
         Assert.Equal(ClientStateCore.DefaultQuickSlotsHudX, inventory.QuickSlotsHudPosition.X);
         Assert.Equal(ClientStateCore.DefaultQuickSlotsHudY, inventory.QuickSlotsHudPosition.Y);
         Assert.Equal(ClientStateCore.DefaultQuickSlotsHudElementSpace, inventory.QuickSlotsHudElementSpace);
+    }
+
+    public static void ClientStateWriterRecognizesSymbolicLinkFailures()
+    {
+        IOException windowsSymlinkFailure = new(
+            "This application does not support the current operation on symbolic links.",
+            unchecked((int)0x800705B8));
+
+        Assert.True(
+            LinkCompatibleFileWriter.IsLinkReplacementUnsupported(windowsSymlinkFailure),
+            "Windows ERROR_SYMLINK_NOT_SUPPORTED should use the direct-write fallback");
+        Assert.True(
+            LinkCompatibleFileWriter.IsLinkReplacementUnsupported(new NotSupportedException()),
+            "platform replacement failures should use the direct-write fallback");
+        Assert.False(
+            LinkCompatibleFileWriter.IsLinkReplacementUnsupported(new IOException("sharing violation", unchecked((int)0x80070020))),
+            "unrelated IO failures must not bypass atomic replacement");
+    }
+
+    public static void ClientStateWriterReplacesOrdinaryFiles()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), "InventorySlots-writer-" + Guid.NewGuid().ToString("N"));
+        string path = Path.Combine(directory, "ClientState.yml");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            File.WriteAllText(path, "old");
+
+            Exception? compatibilityReason = LinkCompatibleFileWriter.WriteAllText(path, "new");
+
+            Assert.True(compatibilityReason == null, "ordinary files should retain atomic replacement");
+            Assert.Equal("new", File.ReadAllText(path));
+            Assert.Equal(0, Directory.GetFiles(directory, "*.tmp").Length, "temporary files should be removed");
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+            if (Directory.Exists(directory)) Directory.Delete(directory);
+        }
     }
 
     public static void SpecialSlotGridMappingRejectsHorizontalAliases()

@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using InventoryPersistence;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -8,6 +9,8 @@ namespace InventoryActions;
 
 public sealed partial class InventoryActionsPlugin
 {
+    private static bool _favoriteDirectWriteFallbackLogged;
+
     internal static bool HandleFavoriteClick(InventoryGrid grid, UIInputHandler clickHandler)
     {
         if (!ShouldHandleFavoriteClick(grid))
@@ -154,10 +157,15 @@ public sealed partial class InventoryActionsPlugin
                 .Select(slot => FavoriteSlotMemoryCore.WriteLine(slot.x, slot.y,
                     FavoriteSlotItems.TryGetValue(slot, out string prefab) ? prefab : ""))
                 .ToArray();
-            string tempPath = path + ".tmp";
-            File.WriteAllLines(tempPath, lines);
-            if (File.Exists(path)) File.Replace(tempPath, path, null);
-            else File.Move(tempPath, path);
+            Exception? compatibilityReason = LinkCompatibleFileWriter.WriteAllLines(path, lines);
+            if (compatibilityReason != null && !_favoriteDirectWriteFallbackLogged)
+            {
+                _favoriteDirectWriteFallbackLogged = true;
+                Log.LogWarning(
+                    $"InventoryActions favorites are using link-compatible direct writes because atomic replacement is unavailable for {path} " +
+                    $"({compatibilityReason.GetType().Name}, 0x{compatibilityReason.HResult:X8}).");
+            }
+
             _favoriteMemorySavePending = false;
             _favoriteMemorySaveRetryAt = 0f;
         }

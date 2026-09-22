@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.11
+
+- Fixed repeated client-state save failures when launchers such as NucleusCoop expose `ClientState.yml` through a Windows symbolic link. InventorySlots now keeps normal atomic replacement for regular files and writes through the existing link only when Windows reports that link replacement is unsupported.
+- Gave each save attempt a unique temporary file, preventing concurrent local instances from colliding on a shared `.tmp` name. A successful link-compatible fallback is reported once and no longer leaves favorite memory, crafting favorites, row state, panel positions, or guide state retrying every few seconds.
+
 ## 1.5.10
 
 - Added direct controller navigation for the inventory tools. Move down from the last player row to select Restock, Auto Pickup Exclude, or Trash; move right from the player or container edge to select its Sort button. Auto buttons expand only while selected, hidden buttons are skipped, and returning restores the original inventory cell.

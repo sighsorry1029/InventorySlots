@@ -26,6 +26,7 @@
     <Compile Include="..\InventoryPlacementPolicyCore.cs" Link="InventoryPlacementPolicyCore.cs" />
     <Compile Include="..\InventorySlotSafetyCore.cs" Link="InventorySlotSafetyCore.cs" />
     <Compile Include="..\InventorySlotsYamlModels.cs" Link="InventorySlotsYamlModels.cs" />
+    <Compile Include="..\Shared\Persistence\LinkCompatibleFileWriter.cs" Link="LinkCompatibleFileWriter.cs" />
     <Compile Include="..\ItemGroupRegistry.cs" Link="ItemGroupRegistry.cs" />
     <Compile Include="..\JewelcraftingTooltipCore.cs" Link="JewelcraftingTooltipCore.cs" />
     <Compile Include="..\HoverTooltipSourceCore.cs" Link="HoverTooltipSourceCore.cs" />
