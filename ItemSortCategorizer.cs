@@ -7,10 +7,8 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
-    private static int CompareItemsForSort(ItemData a, ItemData b)
-    {
-        return CompareItemsForSort(a, b, GetInventoryItemSortKey(a), GetInventoryItemSortKey(b), 0, 0);
-    }
+    private static readonly Dictionary<string, Recipe> RecipeOutputLookupCache = new(StringComparer.OrdinalIgnoreCase);
+    private static string _recipeOutputLookupSignature = "";
 
     private static int CompareItemsForSort(ItemData a, ItemData b, SortKey aKey, SortKey bKey, int aOriginalIndex, int bOriginalIndex)
     {
@@ -70,7 +68,7 @@ public sealed partial class InventorySlotsPlugin
         EnsureRecipeOutputLookupCache();
         foreach (string token in GetItemRecipeLookupTokens(item))
         {
-            if (InventorySort.RecipeOutputLookupCache.TryGetValue(token, out Recipe recipe))
+            if (RecipeOutputLookupCache.TryGetValue(token, out Recipe recipe))
             {
                 return recipe;
             }
@@ -113,13 +111,13 @@ public sealed partial class InventorySlotsPlugin
     private static void EnsureRecipeOutputLookupCache()
     {
         string signature = GetRecipeOutputLookupSignature();
-        if (string.Equals(InventorySort.RecipeOutputLookupSignature, signature, StringComparison.Ordinal))
+        if (string.Equals(_recipeOutputLookupSignature, signature, StringComparison.Ordinal))
         {
             return;
         }
 
-        InventorySort.RecipeOutputLookupCache.Clear();
-        InventorySort.RecipeOutputLookupSignature = signature;
+        RecipeOutputLookupCache.Clear();
+        _recipeOutputLookupSignature = signature;
         if (ObjectDB.instance?.m_recipes == null)
         {
             return;
@@ -153,9 +151,9 @@ public sealed partial class InventorySlotsPlugin
 
         string clean = CleanPrefabName(token!);
         string key = GetRecipeOutputLookupKey(kind, clean);
-        if (!string.IsNullOrWhiteSpace(clean) && !InventorySort.RecipeOutputLookupCache.ContainsKey(key))
+        if (!string.IsNullOrWhiteSpace(clean) && !RecipeOutputLookupCache.ContainsKey(key))
         {
-            InventorySort.RecipeOutputLookupCache[key] = recipe;
+            RecipeOutputLookupCache[key] = recipe;
         }
     }
 
@@ -178,8 +176,8 @@ public sealed partial class InventorySlotsPlugin
 
     private static void ClearInventorySortCaches()
     {
-        InventorySort.RecipeOutputLookupCache.Clear();
-        InventorySort.RecipeOutputLookupSignature = "";
+        RecipeOutputLookupCache.Clear();
+        _recipeOutputLookupSignature = "";
     }
 
     private static string GetLocalizedItemName(ItemData item)

@@ -205,12 +205,6 @@ public sealed partial class InventorySlotsPlugin
         public int LocalPlayerUpdateStateCount;
     }
 
-    private sealed class InventorySortRuntimeState
-    {
-        public readonly Dictionary<string, Recipe> RecipeOutputLookupCache = new(StringComparer.OrdinalIgnoreCase);
-        public string RecipeOutputLookupSignature = "";
-    }
-
     private static CustomSyncedValue<string> _syncedYaml = null!;
     private static CustomSyncedValue<string> _syncedResourceMapYaml = null!;
     private static FileSystemWatcher? _yamlWatcher;
@@ -221,7 +215,6 @@ public sealed partial class InventorySlotsPlugin
     private static readonly InventoryDefinitionRuntimeState InventoryDefinitions = new();
     private static readonly InventoryClientRuntimeState InventoryClient = new();
     private static readonly EquipmentVisualRuntimeState EquipmentVisuals = new();
-    private static readonly InventorySortRuntimeState InventorySort = new();
     private static List<SlotDefinition> SlotDefinitions => InventoryDefinitions.SlotDefinitions;
     private static Dictionary<string, List<string>> PredefinedGroupDefinitions => InventoryDefinitions.PredefinedGroupDefinitions;
     private static List<string> PredefinedGroupOrder => InventoryDefinitions.PredefinedGroupOrder;
