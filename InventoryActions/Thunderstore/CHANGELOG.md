@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.5
+
+- Centralized AzuExtendedPlayerInventory panel-setting cleanup while preserving special-slot protection, live layout changes, and existing fallback behavior.
+- Reused the same favorite-slot checks for controller shortcuts and the item action menu. Controls, slot restrictions, settings, and saved data are unchanged.
+
 ## 1.1.4
 
 - Fixed repeated favorite-memory save failures when launchers such as NucleusCoop expose the per-player favorites file through a Windows symbolic link. InventoryActions now keeps normal atomic replacement for regular files and writes through the existing link only when Windows reports that link replacement is unsupported.

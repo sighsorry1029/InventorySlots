@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.12
+
+- Refactored inventory sorting caches and crafting refresh checks while preserving existing sorting, favorite, and crafting behavior.
+- Reused the same favorite-slot checks for controller shortcuts and the item action menu. Controls, slot restrictions, settings, and saved data are unchanged.
+
 ## 1.5.11
 
 - Fixed repeated client-state save failures when launchers such as NucleusCoop expose `ClientState.yml` through a Windows symbolic link. InventorySlots now keeps normal atomic replacement for regular files and writes through the existing link only when Windows reports that link replacement is unsupported.
