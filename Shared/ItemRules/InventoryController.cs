@@ -171,12 +171,7 @@ public sealed partial class InventoryActionsPlugin
         {
             Inventory inventory = grid.GetInventory();
             Vector2i pos = InventoryControllerAccess.Selection(grid);
-            if (inventory != ((Humanoid)Player.m_localPlayer).GetInventory() || IsOutOfBounds(inventory, pos)) return;
-#if INVENTORY_SLOTS
-            if (CanFavoriteSlot(Player.m_localPlayer, inventory, pos)) ToggleFavoriteSlot(Player.m_localPlayer, pos);
-#else
-            if (CanFavoriteCell(inventory, pos)) ToggleFavoriteSlot(Player.m_localPlayer, pos);
-#endif
+            if (CanControllerFavoriteCell(gui, grid, pos, inventory)) ToggleFavoriteSlot(Player.m_localPlayer, pos);
         }
         else if (sort)
         {
@@ -184,6 +179,16 @@ public sealed partial class InventoryActionsPlugin
             else SortCurrentContainer(Player.m_localPlayer);
         }
         else if (restock || exclude) OpenControllerItemRules(restock);
+    }
+
+    private static bool CanControllerFavoriteCell(InventoryGui gui, InventoryGrid grid, Vector2i cell, Inventory inventory)
+    {
+        if (grid != gui.m_playerGrid || inventory != ((Humanoid)Player.m_localPlayer).GetInventory() || IsOutOfBounds(inventory, cell)) return false;
+#if INVENTORY_SLOTS
+        return CanFavoriteSlot(Player.m_localPlayer, inventory, cell);
+#else
+        return CanFavoriteCell(inventory, cell);
+#endif
     }
 
     internal static bool IsInventoryControllerInputReserved() => _controllerReservedFrame == Time.frameCount;

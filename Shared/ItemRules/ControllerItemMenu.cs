@@ -22,17 +22,6 @@ public sealed partial class InventoryActionsPlugin
 
     internal static bool IsControllerItemMenuOpen() => _controllerMenuGrid != null;
 
-    private static bool CanControllerFavoriteCell(InventoryGui gui, InventoryGrid grid, Vector2i cell)
-    {
-        Inventory inventory = grid.GetInventory();
-        if (grid != gui.m_playerGrid || inventory != ((Humanoid)Player.m_localPlayer).GetInventory() || IsOutOfBounds(inventory, cell)) return false;
-#if INVENTORY_SLOTS
-        return CanFavoriteSlot(Player.m_localPlayer, inventory, cell);
-#else
-        return CanFavoriteCell(inventory, cell);
-#endif
-    }
-
     private static bool IsControllerCellFavorite(InventoryGrid grid, Vector2i cell)
     {
 #if INVENTORY_SLOTS
@@ -75,7 +64,7 @@ public sealed partial class InventoryActionsPlugin
             if (_controllerMenuGrid != grid || _controllerMenuInventory != grid!.GetInventory() ||
                 InventoryControllerAccess.Selection(grid) != _controllerMenuCell ||
                 IsOutOfBounds(grid.GetInventory(), _controllerMenuCell) ||
-                _controllerMenuFavorite != CanControllerFavoriteCell(gui, grid, _controllerMenuCell))
+                _controllerMenuFavorite != CanControllerFavoriteCell(gui, grid, _controllerMenuCell, grid.GetInventory()))
             {
                 ResetControllerItemMenu();
                 return false;
@@ -138,7 +127,7 @@ public sealed partial class InventoryActionsPlugin
         _controllerMenuGrid = grid;
         _controllerMenuInventory = grid!.GetInventory();
         _controllerMenuCell = selected;
-        _controllerMenuFavorite = CanControllerFavoriteCell(gui, grid, selected);
+        _controllerMenuFavorite = CanControllerFavoriteCell(gui, grid, selected, grid.GetInventory());
         _controllerMenuChoice = 0;
         _controllerMenuFrame = _controllerReservedFrame = Time.frameCount;
         HideControllerGridHelp();
