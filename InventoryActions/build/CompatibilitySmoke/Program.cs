@@ -252,6 +252,16 @@ internal static class Program
         Check("AzuEPI live inline setting places buttons after all rows", (int)Call("GetAzuEpiDisplayedPlayerRows", azuInventory)! == 8);
         azuSeparatePanel.Value = 1;
         Check("AzuEPI live separate setting restores regular-row layout", (int)Call("GetAzuEpiDisplayedPlayerRows", azuInventory)! == 5);
+        // A changed optional-mod setting type must disable only the panel hint;
+        // its independent slot-boundary API must continue protecting hidden rows.
+        ConfigEntry<string> incompatiblePanel = config.Bind("test", "incompatible panel", "1", "");
+        azuSeparatePanelEntryField.SetValue(null, incompatiblePanel);
+        incompatiblePanel.Value = "not a toggle";
+        Check("AzuEPI setting failure falls back to full-height layout", (int)Call("GetAzuEpiDisplayedPlayerRows", azuInventory)! == 8);
+        Check("AzuEPI setting failure retains special-slot protection", (int)Call("GetRegularPlayerRowsOrInventoryHeight", azuInventory)! == 5 &&
+            !(bool)Call("CanFavoriteCell", azuInventory, new Vector2i(0, 5))!);
+        Check("AzuEPI setting failure releases configuration references", azuConfigField.GetValue(null) == null &&
+            azuSeparatePanelEntryField.GetValue(null) == null);
         config.SettingChanged -= azuSettingChanged;
         azuSlotIndexField.SetValue(null, null);
         azuConfigField.SetValue(null, null);

@@ -122,13 +122,7 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
         _extraSlotsPlayerRows = null;
         _equipmentAndQuickSlotsVisibleRows = null;
         _azuEpiGetSlotGridLinearIndex = null;
-        if (_azuEpiConfig != null)
-        {
-            _azuEpiConfig.SettingChanged -= HandleAzuEpiSettingChanged;
-        }
-        _azuEpiConfig = null;
-        _azuEpiSeparatePanelEntry = null;
-        _azuEpiDisplaysEquipmentInSeparatePanel = null;
+        ClearAzuEpiSeparatePanelSubscription();
         DestroyFeatureGuideHud();
         DestroyItemRuleUi();
         DestroyRestockModeIcons();
@@ -249,15 +243,21 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
         catch (System.Exception error)
         {
             _azuEpiGetSlotGridLinearIndex = null;
-            if (_azuEpiConfig != null)
-            {
-                _azuEpiConfig.SettingChanged -= HandleAzuEpiSettingChanged;
-            }
-            _azuEpiConfig = null;
-            _azuEpiSeparatePanelEntry = null;
-            _azuEpiDisplaysEquipmentInSeparatePanel = null;
+            ClearAzuEpiSeparatePanelSubscription();
             Log.LogWarning($"AzuExtendedPlayerInventory compatibility initialization failed: {error.Message}");
         }
+    }
+
+    private static void ClearAzuEpiSeparatePanelSubscription()
+    {
+        // The slot-boundary delegate has a separate lifetime from this UI setting.
+        if (_azuEpiConfig != null)
+        {
+            _azuEpiConfig.SettingChanged -= HandleAzuEpiSettingChanged;
+        }
+        _azuEpiConfig = null;
+        _azuEpiSeparatePanelEntry = null;
+        _azuEpiDisplaysEquipmentInSeparatePanel = null;
     }
 
     private static void HandleAzuEpiSettingChanged(object? sender, SettingChangedEventArgs args)
@@ -284,13 +284,7 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
         }
         catch (System.Exception error)
         {
-            if (_azuEpiConfig != null)
-            {
-                _azuEpiConfig.SettingChanged -= HandleAzuEpiSettingChanged;
-            }
-            _azuEpiConfig = null;
-            _azuEpiSeparatePanelEntry = null;
-            _azuEpiDisplaysEquipmentInSeparatePanel = null;
+            ClearAzuEpiSeparatePanelSubscription();
             Log.LogWarning($"AzuExtendedPlayerInventory separate-panel setting lookup failed: {error.Message}");
         }
     }
