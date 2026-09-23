@@ -75,13 +75,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void StoreCraftingFrameFastPathSignature(InventoryGui gui, CraftingTabAdapterState adapter)
     {
-        if (!_craftingRedesignApplied ||
-            _craftingRecipeGrid == null ||
-            IsUnityNull(_craftingRecipeGrid) ||
-            CraftingController.HasFrameRebuildWork() ||
-            CraftingController.IsSearchInputDirty ||
-            CraftingQueue.QueueRecipe != null ||
-            CraftingQueue.ContinuingQueue)
+        if (!CanRunCraftingPanelFrameFastPath())
         {
             ResetCraftingFrameFastPathStamp();
             return;
