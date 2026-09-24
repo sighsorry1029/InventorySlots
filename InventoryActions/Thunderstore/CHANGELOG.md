@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.6
+
+- Fixed a startup path that could fail with `Steamworks is not initialized` on clients without a saved language setting. Localization now waits for platform initialization, allowing settings and inventory patches to load normally.
+
 ## 1.1.5
 
 - Centralized AzuExtendedPlayerInventory panel-setting cleanup while preserving special-slot protection, live layout changes, and existing fallback behavior.

@@ -690,7 +690,8 @@ public sealed partial class InventorySlotsPlugin
         {
             int quickSlotIndex = i;
             int displayIndex = i + 1;
-            string name = LocalizeUi("$inventoryslots_quick_slot_format", "Quick {index}").Replace("{index}", displayIndex.ToString());
+            // Slot definitions load before the platform; translate quick-slot labels in the HUD.
+            string name = $"Quick {displayIndex}";
             SlotDefinitions.Add(new SlotDefinition($"quick{displayIndex}", name, SlotKind.Quick, QuickSlotAcceptsItem, quickSlotIndex));
         }
 

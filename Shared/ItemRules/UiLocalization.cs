@@ -10,10 +10,15 @@ public sealed partial class InventoryActionsPlugin
 {
     private static string LocalizeUi(string token, string fallback)
     {
-        if (Localization.instance == null || string.IsNullOrWhiteSpace(token))
+        // Even a null check on Localization.instance initializes it and reads preferences.
+        if (!PlatformInitializer.PlatformInitialized || string.IsNullOrWhiteSpace(token))
             return fallback;
 
-        string localized = Localization.instance.Localize(token);
+        Localization? localization = Localization.instance;
+        if (localization == null)
+            return fallback;
+
+        string localized = localization.Localize(token);
         // Valheim returns [key], rather than $key, when a word is missing.
         // Match this token exactly so valid translations containing brackets survive.
         bool missing = token[0] == '$' &&

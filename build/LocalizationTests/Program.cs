@@ -56,6 +56,11 @@ internal static class Program
 }
 
 // Only the external game's result is simulated; the mod helper is compiled from source.
+internal static class PlatformInitializer
+{
+    public static bool PlatformInitialized => true;
+}
+
 internal sealed class Localization
 {
     public static Localization? instance;

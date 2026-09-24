@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.13
+
+- Fixed startup failing with `Steamworks is not initialized` on clients without a saved language setting. Localization now waits for platform initialization, allowing settings and inventory patches to load normally.
+- Removed startup-time translation from quick-slot definitions. Empty quick-slot tooltips use the current language when displayed.
+
 ## 1.5.12
 
 - Refactored inventory sorting caches and crafting refresh checks while preserving existing sorting, favorite, and crafting behavior.

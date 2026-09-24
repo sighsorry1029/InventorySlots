@@ -60,12 +60,18 @@ internal static class Localizer
 
     private static void TryLoadCurrentLanguage()
     {
-        if (Localization.instance == null)
+        // The getter creates Localization and reads platform preferences. BepInEx can
+        // load us before Steam is initialized; the existing game hooks will retry later.
+        if (!PlatformInitializer.PlatformInitialized)
         {
             return;
         }
 
-        LoadLocalization(Localization.instance, Localization.instance.GetSelectedLanguage());
+        Localization? localization = Localization.instance;
+        if (localization != null)
+        {
+            LoadLocalization(localization, localization.GetSelectedLanguage());
+        }
     }
 
     private static void LoadLocalization(Localization localization, string language)

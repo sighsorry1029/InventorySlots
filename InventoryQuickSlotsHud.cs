@@ -275,7 +275,9 @@ public sealed partial class InventorySlotsPlugin
             marker.TooltipHash = 0;
             marker.TooltipItem = null;
             marker.NextTooltipRefreshTime = 0f;
-            SetQuickHotkeyBarTooltip(element, marker, $"empty|{slot.Id}|{slot.Name}", slot.Name, "");
+            string slotName = LocalizeUi("$inventoryslots_quick_slot_format", "Quick {index}")
+                .Replace("{index}", (slot.QuickSlotIndex + 1).ToString());
+            SetQuickHotkeyBarTooltip(element, marker, $"empty|{slot.Id}|{slotName}", slotName, "");
             return;
         }
 
