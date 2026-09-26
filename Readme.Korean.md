@@ -117,7 +117,9 @@ EpicLoot 아이템 정보와 Jewelcrafting 소켓 정보를 툴팁·비교 패�
 
 ## 설치
 
-Valheim 모드 매니저로 설치하거나 `InventorySlots.dll`을 `BepInEx/plugins`에 넣으세요. **BepInExPack Valheim 5.4.2350**이 필요하며, 한 번 실행하면 설정 파일이 생성됩니다.
+Valheim 모드 매니저로 설치하거나 `InventorySlots.dll`을 `BepInEx/plugins`에 넣으세요. **BepInExPack Valheim 5.4.2351**이 필요하며, 한 번 실행하면 설정 파일이 생성됩니다.
+
+게임 안에서 **F6**를 누르면 인벤토리 개폐 여부와 관계없이 빠른 가이드가 **펼침 → 접힘 → 숨김 → 펼침**으로 전환됩니다. 마지막 상태는 저장됩니다. **6 - Client Keys → Toggle Feature Guide Key**에서 키를 변경하거나 `None`으로 해제할 수 있습니다. 패드에서는 인벤토리를 열고 **LT+R3**로 같은 순환을 사용하며, 삼각형 클릭은 접기·펼치기만 합니다. Configuration Manager 설치는 필수가 아닙니다.
 
 - **클라이언트에만 설치:** 바닐라 서버에 접속할 수 있습니다. 다른 플레이어는 설치할 필요가 없으며 내 로컬 설정이 적용됩니다.
 - **서버에도 설치:** 모든 클라이언트에 같은 버전이 필요하며 서버 동기화 설정은 서버를 따릅니다.

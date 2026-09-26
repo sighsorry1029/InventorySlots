@@ -117,7 +117,7 @@ Favorites protect against quick stack; they do **not** stop crafting, building, 
 
 ## Installation
 
-Install with a Valheim mod manager, or place `InventorySlots.dll` in `BepInEx/plugins`. Requires **BepInExPack Valheim 5.4.2350**. Launch once to generate the config files.
+Install with a Valheim mod manager, or place `InventorySlots.dll` in `BepInEx/plugins`. Requires **BepInExPack Valheim 5.4.2351**. Launch once to generate the config files.
 
 - **Client only:** you can join a vanilla server. Other players do not need InventorySlots; your local settings apply.
 - **Installed on the server:** all clients need the same InventorySlots version, and server-synced settings follow the server.
@@ -126,6 +126,8 @@ Install with a Valheim mod manager, or place `InventorySlots.dll` in `BepInEx/pl
 Want the inventory actions while keeping your existing inventory layout? Use [InventoryActions](https://thunderstore.io/c/valheim/p/sighsorry/InventoryActions/) instead.
 
 ## Guides and support
+
+Press **F6** to cycle the quick guide: **Expanded → Collapsed → Hidden → Expanded**, with the inventory open or closed. Your choice is remembered. Change or unset **Toggle Feature Guide Key** under **6 - Client Keys**; Configuration Manager is optional. [Guide controls](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/inventory-actions.md#show-or-hide-the-quick-guide).
 
 | Guide | Covers |
 | --- | --- |

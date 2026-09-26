@@ -4,6 +4,16 @@ This guide covers the tools shared by **InventorySlots** and **InventoryActions*
 
 For gamepad controls, see the [controller guide](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/controller.md). See [installation and compatibility](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/compatibility.md) for server and other-mod behavior.
 
+## Show or hide the quick guide
+
+Press **F6** during gameplay to cycle **Expanded → Collapsed → Hidden → Expanded**, with the inventory open or closed. On a controller, open the inventory and press **LT + R3** for the same cycle, including restoring a hidden guide. The mouse triangle only expands/collapses the visible guide. The header shows the current shortcut and its next action; hiding briefly displays how to restore it.
+
+The guide starts expanded and remembers its last state for the next session in `BepInEx/config/InventorySlots/ClientState.yml` or `BepInEx/config/InventoryActions.ClientState.yml`. This preference belongs to the local client across characters. Guide visibility and folded state are controlled directly, without separate config options.
+
+**Toggle Feature Guide Key** is client-only and supports another key or a combination; **None** disables the shortcut. Find it under **6 - Client Keys** in InventorySlots or **2 - Client** in InventoryActions. The key is ignored while typing, using configuration menus, or interacting with dialogs.
+
+**Configuration Manager is optional.** F1 opens that separate mod's settings window only when it is installed and uses that binding. You can also edit the shortcut in `BepInEx/config/sighsorry.InventorySlots.cfg` or `BepInEx/config/sighsorry.InventoryActions.cfg` while the game is closed. If you hide the guide and unset its keyboard shortcut, assign a shortcut again or use **LT + R3** in the inventory to restore it.
+
 ## Favorites and sorting
 
 Hold **Left Alt** and left-click a player inventory cell to toggle its blue favorite border. The favorite belongs to the **slot**, so it remains when that slot becomes empty. The modifier is configurable.
@@ -61,7 +71,9 @@ Target rules are client settings shared across characters. Slot memory is charac
 | Mod | Local memory file under `BepInEx/config` |
 | --- | --- |
 | InventorySlots | `InventorySlots/ClientState.yml` |
-| InventoryActions | `InventoryActions.Favorites.<playerId>.txt` |
+| InventoryActions | `InventoryActions.ClientState.yml` |
+
+InventoryActions stores each character under `players.<playerId>.favoriteSlots`, alongside the shared guide state. Previous `InventoryActions.Favorites.<playerId>.txt` files are not read or migrated; re-register favorites when updating from that format. The old files are left untouched.
 
 ### Leave one item
 

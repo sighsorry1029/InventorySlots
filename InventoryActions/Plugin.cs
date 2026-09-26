@@ -17,7 +17,7 @@ namespace InventoryActions;
 public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
 {
     internal const string ModName = "InventoryActions";
-    internal const string ModVersion = "1.1.6";
+    internal const string ModVersion = "1.1.7";
     internal const string Author = "sighsorry";
     internal const string ModGUID = $"{Author}.{ModName}";
     private const string ExternalMultiUserChestGuid = "com.maxsch.valheim.MultiUserChest";
@@ -99,6 +99,7 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
             return;
         }
 
+        RetryFeatureGuideStateSave();
         Player? player = Player.m_localPlayer;
         if (player == null || IsUnityNull(player) || player!.m_isLoading)
         {
@@ -112,12 +113,15 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
 
         UpdateAreaContainerTransfer(player);
         HandleHoverActions(player);
+        HandleFeatureGuideToggleHotkey(player);
         UpdateFeatureGuideHud();
     }
 
     private void OnDestroy()
     {
         RememberFavoriteSlotItems(Player.m_localPlayer, flush: true);
+        FlushPendingClientState();
+        RetryFeatureGuideStateSave(flush: true);
         _extraSlotsPlugin = null;
         _extraSlotsPlayerRows = null;
         _equipmentAndQuickSlotsVisibleRows = null;

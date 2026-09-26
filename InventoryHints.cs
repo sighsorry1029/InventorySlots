@@ -443,7 +443,7 @@ public sealed partial class InventorySlotsPlugin
         Vector3 switchPosition,
         bool switchVisible)
     {
-        bool visible = _showFeatureGuide != null && _showFeatureGuide.Value.IsOn();
+        bool visible = IsFeatureGuideVisible();
         if (!visible)
         {
             SetHintActive(TooltipUi.FeatureGuideHudHint, false);
@@ -663,8 +663,8 @@ public sealed partial class InventorySlotsPlugin
             bool controllerHints = UseInventoryControllerHints();
             string guide = controllerHints ? GetControllerFeatureGuideText() : LocalizeUi(
                 "$inventoryslots_feature_guide",
-                "<b>InventorySlots quick guide</b>\n<color=#FFA94D>[{tooltipKey}]</color> over an inventory or chest item, or a crafting recipe: Pin tooltip\n<color=#FFA94D>[{favoriteKey}]</color> over an inventory slot or crafting recipe: Toggle favorite\nWhile looking at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching items nearby (favorite slots excluded)\nWhile looking at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill existing items in favorite slots from nearby chests up to their targets\nCustom slots and rules: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>\nHide this guide now: <color=#FFA94D>F1 → InventorySlots → Show Feature Guide → Off</color>");
-            TooltipUi.FeatureGuideExpandedText = guide
+                "<b>InventorySlots quick guide</b>\n<color=#FFA94D>[{tooltipKey}]</color> over an inventory or chest item, or a crafting recipe: Pin tooltip\n<color=#FFA94D>[{favoriteKey}]</color> over an inventory slot or crafting recipe: Toggle favorite\nWhile looking at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching items nearby (favorite slots excluded)\nWhile looking at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill existing items in favorite slots from nearby chests up to their targets\nCustom slots and rules: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>");
+            TooltipUi.FeatureGuideExpandedText = AddFeatureGuideToggleHint(guide)
                 .Replace("{tooltipKey}", GetPinnedTooltipKeyDisplayText())
                 .Replace("{favoriteKey}", GetFavoriteKeyHintDisplayText())
                 .Replace("{useKey}", GetContainerQuickStackKeyDisplayText())
@@ -697,8 +697,8 @@ public sealed partial class InventorySlotsPlugin
     {
         bool korean = string.Equals(Localization.instance?.GetSelectedLanguage(), "Korean", StringComparison.OrdinalIgnoreCase);
         return LocalizeUi("$inventoryslots_feature_guide_controller", korean
-            ? "<b>InventorySlots 빠른 가이드</b>\n선택한 칸에서 {menuAction} 짧게: 작업 메뉴 · ↑↓ 선택 · {modeAction} 실행 · {closeAction} 뒤로\n내 인벤토리 맨 아래 오른쪽 / 상자 맨 위 오른쪽 칸에서 →: S 선택 · {modeAction}: 정렬\n선택적 단축키: 선택한 플레이어 칸에서 <color=#FFA94D>[{favoriteAction}]</color>: 즐겨찾기 · <color=#FFA94D>[{sortAction}]</color>: 선택 중인 인벤토리/상자 정렬\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: 보충 대상 / 자동 줍기 제외 열기 (집어 든 내 아이템이 있으면 등록)\n보조키를 놓고 마지막 표시 플레이어 행에서 방향키 아래: 보충/제외/휴지통 버튼 · 왼쪽/오른쪽: 켜진 버튼 선택\nAuto: 게임패드에서도 평소 접힘 · 선택한 버튼만 펼침 · 좌우 이동/이탈 시 이전 버튼 접힘 · On: 항상 펼침 · Off: 숨김\n버튼에서 {modeAction}: 보충/제외 목록 열기 또는 집은 내 아이템 등록 · 휴지통: 집은 아이템 삭제 확인\n버튼에서 위: 플레이어 칸 · 아래: 열린 상자\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 즐겨찾기 외 같은 종류를 주변 상자에 보관\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 목표 수량·빈 칸 보충 모드에 따라 즐겨찾기 보충\n규칙: ↑↓ 행 · ←→ 조작 선택 · {modeAction} 실행/편집 · {removeAction} 제거 · {closeAction} 닫기\n수량 편집: ↑ 증가 / ↓ 감소 · {modeAction}/{closeAction} 편집 종료 (자동 저장)\n커스텀 슬롯·규칙: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>\n가이드 숨기기: <color=#FFA94D>F1 → InventorySlots → Show Feature Guide → Off</color>"
-            : "<b>InventorySlots quick guide</b>\nTap {menuAction} on a selected slot: actions menu; ↑↓ select, {modeAction} apply, {closeAction} back\nPlayer bottom-right / chest top-right slot →: select S; {modeAction}: sort\nOptional shortcuts on the selected player slot, <color=#FFA94D>[{favoriteAction}]</color>: Favorite · <color=#FFA94D>[{sortAction}]</color>: Sort focused inventory/chest\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: Restock targets / pickup exclusions (register a picked-up player item)\nRelease modifier; D-pad down from the last visible player row: Restock / Exclude / Trash; left/right: enabled buttons\nAuto stays collapsed on gamepad: only the selected button expands; moving away retracts it. On: always expanded; Off: hidden\n{modeAction}: Open Restock/Exclude or register a held player item; Trash: confirm held item deletion\nOn buttons, up: player inventory; down: open chest\nLook at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching non-favorite items nearby\nLook at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill favorites using target quantities and empty-slot modes\nRules: ↑↓ rows; ←→ controls; {modeAction} use/edit; {removeAction} remove; {closeAction} close\nQuantity edit: ↑ increase / ↓ decrease; {modeAction}/{closeAction} finish (auto-saved)\nCustom slots and rules: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>\nHide this guide: <color=#FFA94D>F1 → InventorySlots → Show Feature Guide → Off</color>");
+            ? "<b>InventorySlots 빠른 가이드</b>\n선택한 칸에서 {menuAction} 짧게: 작업 메뉴 · ↑↓ 선택 · {modeAction} 실행 · {closeAction} 뒤로\n내 인벤토리 맨 아래 오른쪽 / 상자 맨 위 오른쪽 칸에서 →: S 선택 · {modeAction}: 정렬\n선택적 단축키: 선택한 플레이어 칸에서 <color=#FFA94D>[{favoriteAction}]</color>: 즐겨찾기 · <color=#FFA94D>[{sortAction}]</color>: 선택 중인 인벤토리/상자 정렬\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: 보충 대상 / 자동 줍기 제외 열기 (집어 든 내 아이템이 있으면 등록)\n보조키를 놓고 마지막 표시 플레이어 행에서 방향키 아래: 보충/제외/휴지통 버튼 · 왼쪽/오른쪽: 켜진 버튼 선택\nAuto: 게임패드에서도 평소 접힘 · 선택한 버튼만 펼침 · 좌우 이동/이탈 시 이전 버튼 접힘 · On: 항상 펼침 · Off: 숨김\n버튼에서 {modeAction}: 보충/제외 목록 열기 또는 집은 내 아이템 등록 · 휴지통: 집은 아이템 삭제 확인\n버튼에서 위: 플레이어 칸 · 아래: 열린 상자\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 즐겨찾기 외 같은 종류를 주변 상자에 보관\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 목표 수량·빈 칸 보충 모드에 따라 즐겨찾기 보충\n규칙: ↑↓ 행 · ←→ 조작 선택 · {modeAction} 실행/편집 · {removeAction} 제거 · {closeAction} 닫기\n수량 편집: ↑ 증가 / ↓ 감소 · {modeAction}/{closeAction} 편집 종료 (자동 저장)\n커스텀 슬롯·규칙: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>"
+            : "<b>InventorySlots quick guide</b>\nTap {menuAction} on a selected slot: actions menu; ↑↓ select, {modeAction} apply, {closeAction} back\nPlayer bottom-right / chest top-right slot →: select S; {modeAction}: sort\nOptional shortcuts on the selected player slot, <color=#FFA94D>[{favoriteAction}]</color>: Favorite · <color=#FFA94D>[{sortAction}]</color>: Sort focused inventory/chest\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: Restock targets / pickup exclusions (register a picked-up player item)\nRelease modifier; D-pad down from the last visible player row: Restock / Exclude / Trash; left/right: enabled buttons\nAuto stays collapsed on gamepad: only the selected button expands; moving away retracts it. On: always expanded; Off: hidden\n{modeAction}: Open Restock/Exclude or register a held player item; Trash: confirm held item deletion\nOn buttons, up: player inventory; down: open chest\nLook at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching non-favorite items nearby\nLook at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill favorites using target quantities and empty-slot modes\nRules: ↑↓ rows; ←→ controls; {modeAction} use/edit; {removeAction} remove; {closeAction} close\nQuantity edit: ↑ increase / ↓ decrease; {modeAction}/{closeAction} finish (auto-saved)\nCustom slots and rules: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>");
     }
 
     private static string GetFeatureGuideTitle(string expandedText)
@@ -713,28 +713,6 @@ public sealed partial class InventorySlotsPlugin
         return lineBreak >= 0 && lineBreak + 1 < expandedText.Length
             ? expandedText.Substring(lineBreak + 1)
             : "";
-    }
-
-    private static bool IsFeatureGuideCollapsed()
-    {
-        EnsureClientStateLoaded();
-        return InventoryClient.ClientState.Inventory.FeatureGuideCollapsed;
-    }
-
-    private static void ToggleFeatureGuideCollapsed()
-    {
-        EnsureClientStateLoaded();
-        InventorySlotsClientInventoryState inventory = InventoryClient.ClientState.Inventory;
-        inventory.FeatureGuideCollapsed = !inventory.FeatureGuideCollapsed;
-        SaveClientState();
-    }
-
-    private static void TryToggleFeatureGuideCollapsed()
-    {
-        if (CanInteractWithFeatureGuideToggle())
-        {
-            ToggleFeatureGuideCollapsed();
-        }
     }
 
     private static void InvalidateFeatureGuideTextAndMeasurements()
@@ -1285,7 +1263,7 @@ public sealed partial class InventorySlotsPlugin
         int inputHandlerId = input.GetInstanceID();
         if (TooltipUi.FeatureGuideToggleInputHandlerId != inputHandlerId)
         {
-            input.m_onLeftClick += _ => TryToggleFeatureGuideCollapsed();
+            input.m_onLeftClick += _ => ToggleFeatureGuideCollapsed();
             TooltipUi.FeatureGuideToggleInputHandlerId = inputHandlerId;
         }
 

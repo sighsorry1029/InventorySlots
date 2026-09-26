@@ -12,7 +12,8 @@ public sealed partial class InventoryActionsPlugin
 #endif
 {
     private enum Toggle { Off, On }
-    private static readonly Component _instance = new();
+    private sealed class TestPlugin : Component { }
+    private static readonly TestPlugin _instance = new();
     public static bool TestDedicated;
     private static bool IsDedicatedServer => TestDedicated;
 #if INVENTORY_SLOTS
@@ -22,7 +23,16 @@ public sealed partial class InventoryActionsPlugin
     private static GameObject? _inventoryTrashConfirmDialog;
     private static bool IsControllerHotkeyHeld(object entry) => TestLegacyFavoriteHeld;
 #else
-    private static class Runtime { internal static GameObject? TrashConfirmDialog; }
+    private static class Runtime
+    {
+        internal static GameObject? TrashConfirmDialog;
+        internal static string LoadedFavoritesPlayerId = "";
+        internal static readonly System.Collections.Generic.HashSet<Vector2i> FavoriteSlots = new();
+    }
+    private static readonly System.Collections.Generic.Dictionary<Vector2i, string> FavoriteSlotItems = new();
+    private static bool _favoriteMemoryPending, _favoriteMemorySavePending;
+    private static float _favoriteMemorySaveRetryAt;
+    private static string GetPlayerId(Player player) => player.Id;
 #endif
     private static class FavoriteMemoryAccess { internal static bool IsLoading(Player player) => player.Loading; }
     public static bool TestClosing, TestBlocked, TestCanShow = true, TestCanFavorite = true, TestLegacyFavoriteHeld;

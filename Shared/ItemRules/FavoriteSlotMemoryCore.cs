@@ -8,7 +8,7 @@ namespace InventorySlots;
 namespace InventoryActions;
 #endif
 
-// Kept independent of Unity so persistence and destination policy can be tested
+// Kept independent of Unity so slot memory and destination policy can be tested
 // with the same code used by both mods.
 internal static class FavoriteSlotMemoryCore
 {
@@ -55,19 +55,5 @@ internal static class FavoriteSlotMemoryCore
                 }
         cell = default!;
         return false;
-    }
-
-    internal static string WriteLine(int x, int y, string? prefab) =>
-        $"{x},{y}" + (string.IsNullOrEmpty(prefab) ? "" : "," + Uri.EscapeDataString(prefab));
-
-    internal static bool TryReadLine(string line, out int x, out int y, out string prefab)
-    {
-        x = y = -1;
-        prefab = "";
-        string[] parts = line.Trim().Split(',');
-        if (parts.Length < 2 || parts.Length > 3 || !int.TryParse(parts[0], out x) ||
-            !int.TryParse(parts[1], out y) || x < 0 || y < 0) return false;
-        if (parts.Length == 3) prefab = Uri.UnescapeDataString(parts[2]);
-        return true;
     }
 }

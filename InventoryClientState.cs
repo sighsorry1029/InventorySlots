@@ -11,6 +11,28 @@ public sealed partial class InventorySlotsPlugin
 {
     private static bool _clientStateDirectWriteFallbackLogged;
 
+    private static bool IsFeatureGuideVisible()
+    {
+        EnsureClientStateLoaded();
+        return !InventoryClient.ClientState.Inventory.FeatureGuideHidden;
+    }
+
+    private static bool IsFeatureGuideCollapsed()
+    {
+        EnsureClientStateLoaded();
+        return InventoryClient.ClientState.Inventory.FeatureGuideCollapsed;
+    }
+
+    private static void SetFeatureGuideState(bool visible, bool collapsed)
+    {
+        EnsureClientStateLoaded();
+        InventorySlotsClientInventoryState inventory = InventoryClient.ClientState.Inventory;
+        inventory.FeatureGuideHidden = !visible;
+        inventory.FeatureGuideCollapsed = visible && collapsed;
+        InvalidateFeatureGuideTextAndMeasurements();
+        SaveFeatureGuideState();
+    }
+
     private static void EnsureClientStateLoaded()
     {
         if (InventoryClient.ClientStateLoaded)
@@ -76,7 +98,7 @@ public sealed partial class InventorySlotsPlugin
     private static InventorySlotsClientPlayerState? GetClientPlayerState(string playerId, bool create)
     {
         EnsureClientStateLoaded();
-        if (InventoryClient.ClientState.Players.TryGetValue(playerId, out InventorySlotsClientPlayerState playerState))
+        if (InventoryClient.ClientState.Players.TryGetValue(playerId, out InventorySlotsClientPlayerState? playerState))
         {
             return playerState;
         }

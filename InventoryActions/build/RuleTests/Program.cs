@@ -201,13 +201,4 @@ Check("refavorite empty slot does not resurrect binding", !Observe() && !memory.
 favoriteCells.Clear(); favoriteCells.UnionWith(new[] { 0, 2 }); occupied.Clear(); Observe();
 Check("unavailable remembered items reserve every remaining favorite cell", !Select("Resin", false, out destination));
 
-foreach (string prefab in new[] { "", "Wood", "Mod:木,材%Special" })
-{
-    string line = FavoriteSlotMemoryCore.WriteLine(2, 3, prefab);
-    Check("Actions favorite persistence round trip: " + prefab,
-        FavoriteSlotMemoryCore.TryReadLine(line, out int x, out int y, out string saved) && x == 2 && y == 3 && saved == prefab);
-}
-Check("old coordinate-only favorites remain readable", FavoriteSlotMemoryCore.TryReadLine(" 2, 3 ", out _, out _, out string oldPrefab) && oldPrefab == "");
-foreach (string invalid in new[] { "# comment", "-1,2,Wood", "a,1", "1,2,Wood,Stone", "2" })
-    Check("invalid favorite record ignored: " + invalid, !FavoriteSlotMemoryCore.TryReadLine(invalid, out _, out _, out _));
 Console.WriteLine($"PASS: {checks} item rule and favorite memory checks");

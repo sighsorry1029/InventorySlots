@@ -16,8 +16,8 @@ inventoryactions_action_sort: 정렬
 inventoryactions_action_result_format: "{action}: {count}"
 inventoryactions_container_not_ready: 컨테이너를 사용할 수 없습니다.
 inventoryactions_hold_to_restock: 누르고 있으면 보충
-inventoryactions_feature_guide: "<b>InventoryActions 빠른 가이드</b>\n플레이어 인벤토리 칸에서 <color=#FFA94D>[{favoriteKey} + 왼쪽 클릭]</color>: 즐겨찾기 등록/해제\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 즐겨찾기가 아닌 같은 종류의 아이템을 해당 상자와 주변 상자에 보관\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 즐겨찾기 스택을 해당 상자와 주변 상자에서 목표 수량까지 보충\n아이템을 <color=#FFA94D>보충 대상</color> 아이콘에 놓기: 즐겨찾기 스택의 목표 수량 등록\n아이템을 <color=#FFA94D>자동 줍기 제외 / 휴지통</color> 아이콘에 놓기: 자동 줍기 제외 등록 / 확인 후 삭제\n가이드 숨기기: <color=#FFA94D>F1 → InventoryActions → Show Feature Guide → Off</color>"
-inventoryactions_feature_guide_controller: "<b>InventoryActions 빠른 가이드</b>\n선택한 칸에서 {menuAction} 짧게: 작업 메뉴 · ↑↓ 선택 · {modeAction} 실행 · {closeAction} 뒤로\n내 인벤토리 맨 아래 오른쪽 / 상자 맨 위 오른쪽 칸에서 →: S 선택 · {modeAction}: 정렬\n선택적 단축키: 선택한 플레이어 칸에서 <color=#FFA94D>[{favoriteAction}]</color>: 즐겨찾기 · <color=#FFA94D>[{sortAction}]</color>: 선택 중인 인벤토리/상자 정렬\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: 보충 대상 / 자동 줍기 제외 열기 (집어 든 내 아이템이 있으면 등록)\n보조키를 놓고 마지막 표시 플레이어 행에서 방향키 아래: 보충/제외/휴지통 버튼 · 왼쪽/오른쪽: 켜진 버튼 선택\nAuto: 게임패드에서도 평소 접힘 · 선택한 버튼만 펼침 · 좌우 이동/이탈 시 이전 버튼 접힘 · On: 항상 펼침 · Off: 숨김\n버튼에서 {modeAction}: 보충/제외 목록 열기 또는 집은 내 아이템 등록 · 휴지통: 집은 아이템 삭제 확인\n버튼에서 위: 플레이어 칸 · 아래: 열린 상자\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 즐겨찾기 외 같은 종류를 주변 상자에 보관\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 목표 수량·빈 칸 보충 모드에 따라 즐겨찾기 보충\n규칙: ↑↓ 행 · ←→ 조작 선택 · {modeAction} 실행/편집 · {removeAction} 제거 · {closeAction} 닫기\n수량 편집: ↑ 증가 / ↓ 감소 · {modeAction}/{closeAction} 편집 종료 (자동 저장)\n가이드 숨기기: <color=#FFA94D>F1 → InventoryActions → Show Feature Guide → Off</color>"
+inventoryactions_feature_guide: "<b>InventoryActions 빠른 가이드</b>\n플레이어 인벤토리 칸에서 <color=#FFA94D>[{favoriteKey} + 왼쪽 클릭]</color>: 즐겨찾기 등록/해제\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 즐겨찾기가 아닌 같은 종류의 아이템을 해당 상자와 주변 상자에 보관\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 즐겨찾기 스택을 해당 상자와 주변 상자에서 목표 수량까지 보충\n아이템을 <color=#FFA94D>보충 대상</color> 아이콘에 놓기: 즐겨찾기 스택의 목표 수량 등록\n아이템을 <color=#FFA94D>자동 줍기 제외 / 휴지통</color> 아이콘에 놓기: 자동 줍기 제외 등록 / 확인 후 삭제"
+inventoryactions_feature_guide_controller: "<b>InventoryActions 빠른 가이드</b>\n선택한 칸에서 {menuAction} 짧게: 작업 메뉴 · ↑↓ 선택 · {modeAction} 실행 · {closeAction} 뒤로\n내 인벤토리 맨 아래 오른쪽 / 상자 맨 위 오른쪽 칸에서 →: S 선택 · {modeAction}: 정렬\n선택적 단축키: 선택한 플레이어 칸에서 <color=#FFA94D>[{favoriteAction}]</color>: 즐겨찾기 · <color=#FFA94D>[{sortAction}]</color>: 선택 중인 인벤토리/상자 정렬\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: 보충 대상 / 자동 줍기 제외 열기 (집어 든 내 아이템이 있으면 등록)\n보조키를 놓고 마지막 표시 플레이어 행에서 방향키 아래: 보충/제외/휴지통 버튼 · 왼쪽/오른쪽: 켜진 버튼 선택\nAuto: 게임패드에서도 평소 접힘 · 선택한 버튼만 펼침 · 좌우 이동/이탈 시 이전 버튼 접힘 · On: 항상 펼침 · Off: 숨김\n버튼에서 {modeAction}: 보충/제외 목록 열기 또는 집은 내 아이템 등록 · 휴지통: 집은 아이템 삭제 확인\n버튼에서 위: 플레이어 칸 · 아래: 열린 상자\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 즐겨찾기 외 같은 종류를 주변 상자에 보관\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 목표 수량·빈 칸 보충 모드에 따라 즐겨찾기 보충\n규칙: ↑↓ 행 · ←→ 조작 선택 · {modeAction} 실행/편집 · {removeAction} 제거 · {closeAction} 닫기\n수량 편집: ↑ 증가 / ↓ 감소 · {modeAction}/{closeAction} 편집 종료 (자동 저장)"
 inventoryactions_rules_restock_title: 보충 대상
 inventoryactions_rules_mode_off: "보충: 끄기"
 inventoryactions_rules_mode_existing: "보충: 남아 있는 스택"
@@ -65,3 +65,8 @@ inventoryactions_rules_conflict: 설정이 변경되었습니다. 입력을 마�
 inventoryactions_rules_invalid: "1부터 해당 아이템의 최대 스택까지 입력하세요."
 inventoryactions_rules_save_failed: 설정을 저장하지 못했습니다.
 inventoryactions_rules_restored: 마지막으로 저장한 수량으로 복원했습니다
+inventoryactions_feature_guide_toggle_hint: "[{key}] 숨기기"
+inventoryactions_feature_guide_hidden: "{mod}: 가이드를 숨겼습니다. {key} 키로 다시 표시할 수 있습니다."
+inventoryactions_feature_guide_collapse_hint: "[{key}] 접기"
+inventoryactions_feature_guide_hidden_controller: "{mod}: 가이드를 숨겼습니다. 인벤토리를 열고 {key}로 다시 표시할 수 있습니다."
+inventoryactions_feature_guide_open_inventory_hint: "인벤토리 열기 → {action}"

@@ -46,7 +46,7 @@ public sealed partial class InventoryActionsPlugin
 
     private static void UpdateFeatureGuideHud()
     {
-        if (_showFeatureGuide == null || _showFeatureGuide.Value != Toggle.On)
+        if (!IsFeatureGuideVisible())
         {
             HideFeatureGuideHud();
             return;
@@ -259,10 +259,10 @@ public sealed partial class InventoryActionsPlugin
         bool controllerHints = UseInventoryControllerHints();
         string guide = controllerHints ? GetControllerFeatureGuideText() : LocalizeUi(
             "$inventoryactions_feature_guide",
-            "<b>InventoryActions quick guide</b>\n<color=#FFA94D>[{favoriteKey} + Left Click]</color> on a player inventory slot: Toggle favorite\nWhile looking at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching non-favorited items in it and nearby chests\nWhile looking at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill favorite stacks from it and nearby chests up to their targets\nDrop a held item on <color=#FFA94D>Restock targets</color>: Set its favorite-stack target\nDrop a held item on <color=#FFA94D>Auto pickup exclusions / Trash</color>: Exclude auto pickup / delete after confirmation\nHide this guide: <color=#FFA94D>F1 → InventoryActions → Show Feature Guide → Off</color>");
+            "<b>InventoryActions quick guide</b>\n<color=#FFA94D>[{favoriteKey} + Left Click]</color> on a player inventory slot: Toggle favorite\nWhile looking at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching non-favorited items in it and nearby chests\nWhile looking at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill favorite stacks from it and nearby chests up to their targets\nDrop a held item on <color=#FFA94D>Restock targets</color>: Set its favorite-stack target\nDrop a held item on <color=#FFA94D>Auto pickup exclusions / Trash</color>: Exclude auto pickup / delete after confirmation");
         string favoriteKey = _favoriteModifierKey != null ? GetShortcutDisplayText(_favoriteModifierKey.Value) : "";
         string restockKey = controllerHints ? GetFavoriteRestockControllerDisplay() : GetContainerRestockKeyDisplayText();
-        string expanded = guide
+        string expanded = AddFeatureGuideToggleHint(guide)
             .Replace("{favoriteKey}", string.IsNullOrWhiteSpace(favoriteKey) ? "—" : favoriteKey)
             .Replace("{useKey}", GetFeatureGuideUseKeyDisplayText())
             .Replace("{restockKey}", string.IsNullOrWhiteSpace(restockKey) ? "—" : restockKey)
@@ -298,8 +298,8 @@ public sealed partial class InventoryActionsPlugin
     {
         bool korean = string.Equals(Localization.instance?.GetSelectedLanguage(), "Korean", StringComparison.OrdinalIgnoreCase);
         return LocalizeUi("$inventoryactions_feature_guide_controller", korean
-            ? "<b>InventoryActions 빠른 가이드</b>\n선택한 칸에서 {menuAction} 짧게: 작업 메뉴 · ↑↓ 선택 · {modeAction} 실행 · {closeAction} 뒤로\n내 인벤토리 맨 아래 오른쪽 / 상자 맨 위 오른쪽 칸에서 →: S 선택 · {modeAction}: 정렬\n선택적 단축키: 선택한 플레이어 칸에서 <color=#FFA94D>[{favoriteAction}]</color>: 즐겨찾기 · <color=#FFA94D>[{sortAction}]</color>: 선택 중인 인벤토리/상자 정렬\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: 보충 대상 / 자동 줍기 제외 열기 (집어 든 내 아이템이 있으면 등록)\n보조키를 놓고 마지막 표시 플레이어 행에서 방향키 아래: 보충/제외/휴지통 버튼 · 왼쪽/오른쪽: 켜진 버튼 선택\nAuto: 게임패드에서도 평소 접힘 · 선택한 버튼만 펼침 · 좌우 이동/이탈 시 이전 버튼 접힘 · On: 항상 펼침 · Off: 숨김\n버튼에서 {modeAction}: 보충/제외 목록 열기 또는 집은 내 아이템 등록 · 휴지통: 집은 아이템 삭제 확인\n버튼에서 위: 플레이어 칸 · 아래: 열린 상자\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 즐겨찾기 외 같은 종류를 주변 상자에 보관\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 목표 수량·빈 칸 보충 모드에 따라 즐겨찾기 보충\n규칙: ↑↓ 행 · ←→ 조작 선택 · {modeAction} 실행/편집 · {removeAction} 제거 · {closeAction} 닫기\n수량 편집: ↑ 증가 / ↓ 감소 · {modeAction}/{closeAction} 편집 종료 (자동 저장)\n가이드 숨기기: <color=#FFA94D>F1 → InventoryActions → Show Feature Guide → Off</color>"
-            : "<b>InventoryActions quick guide</b>\nTap {menuAction} on a selected slot: actions menu; ↑↓ select, {modeAction} apply, {closeAction} back\nPlayer bottom-right / chest top-right slot →: select S; {modeAction}: sort\nOptional shortcuts on the selected player slot, <color=#FFA94D>[{favoriteAction}]</color>: Favorite · <color=#FFA94D>[{sortAction}]</color>: Sort focused inventory/chest\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: Restock targets / pickup exclusions (register a picked-up player item)\nRelease modifier; D-pad down from the last visible player row: Restock / Exclude / Trash; left/right: enabled buttons\nAuto stays collapsed on gamepad: only the selected button expands; moving away retracts it. On: always expanded; Off: hidden\n{modeAction}: Open Restock/Exclude or register a held player item; Trash: confirm held item deletion\nOn buttons, up: player inventory; down: open chest\nLook at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching non-favorite items nearby\nLook at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill favorites using target quantities and empty-slot modes\nRules: ↑↓ rows; ←→ controls; {modeAction} use/edit; {removeAction} remove; {closeAction} close\nQuantity edit: ↑ increase / ↓ decrease; {modeAction}/{closeAction} finish (auto-saved)\nHide this guide: <color=#FFA94D>F1 → InventoryActions → Show Feature Guide → Off</color>");
+            ? "<b>InventoryActions 빠른 가이드</b>\n선택한 칸에서 {menuAction} 짧게: 작업 메뉴 · ↑↓ 선택 · {modeAction} 실행 · {closeAction} 뒤로\n내 인벤토리 맨 아래 오른쪽 / 상자 맨 위 오른쪽 칸에서 →: S 선택 · {modeAction}: 정렬\n선택적 단축키: 선택한 플레이어 칸에서 <color=#FFA94D>[{favoriteAction}]</color>: 즐겨찾기 · <color=#FFA94D>[{sortAction}]</color>: 선택 중인 인벤토리/상자 정렬\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: 보충 대상 / 자동 줍기 제외 열기 (집어 든 내 아이템이 있으면 등록)\n보조키를 놓고 마지막 표시 플레이어 행에서 방향키 아래: 보충/제외/휴지통 버튼 · 왼쪽/오른쪽: 켜진 버튼 선택\nAuto: 게임패드에서도 평소 접힘 · 선택한 버튼만 펼침 · 좌우 이동/이탈 시 이전 버튼 접힘 · On: 항상 펼침 · Off: 숨김\n버튼에서 {modeAction}: 보충/제외 목록 열기 또는 집은 내 아이템 등록 · 휴지통: 집은 아이템 삭제 확인\n버튼에서 위: 플레이어 칸 · 아래: 열린 상자\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 즐겨찾기 외 같은 종류를 주변 상자에 보관\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 목표 수량·빈 칸 보충 모드에 따라 즐겨찾기 보충\n규칙: ↑↓ 행 · ←→ 조작 선택 · {modeAction} 실행/편집 · {removeAction} 제거 · {closeAction} 닫기\n수량 편집: ↑ 증가 / ↓ 감소 · {modeAction}/{closeAction} 편집 종료 (자동 저장)"
+            : "<b>InventoryActions quick guide</b>\nTap {menuAction} on a selected slot: actions menu; ↑↓ select, {modeAction} apply, {closeAction} back\nPlayer bottom-right / chest top-right slot →: select S; {modeAction}: sort\nOptional shortcuts on the selected player slot, <color=#FFA94D>[{favoriteAction}]</color>: Favorite · <color=#FFA94D>[{sortAction}]</color>: Sort focused inventory/chest\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: Restock targets / pickup exclusions (register a picked-up player item)\nRelease modifier; D-pad down from the last visible player row: Restock / Exclude / Trash; left/right: enabled buttons\nAuto stays collapsed on gamepad: only the selected button expands; moving away retracts it. On: always expanded; Off: hidden\n{modeAction}: Open Restock/Exclude or register a held player item; Trash: confirm held item deletion\nOn buttons, up: player inventory; down: open chest\nLook at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching non-favorite items nearby\nLook at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill favorites using target quantities and empty-slot modes\nRules: ↑↓ rows; ←→ controls; {modeAction} use/edit; {removeAction} remove; {closeAction} close\nQuantity edit: ↑ increase / ↓ decrease; {modeAction}/{closeAction} finish (auto-saved)");
     }
 
     private static string GetFeatureGuideUseKeyDisplayText()
@@ -371,7 +371,7 @@ public sealed partial class InventoryActionsPlugin
             return false;
         }
 
-        bool collapsed = _featureGuideCollapsed != null && _featureGuideCollapsed.Value == Toggle.On;
+        bool collapsed = IsFeatureGuideCollapsed();
         string displayText = _featureGuideBody;
         if (!string.Equals(_featureGuideText.text, displayText, StringComparison.Ordinal))
         {
@@ -535,14 +535,11 @@ public sealed partial class InventoryActionsPlugin
             : Quaternion.Euler(0f, 0f, 90f);
     }
 
-    private static void ToggleFeatureGuideCollapsed()
+    private static void InvalidateFeatureGuideTextAndMeasurements()
     {
-        if (_featureGuideCollapsed == null || !CanInteractWithFeatureGuideToggle())
-        {
-            return;
-        }
-
-        _featureGuideCollapsed.Value = _featureGuideCollapsed.Value == Toggle.On ? Toggle.Off : Toggle.On;
+        _nextFeatureGuideTextRefreshTime = 0f;
+        _featureGuideExpandedText = "";
+        InvalidateFeatureGuideMeasurement();
     }
 
     private static void UpdateFeatureGuideToggleInputLayer()

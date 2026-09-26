@@ -2,11 +2,15 @@
 
 These controls apply to **InventorySlots** and **InventoryActions**. Button names below use the A/B/X/Y positions; in-game hints show the current bindings. Keyboard and mouse remain available.
 
-## Expand or collapse the quick guide
+## Change the quick guide display
 
-Open the inventory, hold **LT**, then click the **right stick (R3)** once to expand or collapse the quick guide. Release and click R3 again to toggle it back. The guide shows this combination beside its title while using a controller, even when collapsed. With a mouse, click the triangle instead.
+Open the inventory, hold **LT**, then click the **right stick (R3)** once to cycle the quick guide: **Expanded → Collapsed → Hidden → Expanded**. Release and click R3 again for the next state. The guide shows this combination and its next action beside the title while using a controller.
 
-This works even when optional controller hotkeys are Off and remembers the guide's folded state. It does not open the slot actions menu on release. Finish item dragging, text entry, or another dialog before using it; the shortcut does not run with the inventory closed or the guide hidden.
+This works even when optional controller hotkeys are Off or the keyboard guide shortcut is unset. It remembers the last guide state and can restore a completely hidden guide. It does not open the slot actions menu on release. Finish item dragging, text entry, or another dialog before using it; the shortcut requires the inventory to be open.
+
+Outside the inventory, the controller guide header says **Open inventory → LT + R3** with the next action. Open the inventory before using the combination; map and menu buttons retain their normal behavior.
+
+**F6** on the keyboard performs the same cycle during gameplay with the inventory open or closed. It can be rebound or unset and needs no Configuration Manager. The mouse triangle continues to expand/collapse only. [Guide controls](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/inventory-actions.md#show-or-hide-the-quick-guide).
 
 While the inventory is open, the quick guide sits at the top of the space to the left of the crafting panels, clear of the player inventory, equipment and weight panels. Its width adapts to the available space and UI scale; folding keeps the right edge in place. When the inventory closes it returns beside the HUD hotbar. If the panels leave no readable space, the guide is temporarily hidden instead of overlapping them.
 

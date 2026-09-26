@@ -28,9 +28,15 @@ internal static partial class Program
         ButtonFrame();
         Check(!Plugin.IsControllerItemMenuOpen(), "Releasing trigger before stick never opens slot menu");
         ButtonFrame("JoyLTrigger", "JoyRStick");
-        Check(Plugin.TestGuideToggles == 2 && !Plugin.TestGuideCollapsed, "Next click restores expanded guide");
+        Check(Plugin.TestGuideToggles == 2 && !Plugin.TestGuideShown, "Next click hides guide");
         ButtonFrame();
         Check(!Plugin.IsControllerItemMenuOpen(), "Guide toggle never leaves a pending R3 tap");
+        Plugin.TestGuideReady = false; Plugin.TestGuideKey(KeyCode.None); Plugin.TestReloadGuide();
+        ButtonFrame("JoyLTrigger", "JoyRStick");
+        Check(Plugin.TestGuideToggles == 3 && Plugin.TestGuideShown && !Plugin.TestGuideCollapsed,
+            "Controller restores expanded guide without a HUD object or keyboard binding after YAML reload");
+        Check(Player.m_localPlayer.Messages.Count == 1 && Player.m_localPlayer.Messages[0].Contains("inventory") &&
+            !Player.m_localPlayer.Messages[0].Contains("F6"), "Controller hide notice gives inventory/chord recovery instructions");
 
         gui = Plugin.TestReset(); Plugin.TestEnable(false); gui.m_playerGrid.m_uiGroup.IsActive = false;
         ButtonFrame("JoyLTrigger", "JoyRStick");
@@ -58,8 +64,6 @@ internal static partial class Program
             () => ZInput.Exclusive = false,
             () => InventoryGui.Visible = false,
             () => Plugin.TestClosing = true,
-            () => Plugin.TestShowGuide(false),
-            () => Plugin.TestGuideReady = false,
             () => Plugin.TestBlocked = true,
             () => Plugin.TestDedicated = true,
             () => Plugin.TestPluginActive(false),
@@ -70,12 +74,17 @@ internal static partial class Program
             () => Player.m_localPlayer.Teleporting = true,
             () => Player.m_localPlayer = null!,
             () => InventoryGui.instance.m_dragGo = new GameObject(),
+            () => InventoryGui.instance.m_dragItem = new object(),
             () => InventoryGui.instance.m_splitDialog = new Component(),
             () => InventoryGui.instance.m_variantDialog = new Component(),
             () => InventoryGui.instance.IsSkillsPanelOpen = true,
             () => InventoryGui.instance.IsTextPanelOpen = true,
             () => InventoryGui.instance.IsTrophisPanelOpen = true,
             () => InventoryGui.instance.IsAchievementsPanelOpen = true,
+            () => UnifiedPopup.Visible = true,
+            () => PlayerCustomizaton.Visible = true,
+            () => Hud.PieceSelection = true,
+            () => Hud.Radial = true,
             Plugin.TestSetTrashDialog,
             () => { GameObject input = new(); input.Components[typeof(TMPro.TMP_InputField)] = new TMPro.TMP_InputField(); EventSystem.current!.currentSelectedGameObject = input; },
             () => { GameObject input = new(); input.Components[typeof(UnityEngine.UI.InputField)] = new UnityEngine.UI.InputField(); EventSystem.current!.currentSelectedGameObject = input; },
@@ -90,5 +99,11 @@ internal static partial class Program
         Check(!Plugin.TestGuideBindingShown(), "Closed inventory retains mouse toggle");
         InventoryGui.Visible = true; ZInput.Exclusive = false;
         Check(!Plugin.TestGuideBindingShown(), "Mouse mode retains triangle");
+
+        Plugin.TestReset();
+        ButtonFrame("JoyLTrigger", "JoyRStick");
+        Plugin.TestGuideHotkey();
+        Input.Down.Add(KeyCode.F6); Plugin.TestGuideHotkey();
+        Check(Plugin.TestGuideToggles == 1 && Plugin.TestGuideCollapsed, "Keyboard cannot double-cycle a controller transition in the same frame");
     }
 }

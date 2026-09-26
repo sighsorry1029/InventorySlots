@@ -5,6 +5,14 @@ using System.Reflection;
 namespace BepInEx.Configuration
 {
     public sealed class ConfigEntry<T> { public T Value; public ConfigEntry(T value) => Value = value; }
+    public readonly struct KeyboardShortcut
+    {
+        public readonly UnityEngine.KeyCode MainKey;
+        public readonly UnityEngine.KeyCode[] Modifiers;
+        public KeyboardShortcut(UnityEngine.KeyCode key, params UnityEngine.KeyCode[] modifiers) { MainKey = key; Modifiers = modifiers; }
+        public override string ToString() => string.Join(" + ", System.Linq.Enumerable.Concat(Modifiers, new[] { MainKey }));
+        public string GetDisplayText() => ToString();
+    }
 }
 namespace HarmonyLib
 {
@@ -31,15 +39,18 @@ namespace UnityEngine
     public class Object { public static void Destroy(Object value) { } }
     public sealed class Transform
     {
+        public GameObject? gameObject;
         public Transform? parent;
         public bool IsChildOf(Transform root) => this == root || (parent?.IsChildOf(root) ?? false);
     }
     public class GameObject : Object
     {
+        public GameObject() { transform.gameObject = this; }
         public bool activeInHierarchy = true;
         public readonly Transform transform = new();
         public readonly Dictionary<Type, object> Components = new();
         public T? GetComponent<T>() where T : class => Components.TryGetValue(typeof(T), out object? value) ? (T)value : null;
+        public T? GetComponentInParent<T>() where T : class => GetComponent<T>() ?? transform.parent?.gameObject?.GetComponentInParent<T>();
         public void SetActive(bool value) => activeInHierarchy = value;
     }
     public class Component : Object
@@ -51,6 +62,14 @@ namespace UnityEngine
         public T[] GetComponentsInChildren<T>(bool includeInactive) => Array.Empty<T>();
     }
     public static class Time { public static int frameCount; public static float unscaledTime; }
+    public enum KeyCode { None, F6, F7, W, LeftAlt, RightAlt, LeftControl }
+    public static class Input
+    {
+        public static readonly HashSet<KeyCode> Down = new();
+        public static readonly HashSet<KeyCode> Held = new();
+        public static bool GetKeyDown(KeyCode key) => Down.Contains(key);
+        public static bool GetKey(KeyCode key) => Held.Contains(key);
+    }
     public static class Mathf
     {
         public static int Clamp(int value, int min, int max) => Math.Clamp(value, min, max);
@@ -90,10 +109,22 @@ public sealed class Inventory
 public class Humanoid { public Inventory Inventory = new(); public Inventory GetInventory() => Inventory; }
 public sealed class Player : Humanoid
 {
+    public string Id = "default";
     public static Player m_localPlayer = null!;
     public bool Loading;
     public bool Teleporting;
     public bool IsTeleporting() => Teleporting;
+    public readonly List<string> Messages = new();
+    public void Message(MessageHud.MessageType type, string message, int amount, object? icon) => Messages.Add(message);
+}
+public static class MessageHud { public enum MessageType { TopLeft } }
+public static class UnifiedPopup { public static bool Visible; public static bool WasVisibleThisFrame() => Visible; }
+public static class PlayerCustomizaton { public static bool Visible; public static bool IsBarberGuiVisible() => Visible; }
+public static class Hud
+{
+    public static bool PieceSelection, Radial;
+    public static bool IsPieceSelectionVisible() => PieceSelection;
+    public static bool InRadial() => Radial;
 }
 public sealed class UIGroupHandler { public bool IsActive; }
 public sealed class InventoryGrid : UnityEngine.Component
@@ -111,6 +142,7 @@ public sealed class InventoryGui : UnityEngine.Component
     public InventoryGrid m_playerGrid = new();
     public InventoryGrid ContainerGrid = new();
     public UnityEngine.GameObject? m_dragGo;
+    public object? m_dragItem;
     public UnityEngine.Component? m_splitDialog;
     public UnityEngine.Component? m_variantDialog;
     public bool IsSkillsPanelOpen, IsTextPanelOpen, IsTrophisPanelOpen, IsAchievementsPanelOpen;
@@ -144,3 +176,5 @@ public sealed class ZInput
         foreach (string action in actions) { Held.Add(action); Down.Add(action); }
     }
 }
+
+namespace BepInEx { public static class Paths { public static string ConfigPath = ""; } }

@@ -106,6 +106,12 @@ internal static partial class Program
 
     private static void Main()
     {
+        try { RunChecks(); }
+        finally { Plugin.TestCleanupGuideFiles(); }
+    }
+
+    private static void RunChecks()
+    {
         InventoryGui gui = Plugin.TestReset();
         Check(Plugin.TestInventoryDefault == "JoyRStick", "Default inventory modifier");
         Check(Plugin.TestWorldDefault == "JoyAltKeys", "Default world modifier");
@@ -246,6 +252,10 @@ internal static partial class Program
         CheckControllerMenuAndSort();
         CheckItemRuleControllerState();
         CheckControllerFeatureGuide();
+        CheckFeatureGuideHotkey();
+#if !INVENTORY_SLOTS
+        CheckActionsClientState();
+#endif
         Console.WriteLine($"{typeof(Plugin).Namespace}: {_checks} controller dispatcher/navigation checks passed (source-linked fake host; no Unity/game/device execution).");
     }
 }

@@ -20,8 +20,8 @@ public sealed partial class InventoryActionsPlugin
     private static bool UpdateControllerFeatureGuide(InventoryGui gui)
     {
         if (_controllerGuideFrame == Time.frameCount) return true;
-        if (_showFeatureGuide?.Value != Toggle.On || !CanUseInventoryControllerUi(gui) ||
-            IsItemRuleInputBlocked() || IsControllerItemMenuOpen() || !CanInteractWithFeatureGuideToggle() ||
+        if (!CanUseInventoryControllerUi(gui) || IsFeatureGuideHotkeyBlocked(Player.m_localPlayer) ||
+            gui.m_dragGo != null || gui.m_dragItem != null ||
             !ZInput.GetButton("JoyLTrigger") || !ZInput.GetButton("JoyRStick")) return false;
 
         // Cancel a pending R3 tap even when the trigger was pressed second.
@@ -32,7 +32,7 @@ public sealed partial class InventoryActionsPlugin
         if (ZInput.GetButtonDown("JoyRStick"))
         {
             _controllerGuideFrame = Time.frameCount;
-            ToggleFeatureGuideCollapsed();
+            CycleFeatureGuideState(Player.m_localPlayer, controller: true);
             ZInput.ResetButtonStatus("JoyRStick");
         }
         return true;

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using BepInEx;
 using BepInEx.Configuration;
@@ -39,8 +38,6 @@ public sealed partial class InventoryActionsPlugin
     private static ConfigEntry<KeyboardShortcut> _favoriteModifierKey = null!;
     private static ConfigEntry<KeyboardShortcut> _containerRestockKey = null!;
     private static ConfigEntry<string> _sortButtonPositionOffset = null!;
-    private static ConfigEntry<Toggle> _showFeatureGuide = null!;
-    private static ConfigEntry<Toggle> _featureGuideCollapsed = null!;
     private static string? _cachedSortButtonPositionOffsetText;
     private static Vector2 _cachedSortButtonPositionOffset;
     private static ConfigEntry<string> _restockTargetStackLimitsConfig = null!;
@@ -102,12 +99,9 @@ public sealed partial class InventoryActionsPlugin
             new ConfigDescription("Show hover help for controls in the Restock targets and Auto pickup exclusions panels and restock-entry controls in F1. Applies immediately. Item information tooltips and Configuration Manager setting descriptions remain available.",
                 null, new ConfigurationManagerAttributes { Order = 840 }), synchronizedSetting: false);
         _showRuleTooltips.SettingChanged += RefreshRuleTooltipVisibility;
-        _showFeatureGuide = ConfigEntry(ClientConfigSection, "Show Feature Guide", Toggle.On,
-            new ConfigDescription("Show a compact InventoryActions guide beside the hotbar. Applies immediately.",
-                null, new ConfigurationManagerAttributes { Order = 800 }), synchronizedSetting: false);
-        _featureGuideCollapsed = ConfigEntry(ClientConfigSection, "Feature Guide Collapsed", Toggle.Off,
-            new ConfigDescription("Stores the local collapsed state of the InventoryActions guide.",
-                null, new ConfigurationManagerAttributes { Browsable = false }), synchronizedSetting: false);
+        _featureGuideToggleKey = ConfigEntry(ClientConfigSection, "Toggle Feature Guide Key", new KeyboardShortcut(KeyCode.F6),
+            new ConfigDescription(FeatureGuideToggleKeyDescription, new AcceptableShortcuts(),
+                new ConfigurationManagerAttributes { Order = 790 }), synchronizedSetting: false);
         _restockLeaveOneItem = ConfigEntry(InventoryButtonsConfigSection, "Restock Leave One Item", Toggle.On,
             new ConfigDescription("Client-only: favorite restock (Alt+E by default) leaves one item of each kind in each source container so it remains a quick-stack destination. Counts all stacks with the same internal item name together. A container with only one remaining item cannot supply it. Off allows restock to take the last item. Does not affect Take stacks, Take All, or manual moves. Changes apply to subsequent transfers immediately.",
                 null, new ConfigurationManagerAttributes { Order = 880 }), synchronizedSetting: false);
@@ -391,17 +385,6 @@ public sealed partial class InventoryActionsPlugin
     {
         PlayerProfile? profile = Game.instance?.GetPlayerProfile();
         return profile != null ? profile.GetPlayerID().ToString() : player.GetPlayerID().ToString();
-    }
-
-    private static string GetFavoriteFilePath(string playerId)
-    {
-        string safeId = new(playerId.Where(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_').ToArray());
-        if (string.IsNullOrWhiteSpace(safeId))
-        {
-            safeId = "unknown";
-        }
-
-        return Path.Combine(Paths.ConfigPath, $"{ModName}.Favorites.{safeId}.txt");
     }
 
     private static string GetLocalizedItemName(ItemData item)

@@ -45,6 +45,7 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
+        RetryFeatureGuideStateSave();
         ProcessDeferredEquipmentVisuals();
         ApplyMyLittleUICraftingCompatibility();
 
@@ -69,6 +70,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         ProcessDeferredInventoryStateEnsure(player);
+        HandleFeatureGuideToggleHotkey(player);
         HandleHotbarSwitch(player);
         HandleQuickSlotHotkeys(player);
         HandleContainerQuickStackHotkey(player);
@@ -129,6 +131,7 @@ public sealed partial class InventorySlotsPlugin
     private void OnDestroy()
     {
         RememberFavoriteSlotItems(Player.m_localPlayer, flush: true);
+        RetryFeatureGuideStateSave(flush: true);
         PendingEquipmentVisualPlayers.Clear();
         if (_craftingViewMode != null) _craftingViewMode.SettingChanged -= OnCraftingViewModeChanged;
         DestroyCraftingListViewUi();

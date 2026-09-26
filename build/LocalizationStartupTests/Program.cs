@@ -74,10 +74,23 @@ internal static class Program
             Check(Localization.CreatedInstances == 2, "One server fixture plus one lazy client instance; no constructor recursion");
             Check(localization.Localize("$" + TitleKey) == "Restock targets", "Default language after platform initialization");
             Check(Plugin.TestLocalize("$" + TitleKey, "Fallback") == "Restock targets", "UI uses translations after initialization");
+            string guidePrefix = "$" + ModName.ToLowerInvariant() + "_feature_guide";
+            Check(localization.Localize(guidePrefix + "_toggle_hint") == "[{key}] Hide", "English guide shortcut label preserves live key placeholder");
+            Check(localization.Localize(guidePrefix + "_collapse_hint") == "[{key}] Collapse", "English expanded guide advertises collapse");
+            Check(localization.Localize(guidePrefix + "_hidden_controller") == "{mod}: Guide hidden. Open the inventory and press {key} to show it again.", "English controller recovery describes the inventory condition");
+            Check(localization.Localize(guidePrefix + "_open_inventory_hint") == "Open inventory → {action}", "English controller world hint preserves the action placeholder");
+            Check(localization.Localize(guidePrefix + "_hidden") == "{mod}: Guide hidden. Press {key} to show it again.", "English hidden-guide recovery message");
+            Check(!localization.Localize(guidePrefix).Contains("F1") && !localization.Localize(guidePrefix + "_controller").Contains("F1"), "English guides do not assume Configuration Manager");
 
             Localization.SelectedLanguage = "Korean";
             localization.SetupLanguage("Korean");
             Check(localization.Localize("$" + TitleKey) == "보충 대상", "Live language change");
+            Check(localization.Localize(guidePrefix + "_toggle_hint") == "[{key}] 숨기기", "Korean guide shortcut label preserves live key placeholder");
+            Check(localization.Localize(guidePrefix + "_collapse_hint") == "[{key}] 접기", "Korean expanded guide advertises collapse");
+            Check(localization.Localize(guidePrefix + "_hidden_controller") == "{mod}: 가이드를 숨겼습니다. 인벤토리를 열고 {key}로 다시 표시할 수 있습니다.", "Korean controller recovery describes the inventory condition");
+            Check(localization.Localize(guidePrefix + "_open_inventory_hint") == "인벤토리 열기 → {action}", "Korean controller world hint preserves the action placeholder");
+            Check(localization.Localize(guidePrefix + "_hidden") == "{mod}: 가이드를 숨겼습니다. {key} 키로 다시 표시할 수 있습니다.", "Korean hidden-guide recovery message");
+            Check(!localization.Localize(guidePrefix).Contains("F1") && !localization.Localize(guidePrefix + "_controller").Contains("F1"), "Korean guides do not assume Configuration Manager");
             localization.Words.Clear();
             new FejdStartup().SetupGui();
             Check(localization.Localize("$" + TitleKey) == "보충 대상", "Menu hook reloads selected language");

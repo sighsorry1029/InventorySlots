@@ -9,8 +9,19 @@
   <ItemGroup>
     <Compile Include="../../Shared/ItemRules/InventoryController.cs" Link="InventoryController.cs" />
     <Compile Include="../../Shared/ItemRules/FeatureGuideController.cs" Link="FeatureGuideController.cs" />
+    <Compile Include="../../Shared/ItemRules/FeatureGuideHotkey.cs" Link="FeatureGuideHotkey.cs" />
     <Compile Include="../../Shared/ItemRules/InventoryButtonNavigation.cs" Link="InventoryButtonNavigation.cs" />
     <Compile Include="../../Shared/ItemRules/ControllerItemMenu.cs" Link="ControllerItemMenu.cs" />
     <Compile Include="../../Shared/ItemRules/ItemRuleControllerState.cs" Link="ItemRuleControllerState.cs" />
+    <Compile Include="../../Shared/Persistence/LinkCompatibleFileWriter.cs" Link="LinkCompatibleFileWriter.cs" />
+    <PackageReference Include="YamlDotNet" Version="16.3.0" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(ControllerTarget)' == 'InventorySlots'">
+    <Compile Include="../../ClientStateModels.cs" Link="ClientStateModels.cs" />
+    <Compile Include="../../ClientStateCore.cs" Link="ClientStateCore.cs" />
+    <Compile Include="../../InventoryClientState.cs" Link="InventoryClientState.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(ControllerTarget)' == 'InventoryActions'">
+    <Compile Include="../../InventoryActions/ClientState.cs" Link="ClientState.cs" />
   </ItemGroup>
 </Project>

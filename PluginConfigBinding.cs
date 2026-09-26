@@ -33,7 +33,6 @@ public sealed partial class InventorySlotsPlugin
     private static ConfigEntry<KeyboardShortcut> _hotbarSwitchKey = null!;
     private static ConfigEntry<KeyboardShortcut> _containerRestockKey = null!;
     private static ConfigEntry<Toggle> _showHotbarSwitchHint = null!;
-    private static ConfigEntry<Toggle> _showFeatureGuide = null!;
     private static ConfigEntry<Toggle> _quickSlotHudFollowsPanel = null!;
     private static ConfigEntry<InventoryRowsDisplayMode> _inventoryRowsDisplayMode = null!;
     private static ConfigEntry<Toggle> _showInventoryWheelButton = null!;
@@ -139,7 +138,6 @@ public sealed partial class InventorySlotsPlugin
         _quickSlotHudFollowsPanel = OrderedConfigEntry(ClientUiConfigSection, "Quick Slot HUD Follows Panel", Toggle.On, "When enabled, the quick slot HUD follows the quick slot inventory panel position. Turn this Off to keep the HUD at its last saved position while moving the panel separately. Not synced with server.", order: 910, synchronizedSetting: false);
         _showInventoryWheelButton = OrderedConfigEntry(ClientUiConfigSection, "Show Inventory Wheel Hint", Toggle.On, "Show the mouse wheel hint next to the player inventory when expandable inventory rows are available. Not synced with server.", order: 900, synchronizedSetting: false);
         _showHotbarSwitchHint = OrderedConfigEntry(ClientUiConfigSection, "Show Hotbar Switch Hint", Toggle.On, "Show the hotbar row switch hint next to the hotbar. Not synced with server.", order: 890, synchronizedSetting: false);
-        _showFeatureGuide = OrderedConfigEntry(ClientUiConfigSection, "Show Feature Guide", Toggle.On, "Show a compact InventorySlots feature guide next to the hotbar. Not synced with server.", order: 920, synchronizedSetting: false);
         _showCraftingHoverTooltip = OrderedConfigEntry(ClientUiConfigSection, "Show Crafting Hover Tooltip", CraftingHoverTooltipMode.Full, "Controls InventorySlots recipe hover tooltips in the crafting station grid. Full shows the recipe title, item tooltip, and requirement row. TitleOnly shows only the recipe title. Off disables hover tooltips. Pinned crafting tooltips still work when this is Off. Not synced with server.", order: 870, synchronizedSetting: false);
         _pinnedTooltipSlots = OrderedConfigEntry(ClientUiConfigSection, "Pinned Tooltip Slots", PinnedTooltipSlotMode.Two, "Number of comparison tooltip panels available for pinning. Inventory/container panels unfold from the inventory panel edge to the right, and crafting panels unfold from the crafting panel edge to the left.", order: 860, synchronizedSetting: false);
         _pinnedTooltipBackgroundAlpha = OrderedConfigEntry(ClientUiConfigSection, "Pinned Tooltip Background Alpha", 0.9f, new ConfigDescription("Advanced alpha for pinned tooltip panel backgrounds. 0 is fully transparent and 1 is fully opaque. Not synced with server.", new AcceptableValueRange<float>(0f, 1f)), order: 850, synchronizedSetting: false);
@@ -190,6 +188,7 @@ public sealed partial class InventorySlotsPlugin
         _containerRestockKey = OrderedConfigEntry(ClientKeysConfigSection, "Container Restock Key", new KeyboardShortcut(KeyCode.E, KeyCode.LeftAlt), new ConfigDescription("Hold this while hovering a container to take stacks into favorite slots from that container and nearby containers. Alt accepts both LeftAlt and RightAlt.", new AcceptableShortcuts()), order: 770, synchronizedSetting: false);
         _favoriteModifierKey = OrderedConfigEntry(ClientKeysConfigSection, "Favorite Modifier Key", new KeyboardShortcut(KeyCode.LeftAlt), new ConfigDescription("Hold this and left-click a player inventory cell to toggle that favorite slot. Alt accepts both LeftAlt and RightAlt.", new AcceptableShortcuts()), order: 760, synchronizedSetting: false);
         _pinnedTooltipKey = OrderedConfigEntry(ClientKeysConfigSection, "Pinned Tooltip Key", new KeyboardShortcut(KeyCode.Mouse2), new ConfigDescription("Key used while hovering an inventory, container, or crafting recipe item to pin or unpin its comparison tooltip.", new AcceptableShortcuts()), order: 750, synchronizedSetting: false);
+        _featureGuideToggleKey = OrderedConfigEntry(ClientKeysConfigSection, "Toggle Feature Guide Key", new KeyboardShortcut(KeyCode.F6), new ConfigDescription(FeatureGuideToggleKeyDescription, new AcceptableShortcuts()), order: 740, synchronizedSetting: false);
         _quickSlotHotkeys = new[]
         {
             OrderedConfigEntry(ClientKeysConfigSection, "Quick Slot 1 Hotkey", new KeyboardShortcut(KeyCode.Z), new ConfigDescription("Hotkey used to activate quick slot 1.", new AcceptableShortcuts()), order: 730, synchronizedSetting: false),

@@ -1,7 +1,3 @@
-using System;
-using System.IO;
-using System.Linq;
-using InventoryPersistence;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -9,7 +5,6 @@ namespace InventoryActions;
 
 public sealed partial class InventoryActionsPlugin
 {
-    private static bool _favoriteDirectWriteFallbackLogged;
 
     internal static bool HandleFavoriteClick(InventoryGrid grid, UIInputHandler clickHandler)
     {
@@ -87,92 +82,6 @@ public sealed partial class InventoryActionsPlugin
     {
         EnsureFavoritesLoaded(player);
         return CanFavoriteCell(inventory, pos) && Runtime.FavoriteSlots.Contains(pos);
-    }
-
-    private static void EnsureFavoritesLoaded(Player player)
-    {
-        if (player == null)
-        {
-            return;
-        }
-
-        string playerId = GetPlayerId(player);
-        if (string.Equals(Runtime.LoadedFavoritesPlayerId, playerId, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        Runtime.FavoriteSlots.Clear();
-        FavoriteSlotItems.Clear();
-        _favoriteMemoryPending = true;
-        Runtime.LoadedFavoritesPlayerId = playerId;
-        string path = GetFavoriteFilePath(playerId);
-        if (!File.Exists(path))
-        {
-            return;
-        }
-
-        try
-        {
-            foreach (string rawLine in File.ReadAllLines(path))
-            {
-                string line = rawLine.Trim();
-                if (line.Length == 0 || line.StartsWith("#", StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                if (!FavoriteSlotMemoryCore.TryReadLine(line, out int x, out int y, out string prefab))
-                {
-                    continue;
-                }
-
-                Runtime.FavoriteSlots.Add(new Vector2i(x, y));
-                if (prefab.Length > 0) FavoriteSlotItems[new Vector2i(x, y)] = prefab;
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.LogWarning($"Failed to load InventoryActions favorites from {path}: {ex.Message}");
-        }
-    }
-
-    private static void SaveFavorites(Player player)
-    {
-        if (player == null)
-        {
-            return;
-        }
-
-        string playerId = GetPlayerId(player);
-        Runtime.LoadedFavoritesPlayerId = playerId;
-        string path = GetFavoriteFilePath(playerId);
-        _favoriteMemorySavePending = true;
-        _favoriteMemorySaveRetryAt = Time.unscaledTime + 5f;
-        try
-        {
-            string[] lines = Runtime.FavoriteSlots
-                .OrderBy(slot => slot.y)
-                .ThenBy(slot => slot.x)
-                .Select(slot => FavoriteSlotMemoryCore.WriteLine(slot.x, slot.y,
-                    FavoriteSlotItems.TryGetValue(slot, out string prefab) ? prefab : ""))
-                .ToArray();
-            Exception? compatibilityReason = LinkCompatibleFileWriter.WriteAllLines(path, lines);
-            if (compatibilityReason != null && !_favoriteDirectWriteFallbackLogged)
-            {
-                _favoriteDirectWriteFallbackLogged = true;
-                Log.LogWarning(
-                    $"InventoryActions favorites are using link-compatible direct writes because atomic replacement is unavailable for {path} " +
-                    $"({compatibilityReason.GetType().Name}, 0x{compatibilityReason.HResult:X8}).");
-            }
-
-            _favoriteMemorySavePending = false;
-            _favoriteMemorySaveRetryAt = 0f;
-        }
-        catch (Exception ex)
-        {
-            Log.LogWarning($"Failed to save InventoryActions favorites to {path}: {ex.Message}");
-        }
     }
 
     private static void RefreshFavoriteBorders()

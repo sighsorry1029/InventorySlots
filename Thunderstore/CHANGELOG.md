@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.14
+
+- Added **F6** to cycle the quick guide through **Expanded → Collapsed → Hidden → Expanded** during gameplay, with the inventory open or closed. The client-only **Toggle Feature Guide Key** setting under **6 - Client Keys** can be rebound or set to **None**; Configuration Manager is optional.
+- Updated **LT + R3** to use the same cycle while the inventory is open, including restoring a hidden guide. The mouse triangle continues to expand/collapse the visible guide.
+- Removed the **Show Feature Guide** config option. Guide visibility and folded state are remembered locally in the existing `InventorySlots/ClientState.yml`, alongside its other client preferences.
+- Updated English/Korean guide hints and the packaged English translation. The header shows the next action, controller hints explain that the inventory must be open, and hiding the guide briefly shows how to restore it. Removed the obsolete F1 hide-guide instructions.
+- Updated the BepInExPack dependency to **5.4.2351**.
+
 ## 1.5.13
 
 - Fixed startup failing with `Steamworks is not initialized` on clients without a saved language setting. Localization now waits for platform initialization, allowing settings and inventory patches to load normally.

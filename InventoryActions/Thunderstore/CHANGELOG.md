@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.7
+
+- Added **F6** to cycle the quick guide through **Expanded → Collapsed → Hidden → Expanded** during gameplay, with the inventory open or closed. The client-only **Toggle Feature Guide Key** setting under **2 - Client** can be rebound or set to **None**; Configuration Manager is optional.
+- Updated **LT + R3** to use the same cycle while the inventory is open, including restoring a hidden guide. The mouse triangle continues to expand/collapse the visible guide.
+- Replaced the **Show Feature Guide** and **Feature Guide Collapsed** config options with local state saved in `BepInEx/config/InventoryActions.ClientState.yml`. The same file now stores favorite slots and remembered item types separately for each character.
+- **Save-format change:** old `InventoryActions.Favorites.<playerId>.txt` files are left untouched but are no longer read or imported. Re-register favorite slots after updating. Restock and pickup-exclusion rules remain in their existing config settings.
+- Updated English/Korean guide hints and the packaged English translation. The header shows the next action, controller hints explain that the inventory must be open, and hiding the guide briefly shows how to restore it. Removed the obsolete F1 hide-guide instructions.
+- Updated the BepInExPack dependency to **5.4.2351**.
+
 ## 1.1.6
 
 - Fixed a startup path that could fail with `Steamworks is not initialized` on clients without a saved language setting. Localization now waits for platform initialization, allowing settings and inventory patches to load normally.

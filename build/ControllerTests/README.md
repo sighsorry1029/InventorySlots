@@ -7,18 +7,22 @@ player/container edge entry, original-cell return, disabled/drag guards, and
 same-frame movement. Rendering adapters are stubbed; these do not verify Unity
 layout or actual device comfort.
 
-The source-linked `FeatureGuideController.cs` checks cover LT + R3 toggling,
-held-input repeat prevention, R3 release/menu suppression, button and non-grid
-focus, disabled optional hotkeys, early input polling, and modal/lifecycle
-guards. Guide rendering and persisted collapse state are adapter callbacks;
-their real Unity presentation and disk writes are not simulated here.
+The source-linked guide checks cover the F6 and inventory-only LT + R3
+Expanded/Collapsed/Hidden cycle, rebinding and None, held-input repeat prevention,
+R3 release/menu suppression, button and non-grid focus, disabled optional hotkeys,
+early input polling, device-specific guidance, and modal/lifecycle guards.
+The real client-state adapters serialize to temporary YAML files and reload them.
+Cases cover failed-save retries, shutdown without a player, preserving other
+characters and preferences, and InventoryActions ignoring legacy TXT files.
+Unity rendering and actual device input remain outside this harness.
 
 This executable compiles the real `Shared/ItemRules/InventoryController.cs`
 and `Shared/ItemRules/InventoryButtonNavigation.cs` against a small fake host,
 for either plugin's preprocessor branch. It exercises dispatch, focus state,
 action routing, button consumption, and input blocking without copying those
-state machines into the test. Stub callbacks count invocations; they do not
-execute inventory transfers, deletion, persistence, or the rule editor.
+state machines into the test. Stub action callbacks count invocations; they do
+not execute inventory transfers, deletion, or the rule editor. Client-state
+persistence is exercised separately as described above.
 
 It also compiles the shared `ItemRuleControllerState.cs` directly. Panel cases
 cover row/control navigation, absent Quantity or Remove controls, explicit

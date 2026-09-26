@@ -457,6 +457,10 @@ records in `config/InventorySlots/ClientState.yml`. Actions extends its existing
 `x,y,<URI-escaped-prefab>`; coordinate-only records still load without a binding.
 Memory stores item kind, not quantity, quality or a serialized item instance.
 
+Current storage note: InventoryActions now stores these records under
+`players.<playerId>.favoriteSlots` in `config/InventoryActions.ClientState.yml`,
+alongside its guide state. The TXT reader and automatic conversion are not retained.
+
 With `refill` enabled and a positive target, Alt+E restores eligible remembered
 empty cells for that prefab before considering an unassigned cell. Other items'
 remembered cells remain reserved even when their source chest is processed later

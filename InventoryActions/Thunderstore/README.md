@@ -67,7 +67,9 @@ The open-chest **Take stacks** button fills matching non-favorite stacks. It is 
 
 ## Installation
 
-Install with a Valheim mod manager, or place `InventoryActions.dll` in `BepInEx/plugins`. Requires **BepInExPack Valheim 5.4.2350**. Launch once to generate the config.
+Install with a Valheim mod manager, or place `InventoryActions.dll` in `BepInEx/plugins`. Requires **BepInExPack Valheim 5.4.2351**. Launch once to generate the config.
+
+Guide state and character-specific favorites are saved in `BepInEx/config/InventoryActions.ClientState.yml`. Previous `InventoryActions.Favorites.<playerId>.txt` files are not imported; re-register favorites when updating from that format.
 
 - **Client only:** you can join a vanilla server. Other players do not need InventoryActions; your local settings apply.
 - **Installed on the server:** all clients need the same InventoryActions version, and server-synced settings follow the server.
@@ -76,6 +78,8 @@ Install with a Valheim mod manager, or place `InventoryActions.dll` in `BepInEx/
 ExtraSlots, Equipment and Quick Slots, and AzuExtendedPlayerInventory have optional integrations. Their supported behavior and the restrictions with MultiUserChest are covered in the [compatibility guide](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/compatibility.md).
 
 ## Settings and help
+
+Press **F6** to cycle the quick guide: **Expanded → Collapsed → Hidden → Expanded**, with the inventory open or closed. Your choice is remembered. Change or unset **Toggle Feature Guide Key** under **2 - Client**; Configuration Manager is optional. [Guide controls](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/inventory-actions.md#show-or-hide-the-quick-guide).
 
 The three buttons default to **Auto**: each appears on hover or controller focus. Choose **On** to keep a button visible or **Off** to hide it. Saved restock and pickup rules remain active when their button is hidden.
 

@@ -16,7 +16,7 @@ public sealed partial class InventoryActionsPlugin
 
     private static float ConfigureControllerFeatureGuideLabel(TMP_Text label)
     {
-        string chord = GetControllerFeatureGuideToggleDisplay();
+        string chord = GetFeatureGuideCycleHint(GetControllerFeatureGuideToggleDisplay());
         label.text = chord;
         label.fontSize = 12f;
         label.lineSpacing = 0f;
