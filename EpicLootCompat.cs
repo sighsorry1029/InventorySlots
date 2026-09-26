@@ -24,7 +24,6 @@ public sealed partial class InventorySlotsPlugin
     private static bool _epicLootSacrificeFilterCallbackDisabled;
     private static bool _epicLootPublicCacheInvalidationDisabled;
     private static bool _epicLootMagicItemBackgroundDisabled;
-    private static bool _epicLootStackableMaterialQueryDisabled;
     private static bool _epicLootEquipmentEffectCacheResetReflectionResolved;
     private static MethodInfo? _epicLootEquipmentEffectCacheResetMethod;
     private static bool _epicLootEquipmentEffectCacheResetWarningLogged;
@@ -210,35 +209,6 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
-    private static bool TryIsEpicLootStackableMaterialByApi(ItemData item, out bool result)
-    {
-        result = false;
-        if (item == null ||
-            _epicLootStackableMaterialQueryDisabled ||
-            !TryGetEpicLootPublicApi(out EpicLootPublicApi? api) ||
-            api?.IsShardStone == null ||
-            api.IsMagicCraftingMaterial == null)
-        {
-            return false;
-        }
-
-        try
-        {
-            bool shardStone = api.IsShardStone(item);
-            bool craftingMaterial = api.IsMagicCraftingMaterial(item);
-            result = shardStone || craftingMaterial;
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _epicLootStackableMaterialQueryDisabled = true;
-            Log.LogWarning($"EpicLoot material API query failed; using the prefab-name fallback: {ex.GetBaseException().Message}");
-
-            result = false;
-            return false;
-        }
-    }
-
     private static bool TryGetEpicLootPublicApi(out EpicLootPublicApi? api)
     {
         api = _epicLootPublicApi;
@@ -292,8 +262,6 @@ public sealed partial class InventorySlotsPlugin
         public readonly Func<string, bool>? UnregisterSacrificeFilter;
         public readonly Action<Player>? InvalidatePlayerEffectCache;
         public readonly Func<GameObject, GameObject, ItemData?, bool, bool>? ApplyMagicItemBackground;
-        public readonly Func<ItemData, bool>? IsShardStone;
-        public readonly Func<ItemData, bool>? IsMagicCraftingMaterial;
 
         public EpicLootPublicApi(Type apiType)
         {
@@ -325,18 +293,6 @@ public sealed partial class InventorySlotsPlugin
                 typeof(GameObject),
                 typeof(ItemData),
                 typeof(bool));
-            IsShardStone = (Func<ItemData, bool>?)CreateDelegate(
-                apiType,
-                "IsShardStone",
-                typeof(bool),
-                typeof(Func<ItemData, bool>),
-                typeof(ItemData));
-            IsMagicCraftingMaterial = (Func<ItemData, bool>?)CreateDelegate(
-                apiType,
-                "IsMagicCraftingMaterial",
-                typeof(bool),
-                typeof(Func<ItemData, bool>),
-                typeof(ItemData));
         }
 
         private static Delegate? CreateDelegate(

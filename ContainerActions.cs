@@ -301,7 +301,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool IsTrustedCustomDataStackingItem(ItemData? item)
     {
-        return IsJewelcraftingOrbItem(item) || IsEpicLootStackableMaterial(item);
+        return IsJewelcraftingOrbItem(item) || IsEpicLootStackingItem(item);
     }
 
     private static bool IsJewelcraftingOrbItem(ItemData? item)
@@ -321,41 +321,6 @@ public sealed partial class InventorySlotsPlugin
         return sharedName.StartsWith("$jc_orb_", StringComparison.OrdinalIgnoreCase) ||
                sharedName.IndexOf("orb_of_", StringComparison.OrdinalIgnoreCase) >= 0 &&
                prefabName.StartsWith("JC_", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsEpicLootStackableMaterial(ItemData? item)
-    {
-        if (item?.m_shared == null || !HasPlugin(EpicLootGuid))
-        {
-            return false;
-        }
-
-        if (TryIsEpicLootStackableMaterialByApi(item, out bool isStackableMaterial))
-        {
-            return isStackableMaterial;
-        }
-
-        string prefabName = GetItemPrefabName(item);
-        if (IsEpicLootStackableMaterialToken(prefabName))
-        {
-            return true;
-        }
-
-        if (!IsUnityNull(item.m_dropPrefab) && IsEpicLootStackableMaterialToken(item.m_dropPrefab.name))
-        {
-            return true;
-        }
-
-        return IsEpicLootStackableMaterialToken(item.m_shared.m_name ?? "") ||
-               (item.m_shared.m_ammoType ?? "").EndsWith("ShardStone", StringComparison.Ordinal);
-    }
-
-    private static bool IsEpicLootStackableMaterialToken(string token)
-    {
-        return token.StartsWith("Shard", StringComparison.OrdinalIgnoreCase) ||
-               token.StartsWith("Essence", StringComparison.OrdinalIgnoreCase) ||
-               token.StartsWith("Dust", StringComparison.OrdinalIgnoreCase) ||
-               token.StartsWith("Reagent", StringComparison.OrdinalIgnoreCase);
     }
 
     private static int CountMovedFromContainerSource(Inventory sourceInventory, ItemData sourceItem, int before, int requestedAmount, bool moveSucceeded)

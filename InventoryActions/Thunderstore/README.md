@@ -77,6 +77,8 @@ Guide state and character-specific favorites are saved in `BepInEx/config/Invent
 
 ExtraSlots, Equipment and Quick Slots, and AzuExtendedPlayerInventory have optional integrations. Their supported behavior and the restrictions with MultiUserChest are covered in the [compatibility guide](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/compatibility.md).
 
+EpicLoot materials, tokens, Runestones, and ShardStones support compatible stack merging, favorite filling, and container actions without a separate stacking add-on. Different effects and incompatible item data stay separate.
+
 ## Settings and help
 
 Press **F6** to cycle the quick guide: **Expanded → Collapsed → Hidden → Expanded**, with the inventory open or closed. Your choice is remembered. Change or unset **Toggle Feature Guide Key** under **2 - Client**; Configuration Manager is optional. [Guide controls](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/inventory-actions.md#show-or-hide-the-quick-guide).

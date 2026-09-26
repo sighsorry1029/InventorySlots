@@ -9,6 +9,7 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- Original game assemblies: this test does not publicize any references. -->
+    <Reference Include="0Harmony"><HintPath>$(BepInExPath)/core/0Harmony.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="BepInEx"><HintPath>$(BepInExPath)/core/BepInEx.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="assembly_valheim"><HintPath>$(CorlibPath)/assembly_valheim.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="assembly_utils"><HintPath>$(CorlibPath)/assembly_utils.dll</HintPath><Private>false</Private></Reference>

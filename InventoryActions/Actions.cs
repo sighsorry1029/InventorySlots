@@ -553,7 +553,9 @@ public sealed partial class InventoryActionsPlugin
                source?.m_shared != null &&
                CanUseContainerActionStacking(target) &&
                CanUseContainerActionStacking(source) &&
-               HasSameStackIdentity(target, source);
+               (IsEpicLootStackingItem(target) || IsEpicLootStackingItem(source)
+                   ? CanMergeEpicLootStacks(target, source)
+                   : HasSameStackIdentity(target, source));
     }
 
     private static void SortCurrentContainer(Player? player)
@@ -653,9 +655,10 @@ public sealed partial class InventoryActionsPlugin
 
     private static bool MergeSortableStacks(List<ItemData> toMerge, Inventory inventory)
     {
-        bool changed = false;
+        bool changed = MergeEpicLootSortableStacks(toMerge, inventory);
         List<List<ItemData>> grouped = toMerge
-            .Where(item => item?.m_shared != null && item.m_stack < item.m_shared.m_maxStackSize && CanUseContainerActionStacking(item))
+            .Where(item => item?.m_shared != null && item.m_stack < item.m_shared.m_maxStackSize &&
+                           HasNoCustomData(item) && !IsEpicLootStackingItem(item))
             // Direct stack consolidation must not erase Valheim's cheat marker.
             .GroupBy(item => new { item.m_shared.m_name, item.m_quality, item.m_worldLevel, item.m_cheated })
             .Select(grouping => grouping.ToList())
@@ -1402,6 +1405,9 @@ public sealed partial class InventoryActionsPlugin
                     break;
                 }
 
+                if ((IsEpicLootStackingItem(target) || IsEpicLootStackingItem(source)) &&
+                    !CanMergeEpicLootStacks(target, source)) continue;
+
                 int amount = Math.Min(target.m_shared.m_maxStackSize - target.m_stack, source.m_stack);
                 if (amount <= 0)
                 {
@@ -1484,7 +1490,9 @@ public sealed partial class InventoryActionsPlugin
                source?.m_shared != null &&
                CanStackForTopFirstMove(target) &&
                CanStackForTopFirstMove(source) &&
-               HasSameStackIdentity(target, source) &&
+               (IsEpicLootStackingItem(target) || IsEpicLootStackingItem(source)
+                   ? CanMergeEpicLootStacks(target, source)
+                   : HasSameStackIdentity(target, source)) &&
                target.m_stack < target.m_shared.m_maxStackSize;
     }
 

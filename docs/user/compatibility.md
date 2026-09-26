@@ -30,6 +30,10 @@ The **standalone MultiUserChest mod** has different interactions with the two mo
 
 ## InventorySlots integrations
 
+Both mods have optional **EpicLoot** support for compatible crafting-material, Forest/Iron/Gold token, Runestone, and ShardStone stacks. Sort merges ordinary stacks and fills favorites from ordinary stacks without moving or consuming favorites. Container transfers, Quick Stack, and Restock preserve EpicLoot metadata and existing access rules. Different effects or incompatible item data remain separate; enchanted equipment is excluded from this material-stacking integration.
+
+InventoryActions includes this stacking support directly. If **EpicLootAdventureTools 0.8.4** is installed, InventoryActions retires only its overlapping stacking patches and leaves the adventure tracker active. Other AdventureTools versions are not automatically modified. EpicLoot's public item-data API is required for this optional integration; a missing or failing API does not permit unchecked merging.
+
 InventorySlots cannot be combined with other slot owners declared incompatible: **AzuExtendedPlayerInventory, ExtraSlots, ExtraSlotsCustomSlots, Equipment and Quick Slots, ComfyQuickSlots**, or **Quick Stack Store**. InventoryActions is also an alternative, not an add-on to InventorySlots.
 
 | Optional mod | InventorySlots behavior |

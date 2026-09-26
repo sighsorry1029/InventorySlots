@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.8
+
+- Added built-in EpicLoot stacking support for compatible crafting materials, Forest/Iron/Gold tokens, Runestones, and ShardStones during Ctrl-click transfers, Take All, Store All, Quick Stack, and Restock.
+- Sort now consolidates these ordinary stacks and fills matching favorite stacks from non-favorite items while preserving favorite positions. Transfers use EpicLoot's metadata handling; different effects, quality, variants, cheat markers, and incompatible third-party data remain separate.
+- EpicLoot remains optional, and enchanted equipment is not opted into material stacking. Unsupported or failing API paths keep custom-data stacks protected.
+- When EpicLootAdventureTools **0.8.4** is installed, its overlapping InventoryActions stacking patches are replaced by the built-in support. Its adventure tracker and other features remain enabled.
+
 ## 1.1.7
 
 - Added **F6** to cycle the quick guide through **Expanded → Collapsed → Hidden → Expanded** during gameplay, with the inventory open or closed. The client-only **Toggle Feature Guide Key** setting under **2 - Client** can be rebound or set to **None**; Configuration Manager is optional.

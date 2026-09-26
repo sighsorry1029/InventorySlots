@@ -3148,9 +3148,7 @@ internal static class Tests
             "Func<string, Func<ItemData, bool>, bool>? RegisterSacrificeFilter",
             "Func<string, bool>? UnregisterSacrificeFilter",
             "Action<Player>? InvalidatePlayerEffectCache",
-            "Func<GameObject, GameObject, ItemData?, bool, bool>? ApplyMagicItemBackground",
-            "Func<ItemData, bool>? IsShardStone",
-            "Func<ItemData, bool>? IsMagicCraftingMaterial"
+            "Func<GameObject, GameObject, ItemData?, bool, bool>? ApplyMagicItemBackground"
         ];
         foreach (string contract in exactDelegateContracts)
         {
@@ -3241,41 +3239,6 @@ internal static class Tests
     {
         string repositoryRoot = FindRepositoryRoot();
         string compatSource = File.ReadAllText(Path.Combine(repositoryRoot, "EpicLootCompat.cs"));
-        string query = ReadSourceSection(
-            compatSource,
-            "private static bool TryIsEpicLootStackableMaterialByApi",
-            "private static bool TryGetEpicLootPublicApi");
-        Assert.True(
-            query.Contains("api.IsShardStone(item)", StringComparison.Ordinal) &&
-            query.Contains("api.IsMagicCraftingMaterial(item)", StringComparison.Ordinal) &&
-            query.Contains("result = shardStone || craftingMaterial;", StringComparison.Ordinal) &&
-            query.Contains("return true;", StringComparison.Ordinal),
-            "an available API result, including false, must be authoritative for EpicLoot shard stones and crafting materials");
-        Assert.False(
-            query.Contains("IsRunestone", StringComparison.Ordinal),
-            "effect-bearing runestones must not be opted into automatic stacking through a classification-only API");
-        int queryCatch = query.LastIndexOf("catch (Exception ex)", StringComparison.Ordinal);
-        string queryFailure = queryCatch < 0 ? "" : query.Substring(queryCatch);
-        Assert.True(
-            queryFailure.Contains("_epicLootStackableMaterialQueryDisabled = true;", StringComparison.Ordinal) &&
-            queryFailure.Contains("result = false;", StringComparison.Ordinal) &&
-            queryFailure.Contains("return false;", StringComparison.Ordinal),
-            "only an unavailable or failed API query may hand control to the name/ammo-type fallback");
-
-        string containerSource = File.ReadAllText(Path.Combine(repositoryRoot, "ContainerActions.cs"));
-        string materialPolicy = ReadSourceSection(
-            containerSource,
-            "private static bool IsEpicLootStackableMaterial",
-            "private static bool IsEpicLootStackableMaterialToken");
-        int apiQuery = materialPolicy.IndexOf("TryIsEpicLootStackableMaterialByApi(item, out bool isStackableMaterial)", StringComparison.Ordinal);
-        int legacyToken = materialPolicy.IndexOf("string prefabName = GetItemPrefabName(item);", StringComparison.Ordinal);
-        Assert.True(
-            apiQuery >= 0 && legacyToken > apiQuery &&
-            materialPolicy.Contains("return isStackableMaterial;", StringComparison.Ordinal) &&
-            materialPolicy.Contains("m_ammoType", StringComparison.Ordinal) &&
-            materialPolicy.Contains("EndsWith(\"ShardStone\", StringComparison.Ordinal)", StringComparison.Ordinal),
-            "the caller must respect API false and reach the shard ammo-type fallback only when the API helper reports no answer");
-
         string hudSource = File.ReadAllText(Path.Combine(repositoryRoot, "InventoryQuickSlotsHud.cs"));
         string updateElement = ReadSourceSection(
             hudSource,
@@ -3292,7 +3255,7 @@ internal static class Tests
         string backgroundHelper = ReadSourceSection(
             compatSource,
             "private static void TryApplyEpicLootMagicItemBackground",
-            "private static bool TryIsEpicLootStackableMaterialByApi");
+            "private static bool TryGetEpicLootPublicApi");
         Assert.True(
             backgroundHelper.Contains("ItemData? item", StringComparison.Ordinal) &&
             backgroundHelper.Contains("api.ApplyMagicItemBackground(slotRoot, equippedOverlay, item, inventoryGrid)", StringComparison.Ordinal) &&

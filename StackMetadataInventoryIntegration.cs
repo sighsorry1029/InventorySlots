@@ -156,11 +156,12 @@ public sealed partial class InventorySlotsPlugin
         }
 
         ItemData? destination = inventory.GetItemAt(x, y);
-        if (destination == null ||
-            IsTrustedCustomDataStackingItem(item) ||
-            StackMetadataPolicy.AreCompatible(
-                destination.m_customData,
-                item.m_customData))
+        if (destination == null) return true;
+        bool compatible = IsEpicLootStackingItem(destination) || IsEpicLootStackingItem(item)
+            ? CanMergeEpicLootStacks(destination, item)
+            : IsTrustedCustomDataStackingItem(item) ||
+              StackMetadataPolicy.AreCompatible(destination.m_customData, item.m_customData);
+        if (compatible)
         {
             return true;
         }

@@ -280,7 +280,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool MergeSortableStacks(List<ItemData> toMerge, Inventory inventory)
     {
-        bool changed = false;
+        bool changed = MergeEpicLootSortableStacks(toMerge, inventory);
         List<List<ItemData>> grouped = new();
         // Sort merges stacks directly, so it may only merge metadata governed by InventorySlots.
         // External custom-data mods must keep authority over their own stack compatibility and merge.
@@ -288,7 +288,7 @@ public sealed partial class InventorySlotsPlugin
                      item?.m_shared != null &&
                      item.m_stack > 0 &&
                      item.m_stack < item.m_shared.m_maxStackSize &&
-                     CanUseStackMetadataAutomaticStacking(item)))
+                     CanUseStackMetadataAutomaticStacking(item) && !IsEpicLootStackingItem(item)))
         {
             List<ItemData>? matchingGroup = grouped.FirstOrDefault(group =>
                 group.Count > 0 &&

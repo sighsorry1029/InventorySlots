@@ -177,6 +177,8 @@ public sealed partial class InventorySlotsPlugin
             }
         }
 
+        if (best != null && sourceItem != null && IsEpicLootStackingItem(sourceItem) &&
+            !PrepareEpicLootAutomaticStack(best, sourceItem)) best = null;
         result = best;
         return false;
     }
@@ -607,6 +609,7 @@ public sealed partial class InventorySlotsPlugin
     private static bool CanCacheCanAddItemFailure(ItemData item)
     {
         return item?.m_shared != null &&
+               !IsEpicLootStackingItem(item) &&
                (CanUseStackMetadataAutomaticStacking(item) ||
                 IsTrustedCustomDataStackingItem(item));
     }
@@ -735,6 +738,9 @@ public sealed partial class InventorySlotsPlugin
         {
             return false;
         }
+
+        if (IsEpicLootStackingItem(existing) || IsEpicLootStackingItem(incoming))
+            return CanMergeEpicLootStacks(existing, incoming);
 
         bool trustedCustomDataStacking = IsTrustedCustomDataStackingItem(incoming);
         return (trustedCustomDataStacking ||

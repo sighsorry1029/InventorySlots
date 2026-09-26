@@ -3,6 +3,7 @@ using BepInEx.Bootstrap;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
+using System.Linq;
 using UnityEngine;
 
 namespace InventoryActions;
@@ -14,10 +15,11 @@ namespace InventoryActions;
 [BepInDependency(ExtraSlotsGuid, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency(EquipmentAndQuickSlotsGuid, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency(AzuExtendedPlayerInventoryGuid, BepInDependency.DependencyFlags.SoftDependency)]
+[BepInDependency(EpicLootStackingGuid, BepInDependency.DependencyFlags.SoftDependency)]
 public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
 {
     internal const string ModName = "InventoryActions";
-    internal const string ModVersion = "1.1.7";
+    internal const string ModVersion = "1.1.8";
     internal const string Author = "sighsorry";
     internal const string ModGUID = $"{Author}.{ModName}";
     private const string ExternalMultiUserChestGuid = "com.maxsch.valheim.MultiUserChest";
@@ -88,6 +90,7 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
         InitializeExtraSlotsUiCompatibility();
         InitializeEquipmentAndQuickSlotsCompatibility();
         InitializeAzuEpiCompatibility();
+        InitializeEpicLootStacking();
         _harmony.PatchAll();
         Log.LogInfo($"{ModName} loaded.");
     }
@@ -117,11 +120,44 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
         UpdateFeatureGuideHud();
     }
 
+    private void Start()
+    {
+        // AdventureTools 0.8.4 installs these in Awake after our plugin loads.
+        // Its old prefixes bypass our metadata checks. Retire only that stacking
+        // adapter once all Awake calls finish; its tracker/input patches stay active.
+        const string owner = "pumpli.epicloot.adventuretools";
+        if (_epicLootStackingApi == null || !Chainloader.PluginInfos.TryGetValue(owner, out var addon) ||
+            addon.Metadata.Version != new System.Version(0, 8, 4)) return;
+        int removed = 0;
+        try
+        {
+            foreach (string name in new[] { "CanStackForTopFirstMove", "CanStackIntoTargetForTopFirstMove", "MergeSortableStacks" })
+            {
+                var method = AccessTools.Method(typeof(InventoryActionsPlugin), name);
+                var patches = method == null ? null : Harmony.GetPatchInfo(method);
+                if (patches == null) continue;
+                foreach (var patch in patches.Prefixes.Concat(patches.Postfixes).Where(patch =>
+                             patch.owner == owner && patch.PatchMethod.DeclaringType?.FullName ==
+                             "EpicLootAdventureTools.EpicLootStackCompatibility").ToArray())
+                {
+                    _harmony.Unpatch(method, patch.PatchMethod);
+                    ++removed;
+                }
+            }
+            if (removed > 0) Log.LogInfo("Using built-in EpicLoot stacking; AdventureTools adventure features remain active.");
+        }
+        catch (System.Exception error)
+        {
+            Log.LogWarning($"Could not retire overlapping AdventureTools stacking patches: {error.Message}");
+        }
+    }
+
     private void OnDestroy()
     {
         RememberFavoriteSlotItems(Player.m_localPlayer, flush: true);
         FlushPendingClientState();
         RetryFeatureGuideStateSave(flush: true);
+        _epicLootStackingApi = null;
         _extraSlotsPlugin = null;
         _extraSlotsPlayerRows = null;
         _equipmentAndQuickSlotsVisibleRows = null;

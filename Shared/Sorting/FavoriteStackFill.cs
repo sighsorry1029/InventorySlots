@@ -15,7 +15,8 @@ public sealed partial class InventoryActionsPlugin
     // Favorites never donate, move, or disappear. Restock limits do not apply to Sort.
     private static bool FillFavoriteStacks(Inventory inventory, List<ItemData> targets, List<ItemData> sources)
     {
-        bool changed = FillFavoriteStackAmounts(targets, sources);
+        bool changed = FillEpicLootFavoriteStacks(inventory, targets, sources);
+        changed |= FillFavoriteStackAmounts(targets, sources);
         if (changed)
         {
             // Remove exhausted donors only after every quantity/metadata update is complete.
@@ -34,7 +35,7 @@ public sealed partial class InventoryActionsPlugin
         bool changed = false;
         foreach (ItemData target in targets.OrderBy(item => item.m_gridPos.y).ThenBy(item => item.m_gridPos.x))
         {
-            if (target?.m_shared == null || target.m_stack <= 0)
+            if (target?.m_shared == null || target.m_stack <= 0 || IsEpicLootStackingItem(target))
             {
                 continue;
             }
@@ -44,6 +45,7 @@ public sealed partial class InventoryActionsPlugin
             {
                 if (free == 0) break;
                 if (source?.m_shared == null || source.m_stack <= 0 || ReferenceEquals(target, source)) continue;
+                if (IsEpicLootStackingItem(source)) continue;
 
 #if INVENTORY_SLOTS
                 // Like ordinary Sort merging, never bypass an external mod's metadata policy.
@@ -52,8 +54,7 @@ public sealed partial class InventoryActionsPlugin
                     !CanShareInventoryStack(target, source) ||
                     !HasCompatibleStackMetadata(target, source)) continue;
 #else
-                if (!CanUseContainerActionStacking(target) ||
-                    !CanUseContainerActionStacking(source) ||
+                if (!HasNoCustomData(target) || !HasNoCustomData(source) ||
                     target.m_cheated != source.m_cheated ||
                     !HasSameStackIdentity(target, source)) continue;
 #endif

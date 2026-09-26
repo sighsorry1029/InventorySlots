@@ -21,6 +21,7 @@ public sealed partial class InventorySlotsPlugin
             InitializeMagicSupremacyCompatibility();
             InitializeHipLanternCompatibility();
             InitializeEpicLootCompatibility();
+            InitializeEpicLootStacking();
             InitializeYamlSync();
 
             _harmony.PatchAll();
@@ -138,6 +139,7 @@ public sealed partial class InventorySlotsPlugin
         ShutdownItemRules();
         DestroyRestockModeIcons();
         ShutdownEpicLootCompatibility();
+        _epicLootStackingApi = null;
         CancelContainerAreaTransfer();
         SharedContainerLocalViewers.Clear();
         if (_enableSharedContainers != null)

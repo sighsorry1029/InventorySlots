@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.15
+
+- Added metadata-aware stacking for compatible EpicLoot crafting materials, Forest/Iron/Gold tokens, Runestones, and ShardStones. Sort now consolidates ordinary stacks and fills matching favorite stacks from non-favorite items while preserving favorite positions.
+- Extended container stacking and restocking to these items using EpicLoot's compatibility rules. Different effects, quality, variants, cheat markers, and incompatible third-party data remain separate; enchanted equipment is not opted into material stacking.
+- Preserved EpicLoot's metadata merge results when InventorySlots replaces the game's automatic stack lookup, and excluded these items from a capacity-failure cache that does not distinguish their effects.
+- EpicLoot remains optional. Its public item-data API is used without a hard dependency; unsupported or failing API paths keep custom-data stacks protected.
+
 ## 1.5.14
 
 - Added **F6** to cycle the quick guide through **Expanded → Collapsed → Hidden → Expanded** during gameplay, with the inventory open or closed. The client-only **Toggle Feature Guide Key** setting under **6 - Client Keys** can be rebound or set to **None**; Configuration Manager is optional.
