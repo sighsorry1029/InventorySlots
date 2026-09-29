@@ -221,7 +221,6 @@ public sealed partial class InventoryActionsPlugin
         private ItemRuleConfigCore.Entry? _registration;
         private string _snapshot = "";
         private bool _restock = true;
-        private int _registrationMax;
         private float _hoverStarted = -1f, _outsideStarted = -1f;
         private bool? _hoverMode;
         private Camera? _camera;
@@ -237,7 +236,6 @@ public sealed partial class InventoryActionsPlugin
             internal Image Background = null!;
             internal TMP_InputField? Quantity;
             internal Button? Mode, Remove;
-            internal int MaximumAmount = int.MaxValue;
         }
 
         private ConfigEntry<string> Setting => _restock ? _restockTargetStackLimitsConfig : _autoPickupExcludedItemsConfig;
@@ -497,7 +495,7 @@ public sealed partial class InventoryActionsPlugin
                 int.TryParse(row.Entry.Amount, NumberStyles.Integer, CultureInfo.InvariantCulture, out int current))
             {
                 int delta = effect == ItemRuleControllerState.Effect.IncreaseQuantity ? 1 : -1;
-                int next = (int)Math.Min(row.MaximumAmount, Math.Max(1L, (long)current + delta));
+                int next = (int)Math.Min(int.MaxValue, Math.Max(1L, (long)current + delta));
                 if (next == current) return;
                 string previous = row.Entry.Amount;
                 row.Entry.Amount = next.ToString(CultureInfo.InvariantCulture);
@@ -593,7 +591,7 @@ public sealed partial class InventoryActionsPlugin
             {
                 _status.text = _controllerFocus.Column switch
                 {
-                    ItemRuleControllerState.Control.Quantity => L("quantity", "Target quantity") + ": " + row.Entry.Amount + " (1–" + row.MaximumAmount + ")",
+                    ItemRuleControllerState.Control.Quantity => L("quantity", "Target quantity") + ": " + row.Entry.Amount,
                     ItemRuleControllerState.Control.Remove => L("remove_help", "Remove this entry from the list."),
                     _ => _restock ? GetRestockModeTitle(row.Entry.Mode) : GetExclusionTitle(row.Entry.Excluded)
                 };
@@ -720,7 +718,7 @@ public sealed partial class InventoryActionsPlugin
                 entry = new ItemRuleConfigCore.Entry
                 {
                     Start = -1, Key = key, Mode = effective?.Mode ?? RestockRuleMode.Existing,
-                    Amount = RestockTargetLimitCore.ClampAmountForEditor(effective?.Amount ?? item.m_shared.m_maxStackSize.ToString(CultureInfo.InvariantCulture), item.m_shared.m_maxStackSize)
+                    Amount = effective?.Amount ?? Mathf.Max(1, item.m_shared.m_maxStackSize).ToString(CultureInfo.InvariantCulture)
                 };
                 _entries.Add(entry);
             }
@@ -736,7 +734,7 @@ public sealed partial class InventoryActionsPlugin
             }
             if (restock)
             {
-                _registration = entry; _registrationMax = Mathf.Max(1, item.m_shared.m_maxStackSize);
+                _registration = entry;
                 Pin(); Render();
                 if (_fields.Count > 0 && !ZInput.IsExclusiveGamepadActive()) { _fields[0].Select(); _fields[0].ActivateInputField(); }
             }
@@ -850,7 +848,7 @@ public sealed partial class InventoryActionsPlugin
             Frame(_scope.rectTransform, 12, -39, inner, 34);
             _title.text = _restock ? L("restock_title", "Restock targets") : L("exclude_title", "Auto pickup exclusions");
             _title.color = _gold;
-            _mouseScope = _registration != null ? L("quantity", "Target quantity") + " (1–" + _registrationMax + ")"
+            _mouseScope = _registration != null ? L("quantity_scope", "Target quantity · 1 or more")
                 : _restock ? L("restock_scope", "{key} · mode and target per favorite stack").Replace("{key}", GetContainerRestockKeyDisplayText()) : L("exclude_scope", "Manual E pickup is still available");
             _scope.text = _mouseScope;
             Frame(_viewport, 12, -78, inner, viewHeight);
@@ -890,9 +888,8 @@ public sealed partial class InventoryActionsPlugin
                 tooltip.m_topic = item == null ? entry.Key : GetLocalizedItemName(item); tooltip.m_text = entry.Key;
                 if (_restock)
                 {
-                    TMP_InputField field = NumberField(row, entry, item);
+                    TMP_InputField field = NumberField(row, entry);
                     controllerRow.Quantity = field;
-                    controllerRow.MaximumAmount = item?.m_shared != null ? Mathf.Max(1, item.m_shared.m_maxStackSize) : int.MaxValue;
                     Frame((RectTransform)field.transform, quantityX, -2, 58, 32);
                     Image modeIcon = null!;
                     UITooltip modeTip = null!;
@@ -1019,11 +1016,10 @@ public sealed partial class InventoryActionsPlugin
             Render();
         }
 
-        private TMP_InputField NumberField(RectTransform parent, ItemRuleConfigCore.Entry entry, ItemData? item)
+        private TMP_InputField NumberField(RectTransform parent, ItemRuleConfigCore.Entry entry)
         {
-            int? maximumAmount = item?.m_shared != null
-                ? Mathf.Max(1, item.m_shared.m_maxStackSize)
-                : null;
+            // Store the requested target, as F1 does. Prefab stack limits may
+            // differ from live items; the transfer path applies the live cap.
             RectTransform rect = Rect("Quantity", parent, new Vector2(58, 32), Vector2.zero);
             rect.gameObject.SetActive(false);
             Image image = rect.gameObject.AddComponent<Image>();
@@ -1048,18 +1044,15 @@ public sealed partial class InventoryActionsPlugin
                 Pin();
                 // An empty/invalid edit buffer must never disable restock or be
                 // written to config. Keep the last successfully saved quantity.
-                if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int amount) || amount < 1 ||
-                    (maximumAmount.HasValue && amount > maximumAmount.Value))
-                { _status.text = L("invalid", "Enter a quantity from 1 to the item's maximum stack."); return; }
+                if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int amount) || amount < 1)
+                { _status.text = L("invalid", "Enter a positive whole number."); return; }
                 string previous = entry.Amount;
                 entry.Amount = text;
                 if (!Save()) { entry.Amount = previous; input.SetTextWithoutNotify(previous); }
             });
             input.onEndEdit.AddListener(text =>
             {
-                string normalized = maximumAmount.HasValue
-                    ? RestockTargetLimitCore.ClampAmountForEditor(text, maximumAmount.Value)
-                    : RestockTargetLimitCore.NormalizeAmountForEditor(text);
+                string normalized = RestockTargetLimitCore.NormalizeAmountForEditor(text);
                 if (normalized.Length == 0)
                 {
                     input.SetTextWithoutNotify(entry.Amount);

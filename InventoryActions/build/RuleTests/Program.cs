@@ -61,11 +61,32 @@ Check("invalid later row cannot override valid rule", rules["wood"] == 30 && ref
 rules = RestockTargetLimitCore.Parse("WoodPrefab: 30 | Off; $item_wood: 40 | IncludeEmpty", out refillKeys);
 string? effectiveKey = RestockTargetLimitCore.ResolveConfiguredKey(rules, new[] { "WoodPrefab", "$item_wood" });
 Check("prefab Off overrides lower priority alias", effectiveKey == "woodprefab" && !refillKeys.Contains(effectiveKey) && RestockTargetLimitCore.ResolveTargetStackLimit(rules, new[] { "WoodPrefab", "$item_wood" }, 50) == 0);
-Check("positive editor clamps zero", RestockTargetLimitCore.ClampAmountForEditor("0", 30) == "1");
-Check("positive editor clamps negatives", RestockTargetLimitCore.ClampAmountForEditor("-5", 30) == "1");
-Check("editor clamps complete overshoot", RestockTargetLimitCore.ClampAmountForEditor("230", 30) == "30");
-Check("editor supports long numeric input before clamp", RestockTargetLimitCore.ClampAmountForEditor("9999999999", 30) == "30");
-Check("incomplete edit is not a target", RestockTargetLimitCore.ClampAmountForEditor("", 30) == "");
+Check("positive editor clamps zero", RestockTargetLimitCore.NormalizeAmountForEditor("0") == "1");
+Check("positive editor clamps negatives", RestockTargetLimitCore.NormalizeAmountForEditor("-5") == "1");
+Check("editor preserves targets above vanilla maximum", RestockTargetLimitCore.NormalizeAmountForEditor("100") == "100");
+Check("editor supports long numeric input without overflowing saved int", RestockTargetLimitCore.NormalizeAmountForEditor("9999999999") == int.MaxValue.ToString());
+Check("incomplete edit is not a target", RestockTargetLimitCore.NormalizeAmountForEditor("") == "");
+
+// A target is a saved preference, not a snapshot of the prefab's capacity.
+// The same rule survives an empty inventory and changing live stack limits.
+foreach (var targetMode in new[] { RestockRuleMode.Existing, RestockRuleMode.IncludeEmpty, RestockRuleMode.Off })
+{
+    string targetRaw = "Wood: 100 | " + targetMode;
+    var targetEntries = ItemRuleConfigCore.Read(targetRaw, true);
+    targetEntries[0].Amount = RestockTargetLimitCore.NormalizeAmountForEditor(targetEntries[0].Amount);
+    string saved = ItemRuleConfigCore.Write(targetRaw, targetEntries, true);
+    Check("editing larger target retains quantity and mode " + targetMode, saved == targetRaw);
+    var targets = RestockTargetLimitCore.Parse(saved, out var emptyTargets);
+    foreach (int liveMaximum in new[] { 200, 50, 100 })
+    {
+        int expected = targetMode == RestockRuleMode.Off ? 0 : Math.Min(100, liveMaximum);
+        Check("transfer respects live maximum " + targetMode + "/" + liveMaximum,
+            RestockTargetLimitCore.ResolveTargetStackLimit(targets, new[] { "Wood" }, liveMaximum) == expected);
+    }
+    Check("live capacity changes do not rewrite the saved target " + targetMode, ItemRuleConfigCore.Write(saved, targetEntries, true) == targetRaw);
+    Check("larger empty-slot target keeps refill eligibility " + targetMode,
+        emptyTargets.Contains("wood") == (targetMode == RestockRuleMode.IncludeEmpty));
+}
 
 // Repeated saves keep focused Entry identities and all text spans valid.
 string live = "# targets\r\nWood = 30 | Existing # keep\r\nStone: 12 | Off\r\nBad: invalid\r\n";

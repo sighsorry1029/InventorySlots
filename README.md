@@ -75,6 +75,7 @@ Look at a chest and **hold E** to store matching items, or **hold Alt + E** to r
 | <a href="https://i.ibb.co/xtpGM34P/quickstackchest.png"><img src="https://i.ibb.co/xtpGM34P/quickstackchest.png" alt="Quick stack and restock hints at a chest" width="300"></a> | <a href="https://i.ibb.co/yFQWpxjF/restocklimit.png"><img src="https://i.ibb.co/yFQWpxjF/restocklimit.png" alt="Per-item restock target controls" width="480"></a> |
 
 Choose a target quantity for each item and whether to restore its remembered empty favorite slots.
+Targets accept positive whole numbers. Actual restocking is capped by the item's current maximum stack size, including changes from other mods.
 
 ### Modded equipment
 

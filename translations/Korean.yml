@@ -77,6 +77,7 @@ inventoryslots_rules_pad_change: "전환"
 inventoryslots_rules_restock_scope: "{key} · 즐겨찾기 칸별 보충 방식과 목표 수량"
 inventoryslots_rules_exclude_scope: E로 직접 줍기는 가능합니다
 inventoryslots_rules_quantity: 목표 수량
+inventoryslots_rules_quantity_scope: "목표 수량 · 1 이상"
 inventoryslots_controller_menu_title: "인벤토리 작업"
 inventoryslots_controller_menu_favorite: "칸 즐겨찾기 설정"
 inventoryslots_controller_menu_unfavorite: "칸 즐겨찾기 해제"
@@ -100,7 +101,7 @@ inventoryslots_rules_empty: 등록된 아이템 없음
 inventoryslots_rules_registered: 등록됨
 inventoryslots_rules_saved: 저장됨
 inventoryslots_rules_conflict: 설정이 변경되었습니다. 입력을 마치면 다시 불러옵니다.
-inventoryslots_rules_invalid: "1부터 해당 아이템의 최대 스택까지 입력하세요."
+inventoryslots_rules_invalid: "1 이상의 정수를 입력하세요."
 inventoryslots_rules_save_failed: 설정을 저장하지 못했습니다.
 inventoryslots_rules_restored: 마지막으로 저장한 수량으로 복원했습니다
 inventoryslots_feature_guide_toggle_hint: "[{key}] 숨기기"

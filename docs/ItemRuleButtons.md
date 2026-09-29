@@ -734,3 +734,46 @@ when optional controller hotkeys are disabled.
 Input/navigation tests compile the production state machines for both namespaces
 with stub UI adapters. Actual popup placement, device input, and visual focus still
 require an in-game check; test success does not establish those results.
+
+## Modded stack sizes in target editing — 2026-09-30
+
+InventorySlots 1.5.16 / InventoryActions 1.1.9 supersede the earlier editor
+maximum-stack clamp. The shared panel now saves positive integer targets like
+the F1 drawer. Keyboard end-edit normalization and controller adjustments retain
+targets above a prefab's capacity; controller arithmetic still saturates at the
+positive Int32 range. The panel no longer caches a maximum for quantity editing.
+
+The supplied AzuMiscPatches 1.2.10 changes instantiated items in ItemDrop.Awake,
+so an ObjectDB prefab may still report 50 while a live Wood stack permits 100.
+Using the prefab as the editor ceiling also fails when IncludeEmpty has no item
+in the player inventory. DataForge updates both prefabs and existing items, but
+neither integration requires a dedicated dependency or patch here.
+
+New rules use the held item's current maximum as their default. Existing and
+alias-derived targets keep their quantity and mode. Actual transfers retain
+ResolveTargetStackLimit's minimum of the configured target and the live item's
+maximum; empty favorites retain the existing real-source transfer path. Config
+keys, save format, ownership/access checks and stacking compatibility are unchanged.
+
+Validation:
+
+- Baseline and final Debug solution builds with DeployToGame=true passed. Both
+  final Debug DLLs match their Steam plugin copies by SHA-256. The test project
+  retains its two pre-existing StuWard nullable warnings.
+- Existing InventorySlots.Tests suite: 176 passed. Item-rule/favorite-memory
+  tests: 144 passed for each namespace, including larger saved targets, all
+  three modes and changing live capacities without rewriting the target.
+- Release solution build plus the separate InventoryActions Release project
+  build passed; the solution excludes InventoryActions from Release builds.
+- Final DLL checks against original Valheim 1.0.16 client assemblies: Slots
+  1103 references / 153 Harmony targets / 49 reflected contracts, Actions
+  663 / 47 / 7, zero failures. Optional dynamic targets retain the checker's
+  existing manual-review limitations.
+- Final editor IL reads m_maxStackSize only for new held-item defaults; cached
+  quantity ceilings are absent. ServerSync/YamlDotNet remain merged. English
+  and Korean YAML parsed, and updated hints are embedded in both DLLs.
+- Both Thunderstore ZIPs and the Slots Nexus ZIP passed integrity/content checks;
+  packaged DLLs match Release output and packaged metadata/translations match source.
+
+These are build, data and static/IL checks. Actual Unity text editing, controller
+interaction, AzuMiscPatches/DataForge combinations and multiplayer were not run.

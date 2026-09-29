@@ -77,6 +77,7 @@ inventoryslots_rules_pad_change: "change"
 inventoryslots_rules_restock_scope: "{key} · mode and target per favorite stack"
 inventoryslots_rules_exclude_scope: Manual E pickup is still available
 inventoryslots_rules_quantity: Target quantity
+inventoryslots_rules_quantity_scope: "Target quantity · 1 or more"
 inventoryslots_controller_menu_title: "Inventory actions"
 inventoryslots_controller_menu_favorite: "Favorite slot"
 inventoryslots_controller_menu_unfavorite: "Remove favorite"
@@ -100,7 +101,7 @@ inventoryslots_rules_empty: No registered items
 inventoryslots_rules_registered: Registered
 inventoryslots_rules_saved: Saved
 inventoryslots_rules_conflict: Config changed. Finish editing to reload.
-inventoryslots_rules_invalid: "Enter a quantity from 1 to the item's maximum stack."
+inventoryslots_rules_invalid: "Enter a positive whole number."
 inventoryslots_rules_save_failed: Could not save config.
 inventoryslots_rules_restored: Last saved quantity restored
 inventoryslots_feature_guide_toggle_hint: "[{key}] Hide"

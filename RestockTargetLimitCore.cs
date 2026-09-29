@@ -102,17 +102,12 @@ internal static class RestockTargetLimitCore
 
     internal static string NormalizeAmountForEditor(string? value)
     {
-        return ClampAmountForEditor(value, int.MaxValue);
-    }
-
-    internal static string ClampAmountForEditor(string? value, int maximumAmount)
-    {
         if (!long.TryParse(value?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out long parsed))
         {
             return "";
         }
 
-        long clamped = Math.Min(Math.Max(1L, parsed), Math.Max(1, maximumAmount));
+        long clamped = Math.Min(Math.Max(1L, parsed), int.MaxValue);
         return clamped.ToString(CultureInfo.InvariantCulture);
     }
 

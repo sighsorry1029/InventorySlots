@@ -5056,14 +5056,21 @@ internal static class Tests
         Assert.Equal("7", RestockTargetLimitCore.NormalizeAmountForEditor(" +7 "));
         Assert.Equal("", RestockTargetLimitCore.NormalizeAmountForEditor("invalid"));
         Assert.Equal("2147483647", RestockTargetLimitCore.NormalizeAmountForEditor("2147483648"));
-        Assert.Equal("30", RestockTargetLimitCore.ClampAmountForEditor("40", 30));
-        Assert.Equal("30", RestockTargetLimitCore.ClampAmountForEditor("230", 30));
-        Assert.Equal("1", RestockTargetLimitCore.ClampAmountForEditor("-5", 30));
-        Assert.Equal("30", RestockTargetLimitCore.ClampAmountForEditor("9999999999", 30));
-        Assert.Equal("", RestockTargetLimitCore.ClampAmountForEditor("invalid", 30));
-        Assert.Equal(
-            RestockTargetLimitCore.ClampAmountForEditor("230", 30),
-            InventoryActions.RestockTargetLimitCore.ClampAmountForEditor("230", 30));
+        foreach (string target in new[] { "50", "100", "230", "2147483647" })
+        {
+            Assert.Equal(target, RestockTargetLimitCore.NormalizeAmountForEditor(target));
+            Assert.Equal(target, InventoryActions.RestockTargetLimitCore.NormalizeAmountForEditor(target));
+            var slotsLimits = RestockTargetLimitCore.Parse($"Wood: {target} | IncludeEmpty");
+            var actionsLimits = InventoryActions.RestockTargetLimitCore.Parse($"Wood: {target} | IncludeEmpty");
+            foreach (int liveMaximum in new[] { 50, 100, 200 })
+            {
+                int expected = Math.Min(int.Parse(target), liveMaximum);
+                Assert.Equal(expected, RestockTargetLimitCore.ResolveTargetStackLimit(slotsLimits, new[] { "Wood" }, liveMaximum));
+                Assert.Equal(expected, InventoryActions.RestockTargetLimitCore.ResolveTargetStackLimit(actionsLimits, new[] { "Wood" }, liveMaximum));
+            }
+            Assert.Equal(int.Parse(target), slotsLimits["wood"]);
+            Assert.Equal(int.Parse(target), actionsLimits["wood"]);
+        }
 
         Assert.Equal(0, RestockTargetLimitCore.Parse("Wood: -5").Count);
         Assert.Equal(0, InventoryActions.RestockTargetLimitCore.Parse("Wood: 0").Count);

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.9
+
+- Fixed Restock Targets rejecting quantities above the prefab's stack size when another mod increases the maximum for live items, such as AzuMiscPatches. Keyboard and controller edits now accept positive target quantities consistently with F1 settings.
+- Preserved configured quantities when editing existing targets or registering an item covered by an existing rule, including targets for empty favorite slots. New targets still default to the held item's current maximum stack size.
+- Actual restocking continues to respect each live item's maximum stack size. Updated English/Korean input hints and target documentation.
+
 ## 1.1.8
 
 - Added built-in EpicLoot stacking support for compatible crafting materials, Forest/Iron/Gold tokens, Runestones, and ShardStones during Ctrl-click transfers, Take All, Store All, Quick Stack, and Restock.

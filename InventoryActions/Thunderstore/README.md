@@ -53,7 +53,7 @@ These are the default keyboard and mouse controls. In-game hints follow your con
 
 ## Restock, your way
 
-Each target has a quantity from **1 to the item's maximum stack size** and one of three modes:
+Each target accepts a **positive whole-number quantity** and one of three modes. Actual restocking is capped by the item's current maximum stack size, including changes from other mods:
 
 | Mode | Behavior |
 | --- | --- |
