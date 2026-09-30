@@ -47,6 +47,17 @@ public sealed partial class InventoryActionsPlugin
             return false;
         }
 
+        if (HasExternalMultiUserChestActive && !InventoryGui.IsVisible() && GetHoveredContainer(player) == container &&
+            CanUseMucTransferContainer(player, container, container, AreaContainerActionKind.QuickStack))
+        {
+            if (_mucTransfer != null || _mucTransferPending != null ||
+                IsContainerQuickStackShortcutHeld() && _vanillaQuickStackHoldConsumed) return true;
+            Inventory? inventory = GetPlayerInventory(player);
+            if (inventory != null) StartMucTransfer(player, inventory, container, AreaContainerActionKind.QuickStack);
+            _vanillaQuickStackHoldConsumed = IsContainerQuickStackShortcutHeld();
+            return true; // Do not also send vanilla's ownership/StackAll request.
+        }
+
         if (UsesVanillaContainerProtocol && !HasExternalMultiUserChestActive && IsAreaContainerEligible(container))
         {
             if (_areaContainerTransfer != null ||
@@ -229,6 +240,8 @@ public sealed partial class InventoryActionsPlugin
     {
         if (includeArea)
         {
+            if (HasExternalMultiUserChestActive)
+                return StartMucTransfer(localPlayer, playerInventory, container, AreaContainerActionKind.QuickStack);
             return TryStartAreaContainerTransfer(
                 localPlayer,
                 playerInventory,
@@ -379,6 +392,11 @@ public sealed partial class InventoryActionsPlugin
         bool includeArea = mode == RestockMode.AreaFavoriteRestock;
         if (includeArea)
         {
+            if (HasExternalMultiUserChestActive)
+            {
+                StartMucTransfer(localPlayer, playerInventory, container, AreaContainerActionKind.Restock);
+                return;
+            }
             _ = TryStartAreaContainerTransfer(
                 localPlayer,
                 playerInventory,
@@ -802,7 +820,7 @@ public sealed partial class InventoryActionsPlugin
 
     private static void HandleHoverActions(Player player)
     {
-        if (!UsesVanillaContainerProtocol || !IsContainerQuickStackShortcutHeld())
+        if ((!UsesVanillaContainerProtocol && _mucTransferApi == null) || !IsContainerQuickStackShortcutHeld())
             _vanillaQuickStackHoldConsumed = false;
         if (InventoryGui.IsVisible() || ShouldBlockGlobalHotkeys(player))
         {
@@ -859,7 +877,7 @@ public sealed partial class InventoryActionsPlugin
         if (action == AreaContainerActionKind.QuickStack)
         {
             QuickStackIntoContainers(player, playerInventory, container, includeArea: true);
-            if (UsesVanillaContainerProtocol) _vanillaQuickStackHoldConsumed = true;
+            if (UsesVanillaContainerProtocol || _mucTransferApi != null) _vanillaQuickStackHoldConsumed = true;
         }
         else
         {
@@ -1032,6 +1050,8 @@ public sealed partial class InventoryActionsPlugin
         Container container,
         AreaContainerActionKind action)
     {
+        if (HasExternalMultiUserChestActive)
+            return CanUseMucTransferContainer(player, container, container, action);
         return player != null &&
                !player.m_isLoading &&
                container != null &&

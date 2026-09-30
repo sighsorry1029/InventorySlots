@@ -26,7 +26,11 @@ The **standalone MultiUserChest mod** has different interactions with the two mo
 | Mod | When standalone MultiUserChest is present |
 | --- | --- |
 | InventorySlots | MultiUserChest controls concurrent opening. InventorySlots excludes non-owned containers from area transfers. |
-| InventoryActions | Area quick stack/restock is disabled. With MultiUserChest 0.6.1 or newer, non-owner Take All is also left to MultiUserChest. |
+| InventoryActions | With MultiUserChest **0.6.1 or 0.6.2**, hold E for area Quick Stack or Alt+E to restock favorites through MUC. Restock also restores configured **Include empty** entries using remembered favorite slots. One request runs at a time. Non-owner Take All is left to MUC 0.6.1 or newer. |
+
+InventoryActions' MUC transfers retain favorite/hotbar protection, targets, stack identity checks, leave-one setting, chest range, and access/ward checks. Quick Stack fills matching partial stacks before empty cells and disables item swapping for its automatic requests. Empty-favorite restoration uses the same remembered-slot rules as ordinary restock. The adapter supports standard player-built chests and skips unsupported containers and chests with pending local MUC transactions. It does not claim chest ownership. Opening the inventory, moving away, dying, or teleporting stops further requests; an already submitted MUC request can still finish. A timeout does not trigger a retry or refund, and another area action waits for that response (restart the session if it never arrives).
+
+This is limited compatibility, not an atomic transfer guarantee. MUC's existing withdrawal protocol addresses the source by slot and does not transmit the expected item identity. A concurrent slot replacement can therefore return a different item; MUC still handles that response and InventoryActions stops the batch. Unexpected empty-slot deliveries do not overwrite the remembered item and are skipped by subsequent MUC restock until moved/replaced or unfavorited. MUC's owner-side deposit merge checks are less strict than InventoryActions' metadata checks, so a concurrent destination change remains a risk. MUC may drop returned items if the destination changes or cannot fit them. Leave-one and target limits are local observations, not server reservations. Two-player contention, disconnects, and game execution still require testing.
 
 ## InventorySlots integrations
 

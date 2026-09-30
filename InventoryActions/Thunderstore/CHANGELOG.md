@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.10
+
+- Added optional compatibility with **MultiUserChest 0.6.1 and 0.6.2** for area Quick Stack and favorite Restock through MUC's own transfer requests. Existing favorite/hotbar protection, restock targets, chest range, and access checks remain in effect.
+- Added MUC restocking for **Include empty** targets using remembered favorite slots. Unexpected items delivered after a concurrent slot change do not overwrite the remembered item or become targets for subsequent MUC restock.
+- Processed transfers one request at a time, disabled item swaps for automatic Quick Stack requests, and checked partial deposit returns before ending a batch. Timeouts stop further requests without resending or issuing a separate refund; pending requests remain with MUC.
+- **Limited compatibility:** MUC's existing protocol still permits concurrent slot/metadata changes and may drop returned items if they no longer fit. This does not guarantee atomic transfers or eliminate item-loss/duplication risks. Actual multiplayer contention and disconnect behavior remain unverified; see the [compatibility guide](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/compatibility.md#shared-chests).
+
 ## 1.1.9
 
 - Fixed Restock Targets rejecting quantities above the prefab's stack size when another mod increases the maximum for live items, such as AzuMiscPatches. Keyboard and controller edits now accept positive target quantities consistently with F1 settings.

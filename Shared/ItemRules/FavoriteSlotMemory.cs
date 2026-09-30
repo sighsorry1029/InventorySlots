@@ -74,6 +74,9 @@ public sealed partial class InventoryActionsPlugin
         {
             if (!IsEligibleFavoriteRestockCell(player, inventory, cell)) return null;
             ItemData? item = inventory.GetItemAt(cell.x, cell.y);
+#if !INVENTORY_SLOTS
+            if (ShouldDeferMucFavoriteMemory(inventory, cell, item)) return null;
+#endif
             return item != null && item.m_stack > 0 ? GetFavoriteMemoryPrefab(item) : null;
         });
         return true;

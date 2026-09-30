@@ -16,13 +16,16 @@ internal static class Program
 
     private static int Main(string[] args)
     {
-        if (args.Length != 3 && (args.Length != 4 || (args[3] != "--button-offsets" && args[3] != "--ui-layout" && args[3] != "--restock-reserve" && args[3] != "--button-modes" && args[3] != "--favorite-fill" && args[3] != "--material-access" && args[3] != "--empty-favorite" && args[3] != "--epicloot-overlap")))
-            throw new ArgumentException("Usage: <final mod.dll> <original Managed> <BepInEx core> [--ui-layout|--restock-reserve|--button-modes|--favorite-fill|--material-access|--empty-favorite|--epicloot-overlap]");
+        bool mucRestock = args.Length == 5 && args[3] == "--muc-restock";
+        if (!mucRestock && args.Length != 3 && (args.Length != 4 || (args[3] != "--button-offsets" && args[3] != "--ui-layout" && args[3] != "--restock-reserve" && args[3] != "--button-modes" && args[3] != "--favorite-fill" && args[3] != "--material-access" && args[3] != "--empty-favorite" && args[3] != "--epicloot-overlap")))
+            throw new ArgumentException("Usage: <final mod.dll> <original Managed> <BepInEx core> [--ui-layout|--restock-reserve|--button-modes|--favorite-fill|--material-access|--empty-favorite|--epicloot-overlap|--muc-restock <original MUC.dll>]");
         string[] roots = { Path.GetDirectoryName(Path.GetFullPath(args[0]))!, Path.GetFullPath(args[1]), Path.GetFullPath(args[2]) };
         AppDomain.CurrentDomain.AssemblyResolve += (_, request) =>
         {
             string name = new AssemblyName(request.Name).Name + ".dll";
-            foreach (string root in roots)
+            // Prefer the explicitly supplied original game/core assemblies over
+            // any reference copies left alongside the final plugin.
+            foreach (string root in new[] { roots[1], roots[2], roots[0] })
             {
                 string path = Path.Combine(root, name);
                 if (File.Exists(path)) return Assembly.LoadFrom(path);
@@ -46,7 +49,8 @@ internal static class Program
             threading.GetField("<Instance>k__BackingField", BindingFlags.NonPublic | BindingFlags.Static)!.SetValue(null, queue);
             Assembly mod = Assembly.LoadFrom(Path.GetFullPath(args[0]));
             plugin = mod.GetType(mod.GetName().Name + "." + mod.GetName().Name + "Plugin", true)!;
-            if (args.Length == 4 && args[3] == "--epicloot-overlap") checks += EpicLootOverlapChecks.Run(plugin);
+            if (mucRestock) checks += MucTransferChecks.Run(plugin, args[4]);
+            else if (args.Length == 4 && args[3] == "--epicloot-overlap") checks += EpicLootOverlapChecks.Run(plugin);
             else if (args.Length == 4 && args[3] == "--material-access") RunMaterialAccessChecks();
             else if (args.Length == 4 && args[3] == "--empty-favorite") RunEmptyFavoriteChecks();
             else if (args.Length == 4 && args[3] == "--favorite-fill") RunFavoriteFillChecks();

@@ -2,6 +2,10 @@ using InventorySlots;
 using InventoryPersistence;
 
 TestRunner.Run(
+    ("MUC restock waits for the matching response to finish applying", MultiUserChestRestockTests.ResponseCorrelation),
+    ("MUC timeout blocks retries and accepts a late original response", MultiUserChestRestockTests.TimeoutAndLateResponse),
+    ("MUC cancellation cannot resume a batch", MultiUserChestRestockTests.CancelDuringResponse),
+    ("MUC partial or failed delivery ends the batch", MultiUserChestRestockTests.PartialDelivery),
     ("Favorite item memory survives YAML and remains character-specific", FavoriteMemoryPersistenceTests.RoundTripAndCharacterIsolation),
     ("Native pockets and three progression rows add independently", Tests.NativePocketsAndProgressionRowsAddIndependently),
     ("Native resize keeps the player panel root at its base size", Tests.NativeResizeKeepsPlayerPanelRootAtBaseSize),

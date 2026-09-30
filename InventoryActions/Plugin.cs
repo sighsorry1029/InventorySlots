@@ -19,7 +19,7 @@ namespace InventoryActions;
 public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
 {
     internal const string ModName = "InventoryActions";
-    internal const string ModVersion = "1.1.9";
+    internal const string ModVersion = "1.1.10";
     internal const string Author = "sighsorry";
     internal const string ModGUID = $"{Author}.{ModName}";
     private const string ExternalMultiUserChestGuid = "com.maxsch.valheim.MultiUserChest";
@@ -92,6 +92,7 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
         InitializeAzuEpiCompatibility();
         InitializeEpicLootStacking();
         _harmony.PatchAll();
+        InitializeMultiUserChestTransfer();
         Log.LogInfo($"{ModName} loaded.");
     }
 
@@ -104,6 +105,7 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
 
         RetryFeatureGuideStateSave();
         Player? player = Player.m_localPlayer;
+        UpdateMucTransfer(player);
         if (player == null || IsUnityNull(player) || player!.m_isLoading)
         {
             _itemRuleEditor?.Hide();
@@ -170,6 +172,11 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
         _showRuleTooltips.SettingChanged -= RefreshRuleTooltipVisibility;
         _autoPickupExcludedItems.Clear();
         CancelAreaContainerTransfer();
+        CancelMucTransfer();
+        _mucTransferApi = null;
+        _mucTransferPending = null;
+        _mucUnconfirmedSeeds.Clear();
+        _mucSeedInventory = null;
         CloseInventoryTrashConfirmDialog();
         // Keep inventory action patches installed during runtime teardown to avoid item-move logic changing mid-session.
         Config.Save();
