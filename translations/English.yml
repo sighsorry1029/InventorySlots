@@ -109,3 +109,5 @@ inventoryslots_feature_guide_hidden: "{mod}: Guide hidden. Press {key} to show i
 inventoryslots_feature_guide_collapse_hint: "[{key}] Collapse"
 inventoryslots_feature_guide_hidden_controller: "{mod}: Guide hidden. Open the inventory and press {key} to show it again."
 inventoryslots_feature_guide_open_inventory_hint: "Open inventory → {action}"
+inventoryslots_feature_guide_muc: "External MultiUserChest limits area Quick Stack/Restock support. Recommended: disable external MUC and use InventorySlots' Enable Multi User Chest."
+inventoryslots_feature_guide_muc_server_required: "External MultiUserChest limits area Quick Stack/Restock support. The recommended built-in alternative requires InventorySlots on the server and all clients."

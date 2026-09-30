@@ -10,6 +10,9 @@ internal static class InventoryGridDominantFoodIconColorPatch
     [HarmonyPriority(Priority.Last)]
     private static void Postfix(InventoryGrid __instance)
     {
+        // Leave the native grid result (and other UI mods) untouched in Vanilla.
+        if (InventorySlotsPlugin.CurrentFoodForkColorMode == FoodForkColorMode.Vanilla) return;
+
         Inventory? inventory = __instance.m_inventory;
         if (inventory == null || __instance.m_elements == null)
         {

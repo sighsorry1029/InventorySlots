@@ -135,6 +135,7 @@ public sealed partial class InventorySlotsPlugin
         RetryFeatureGuideStateSave(flush: true);
         PendingEquipmentVisualPlayers.Clear();
         if (_craftingViewMode != null) _craftingViewMode.SettingChanged -= OnCraftingViewModeChanged;
+        if (_foodForkColorMode != null) _foodForkColorMode.SettingChanged -= OnFoodForkColorModeChanged;
         DestroyCraftingListViewUi();
         ShutdownItemRules();
         DestroyRestockModeIcons();

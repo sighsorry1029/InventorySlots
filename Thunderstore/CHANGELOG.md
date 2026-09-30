@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.17
+
+- Added the server-synced **Food Fork Color Mode** setting for inventory and crafting icons. **EitrFirst** preserves the existing default: positive eitr uses blue, otherwise higher health uses red and higher or equal stamina uses yellow. **Vanilla** follows the game's ratio-based colors, including white for balanced food.
+- Food fork color changes apply live. Food effects and food-group classification remain unchanged; client-only installations use the local setting.
+- Added an English/Korean quick-guide notice when external MultiUserChest is detected, explaining the limited area Quick Stack/Restock support and recommending InventorySlots' built-in shared chests. The notice explains server/client installation requirements when needed and preserves the guide's collapsed or hidden state.
+
 ## 1.5.16
 
 - Fixed Restock Targets rejecting quantities above the prefab's stack size when another mod increases the maximum for live items, such as AzuMiscPatches. Keyboard and controller edits now accept positive target quantities consistently with F1 settings.

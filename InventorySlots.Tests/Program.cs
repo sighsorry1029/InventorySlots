@@ -35,6 +35,8 @@ TestRunner.Run(
     ("Food stat classification ignores non-positive and invalid values", Tests.FoodStatClassificationIgnoresNonPositiveAndInvalidValues),
     ("Slot food fork rejects appended-tooltip materials", Tests.SlotFoodForkRejectsAppendedTooltipMaterials),
     ("Slot food fork accepts direct consumables", Tests.SlotFoodForkAcceptsDirectConsumables),
+    ("Food fork modes preserve vanilla ratios and EitrFirst policy", Tests.FoodForkModesPreserveColorPolicies),
+    ("Both food fork modes reject materials and non-food consumables", Tests.FoodForkModesPreserveEligibility),
     ("Crafting frame fast-path stamp tracks relevant fields", Tests.CraftingFrameFastPathStampTracksRelevantFields),
     ("Crafting grid stamp tracks pinned tooltip changes", Tests.CraftingGridStampTracksPinnedTooltipChanges),
     ("Crafting scrollbar stamp ignores sub-pixel jitter", Tests.CraftingScrollbarStampIgnoresSubPixelJitter),
@@ -694,6 +696,53 @@ internal static class Tests
                 out FoodStat emptyStat),
             "a consumable without direct food stats should not receive a fork");
         Assert.Equal(FoodStat.None, emptyStat);
+    }
+
+    public static void FoodForkModesPreserveColorPolicies()
+    {
+        var cases = new[]
+        {
+            // Vanilla 1.0.16 food examples and exact ratio boundaries.
+            (Health: 23f, Stamina: 23f, Eitr: 0f, Vanilla: FoodStat.Balanced, Custom: FoodStat.Stamina), // Boar jerky
+            (Health: 25f, Stamina: 25f, Eitr: 25f, Vanilla: FoodStat.Balanced, Custom: FoodStat.Eitr), // Magecap
+            (Health: 39f, Stamina: 115f, Eitr: 85f, Vanilla: FoodStat.Stamina, Custom: FoodStat.Eitr), // Oatmeal
+            (Health: 30f, Stamina: 10f, Eitr: 0f, Vanilla: FoodStat.Health, Custom: FoodStat.Health),
+            (Health: 8f, Stamina: 35f, Eitr: 0f, Vanilla: FoodStat.Stamina, Custom: FoodStat.Stamina),
+            (Health: 60f, Stamina: 30f, Eitr: 0f, Vanilla: FoodStat.Balanced, Custom: FoodStat.Health),
+            (Health: 30f, Stamina: 60f, Eitr: 0f, Vanilla: FoodStat.Balanced, Custom: FoodStat.Stamina),
+            (Health: 30f, Stamina: 20f, Eitr: 60f, Vanilla: FoodStat.Balanced, Custom: FoodStat.Eitr),
+            (Health: 30f, Stamina: 20f, Eitr: 61f, Vanilla: FoodStat.Eitr, Custom: FoodStat.Eitr)
+        };
+        foreach (var sample in cases)
+        {
+            Assert.True(FoodStatCore.TryGetSlotForkDominant(true, sample.Health, sample.Stamina, sample.Eitr,
+                out FoodStat vanilla, FoodForkColorMode.Vanilla), "vanilla food must retain a visible fork");
+            Assert.Equal(sample.Vanilla, vanilla);
+            Assert.True(FoodStatCore.TryGetSlotForkDominant(true, sample.Health, sample.Stamina, sample.Eitr,
+                out FoodStat custom, FoodForkColorMode.EitrFirst), "custom food must retain a visible fork");
+            Assert.Equal(sample.Custom, custom);
+            FoodStatCore.TryGetSlotForkDominant(true, sample.Health, sample.Stamina, sample.Eitr, out FoodStat defaultMode);
+            Assert.Equal(custom, defaultMode);
+        }
+    }
+
+    public static void FoodForkModesPreserveEligibility()
+    {
+        foreach (FoodForkColorMode mode in Enum.GetValues<FoodForkColorMode>())
+        {
+            foreach (var sample in new[]
+            {
+                (Consumable: false, Health: 35f, Stamina: 10f, Eitr: 5f),
+                (Consumable: true, Health: 0f, Stamina: 0f, Eitr: 0f),
+                (Consumable: true, Health: -1f, Stamina: -2f, Eitr: -3f),
+                (Consumable: true, Health: float.NaN, Stamina: float.NaN, Eitr: float.NaN)
+            })
+            {
+                Assert.False(FoodStatCore.TryGetSlotForkDominant(sample.Consumable, sample.Health, sample.Stamina, sample.Eitr,
+                    out FoodStat stat, mode), "materials and non-food consumables must not receive a fork");
+                Assert.Equal(FoodStat.None, stat);
+            }
+        }
     }
 
     public static void CraftingFrameFastPathStampTracksRelevantFields()

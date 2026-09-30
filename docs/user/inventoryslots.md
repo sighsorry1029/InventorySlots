@@ -69,6 +69,15 @@ The current YAML paths above are the ones to edit. Older root-level `InventorySl
 
 Configuration Manager groups settings into **1 - General**, **2 - Progressive Slots**, **3 - Inventory Buttons**, **4 - Client**, **5 - Client UI**, **6 - Client Keys**, and **7 - Controller Input**. Shared button and restock settings are explained in the inventory-actions guide.
 
+**1 - General → Food Fork Color Mode** controls food fork icons in player/container inventories and crafting results:
+
+| Mode | Colors |
+| --- | --- |
+| **EitrFirst** (default) | Any positive eitr uses blue. Otherwise higher health uses red; higher or equal stamina uses yellow. |
+| **Vanilla** | Uses the game's ratio-based classification, including white for balanced food. InventorySlots leaves native inventory-grid colors untouched. |
+
+The setting is synchronized when InventorySlots is installed on the server and follows its configuration lock. Client-only installations use the local value. Changes apply live, including visible crafting results. Food effects and food-group classification are unchanged.
+
 ## Item groups
 
 The fixed top-level sections are `Melee`, `Ranged`, `Magic`, `Equipment`, `Food`, `Consumable`, `Meadbase`, and `Misc`. Their lists set subgroup order for crafting and sorting. Other keys define custom groups containing **exact prefab/internal item names**, rather than nested group references.

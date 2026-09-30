@@ -640,7 +640,8 @@ public sealed partial class InventorySlotsPlugin
             shared.m_food,
             shared.m_foodStamina,
             shared.m_foodEitr,
-            out stat);
+            out stat,
+            CurrentFoodForkColorMode);
     }
 
     private static string GetAttackAnimation(ItemData item) => item.m_shared.m_attack.m_attackAnimation ?? "";

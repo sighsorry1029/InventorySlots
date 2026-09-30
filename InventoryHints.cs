@@ -664,6 +664,15 @@ public sealed partial class InventorySlotsPlugin
             string guide = controllerHints ? GetControllerFeatureGuideText() : LocalizeUi(
                 "$inventoryslots_feature_guide",
                 "<b>InventorySlots quick guide</b>\n<color=#FFA94D>[{tooltipKey}]</color> over an inventory or chest item, or a crafting recipe: Pin tooltip\n<color=#FFA94D>[{favoriteKey}]</color> over an inventory slot or crafting recipe: Toggle favorite\nWhile looking at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching items nearby (favorite slots excluded)\nWhile looking at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill existing items in favorite slots from nearby chests up to their targets\nCustom slots and rules: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>");
+            if (HasExternalMultiUserChestActive)
+            {
+                string notice = UsesVanillaContainerProtocol
+                    ? LocalizeUi("$inventoryslots_feature_guide_muc_server_required",
+                        "External MultiUserChest limits area Quick Stack/Restock support. The recommended built-in alternative requires InventorySlots on the server and all clients.")
+                    : LocalizeUi("$inventoryslots_feature_guide_muc",
+                        "External MultiUserChest limits area Quick Stack/Restock support. Recommended: disable external MUC and use InventorySlots' Enable Multi User Chest.");
+                guide += "\n<color=#FFA94D>" + notice + "</color>";
+            }
             TooltipUi.FeatureGuideExpandedText = AddFeatureGuideToggleHint(guide)
                 .Replace("{tooltipKey}", GetPinnedTooltipKeyDisplayText())
                 .Replace("{favoriteKey}", GetFavoriteKeyHintDisplayText())

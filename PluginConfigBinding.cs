@@ -67,6 +67,15 @@ public sealed partial class InventorySlotsPlugin
     private static ConfigEntry<KeyboardShortcut> _favoriteModifierKey = null!;
     private static ConfigEntry<KeyboardShortcut>[] _quickSlotHotkeys = null!;
     private static ConfigEntry<Toggle> _enableSharedContainers = null!;
+    private static ConfigEntry<FoodForkColorMode> _foodForkColorMode = null!;
+
+    internal static FoodForkColorMode CurrentFoodForkColorMode =>
+        _foodForkColorMode?.Value ?? FoodForkColorMode.EitrFirst;
+
+    private static void OnFoodForkColorModeChanged(object? sender, EventArgs args)
+    {
+        CraftingController.MarkRecipeGridDirty();
+    }
 
     private static void BindConfigs()
     {
@@ -121,6 +130,11 @@ public sealed partial class InventorySlotsPlugin
             "Allows multiple players to view standard player-built chests. Item changes wait for an approved ownership handoff and fresh contents. Existing access restrictions still apply. The external MultiUserChest mod takes precedence. Changing this setting closes the local inventory and cancels pending actions before reopening.", order: 950);
         _enableSharedContainers.SettingChanged += OnSharedContainerSettingChanged;
         _sharedContainersActive = _enableSharedContainers.Value == Toggle.On;
+
+        _foodForkColorMode = OrderedConfigEntry("1 - General", "Food Fork Color Mode", FoodForkColorMode.EitrFirst,
+            "Food fork icon colors in player/container inventories and crafting results. EitrFirst: any positive eitr uses blue; otherwise higher health uses red, and higher or equal stamina uses yellow. Vanilla: use the game's ratio-based colors, including white for balanced food. Affects icons only, not food stats or food-group classification. Changes apply live.",
+            order: 940, synchronizedSetting: true);
+        _foodForkColorMode.SettingChanged += OnFoodForkColorModeChanged;
 
         _inventoryRowsDisplayMode = OrderedConfigEntry(ClientConfigSection, "Inventory Rows Display Mode", InventoryRowsDisplayMode.Expandable, "Client-only regular inventory row display mode. Fixed always shows all unlocked regular inventory rows. Expandable restores the last locally remembered visible row count, reveals newly unlocked rows once, and changes it with mouse wheel while the inventory is open.", order: 900, synchronizedSetting: false);
         _autoFavoriteHotbarSwitchRow = OrderedConfigEntry(ClientConfigSection, "Auto Favorite Hotbar Switch Row", Toggle.Off, "When enabled, marks row 2 as favorite when the local player is loaded or spawned. Turn this Off if you want row 2 favorites to stay manually controlled. Not synced with server.", order: 890, synchronizedSetting: false);
