@@ -153,8 +153,7 @@ public sealed partial class InventorySlotsPlugin
                 variant,
                 quality,
                 itemPrefab.name,
-                itemDrop.m_itemData.m_shared.m_itemType,
-                IsAdventureBackpackItem(itemDrop.m_itemData)));
+                itemDrop.m_itemData.m_shared.m_itemType));
         }
 
         ApplyCustomEquipmentVisualStates(visEquipment, states);
@@ -180,8 +179,7 @@ public sealed partial class InventorySlotsPlugin
                     variant,
                     quality,
                     item.m_dropPrefab.name,
-                    item.m_shared.m_itemType,
-                    IsAdventureBackpackItem(item)));
+                    item.m_shared.m_itemType));
             }
 
             SetCustomEquipmentVisualZdoValue(visEquipment, slot.Id, itemHash, variant, quality);
@@ -470,7 +468,7 @@ public sealed partial class InventorySlotsPlugin
                 case ItemType.Utility:
                 case ItemType.Trinket:
                     List<GameObject> instances = AttachCustomArmor(visEquipment, state.ItemHash, state.Variant, state.Quality);
-                    ReorderAdventureBackpackBones(visEquipment, state, instances);
+                    ReorderCustomArmorBones(visEquipment, state.ItemHash, instances);
                     visual.AddRange(instances);
                     break;
             }
@@ -552,16 +550,95 @@ public sealed partial class InventorySlotsPlugin
         return StringExtensionMethods.GetStableHashCode(CustomEquipmentVisualQualityZdoPrefix + slotId);
     }
 
-    private static void ReorderAdventureBackpackBones(VisEquipment visEquipment, CustomEquipmentVisualState state, List<GameObject>? instances)
+    private static void ReorderCustomArmorBones(VisEquipment visEquipment, int itemPrefabHash, List<GameObject>? instances)
     {
-        if (!state.ReorderAdventureBackpackBones ||
-            !TryGetAdventureBackpacksApi(out AdventureBackpacksApi? api) ||
-            api == null)
+        if (visEquipment == null || instances == null || instances.Count == 0 || ObjectDB.instance == null)
         {
             return;
         }
 
-        api.ReorderBones(visEquipment, state.ItemHash, instances);
+        try
+        {
+            Transform skeletonRoot = visEquipment.transform.Find("Visual/Armature/Hips");
+            GameObject itemPrefab = ObjectDB.instance.GetItemPrefab(itemPrefabHash);
+            if (skeletonRoot == null || itemPrefab == null)
+            {
+                return;
+            }
+
+            int childCount = itemPrefab.transform.childCount;
+            int instanceIndex = 0;
+            for (int i = 0; i < childCount; i++)
+            {
+                Transform itemPrefabChild = itemPrefab.transform.GetChild(i);
+                if (itemPrefabChild.name.StartsWith("attach_skin"))
+                {
+                    if (instanceIndex >= instances.Count || instances[instanceIndex] == null)
+                    {
+                        continue;
+                    }
+
+                    int rendererIndex = 0;
+                    SkinnedMeshRenderer[] meshRenderersToReorder = instances[instanceIndex].GetComponentsInChildren<SkinnedMeshRenderer>(true);
+                    foreach (SkinnedMeshRenderer meshRenderer in itemPrefabChild.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                    {
+                        if (rendererIndex < meshRenderersToReorder.Length)
+                        {
+                            SkinnedMeshRenderer meshRendererThatNeedsFix = meshRenderersToReorder[rendererIndex];
+                            SetSkinnedMeshBones(meshRendererThatNeedsFix, GetBoneNames(meshRenderer), skeletonRoot);
+                            rendererIndex++;
+                        }
+                    }
+                    instanceIndex++;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.LogWarning($"Exception caught while reordering bones: {ex.Message}");
+        }
+    }
+
+    private static void SetSkinnedMeshBones(SkinnedMeshRenderer skinnedMeshRenderer, string[] boneNames, Transform skeletonRoot)
+    {
+        Transform?[] bones = new Transform?[skinnedMeshRenderer.bones.Length];
+        for (int i = 0; i < bones.Length; i++)
+        {
+            bones[i] = FindBoneInChildren(skeletonRoot, boneNames[i]);
+        }
+
+        skinnedMeshRenderer.bones = bones!;
+        skinnedMeshRenderer.rootBone = skeletonRoot;
+    }
+
+    private static string[] GetBoneNames(SkinnedMeshRenderer skinnedMeshRenderer)
+    {
+        List<string> list = new();
+        foreach (Transform transform in skinnedMeshRenderer.bones)
+        {
+            list.Add(transform.name);
+        }
+
+        return list.ToArray();
+    }
+
+    private static Transform? FindBoneInChildren(Transform transform, string name)
+    {
+        if (transform.name == name)
+        {
+            return transform;
+        }
+
+        for (int i = 0; i < transform.childCount; i++)
+        {
+            Transform? childTransform = FindBoneInChildren(transform.GetChild(i), name);
+            if (childTransform != null)
+            {
+                return childTransform;
+            }
+        }
+
+        return null;
     }
 
     private sealed class CustomEquipmentVisualState
@@ -572,8 +649,7 @@ public sealed partial class InventorySlotsPlugin
             int variant,
             int quality,
             string prefabName,
-            ItemType itemType,
-            bool reorderAdventureBackpackBones)
+            ItemType itemType)
         {
             SlotId = slotId;
             ItemHash = itemHash;
@@ -581,7 +657,6 @@ public sealed partial class InventorySlotsPlugin
             Quality = quality;
             PrefabName = prefabName;
             ItemType = itemType;
-            ReorderAdventureBackpackBones = reorderAdventureBackpackBones;
         }
 
         public string SlotId { get; }
@@ -590,7 +665,6 @@ public sealed partial class InventorySlotsPlugin
         public int Quality { get; }
         public string PrefabName { get; }
         public ItemType ItemType { get; }
-        public bool ReorderAdventureBackpackBones { get; }
     }
 
     private sealed class CustomEquipmentVisual

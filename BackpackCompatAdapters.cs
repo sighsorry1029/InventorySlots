@@ -12,68 +12,21 @@ public sealed partial class InventorySlotsPlugin
 {
     private sealed class AdventureBackpacksApi
     {
-        private readonly MethodInfo _isBackpackMethod;
-        private readonly MethodInfo? _equipItemPostfixMethod;
-        private readonly MethodInfo? _unequipItemPrefixMethod;
-        private readonly MethodInfo? _isBackpackEquippedMethod;
-        private readonly MethodInfo? _isThisBackpackEquippedMethod;
-        private readonly MethodInfo? _getEquippedBackpackMethod;
-        private readonly MethodInfo? _reorderBonesMethod;
-        private readonly FieldInfo? _backpackEquippedField;
-
-        private AdventureBackpacksApi(
-            MethodInfo isBackpackMethod,
-            MethodInfo? equipItemPostfixMethod,
-            MethodInfo? unequipItemPrefixMethod,
-            MethodInfo? isBackpackEquippedMethod,
-            MethodInfo? isThisBackpackEquippedMethod,
-            MethodInfo? getEquippedBackpackMethod,
-            MethodInfo? reorderBonesMethod,
-            FieldInfo? backpackEquippedField)
+        private AdventureBackpacksApi()
         {
-            _isBackpackMethod = isBackpackMethod;
-            _equipItemPostfixMethod = equipItemPostfixMethod;
-            _unequipItemPrefixMethod = unequipItemPrefixMethod;
-            _isBackpackEquippedMethod = isBackpackEquippedMethod;
-            _isThisBackpackEquippedMethod = isThisBackpackEquippedMethod;
-            _getEquippedBackpackMethod = getEquippedBackpackMethod;
-            _reorderBonesMethod = reorderBonesMethod;
-            _backpackEquippedField = backpackEquippedField;
         }
 
         public static bool TryCreate(Assembly assembly, out AdventureBackpacksApi? api, out string detail)
         {
             api = null;
-            Type? abApiType = assembly.GetType("AdventureBackpacks.API.ABAPI");
-            MethodInfo? isBackpackMethod = abApiType?.GetMethod(
-                "IsBackpack",
-                BindingFlags.Public | BindingFlags.Static,
-                null,
-                new[] { typeof(ItemData) },
-                null);
-            if (isBackpackMethod == null)
+            if (!AdventureBackpacks.API.Client.ABAPIClient.IsAvailable)
             {
-                detail = "AdventureBackpacks.API.ABAPI.IsBackpack was not found";
+                detail = "AdventureBackpacks ABAPI not available";
                 return false;
             }
 
-            Type? humanoidPatchesType = assembly.GetType("AdventureBackpacks.Patches.HumanoidPatches");
-            Type? equipPatchType = humanoidPatchesType?.GetNestedType("HumanoidEquipItemPatch", BindingFlags.NonPublic);
-            Type? unequipPatchType = humanoidPatchesType?.GetNestedType("HumanoidUnequipItemPatch", BindingFlags.NonPublic);
-            Type? playerExtensionsType = assembly.GetType("AdventureBackpacks.Extensions.PlayerExtensions");
-            Type? inventoryGuiPatchesType = assembly.GetType("AdventureBackpacks.Patches.InventoryGuiPatches");
-            Type? boneReorderType = assembly.GetType("Vapok.Common.Tools.BoneReorder");
-
-            api = new AdventureBackpacksApi(
-                isBackpackMethod,
-                equipPatchType?.GetMethod("Postfix", BindingFlags.NonPublic | BindingFlags.Static),
-                unequipPatchType?.GetMethod("Prefix", BindingFlags.NonPublic | BindingFlags.Static),
-                playerExtensionsType?.GetMethod("IsBackpackEquipped", BindingFlags.Public | BindingFlags.Static),
-                playerExtensionsType?.GetMethod("IsThisBackpackEquipped", BindingFlags.Public | BindingFlags.Static),
-                playerExtensionsType?.GetMethod("GetEquippedBackpack", BindingFlags.Public | BindingFlags.Static),
-                AccessTools.Method(boneReorderType, "ReorderBones"),
-                inventoryGuiPatchesType?.GetField("BackpackEquipped", BindingFlags.Public | BindingFlags.Static));
-            detail = "";
+            api = new AdventureBackpacksApi();
+            detail = string.Empty;
             return true;
         }
 
@@ -84,43 +37,21 @@ public sealed partial class InventorySlotsPlugin
                 return false;
             }
 
-            try
-            {
-                return _isBackpackMethod.Invoke(null, new object[] { item }) is true;
-            }
-            catch
-            {
-                return false;
-            }
+            return AdventureBackpacks.API.Client.ABAPIClient.IsBackpack(item);
         }
 
-        public bool IsBackpackEquippedFlagSet()
+        public bool IsBackpackEquipped(Player player)
         {
-            try
-            {
-                return _backpackEquippedField?.GetValue(null) is true;
-            }
-            catch
+            if (player == null)
             {
                 return false;
             }
+
+            return AdventureBackpacks.API.Client.ABAPIClient.IsBackpackEquipped(player);
         }
 
         public void OnCustomBackpackEquipped(Player player, ItemData item)
         {
-            if (player == null || item == null || !IsBackpack(item))
-            {
-                return;
-            }
-
-            try
-            {
-                _equipItemPostfixMethod?.Invoke(null, new object[] { item, true });
-                _backpackEquippedField?.SetValue(null, true);
-            }
-            catch (Exception)
-            {
-            }
         }
 
         public void OnCustomBackpackUnequipping(Player player, ItemData item)
@@ -130,71 +61,11 @@ public sealed partial class InventorySlotsPlugin
                 return;
             }
 
-            Humanoid humanoid = player;
-            ItemData? originalShoulderItem = humanoid.m_shoulderItem;
-            try
+            InventoryGui inventoryGui = InventoryGui.instance;
+            if (inventoryGui != null && inventoryGui.IsContainerOpen())
             {
-                humanoid.m_shoulderItem = item;
-                _unequipItemPrefixMethod?.Invoke(null, new object[] { item });
+                inventoryGui.CloseContainer();
             }
-            catch (Exception)
-            {
-            }
-            finally
-            {
-                humanoid.m_shoulderItem = originalShoulderItem;
-            }
-        }
-
-        public void ReorderBones(VisEquipment visEquipment, int itemHash, List<GameObject>? instances)
-        {
-            if (_reorderBonesMethod == null || IsUnityNull(visEquipment) || instances == null || instances.Count == 0)
-            {
-                return;
-            }
-
-            try
-            {
-                _reorderBonesMethod.Invoke(null, new object[] { visEquipment, itemHash, instances });
-            }
-            catch
-            {
-            }
-        }
-
-        public void ApplyPatches(Harmony harmony)
-        {
-            PatchOptional(
-                harmony,
-                _isBackpackEquippedMethod,
-                postfix: nameof(AdventureBackpackIsBackpackEquippedPostfix),
-                label: "AdventureBackpacks IsBackpackEquipped");
-            PatchOptional(
-                harmony,
-                _isThisBackpackEquippedMethod,
-                postfix: nameof(AdventureBackpackIsThisBackpackEquippedPostfix),
-                label: "AdventureBackpacks IsThisBackpackEquipped");
-            PatchOptional(
-                harmony,
-                _getEquippedBackpackMethod,
-                prefix: nameof(AdventureBackpackGetEquippedBackpackPrefix),
-                postfix: nameof(AdventureBackpackGetEquippedBackpackPostfix),
-                label: "AdventureBackpacks GetEquippedBackpack");
-        }
-
-        private static void PatchOptional(Harmony harmony, MethodInfo? target, string? prefix = null, string? postfix = null, string? label = null)
-        {
-            if (harmony == null || target == null)
-            {
-                return;
-            }
-
-            MethodInfo? prefixMethod = prefix == null ? null : AccessTools.Method(typeof(InventorySlotsPlugin), prefix);
-            MethodInfo? postfixMethod = postfix == null ? null : AccessTools.Method(typeof(InventorySlotsPlugin), postfix);
-            harmony.Patch(
-                target,
-                prefixMethod == null ? null : new HarmonyMethod(prefixMethod),
-                postfixMethod == null ? null : new HarmonyMethod(postfixMethod));
         }
     }
 
