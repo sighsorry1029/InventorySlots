@@ -10,13 +10,13 @@ public sealed partial class InventoryActionsPlugin
 {
     private static readonly Vector3[] FeatureGuidePanelCorners = new Vector3[4];
 
-    // HUD and inventory use different scaled roots. Measure every obstacle in
-    // the guide parent's coordinates instead of assuming a screen resolution.
-    private static bool TryGetInventoryFeatureGuideArea(RectTransform parent, out Rect area)
+    // Reserve the inventory layout even while it is hidden, so Tab never moves
+    // the guide. Measure in HUD coordinates to follow resolution/UI scale edits.
+    private static bool TryGetFeatureGuideArea(RectTransform parent, out Rect area)
     {
         area = default;
         InventoryGui? gui = InventoryGui.instance;
-        if (gui == null || !InventoryGui.IsVisible()) return false;
+        if (gui == null) return false;
 
         Rect screen = Rect.MinMaxRect(parent.rect.xMin + FeatureGuideGap, parent.rect.yMin + FeatureGuideGap,
             parent.rect.xMax - FeatureGuideGap, parent.rect.yMax - FeatureGuideGap);
@@ -65,7 +65,9 @@ public sealed partial class InventoryActionsPlugin
     private static bool TryGetFeatureGuidePanelBounds(RectTransform? panel, RectTransform parent, Rect screen, out Rect bounds)
     {
         bounds = default;
-        if (panel == null || !panel.gameObject.activeInHierarchy || panel.rect.width <= 0f || panel.rect.height <= 0f) return false;
+        // Include inactive panels: inventory visibility and the crafting rail's
+        // SetActive calls must not change the reserved right edge on open/close.
+        if (panel == null || panel.rect.width <= 0f || panel.rect.height <= 0f) return false;
         panel.GetWorldCorners(FeatureGuidePanelCorners);
         Vector2 min = parent.InverseTransformPoint(FeatureGuidePanelCorners[0]);
         Vector2 max = min;

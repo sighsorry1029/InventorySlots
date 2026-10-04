@@ -8,6 +8,8 @@ For gamepad controls, see the [controller guide](https://github.com/sighsorry102
 
 Press **F6** during gameplay to cycle **Expanded → Collapsed → Hidden → Expanded**, with the inventory open or closed. On a controller, open the inventory and press **LT + R3** for the same cycle, including restoring a hidden guide. The mouse triangle only expands/collapses the visible guide. The header shows the current shortcut and its next action; hiding briefly displays how to restore it.
 
+The guide stays in the upper gap to the left of the crafting panel, including while the inventory is closed. Opening/closing the inventory no longer moves it beside the hotbar. Its top-right corner stays anchored when expanding or collapsing; available space still follows resolution, UI scale, and panel layout changes.
+
 The guide starts expanded and remembers its last state for the next session in `BepInEx/config/InventorySlots/ClientState.yml` or `BepInEx/config/InventoryActions.ClientState.yml`. This preference belongs to the local client across characters. Guide visibility and folded state are controlled directly, without separate config options.
 
 **Toggle Feature Guide Key** is client-only and supports another key or a combination; **None** disables the shortcut. Find it under **6 - Client Keys** in InventorySlots or **2 - Client** in InventoryActions. The key is ignored while typing, using configuration menus, or interacting with dialogs.

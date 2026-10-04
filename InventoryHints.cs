@@ -108,7 +108,7 @@ public sealed partial class InventorySlotsPlugin
             SetHintActive(TooltipUi.HotbarSwitchHudHint, false);
         }
 
-        UpdateFeatureGuideHud(parent, hotbarOrigin, elementSpace, switchPosition, switchVisible);
+        UpdateFeatureGuideHud(parent);
     }
 
     private static RectTransform EnsureHotbarSwitchHud(RectTransform parent)
@@ -436,12 +436,7 @@ public sealed partial class InventorySlotsPlugin
         return icon;
     }
 
-    private static void UpdateFeatureGuideHud(
-        RectTransform parent,
-        Vector3 hotbarOrigin,
-        float elementSpace,
-        Vector3 switchPosition,
-        bool switchVisible)
+    private static void UpdateFeatureGuideHud(RectTransform parent)
     {
         bool visible = IsFeatureGuideVisible();
         if (!visible)
@@ -469,16 +464,6 @@ public sealed partial class InventorySlotsPlugin
         bool collapsed = IsFeatureGuideCollapsed();
         float toggleWidth = ShowControllerFeatureGuideToggle() && TooltipUi.FeatureGuideToggleChord != null
             ? ConfigureControllerFeatureGuideLabel(TooltipUi.FeatureGuideToggleChord) : FeatureGuideToggleSize;
-        Vector2 switchSize = switchVisible && TooltipUi.HotbarSwitchHudHint != null
-            ? TooltipUi.HotbarSwitchHudHint.sizeDelta
-            : GetHotbarSwitchHintBaseSize();
-        float switchWidth = switchSize.x;
-        float switchHeight = switchSize.y;
-        float precedingRight = switchVisible
-            ? switchPosition.x + switchWidth
-            : switchPosition.x - HotbarSwitchHintGap;
-        float outerLeft = precedingRight + FeatureGuideGap;
-
         float desiredTextWidth = Mathf.Clamp(
             TooltipUi.FeatureGuideNaturalWidth,
             FeatureGuideMinimumSideContentWidth,
@@ -492,46 +477,14 @@ public sealed partial class InventorySlotsPlugin
         float desiredExpandedOuterWidth = Mathf.Max(
             desiredTextWidth + FeatureGuideHorizontalPadding * 2f,
             minimumHeaderOuterWidth);
-        float expandedOuterWidth = desiredExpandedOuterWidth;
-        bool useFallbackPlacement = false;
-
-        Rect parentRect = parent.rect;
-        bool besideCrafting = TryGetInventoryFeatureGuideArea(parent, out Rect inventoryArea);
-        if (besideCrafting && (inventoryArea.width < Mathf.Max(160f, toggleWidth + 36f) || inventoryArea.height < 48f))
+        if (!TryGetFeatureGuideArea(parent, out Rect guideArea) ||
+            guideArea.width < Mathf.Max(160f, toggleWidth + 36f) || guideArea.height < 48f)
         {
             SetHintActive(TooltipUi.FeatureGuideHudHint, false);
             UpdateFeatureGuideToggleInputLayer();
             return;
         }
-        if (besideCrafting)
-        {
-            expandedOuterWidth = Mathf.Min(desiredExpandedOuterWidth, inventoryArea.width);
-        }
-        else if (parentRect.width > 0f && parentRect.height > 0f)
-        {
-            float availableRightWidth = parentRect.xMax - FeatureGuideGap - outerLeft;
-            float minimumSideOuterWidth = Mathf.Min(
-                desiredExpandedOuterWidth,
-                FeatureGuideMinimumSideContentWidth + FeatureGuideHorizontalPadding * 2f);
-            if (availableRightWidth >= minimumSideOuterWidth)
-            {
-                expandedOuterWidth = Mathf.Min(desiredExpandedOuterWidth, availableRightWidth);
-            }
-            else
-            {
-                useFallbackPlacement = true;
-                float maximumOuterWidth = Mathf.Max(1f, parentRect.width - FeatureGuideGap * 2f);
-                expandedOuterWidth = Mathf.Min(desiredExpandedOuterWidth, maximumOuterWidth);
-                float minimumOuterLeft = parentRect.xMin + FeatureGuideGap;
-                float maximumOuterLeft = parentRect.xMax - FeatureGuideGap - expandedOuterWidth;
-                outerLeft = maximumOuterLeft >= minimumOuterLeft
-                    ? Mathf.Clamp(
-                        hotbarOrigin.x - FeatureGuideHorizontalPadding,
-                        minimumOuterLeft,
-                        maximumOuterLeft)
-                    : minimumOuterLeft;
-            }
-        }
+        float expandedOuterWidth = Mathf.Min(desiredExpandedOuterWidth, guideArea.width);
 
         float expandedBodyWidth = Mathf.Max(
             1f,
@@ -542,16 +495,9 @@ public sealed partial class InventorySlotsPlugin
         float headerHeight = Mathf.Max(
             TooltipUi.FeatureGuideTitleHeight,
             FeatureGuideToggleSize);
-        float expandedBodyHeight = measuredExpandedBodyHeight;
-        if (parentRect.width > 0f && parentRect.height > 0f)
-        {
-            float maximumBodyHeight = Mathf.Max(
-                1f,
-                (besideCrafting ? inventoryArea.height : parentRect.height - FeatureGuideGap * 2f) -
-                headerHeight -
-                FeatureGuideVerticalPadding * 2f);
-            expandedBodyHeight = Mathf.Min(expandedBodyHeight, maximumBodyHeight);
-        }
+        float maximumBodyHeight = Mathf.Max(
+            1f, guideArea.height - headerHeight - FeatureGuideVerticalPadding * 2f);
+        float expandedBodyHeight = Mathf.Min(measuredExpandedBodyHeight, maximumBodyHeight);
 
         bodyText.overflowMode = expandedBodyHeight + 0.1f < measuredExpandedBodyHeight
             ? TextOverflowModes.Ellipsis
@@ -561,36 +507,12 @@ public sealed partial class InventorySlotsPlugin
             expandedBodyHeight +
             FeatureGuideVerticalPadding * 2f;
 
-        float outerTop = switchPosition.y + switchHeight * 0.5f + FeatureGuideVerticalPadding;
-        if (besideCrafting)
-        {
-            outerTop = inventoryArea.yMax;
-        }
-        else if (parentRect.width > 0f && parentRect.height > 0f)
-        {
-            if (useFallbackPlacement)
-            {
-                float belowHotbar = hotbarOrigin.y - elementSpace * 0.5f - FeatureGuideGap;
-                float aboveHotbar = hotbarOrigin.y + elementSpace * 0.5f + FeatureGuideGap + expandedOuterHeight;
-                bool fitsBelow = belowHotbar - expandedOuterHeight >= parentRect.yMin + FeatureGuideGap;
-                bool fitsAbove = aboveHotbar <= parentRect.yMax - FeatureGuideGap;
-                outerTop = fitsBelow || !fitsAbove ? belowHotbar : aboveHotbar;
-            }
-
-            float minimumOuterTop = parentRect.yMin + FeatureGuideGap + expandedOuterHeight;
-            float maximumOuterTop = parentRect.yMax - FeatureGuideGap;
-            outerTop = maximumOuterTop >= minimumOuterTop
-                ? Mathf.Clamp(outerTop, minimumOuterTop, maximumOuterTop)
-                : maximumOuterTop;
-        }
-
         float collapsedOuterWidth = Mathf.Min(
             expandedOuterWidth,
             Mathf.Max(1f, minimumHeaderOuterWidth));
         float collapsedOuterHeight = headerHeight + FeatureGuideVerticalPadding * 2f;
         float actualOuterWidth = collapsed ? collapsedOuterWidth : expandedOuterWidth;
         float actualOuterHeight = collapsed ? collapsedOuterHeight : expandedOuterHeight;
-        if (besideCrafting) outerLeft = inventoryArea.xMax - actualOuterWidth;
         float availableTitleWidth = Mathf.Max(
             1f,
             actualOuterWidth -
@@ -604,11 +526,11 @@ public sealed partial class InventorySlotsPlugin
 
         TooltipUi.FeatureGuideHudHint.anchorMin = new Vector2(0.5f, 0.5f);
         TooltipUi.FeatureGuideHudHint.anchorMax = new Vector2(0.5f, 0.5f);
-        TooltipUi.FeatureGuideHudHint.pivot = new Vector2(0f, 1f);
+        TooltipUi.FeatureGuideHudHint.pivot = new Vector2(1f, 1f);
         TooltipUi.FeatureGuideHudHint.localPosition = new Vector3(
-            outerLeft,
-            outerTop,
-            switchPosition.z);
+            guideArea.xMax,
+            guideArea.yMax,
+            0f);
         TooltipUi.FeatureGuideHudHint.sizeDelta = new Vector2(
             actualOuterWidth,
             actualOuterHeight);

@@ -19,7 +19,6 @@ public sealed partial class InventoryActionsPlugin
     private static readonly Color FeatureGuideBackgroundColor = new(0.055f, 0.035f, 0.025f, 0.64f);
     private static readonly Color FeatureGuideTextColor = new(0.78f, 0.88f, 0.94f, 0.92f);
     private static readonly Color FeatureGuideToggleColor = new(1f, 0.663f, 0.302f, 0.92f);
-    private static readonly Vector3[] FeatureGuideHotbarCorners = new Vector3[4];
     private static readonly UnityAction FeatureGuideToggleAction = ToggleFeatureGuideCollapsed;
 
     private static RectTransform? _featureGuideRoot;
@@ -77,11 +76,7 @@ public sealed partial class InventoryActionsPlugin
         }
 
         RefreshFeatureGuideText();
-        HotkeyBar? hotbar = hotbarTransform.GetComponent<HotkeyBar>();
-        float elementSpace = hotbar != null && hotbar.m_elementSpace > 1f ? hotbar.m_elementSpace : 70f;
-        Vector3 hotbarOrigin = hotbarTransform.localPosition;
-        float hotbarRight = ResolveFeatureGuideHotbarRight(parent, hotbar, hotbarOrigin, elementSpace);
-        SetFeatureGuideActive(LayoutFeatureGuide(parent, hotbarOrigin, hotbarRight, elementSpace));
+        SetFeatureGuideActive(LayoutFeatureGuide(parent));
         UpdateFeatureGuideToggleInputLayer();
     }
 
@@ -332,39 +327,7 @@ public sealed partial class InventoryActionsPlugin
         }
     }
 
-    private static float ResolveFeatureGuideHotbarRight(
-        RectTransform parent,
-        HotkeyBar? hotbar,
-        Vector3 hotbarOrigin,
-        float elementSpace)
-    {
-        float fallback = hotbarOrigin.x + PlayerInventoryWidth * elementSpace;
-        if (hotbar?.m_elements == null || hotbar.m_elements.Count < PlayerInventoryWidth)
-        {
-            return fallback;
-        }
-
-        RectTransform? last = hotbar.m_elements[PlayerInventoryWidth - 1]?.m_go?.transform as RectTransform;
-        if (last == null)
-        {
-            return fallback;
-        }
-
-        last.GetWorldCorners(FeatureGuideHotbarCorners);
-        float right = float.NegativeInfinity;
-        foreach (Vector3 corner in FeatureGuideHotbarCorners)
-        {
-            right = Mathf.Max(right, parent.InverseTransformPoint(corner).x);
-        }
-
-        return float.IsNaN(right) || float.IsInfinity(right) ? fallback : right;
-    }
-
-    private static bool LayoutFeatureGuide(
-        RectTransform parent,
-        Vector3 hotbarOrigin,
-        float hotbarRight,
-        float elementSpace)
+    private static bool LayoutFeatureGuide(RectTransform parent)
     {
         if (_featureGuideRoot == null || _featureGuideText == null || _featureGuideTitleText == null)
         {
@@ -379,73 +342,26 @@ public sealed partial class InventoryActionsPlugin
             InvalidateFeatureGuideMeasurement();
         }
 
-        Rect bounds = parent.rect;
         float toggleWidth = ShowControllerFeatureGuideToggle() && _featureGuideToggleArrow != null
             ? ConfigureControllerFeatureGuideLabel(_featureGuideToggleArrow) : FeatureGuideToggleSize;
         float collapsedWidth = _featureGuideTitleWidth + FeatureGuideHorizontalPadding * 2f + toggleWidth;
         float expandedWidth = Mathf.Max(collapsedWidth, _featureGuideNaturalContentWidth + FeatureGuideHorizontalPadding * 2f);
-        float desiredWidth = collapsed ? collapsedWidth : expandedWidth;
-        float left = hotbarRight + FeatureGuideGap;
-        bool fallbackPlacement = false;
-        bool besideCrafting = TryGetInventoryFeatureGuideArea(parent, out Rect inventoryArea);
-        if (besideCrafting && (inventoryArea.width < Mathf.Max(160f, toggleWidth + 36f) || inventoryArea.height < 48f)) return false;
-        if (besideCrafting)
-        {
-            desiredWidth = Mathf.Min(desiredWidth, inventoryArea.width);
-            left = inventoryArea.xMax - desiredWidth;
-        }
-        else if (bounds.width > 0f && bounds.height > 0f)
-        {
-            float availableRight = bounds.xMax - FeatureGuideGap - left;
-            if (availableRight >= FeatureGuideMinimumSideContentWidth + FeatureGuideHorizontalPadding * 2f)
-            {
-                desiredWidth = Mathf.Min(desiredWidth, availableRight);
-            }
-            else
-            {
-                fallbackPlacement = true;
-                desiredWidth = Mathf.Min(desiredWidth, Mathf.Max(1f, bounds.width - FeatureGuideGap * 2f));
-                float minimumLeft = bounds.xMin + FeatureGuideGap;
-                float maximumLeft = bounds.xMax - FeatureGuideGap - desiredWidth;
-                left = maximumLeft >= minimumLeft
-                    ? Mathf.Clamp(hotbarOrigin.x - FeatureGuideHorizontalPadding, minimumLeft, maximumLeft)
-                    : minimumLeft;
-            }
-        }
+        if (!TryGetFeatureGuideArea(parent, out Rect guideArea) ||
+            guideArea.width < Mathf.Max(160f, toggleWidth + 36f) || guideArea.height < 48f) return false;
+        float desiredWidth = Mathf.Min(collapsed ? collapsedWidth : expandedWidth, guideArea.width);
 
         float contentWidth = Mathf.Max(1f, desiredWidth - FeatureGuideHorizontalPadding * 2f);
         float bodyHeight = collapsed || displayText.Length == 0 ? 0f : MeasureFeatureGuideText(displayText, contentWidth).y;
         float desiredHeight = FeatureGuideToggleSize + FeatureGuideVerticalPadding * 2f + bodyHeight;
-        float height = besideCrafting ? Mathf.Min(desiredHeight, inventoryArea.height) : bounds.height > 0f
-            ? Mathf.Min(desiredHeight, Mathf.Max(1f, bounds.height - FeatureGuideGap * 2f))
-            : desiredHeight;
+        float height = Mathf.Min(desiredHeight, guideArea.height);
         _featureGuideText.overflowMode = height + 0.1f < desiredHeight
             ? TextOverflowModes.Ellipsis
             : TextOverflowModes.Overflow;
 
-        float top = hotbarOrigin.y + elementSpace * 0.5f + FeatureGuideVerticalPadding;
-        if (besideCrafting)
-        {
-            top = inventoryArea.yMax;
-        }
-        else if (bounds.width > 0f && bounds.height > 0f)
-        {
-            if (fallbackPlacement)
-            {
-                float below = hotbarOrigin.y - elementSpace * 0.5f - FeatureGuideGap;
-                float above = hotbarOrigin.y + elementSpace * 0.5f + FeatureGuideGap + height;
-                bool fitsBelow = below - height >= bounds.yMin + FeatureGuideGap;
-                bool fitsAbove = above <= bounds.yMax - FeatureGuideGap;
-                top = fitsBelow || !fitsAbove ? below : above;
-            }
-
-            top = Mathf.Clamp(top, bounds.yMin + FeatureGuideGap + height, bounds.yMax - FeatureGuideGap);
-        }
-
         RectTransform root = _featureGuideRoot;
         root.anchorMin = root.anchorMax = new Vector2(0.5f, 0.5f);
-        root.pivot = new Vector2(0f, 1f);
-        root.localPosition = new Vector3(Mathf.Round(left), Mathf.Round(top), hotbarOrigin.z);
+        root.pivot = new Vector2(1f, 1f);
+        root.localPosition = new Vector3(Mathf.Round(guideArea.xMax), Mathf.Round(guideArea.yMax), 0f);
         root.sizeDelta = new Vector2(Mathf.Ceil(desiredWidth), Mathf.Ceil(height));
 
         RectTransform textRect = _featureGuideText.rectTransform;
