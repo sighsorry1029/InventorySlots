@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.11
+
+- Kept the quick guide anchored in the upper gap to the left of the crafting panel. Opening or closing the inventory with Tab no longer moves it beside the hotbar; hidden inventory panels still reserve their layout space.
+- Kept the guide's top-right corner and mouse triangle in place when expanding or collapsing. Position and available space still follow resolution, UI scale, and panel layout changes. F6, controller controls, and saved guide state are unchanged.
+- Replaced the exact MultiUserChest version gate for area Quick Stack/Restock with checks of the required API contracts. Compatible versions can activate the adapter; missing APIs or hook failures disable it with a diagnostic log. Existing transfer safeguards and documented multiplayer limitations remain in effect.
+
 ## 1.1.10
 
 - Added optional compatibility with **MultiUserChest 0.6.1 and 0.6.2** for area Quick Stack and favorite Restock through MUC's own transfer requests. Existing favorite/hotbar protection, restock targets, chest range, and access checks remain in effect.

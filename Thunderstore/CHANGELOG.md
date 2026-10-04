@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.18
+
+- Kept the quick guide anchored in the upper gap to the left of the crafting panel. Opening or closing the inventory with Tab no longer moves it beside the hotbar; hidden inventory panels still reserve their layout space.
+- Kept the guide's top-right corner and mouse triangle in place when expanding or collapsing. Position and available space still follow resolution, UI scale, and panel layout changes. F6, controller controls, and saved guide state are unchanged.
+
 ## 1.5.17
 
 - Added the server-synced **Food Fork Color Mode** setting for inventory and crafting icons. **EitrFirst** preserves the existing default: positive eitr uses blue, otherwise higher health uses red and higher or equal stamina uses yellow. **Vanilla** follows the game's ratio-based colors, including white for balanced food.
