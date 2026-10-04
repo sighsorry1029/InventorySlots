@@ -1,18 +1,13 @@
 <Project>
     <PropertyGroup>
-        <ReferencesRoot Condition="'$(ReferencesRoot)' == ''">/home/vapok/Modding/References</ReferencesRoot>
-        <ValheimGamePath Condition="'$(ValheimGamePath)' == '' AND '$(OS)' != 'Windows_NT'">$(ReferencesRoot)/Valheim/1.0.16</ValheimGamePath>
-        <ValheimGamePath Condition="'$(ValheimGamePath)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Valheim</ValheimGamePath>
-        <BepInExPath Condition="'$(BepInExPath)' == '' AND '$(OS)' != 'Windows_NT'">$(ReferencesRoot)/BepInEx/5.4.2350/BepInEx</BepInExPath>
-        <BepInExPath Condition="'$(BepInExPath)' == ''">$(ValheimGamePath)\BepInEx</BepInExPath>
-        <CorlibPath Condition="'$(CorlibPath)' == '' AND '$(OS)' != 'Windows_NT'">$(ValheimGamePath)/Managed</CorlibPath>
+        <ValheimGamePath>C:\Program Files (x86)\Steam\steamapps\common\Valheim</ValheimGamePath>
+        <BepInExPath>$(ValheimGamePath)\BepInEx</BepInExPath>
         <CorlibPath Condition="'$(CorlibPath)' == ''">$(ValheimGamePath)\valheim_Data\Managed</CorlibPath>
-        <UserProfile Condition="'$(UserProfile)' == '' AND '$(OS)' != 'Windows_NT'">$(HOME)</UserProfile>
         <RuntimeIdentifiers Condition="'$(RuntimeIdentifiers)' == ''">win</RuntimeIdentifiers>
-        <DeployToGame Condition="'$(DeployToGame)' == '' AND '$(OS)' != 'Windows_NT'">true</DeployToGame>
         <DeployToGame Condition="'$(DeployToGame)' == ''">false</DeployToGame>
-        <CopyOutputDLLPath Condition="'$(CopyOutputDLLPath)' == '' AND '$(OS)' != 'Windows_NT'">/home/vapok/Modding/Gale Profiles/Default/BepInEx/plugins/sighsorry-InventorySlots</CopyOutputDLLPath>
         <CopyOutputDLLPath Condition="'$(CopyOutputDLLPath)' == ''">$(ValheimGamePath)\BepInEx\plugins</CopyOutputDLLPath>
-        <AfterTargets>ILRepacker</AfterTargets>
+        <!--<CopyOutputDLLPath2>$(ValheimGamePath)\BepInEx\plugins</CopyOutputDLLPath2>-->
+        <!--<CopyOutputDLLPath3>$(ValheimGamePath)\BepInEx\plugins</CopyOutputDLLPath3>-->
+        <AfterTargets>ILRepacker</AfterTargets> <!-- If you are using KeyManager, change this to KeyManager as suggested in step 5.2 in the instructions -->
     </PropertyGroup>
 </Project>

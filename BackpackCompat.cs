@@ -125,15 +125,8 @@ public sealed partial class InventorySlotsPlugin
 
         bool externalStateChanged = OnHipLanternCustomEquipmentEquipped(player, item);
 
-        if (IsAdventureBackpackItem(item) &&
-            TryGetAdventureBackpacksApi(out AdventureBackpacksApi? adventureApi) &&
-            adventureApi != null)
+        if (IsAdventureBackpackItem(item))
         {
-            if (!ReferenceEquals(_lastAdventureBackpackCompatItem, item) || !adventureApi.IsBackpackEquipped(player))
-            {
-                adventureApi.OnCustomBackpackEquipped(player, item);
-            }
-
             _lastAdventureBackpackCompatItem = item;
         }
 
@@ -239,17 +232,6 @@ public sealed partial class InventorySlotsPlugin
             }
 
             _lastAdventureBackpackCompatItem = current;
-            if (current != null)
-            {
-                api.OnCustomBackpackEquipped(player, current);
-            }
-
-            return;
-        }
-
-        if (current != null && !api.IsBackpackEquipped(player))
-        {
-            api.OnCustomBackpackEquipped(player, current);
         }
     }
 

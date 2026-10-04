@@ -67,14 +67,18 @@ internal static class InventoryGuiPlaceStacksPatch
 [HarmonyPatch(typeof(InventoryGui), "Show")]
 internal static class InventoryGuiShowValidateInventoryPatch
 {
+    private static bool _wasAlreadyVisible;
+
     private static void Prefix()
     {
+        _wasAlreadyVisible = InventoryGui.IsVisible() ||
+            (InventoryGui.instance != null && InventoryGui.instance.m_animator != null && InventoryGui.instance.m_animator.GetBool("visible"));
         InventorySlotsPlugin.BeforeRealInventoryGuiShown();
     }
 
     private static void Postfix()
     {
-        InventorySlotsPlugin.OnInventoryGuiShow();
+        InventorySlotsPlugin.OnInventoryGuiShow(_wasAlreadyVisible);
     }
 }
 

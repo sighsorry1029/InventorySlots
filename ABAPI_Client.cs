@@ -9,6 +9,7 @@ namespace AdventureBackpacks.API.Client
     /// <summary>
     /// Lightweight, zero-dependency client wrapper for AdventureBackpacks API.
     /// Drop this file into your mod project to interact with AdventureBackpacks without adding assembly references or repacking DLLs.
+    /// Find updates at https://github.com/Vapok/AdventureBackpacks/blob/main/Docs/ABAPI_Client.cs 
     /// </summary>
     public static class ABAPIClient
     {

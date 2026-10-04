@@ -5,6 +5,7 @@ using System.Reflection;
 using HarmonyLib;
 using UnityEngine;
 using ItemData = ItemDrop.ItemData;
+using AdventureBackpacks.API.Client;
 
 namespace InventorySlots;
 
@@ -19,9 +20,9 @@ public sealed partial class InventorySlotsPlugin
         public static bool TryCreate(Assembly assembly, out AdventureBackpacksApi? api, out string detail)
         {
             api = null;
-            if (!AdventureBackpacks.API.Client.ABAPIClient.IsAvailable)
+            if (!ABAPIClient.IsLoaded())
             {
-                detail = "AdventureBackpacks ABAPI not available";
+                detail = "AdventureBackpacks not loaded";
                 return false;
             }
 
@@ -37,7 +38,7 @@ public sealed partial class InventorySlotsPlugin
                 return false;
             }
 
-            return AdventureBackpacks.API.Client.ABAPIClient.IsBackpack(item);
+            return ABAPIClient.IsBackpack(item);
         }
 
         public bool IsBackpackEquipped(Player player)
@@ -47,11 +48,7 @@ public sealed partial class InventorySlotsPlugin
                 return false;
             }
 
-            return AdventureBackpacks.API.Client.ABAPIClient.IsBackpackEquipped(player);
-        }
-
-        public void OnCustomBackpackEquipped(Player player, ItemData item)
-        {
+            return ABAPIClient.IsBackpackEquipped(player);
         }
 
         public void OnCustomBackpackUnequipping(Player player, ItemData item)
