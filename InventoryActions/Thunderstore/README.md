@@ -75,7 +75,7 @@ Guide state and character-specific favorites are saved in `BepInEx/config/Invent
 - **Installed on the server:** all clients need the same InventoryActions version, and server-synced settings follow the server.
 - **Do not install alongside InventorySlots or Quick Stack Store.** InventorySlots already includes these tools.
 
-ExtraSlots, Equipment and Quick Slots, and AzuExtendedPlayerInventory have optional integrations. **MultiUserChest 0.6.1/0.6.2** supports area Quick Stack and favorite Restock, including configured empty favorite slots, with one transfer request at a time. Concurrent changes still carry risks under MUC's protocol; see the [compatibility guide](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/compatibility.md) for supported behavior and limitations.
+ExtraSlots, Equipment and Quick Slots, and AzuExtendedPlayerInventory have optional integrations. **MultiUserChest** supports area Quick Stack and favorite Restock when its required API is compatible, including configured empty favorite slots, with one transfer request at a time. Version numbers alone do not disable these actions; API or hook failures are logged. Concurrent changes still carry risks under MUC's protocol; see the [compatibility guide](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/compatibility.md) for reviewed versions and limitations.
 
 EpicLoot materials, tokens, Runestones, and ShardStones support compatible stack merging, favorite filling, and container actions without a separate stacking add-on. Different effects and incompatible item data stay separate.
 

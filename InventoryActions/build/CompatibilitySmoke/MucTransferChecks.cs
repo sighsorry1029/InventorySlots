@@ -6,6 +6,43 @@ using HarmonyLib;
 
 internal static class MucTransferChecks
 {
+    // API-only probe avoids Harmony/Unity scene execution and can also check
+    // isolated external-DLL fixtures with changed versions or member contracts.
+    internal static int RunApi(Type plugin, string mucDll)
+    {
+        const BindingFlags members = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
+        var muc = Assembly.LoadFrom(mucDll);
+        var apiType = plugin.GetNestedType("MultiUserChestTransferApi", BindingFlags.NonPublic)!;
+        object api = Activator.CreateInstance(apiType, members, null, new object[] { muc }, null)!;
+        var hasPending = apiType.GetMethod("HasPendingChanges", members)!;
+        Inventory inventory = new Inventory("api probe", null, 4, 4);
+        bool Pending() => (bool)hasPending.Invoke(api, new object[] { inventory })!;
+        int checks = 0;
+        void Check(bool value, string label)
+        {
+            if (!value) throw new Exception(label);
+            checks++;
+            System.Console.WriteLine("PASS " + label);
+        }
+        Check(!Pending(), "compatible API binds; clean inventory has no pending changes");
+        var changes = apiType.GetField("Changes", members)!.GetValue(api)!;
+        Type listType = typeof(System.Collections.Generic.List<>).MakeGenericType(muc.GetType("MultiUserChest.IRequest", true)!);
+        var pending = (IList)Activator.CreateInstance(listType)!;
+        pending.Add(null); // Only presence in the preview queue matters to this guard.
+        changes.GetType().GetMethod("Add")!.Invoke(changes, new object[] { inventory, pending });
+        Check(Pending(), "pending preview prevents another transfer");
+        pending.Clear();
+        Check(!Pending(), "cleared preview allows another transfer");
+        var getBlock = (MethodInfo)apiType.GetField("GetBlock", members)!.GetValue(api)!;
+        var block = getBlock.Invoke(null, new object[] { inventory })!;
+        var slots = (IDictionary)block.GetType().GetProperty("BlockedSlots")!.GetValue(block)!;
+        slots.Add(new Vector2i(1, 1), 1);
+        Check(Pending(), "blocked slot prevents another transfer");
+        slots.Clear();
+        Check(!Pending(), "cleared slot block allows another transfer");
+        return checks;
+    }
+
     // Bind against an unmodified external DLL, then patch its real method
     // bodies. No publicized games, fake MUC API, Unity scene or network is used.
     internal static int Run(Type plugin, string mucDll)

@@ -26,9 +26,11 @@ The **standalone MultiUserChest mod** has different interactions with the two mo
 | Mod | When standalone MultiUserChest is present |
 | --- | --- |
 | InventorySlots | MultiUserChest controls concurrent opening. InventorySlots excludes non-owned containers from area transfers. |
-| InventoryActions | With MultiUserChest **0.6.1 or 0.6.2**, hold E for area Quick Stack or Alt+E to restock favorites through MUC. Restock also restores configured **Include empty** entries using remembered favorite slots. One request runs at a time. Non-owner Take All is left to MUC 0.6.1 or newer. |
+| InventoryActions | With a compatible MultiUserChest API, hold E for area Quick Stack or Alt+E to restock favorites through MUC. Restock also restores configured **Include empty** entries using remembered favorite slots. One request runs at a time. Non-owner Take All is left to MUC 0.6.1 or newer. |
 
 When external MultiUserChest is detected, InventorySlots' expanded quick guide explains this limitation and recommends its built-in shared-chest feature. On a server without InventorySlots, the notice explains that the built-in alternative requires InventorySlots on the server and all clients. It does not change the guide's collapsed or hidden state.
+
+InventoryActions checks the required MUC API and installs its transfer hooks at startup instead of restricting area actions to specific version numbers. Missing or incompatible members, or a hook failure, disable the adapter and log the detected version and reason. MUC 0.6.1/0.6.2 remain the reviewed implementations; passing these structural checks does not prove that another version preserves request timing or transfer behavior.
 
 InventoryActions' MUC transfers retain favorite/hotbar protection, targets, stack identity checks, leave-one setting, chest range, and access/ward checks. Quick Stack fills matching partial stacks before empty cells and disables item swapping for its automatic requests. Empty-favorite restoration uses the same remembered-slot rules as ordinary restock. The adapter supports standard player-built chests and skips unsupported containers and chests with pending local MUC transactions. It does not claim chest ownership. Opening the inventory, moving away, dying, or teleporting stops further requests; an already submitted MUC request can still finish. A timeout does not trigger a retry or refund, and another area action waits for that response (restart the session if it never arrives).
 

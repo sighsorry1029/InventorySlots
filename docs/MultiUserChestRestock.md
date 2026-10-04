@@ -13,9 +13,29 @@ consumed once so vanilla StackAll and the mod's hold handler cannot both submit.
 Keyboard/controller bindings are unchanged. The old direct-mutation/ownership
 path still rejects MUC; this adapter does not claim ownership.
 
-The adapter binds public MUC members once with exact signatures for versions
-0.6.1/0.6.2. A missing API leaves these actions disabled. Dedicated servers skip
-initialization. No MUC DLL, new assembly dependency, or server RPC is added.
+The adapter binds public MUC members once by their required contracts, without
+an exact-version gate. Checks include static/instance roles, parameters, return
+types, readable properties, field types and concrete request/response classes
+implementing their interfaces. API or hook failure leaves the adapter disabled
+and logs the detected MUC version and reason. Dedicated servers skip initialization.
+No MUC DLL, new assembly dependency, or server RPC is added.
+
+MUC 0.6.1/0.6.2 are the reviewed implementations, not an activation allowlist.
+Structural checks cannot prove callback ordering, constructor-before-removal
+timing, no-send sentinel meaning or refund semantics in another version. The
+existing runtime response checks and cancellation rules remain in place.
+
+The API-only probe is available in `CompatibilitySmoke` as
+`<final mod.dll> <original Managed> <BepInEx core> --muc-api <MUC.dll>`.
+After removing the version gate, it passed five checks against the original MUC
+DLL under .NET Framework 4: binding, clean inventory, pending/cleared preview and
+blocked/cleared slot states. A synthetic external-DLL fixture with only its
+assembly/plugin versions changed to 99.0.0 passed the same checks; isolated
+fixtures with a missing field, wrong return type, wrong static/instance role,
+missing interface, unreadable property or widened method/constructor parameter
+were rejected before transfers.
+The final initializer IL contains no `System.Version` calls. These are structural
+checks, not validation of a real future release or Unity/multiplayer behavior.
 
 Selection is anchor first, then nearby chests by distance. Only eligible standard
 player-built chests are supported. Existing range, ward/access, item identity,

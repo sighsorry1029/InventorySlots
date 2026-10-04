@@ -32,12 +32,16 @@ public sealed partial class InventoryActionsPlugin
         internal MultiUserChestTransferApi(Assembly assembly)
         {
             Type Type(string name) => assembly.GetType("MultiUserChest." + name, true)!;
-            MethodInfo Method(Type type, string name, params Type[] args) =>
-                type.GetMethod(name, BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance,
-                    null, args, null) ?? throw new MissingMethodException(type.FullName, name);
+            MethodInfo Method(Type type, string name, Type result, bool isStatic, params Type[] args) =>
+                type.GetMethod(name, BindingFlags.Public | (isStatic ? BindingFlags.Static : BindingFlags.Instance),
+                    null, args, null) is { } method && !method.ContainsGenericParameters && method.ReturnType == result
+                    && method.GetParameters().Select(parameter => parameter.ParameterType).SequenceEqual(args)
+                    ? method : throw new MissingMethodException(type.FullName, name);
             PropertyInfo Property(Type type, string name, Type value) =>
                 type.GetProperty(name, BindingFlags.Public | BindingFlags.Instance) is { } property &&
-                property.PropertyType == value ? property : throw new MissingMemberException(type.FullName, name);
+                property.PropertyType == value && property.GetIndexParameters().Length == 0 &&
+                property.GetGetMethod() is { IsStatic: false }
+                    ? property : throw new MissingMemberException(type.FullName, name);
             FieldInfo Field(Type type, string name, Type value) =>
                 type.GetField(name, BindingFlags.Public | BindingFlags.Instance) is { } field &&
                 field.FieldType == value ? field : throw new MissingFieldException(type.FullName, name);
@@ -46,19 +50,28 @@ public sealed partial class InventoryActionsPlugin
             DepositRequestType = Type("RequestChestAdd");
             Type requestContract = Type("IRequest"), responseContract = Type("IResponse");
             Type response = Type("RequestChestRemoveResponse"), preview = Type("InventoryPreview"), block = Type("InventoryBlock");
-            Remove = Method(Type("ContainerHandler"), "RemoveItemFromChest", typeof(Container), typeof(ItemData),
-                typeof(Inventory), typeof(Vector2i), typeof(ZDOID), typeof(int), typeof(ItemData));
-            if (Remove.ReturnType != RequestType) throw new MissingMethodException("Unsupported MUC remove result");
-            Deposit = Method(Type("ContainerHandler"), "AddItemToChest", typeof(Container), typeof(ItemData),
-                typeof(Inventory), typeof(Vector2i), typeof(ZDOID), typeof(int));
-            if (Deposit.ReturnType != DepositRequestType) throw new MissingMethodException("Unsupported MUC add result");
-            DepositConstructor = DepositRequestType.GetConstructor(new[]
-                { typeof(Vector2i), typeof(int), typeof(ItemData), typeof(Inventory), typeof(Inventory) })
-                ?? throw new MissingMethodException("MUC RequestChestAdd constructor");
-            AddPackage = Method(preview, "AddPackage", Type("IRequest"));
-            ApplyResponse = Method(Type("InventoryHandler"), "RPC_RequestItemRemoveResponse", typeof(Inventory), response);
             Type depositResponse = Type("RequestChestAddResponse");
-            ApplyDepositResponse = Method(Type("InventoryHandler"), "RPC_RequestItemAddResponse", typeof(Inventory), depositResponse);
+            void RequireContract(Type concrete, Type contract)
+            {
+                if (!concrete.IsClass || concrete.IsAbstract || !contract.IsInterface || !contract.IsAssignableFrom(concrete))
+                    throw new TypeLoadException($"MUC {concrete.FullName} must implement {contract.FullName} as a concrete class");
+            }
+            RequireContract(RequestType, requestContract);
+            RequireContract(DepositRequestType, requestContract);
+            RequireContract(response, responseContract);
+            RequireContract(depositResponse, responseContract);
+            Remove = Method(Type("ContainerHandler"), "RemoveItemFromChest", RequestType, true, typeof(Container), typeof(ItemData),
+                typeof(Inventory), typeof(Vector2i), typeof(ZDOID), typeof(int), typeof(ItemData));
+            Deposit = Method(Type("ContainerHandler"), "AddItemToChest", DepositRequestType, true, typeof(Container), typeof(ItemData),
+                typeof(Inventory), typeof(Vector2i), typeof(ZDOID), typeof(int));
+            Type[] depositArguments = { typeof(Vector2i), typeof(int), typeof(ItemData), typeof(Inventory), typeof(Inventory) };
+            DepositConstructor = DepositRequestType.GetConstructor(depositArguments)
+                ?? throw new MissingMethodException("MUC RequestChestAdd constructor");
+            if (!DepositConstructor.GetParameters().Select(parameter => parameter.ParameterType).SequenceEqual(depositArguments))
+                throw new MissingMethodException("MUC RequestChestAdd constructor parameters");
+            AddPackage = Method(preview, "AddPackage", typeof(void), true, requestContract);
+            ApplyResponse = Method(Type("InventoryHandler"), "RPC_RequestItemRemoveResponse", typeof(void), true, typeof(Inventory), response);
+            ApplyDepositResponse = Method(Type("InventoryHandler"), "RPC_RequestItemAddResponse", typeof(void), true, typeof(Inventory), depositResponse);
             RequestId = Property(requestContract, "RequestID", typeof(int));
             Source = Property(requestContract, "SourceInventory", typeof(Inventory));
             Target = Property(requestContract, "TargetInventory", typeof(Inventory));
@@ -75,12 +88,12 @@ public sealed partial class InventoryActionsPlugin
             AllowSwitch = Field(DepositRequestType, "allowSwitch", typeof(bool));
             RefundItem = Field(depositResponse, "switchItem", typeof(ItemData));
             RefundPosition = Field(depositResponse, "inventoryPos", typeof(Vector2i));
-            GetBlock = Method(block, "Get", typeof(Inventory));
-            AnyBlocked = Method(block, "IsAnySlotBlocked");
+            GetBlock = Method(block, "Get", block, true, typeof(Inventory));
+            AnyBlocked = Method(block, "IsAnySlotBlocked", typeof(bool), false);
             Changes = preview.GetField("PackageChanges", BindingFlags.Public | BindingFlags.Static)?.GetValue(null)
                 ?? throw new MissingFieldException("MUC InventoryPreview.PackageChanges");
             Type list = typeof(List<>).MakeGenericType(Type("IRequest"));
-            FindChanges = Method(Changes.GetType(), "TryGetValue", typeof(Inventory), list.MakeByRefType());
+            FindChanges = Method(Changes.GetType(), "TryGetValue", typeof(bool), false, typeof(Inventory), list.MakeByRefType());
         }
 
         internal bool HasPendingChanges(Inventory inventory)
@@ -121,8 +134,8 @@ public sealed partial class InventoryActionsPlugin
     {
         if (IsDedicatedServer || !Chainloader.PluginInfos.TryGetValue(ExternalMultiUserChestGuid, out var plugin) ||
             plugin.Instance == null) return;
-        // These two releases share the reviewed request/response implementation.
-        if (plugin.Metadata.Version != new System.Version(0, 6, 1) && plugin.Metadata.Version != new System.Version(0, 6, 2)) return;
+        // Bind the required API instead of rejecting an otherwise compatible version.
+        // Signatures cannot prove unchanged transfer semantics; keep runtime guards.
         MultiUserChestTransferApi? api = null;
         try
         {
@@ -137,7 +150,7 @@ public sealed partial class InventoryActionsPlugin
                 prefix: new HarmonyMethod(typeof(InventoryActionsPlugin), nameof(MucDepositResponseStarting)),
                 finalizer: new HarmonyMethod(typeof(InventoryActionsPlugin), nameof(MucDepositResponseFinished)));
             _mucTransferApi = api;
-            Log.LogInfo("MultiUserChest area quick stack and favorite restock enabled (including configured empty favorites; one request at a time).");
+            Log.LogInfo($"MultiUserChest {plugin.Metadata.Version} area quick stack and favorite restock enabled (API checks passed; including configured empty favorites; one request at a time).");
         }
         catch (Exception error)
         {
@@ -150,7 +163,7 @@ public sealed partial class InventoryActionsPlugin
                 _harmony.Unpatch(api.ApplyDepositResponse, AccessTools.Method(typeof(InventoryActionsPlugin), nameof(MucDepositResponseStarting)));
                 _harmony.Unpatch(api.ApplyDepositResponse, AccessTools.Method(typeof(InventoryActionsPlugin), nameof(MucDepositResponseFinished)));
             }
-            Log.LogWarning($"MultiUserChest area transfers unavailable: {error.Message}");
+            Log.LogWarning($"MultiUserChest {plugin.Metadata.Version} area transfers disabled: required API or hooks unavailable. {error.GetBaseException().Message}");
         }
     }
 
@@ -387,7 +400,7 @@ public sealed partial class InventoryActionsPlugin
             __0 != pending.To || __1 <= 0 || __1 > pending.Requested ||
             !ReferenceEquals(__2, pending.OriginalSource) || !ReferenceEquals(__3, pending.SourceInventory) ||
             !ReferenceEquals(__4, pending.DestinationInventory)) return;
-        // Public instance readonly field in the two supported MUC versions.
+        // Public instance field; readonly in the reviewed MUC implementations.
         // Failure must propagate BEFORE MUC blocks/removes/sends anything.
         api.AllowSwitch.SetValue(__instance, false);
         if ((bool)api.AllowSwitch.GetValue(__instance)!) throw new InvalidOperationException("MUC deposit could not disable item swapping");
