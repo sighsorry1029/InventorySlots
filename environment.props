@@ -9,7 +9,9 @@
         <CorlibPath Condition="'$(CorlibPath)' == ''">$(ValheimGamePath)\valheim_Data\Managed</CorlibPath>
         <UserProfile Condition="'$(UserProfile)' == '' AND '$(OS)' != 'Windows_NT'">$(HOME)</UserProfile>
         <RuntimeIdentifiers Condition="'$(RuntimeIdentifiers)' == ''">win</RuntimeIdentifiers>
+        <DeployToGame Condition="'$(DeployToGame)' == '' AND '$(OS)' != 'Windows_NT'">true</DeployToGame>
         <DeployToGame Condition="'$(DeployToGame)' == ''">false</DeployToGame>
+        <CopyOutputDLLPath Condition="'$(CopyOutputDLLPath)' == '' AND '$(OS)' != 'Windows_NT'">/home/vapok/Modding/Gale Profiles/Default/BepInEx/plugins/sighsorry-InventorySlots</CopyOutputDLLPath>
         <CopyOutputDLLPath Condition="'$(CopyOutputDLLPath)' == ''">$(ValheimGamePath)\BepInEx\plugins</CopyOutputDLLPath>
         <AfterTargets>ILRepacker</AfterTargets>
     </PropertyGroup>
