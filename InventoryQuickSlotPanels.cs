@@ -18,10 +18,40 @@ public sealed partial class InventorySlotsPlugin
 {
     private static void PositionQuickSlotPanel(InventoryGrid playerGrid, RectTransform quickPanel, Vector3 targetGridLocalPosition, float elementSpace)
     {
+        // IsVisible stays true briefly after Hide, and vanilla can update the
+        // grid again in that frame. Do not reattach an outgoing panel to root.
+        if (InventoryPanels.QuickSlotPanelOutroActive)
+        {
+            return;
+        }
+
         RectTransform? stableParent = GetQuickSlotPanelStableParent(playerGrid);
         if (stableParent != null && quickPanel.parent != stableParent)
         {
             quickPanel.SetParent(stableParent, false);
+        }
+
+        // Keep the quick slots beside Player in the native inventory layer.
+        // Appending them to the canvas renders them above every inventory dialog.
+        if (stableParent != null && stableParent != playerGrid.m_gridRoot)
+        {
+            Transform? playerBranch = playerGrid.m_gridRoot;
+            while (playerBranch != null && playerBranch.parent != stableParent)
+            {
+                playerBranch = playerBranch.parent;
+            }
+
+            if (playerBranch != null)
+            {
+                int currentIndex = quickPanel.GetSiblingIndex();
+                int playerIndex = playerBranch.GetSiblingIndex();
+                // Removing a sibling before Player shifts Player one index left.
+                int targetIndex = playerIndex + (currentIndex > playerIndex ? 1 : 0);
+                if (currentIndex != targetIndex)
+                {
+                    quickPanel.SetSiblingIndex(targetIndex);
+                }
+            }
         }
 
         DestroyDuplicateQuickSlotPanels(playerGrid, quickPanel);
@@ -94,10 +124,12 @@ public sealed partial class InventorySlotsPlugin
 
     private static RectTransform? GetQuickSlotPanelStableParent(InventoryGrid playerGrid)
     {
-        Canvas? canvas = InventoryGui.instance != null ? InventoryGui.instance.GetComponentInParent<Canvas>() : null;
-        if (canvas != null && canvas.transform is RectTransform canvasRect)
+        // The full-screen root does not share Player's slide animation, but its
+        // child order keeps native dialogs and inventory popups above the slots.
+        InventoryGui? gui = InventoryGui.instance;
+        if (gui != null && gui.m_inventoryRoot is RectTransform inventoryRoot)
         {
-            return canvasRect;
+            return inventoryRoot;
         }
 
         return playerGrid.m_gridRoot;
@@ -176,11 +208,27 @@ public sealed partial class InventorySlotsPlugin
     {
         StopQuickSlotPanelIntroAnimation();
         InventoryPanels.QuickSlotPanelOutroStartPositions.Clear();
+        InventoryGui? gui = InventoryGui.instance;
+        Canvas? canvas = gui != null ? gui.GetComponentInParent<Canvas>() : null;
         foreach (RectTransform panel in InventoryPanels.QuickSlotPanels.Values)
         {
             if (IsUnityNull(panel) || !panel.gameObject.activeSelf)
             {
                 continue;
+            }
+
+            // Vanilla disables m_inventoryRoot before our independent slide ends.
+            // Detach only for the outro, preserving world position and staying
+            // behind the native root; PositionQuickSlotPanel restores the parent.
+            if (canvas != null)
+            {
+                panel.SetParent(canvas.transform, true);
+                Transform? inventoryRoot = gui!.m_inventoryRoot;
+                if (inventoryRoot != null && inventoryRoot.parent == canvas.transform &&
+                    panel.GetSiblingIndex() > inventoryRoot.GetSiblingIndex())
+                {
+                    panel.SetSiblingIndex(inventoryRoot.GetSiblingIndex());
+                }
             }
 
             InventoryPanels.QuickSlotPanelOutroStartPositions[panel.GetInstanceID()] = panel.localPosition;

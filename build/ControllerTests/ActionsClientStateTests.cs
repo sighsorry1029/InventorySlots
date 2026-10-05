@@ -17,11 +17,11 @@ internal static partial class Program
         Check(Plugin.TestFavorite(2, 3) == null && Plugin.TestMemoryPending, "Changing characters clears runtime favorite cache and requests observation");
         const string unicode = "Mod:木,材%Special";
         Plugin.TestObserveFavorite(2, 3, unicode); Plugin.TestSaveFavoriteState();
-        // A guide write must preserve both characters and their remembered item identities.
+        // A guide config change must not mutate either character's YAML state.
         GuideKeyFrame(UnityEngine.KeyCode.F6);
         Plugin.TestRestartState();
         Plugin.TestLoadFavorites("alice");
-        Check(Plugin.TestFavorite(2, 3) == "Wood" && Plugin.TestGuideCollapsed, "Guide save/restart preserves Alice and global collapsed preference");
+        Check(Plugin.TestFavorite(2, 3) == "Wood" && Plugin.TestGuideCollapsed, "Client-state reload preserves Alice without changing guide config");
         Plugin.TestLoadFavorites("bob");
         Check(Plugin.TestFavorite(2, 3) == unicode, "Same cell in another character retains Unicode prefab");
         Plugin.TestClearFavorites(); Plugin.TestRestartState(); Plugin.TestLoadFavorites("alice");

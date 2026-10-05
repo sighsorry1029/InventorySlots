@@ -28,8 +28,7 @@ internal static partial class Program
             Check(Plugin.TestGuideShown && Plugin.TestGuideCollapsed && Plugin.TestGuideToggles == 1,
                 "First press collapses guide during movement, independently of inventory: " + inventoryOpen);
             Check(Player.m_localPlayer.Messages.Count == 0, "Collapsing does not show a hidden-guide message");
-            Plugin.TestReloadGuide();
-            Check(Plugin.TestGuideShown && Plugin.TestGuideCollapsed, "Collapsed state survives a real YAML reload");
+            Check(Plugin.TestGuideState == "Collapsed", "Keyboard writes collapsed state to the shared config entry");
             Plugin.TestGuideHotkey();
             Check(Plugin.TestGuideShown && Plugin.TestGuideCollapsed && Plugin.TestGuideToggles == 1, "Repeated same-frame polls do not cycle twice");
             Input.Held.Add(KeyCode.F6); GuideKeyFrame();
@@ -38,14 +37,12 @@ internal static partial class Program
             Check(!Plugin.TestGuideShown && Plugin.TestGuideToggles == 2, "Second press hides guide");
             Check(Player.m_localPlayer.Messages.Count == 1 && Player.m_localPlayer.Messages[0].Contains("F6"),
                 "Hiding guide tells player how to restore it");
-            Plugin.TestReloadGuide();
-            Check(!Plugin.TestGuideShown, "Hidden state survives a real YAML reload");
+            Check(Plugin.TestGuideState == "Hidden", "Keyboard writes hidden state to the shared config entry");
             Plugin.TestGuideReady = false; // Hidden HUD must not be required to turn it back on.
             GuideKeyFrame(KeyCode.F6);
             Check(Plugin.TestGuideShown && !Plugin.TestGuideCollapsed && Plugin.TestGuideToggles == 3 && Player.m_localPlayer.Messages.Count == 1,
                 "Third press restores expanded guide without active UI");
-            Plugin.TestReloadGuide();
-            Check(Plugin.TestGuideShown && !Plugin.TestGuideCollapsed, "Expanded state survives a real YAML reload");
+            Check(Plugin.TestGuideState == "Expanded", "Keyboard writes expanded state to the shared config entry");
         }
 
         Plugin.TestReset(); Plugin.TestGuideKey(KeyCode.F7, KeyCode.LeftAlt);
@@ -132,41 +129,55 @@ internal static partial class Program
         Plugin.TestShowGuide(false); Plugin.TestGuideTriangle();
         Check(!Plugin.TestGuideShown, "Inactive triangle cannot restore a hidden guide");
 
-        Plugin.TestReset(); Plugin.TestReloadGuide();
-        Check(Plugin.TestGuideShown && !Plugin.TestGuideCollapsed, "Missing client-state file defaults to expanded");
+        Plugin.TestReset(); Plugin.TestGuideKey(KeyCode.None);
+        foreach (string configured in new[] { "Hidden", "Collapsed", "Expanded" })
+        {
+            int refreshes = Plugin.TestGuideToggles;
+            Plugin.TestSetGuideConfig(configured);
+            Check(Plugin.TestGuideShown == (configured != "Hidden") && Plugin.TestGuideCollapsed == (configured == "Collapsed"),
+                "Direct config change controls guide with shortcut unset: " + configured);
+            Check(Plugin.TestGuideToggles == refreshes + 1, "Direct config change refreshes guide text immediately");
+            Plugin.TestSetGuideConfig(configured);
+            Check(Plugin.TestGuideToggles == refreshes + 1, "Unchanged config does not rebuild guide text");
+        }
+        Plugin.TestSetGuideConfig("Collapsed"); Plugin.TestGuideKey(KeyCode.F6);
+        GuideKeyFrame(KeyCode.F6);
+        Check(Plugin.TestGuideState == "Hidden", "Keyboard cycle follows a directly configured state");
+        Plugin.TestSetGuideConfig("Expanded"); Plugin.TestGuideTriangle();
+        Check(Plugin.TestGuideState == "Collapsed", "Triangle writes the same config state");
+
+        Plugin.TestReset();
 #if INVENTORY_SLOTS
-        Plugin.TestLoadGuideYaml("inventory:\n  quickSlotsHudElementSpace: 81\nplayers:\n  example:\n    favoriteSlots:\n      - x: 3\n        y: 1\n        prefab: Wood\n");
+        Plugin.TestLoadGuideYaml("inventory:\n  featureGuideHidden: true\n  featureGuideCollapsed: true\n  quickSlotsHudElementSpace: 81\nplayers:\n  example:\n    favoriteSlots:\n      - x: 3\n        y: 1\n        prefab: Wood\n");
 #else
-        Plugin.TestLoadGuideYaml("{}\n");
+        Plugin.TestLoadGuideYaml("featureGuideHidden: true\nfeatureGuideCollapsed: true\nplayers:\n  example:\n    favoriteSlots:\n      - x: 3\n        y: 1\n        prefab: Wood\n");
 #endif
-        Check(Plugin.TestGuideShown && !Plugin.TestGuideCollapsed, "Missing guide fields default to expanded");
+        Check(Plugin.TestGuideShown && !Plugin.TestGuideCollapsed, "Old YAML guide fields are not migrated into config");
+        string originalYaml = Plugin.TestGuideYaml;
         GuideKeyFrame(KeyCode.F6); GuideKeyFrame(KeyCode.F6);
-        Plugin.TestReloadGuide();
-        Check(!Plugin.TestGuideShown, "Cycle persists hidden state into an existing client-state document");
+        Check(Plugin.TestGuideYaml == originalYaml, "Guide controls never write the client-state document");
+        Plugin.TestReloadClientState();
+        Check(!Plugin.TestGuideShown, "Client-state reload cannot override configured guide state");
+        Check(Plugin.TestSaveClientState(), "Remaining client state still saves successfully");
+        Check(!Plugin.TestGuideYaml.Contains("featureGuide"), "Client-state serializer no longer writes guide preferences");
 #if INVENTORY_SLOTS
         var state = new YamlDotNet.Serialization.DeserializerBuilder()
             .WithNamingConvention(YamlDotNet.Serialization.NamingConventions.CamelCaseNamingConvention.Instance)
             .Build().Deserialize<InventorySlots.InventorySlotsClientState>(Plugin.TestGuideYaml);
         Check(state.Inventory.QuickSlotsHudElementSpace == 81 && state.Players["example"].FavoriteSlots[0].Prefab == "Wood" &&
-            state.Players["example"].FavoriteSlots[0].X == 3, "Saving guide preserves existing layout and favorite item memory");
+            state.Players["example"].FavoriteSlots[0].X == 3, "Removing guide fields preserves existing layout and favorite item memory");
+#else
+        Plugin.TestLoadFavorites("example");
+        Check(Plugin.TestFavorite(3, 1) == "Wood", "Removing guide fields preserves favorite item memory");
 #endif
 
-        Plugin.TestReset(); GuideKeyFrame(KeyCode.F6);
         using (FileStream locked = File.Open(Plugin.TestGuideFilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
         {
-            GuideKeyFrame(KeyCode.F6);
-            Check(!Plugin.TestGuideShown && Plugin.TestGuideSavePending, "Guide state changes remain pending when file is locked");
             int warnings = Plugin.TestStateWarnings.Count;
-            Time.unscaledTime += 2f; Plugin.TestRetryGuideSave();
-            Check(Plugin.TestStateWarnings.Count == warnings, "Guide save retry is throttled");
-        }
-        Time.unscaledTime += 4f; Plugin.TestRetryGuideSave(); Plugin.TestReloadGuide();
-        Check(!Plugin.TestGuideShown && !Plugin.TestGuideSavePending, "Timed retry persists latest hidden state after unlocking");
-        using (FileStream locked = File.Open(Plugin.TestGuideFilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
             GuideKeyFrame(KeyCode.F6);
-        Player.m_localPlayer = null!; Plugin.TestRetryGuideSave(flush: true); Plugin.TestReloadGuide();
-        Check(Plugin.TestGuideShown && !Plugin.TestGuideCollapsed && !Plugin.TestGuideSavePending,
-            "Shutdown flush preserves guide-only changes without a player object");
+            Check(Plugin.TestGuideState == "Expanded" && Plugin.TestStateWarnings.Count == warnings,
+                "A locked client-state file cannot interfere with guide config changes");
+        }
     }
 
     private static void SelectGuideInput(Component input, bool childSelected)

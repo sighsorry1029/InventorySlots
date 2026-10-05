@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.19
+
+- Added client-only **Feature Guide State** under **5 - Client UI**: Expanded, Collapsed, or Hidden. Configure it directly without assigning a hotkey; F6, LT + R3, and the mouse triangle update the same saved config setting.
+- Guide preferences are no longer stored in ClientState YAML and are not migrated. After updating, select Hidden once again if desired. Favorite slots and other ClientState data remain unchanged.
+- Kept the quick-slot inventory panel below Compendium, Skills, Trophies, and other native dialogs while preserving its independent opening/closing animation and saved HUD position.
+- Avoided repeated inventory/container key-hint hierarchy scans and layout writes when their content is unchanged. Hints still refresh when shown, rebuilt, rebound, or relocalized.
+- Avoided resetting the equipped overlay before EpicLoot updates occupied quick-slot HUD cells.
+
 ## 1.5.18
 
 - Kept the quick guide anchored in the upper gap to the left of the crafting panel. Opening or closing the inventory with Tab no longer moves it beside the hotbar; hidden inventory panels still reserve their layout space.

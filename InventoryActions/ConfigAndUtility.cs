@@ -99,6 +99,10 @@ public sealed partial class InventoryActionsPlugin
             new ConfigDescription("Show hover help for controls in the Restock targets and Auto pickup exclusions panels and restock-entry controls in F1. Applies immediately. Item information tooltips and Configuration Manager setting descriptions remain available.",
                 null, new ConfigurationManagerAttributes { Order = 840 }), synchronizedSetting: false);
         _showRuleTooltips.SettingChanged += RefreshRuleTooltipVisibility;
+        _featureGuideState = ConfigEntry(ClientConfigSection, "Feature Guide State", FeatureGuideState.Expanded,
+            new ConfigDescription(FeatureGuideStateDescription, null,
+                new ConfigurationManagerAttributes { Order = 800 }), synchronizedSetting: false);
+        _featureGuideState.SettingChanged += OnFeatureGuideStateChanged;
         _featureGuideToggleKey = ConfigEntry(ClientConfigSection, "Toggle Feature Guide Key", new KeyboardShortcut(KeyCode.F6),
             new ConfigDescription(FeatureGuideToggleKeyDescription, new AcceptableShortcuts(),
                 new ConfigurationManagerAttributes { Order = 790 }), synchronizedSetting: false);

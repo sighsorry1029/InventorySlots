@@ -10,52 +10,132 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
-    internal static void UpdateFavoriteKeyHint(KeyHints hints)
+    private sealed class InventoryKeyHintGroupState
     {
-        if (hints == null)
-        {
-            return;
-        }
+        public GameObject? Group;
+        public Transform? Parent;
+        public GameObject? Favorite;
+        public GameObject? Tooltip;
+        public string FavoriteLabel = "";
+        public string FavoriteKeys = "";
+        public string TooltipLabel = "";
+        public string TooltipKeys = "";
+        public TMP_FontAsset? Font;
+        public Material? Material;
+        public int LocalizationVersion = -1;
+        public int GroupChildCount;
+        public int ParentChildCount;
+        public bool WasVisible;
+        public bool HasContent;
+        public bool FavoriteVisible;
+        public bool TooltipVisible;
 
-        UpdateFavoriteKeyHintGroup(hints.m_inventoryHints);
-        UpdateFavoriteKeyHintGroup(hints.m_inventoryWithContainerHints);
+        public void Clear()
+        {
+            if (!IsUnityNull(Favorite)) UnityEngine.Object.Destroy(Favorite);
+            if (!IsUnityNull(Tooltip)) UnityEngine.Object.Destroy(Tooltip);
+            Group = null;
+            Parent = null;
+            Favorite = null;
+            Tooltip = null;
+            Font = null;
+            Material = null;
+            HasContent = false;
+            WasVisible = false;
+        }
     }
 
-    private static void UpdateFavoriteKeyHintGroup(GameObject? group)
+    internal static void UpdateFavoriteKeyHint(KeyHints hints)
     {
-        if (IsUnityNull(group))
+        if (hints == null || !InventoryGui.IsVisible())
         {
+            InventoryPanels.InventoryKeyHints.WasVisible = false;
+            InventoryPanels.ContainerKeyHints.WasVisible = false;
             return;
         }
 
-        Transform? keyboardParent = FindKeyboardHintParent(group!.transform);
-        if (keyboardParent == null)
+        UpdateFavoriteKeyHintGroup(hints.m_inventoryHints, InventoryPanels.InventoryKeyHints);
+        UpdateFavoriteKeyHintGroup(hints.m_inventoryWithContainerHints, InventoryPanels.ContainerKeyHints);
+    }
+
+    private static void UpdateFavoriteKeyHintGroup(GameObject? group, InventoryKeyHintGroupState state)
+    {
+        if (IsUnityNull(group) || !group!.activeInHierarchy)
         {
+            state.WasVisible = false;
             return;
         }
 
-        RemoveMisplacedInventorySlotsKeyHints(group.transform, keyboardParent);
+        if (state.Group != group)
+        {
+            state.Clear();
+            state.Group = group;
+        }
+
+        // Recheck ownership when the UI is shown or rebuilt. Steady visible frames
+        // need no hierarchy searches, text-component arrays, or layout writes.
+        bool hierarchyChanged = !state.WasVisible || state.Parent == null ||
+                                state.GroupChildCount != group.transform.childCount ||
+                                state.ParentChildCount != state.Parent.childCount ||
+                                state.Favorite == null || state.Favorite.transform.parent != state.Parent ||
+                                state.Tooltip == null || state.Tooltip.transform.parent != state.Parent;
+        if (hierarchyChanged)
+        {
+            state.Parent = FindKeyboardHintParent(group.transform);
+            if (state.Parent == null) return;
+            RemoveMisplacedInventorySlotsKeyHints(group.transform, state.Parent);
+            state.Favorite = EnsureInventorySlotsKeyHint(state.Parent, FavoriteKeyHintName, state.Favorite);
+            state.Tooltip = EnsureInventorySlotsKeyHint(state.Parent, PinnedTooltipKeyHintName, state.Tooltip);
+            state.GroupChildCount = group.transform.childCount;
+            state.ParentChildCount = state.Parent.childCount;
+            state.HasContent = false;
+        }
+        state.WasVisible = true;
 
         bool favoriteVisible = _favoriteModifierKey != null;
-        GameObject? favoriteHint = EnsureInventorySlotsKeyHint(keyboardParent, FavoriteKeyHintName, InventoryPanels.FavoriteKeyHintObjects);
-        if (favoriteHint != null)
+        bool tooltipVisible = IsPinnedTooltipKeyConfigured();
+        string favoriteLabel = LocalizeUi("$inventoryslots_keyhint_favorite", "Favorite");
+        string favoriteKeys = GetFavoriteKeyHintDisplayText();
+        string tooltipLabel = LocalizeUi("$inventoryslots_keyhint_tooltip", "Tooltip");
+        string tooltipKeys = GetPinnedTooltipKeyDisplayText();
+        TMP_FontAsset? font = GetDefaultFontAsset();
+        Material? material = TooltipUi.DefaultFontMaterial;
+        if (state.HasContent && state.LocalizationVersion == _uiLocalizationVersion &&
+            state.Font == font && state.Material == material &&
+            state.FavoriteVisible == favoriteVisible && state.TooltipVisible == tooltipVisible &&
+            state.FavoriteLabel == favoriteLabel && state.FavoriteKeys == favoriteKeys &&
+            state.TooltipLabel == tooltipLabel && state.TooltipKeys == tooltipKeys)
         {
-            UpdateKeyHintObject(favoriteHint, LocalizeUi("$inventoryslots_keyhint_favorite", "Favorite"), GetFavoriteKeyHintDisplayText());
-            favoriteHint.transform.SetAsFirstSibling();
-            favoriteHint.SetActive(favoriteVisible);
+            return;
         }
 
-        bool tooltipVisible = IsPinnedTooltipKeyConfigured();
-        GameObject? tooltipHint = EnsureInventorySlotsKeyHint(keyboardParent, PinnedTooltipKeyHintName, InventoryPanels.PinnedTooltipKeyHintObjects);
-        if (tooltipHint != null)
+        if (state.Favorite != null)
         {
-            UpdateKeyHintObject(tooltipHint, LocalizeUi("$inventoryslots_keyhint_tooltip", "Tooltip"), GetPinnedTooltipKeyDisplayText());
-            tooltipHint.SetActive(tooltipVisible);
-            int targetIndex = favoriteHint != null && favoriteHint.activeSelf
-                ? favoriteHint.transform.GetSiblingIndex() + 1
-                : 0;
-            tooltipHint.transform.SetSiblingIndex(Mathf.Clamp(targetIndex, 0, keyboardParent.childCount - 1));
+            UpdateKeyHintObject(state.Favorite, favoriteLabel, favoriteKeys);
+            state.Favorite.transform.SetAsFirstSibling();
+            state.Favorite.SetActive(favoriteVisible);
         }
+
+        if (state.Tooltip != null)
+        {
+            UpdateKeyHintObject(state.Tooltip, tooltipLabel, tooltipKeys);
+            state.Tooltip.SetActive(tooltipVisible);
+            int targetIndex = state.Favorite != null && state.Favorite.activeSelf
+                ? state.Favorite.transform.GetSiblingIndex() + 1
+                : 0;
+            state.Tooltip.transform.SetSiblingIndex(Mathf.Clamp(targetIndex, 0, state.Parent!.childCount - 1));
+        }
+
+        state.FavoriteVisible = favoriteVisible;
+        state.TooltipVisible = tooltipVisible;
+        state.FavoriteLabel = favoriteLabel;
+        state.FavoriteKeys = favoriteKeys;
+        state.TooltipLabel = tooltipLabel;
+        state.TooltipKeys = tooltipKeys;
+        state.Font = font;
+        state.Material = material;
+        state.LocalizationVersion = _uiLocalizationVersion;
+        state.HasContent = true;
     }
 
     private static void RemoveMisplacedInventorySlotsKeyHints(Transform groupRoot, Transform keyboardParent)
@@ -75,10 +155,9 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
-    private static GameObject? EnsureInventorySlotsKeyHint(Transform parent, string hintName, Dictionary<int, GameObject> cache)
+    private static GameObject? EnsureInventorySlotsKeyHint(Transform parent, string hintName, GameObject? cached)
     {
-        int parentId = parent.GetInstanceID();
-        if (cache.TryGetValue(parentId, out GameObject? cached) && !IsUnityNull(cached) && cached!.transform.parent == parent)
+        if (!IsUnityNull(cached) && cached!.transform.parent == parent)
         {
             return cached;
         }
@@ -86,7 +165,6 @@ public sealed partial class InventorySlotsPlugin
         Transform? existing = parent.Find(hintName);
         if (existing != null)
         {
-            cache[parentId] = existing.gameObject;
             StripTooltips(existing.gameObject);
             return existing.gameObject;
         }
@@ -100,7 +178,6 @@ public sealed partial class InventorySlotsPlugin
         GameObject hint = UnityEngine.Object.Instantiate(template.gameObject, parent, false);
         hint.name = hintName;
         StripTooltips(hint);
-        cache[parentId] = hint;
         return hint;
     }
 

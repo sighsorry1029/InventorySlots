@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.12
+
+- Added client-only **Feature Guide State** under **2 - Client**: Expanded, Collapsed, or Hidden. Configure it directly without assigning a hotkey; F6, LT + R3, and the mouse triangle update the same saved config setting.
+- Guide preferences are no longer stored in ClientState YAML and are not migrated. After updating, select Hidden once again if desired. Favorite slots and remembered item types remain unchanged.
+
 ## 1.1.11
 
 - Kept the quick guide anchored in the upper gap to the left of the crafting panel. Opening or closing the inventory with Tab no longer moves it beside the hotbar; hidden inventory panels still reserve their layout space.

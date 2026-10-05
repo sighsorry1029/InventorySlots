@@ -4,7 +4,22 @@ using System.Reflection;
 
 namespace BepInEx.Configuration
 {
-    public sealed class ConfigEntry<T> { public T Value; public ConfigEntry(T value) => Value = value; }
+    public sealed class ConfigEntry<T>
+    {
+        private T _value;
+        public event EventHandler? SettingChanged;
+        public ConfigEntry(T value) => _value = value;
+        public T Value
+        {
+            get => _value;
+            set
+            {
+                if (EqualityComparer<T>.Default.Equals(_value, value)) return;
+                _value = value;
+                SettingChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+    }
     public readonly struct KeyboardShortcut
     {
         public readonly UnityEngine.KeyCode MainKey;

@@ -128,7 +128,7 @@ Want the inventory actions while keeping your existing inventory layout? Use [In
 
 ## Guides and support
 
-Press **F6** to cycle the quick guide: **Expanded → Collapsed → Hidden → Expanded**, with the inventory open or closed. Your choice is remembered. Change or unset **Toggle Feature Guide Key** under **6 - Client Keys**; Configuration Manager is optional. [Guide controls](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/inventory-actions.md#show-or-hide-the-quick-guide).
+Press **F6** to cycle the quick guide: **Expanded → Collapsed → Hidden → Expanded**, with the inventory open or closed. Or choose **Feature Guide State** directly under **5 - Client UI**. Your choice is saved in the config. Change or unset **Toggle Feature Guide Key** under **6 - Client Keys**; Configuration Manager is optional. [Guide controls](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/inventory-actions.md#show-or-hide-the-quick-guide).
 
 | Guide | Covers |
 | --- | --- |

@@ -19,8 +19,6 @@ internal sealed class InventorySlotsClientState
 internal sealed class InventorySlotsClientInventoryState
 {
     public int LastExpandableRows { get; set; } = ClientStateCore.DefaultLastExpandableRows;
-    public bool FeatureGuideCollapsed { get; set; }
-    public bool FeatureGuideHidden { get; set; }
     public InventorySlotsClientPanelPosition EquipmentSlotsPanelPosition { get; set; } = new(
         ClientStateCore.DefaultEquipmentSlotsPanelX,
         ClientStateCore.DefaultEquipmentSlotsPanelY);

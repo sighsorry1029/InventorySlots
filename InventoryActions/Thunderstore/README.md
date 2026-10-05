@@ -81,7 +81,7 @@ EpicLoot materials, tokens, Runestones, and ShardStones support compatible stack
 
 ## Settings and help
 
-Press **F6** to cycle the quick guide: **Expanded → Collapsed → Hidden → Expanded**, with the inventory open or closed. Your choice is remembered. Change or unset **Toggle Feature Guide Key** under **2 - Client**; Configuration Manager is optional. [Guide controls](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/inventory-actions.md#show-or-hide-the-quick-guide).
+Press **F6** to cycle the quick guide: **Expanded → Collapsed → Hidden → Expanded**, with the inventory open or closed. Or choose **Feature Guide State** directly under **2 - Client**. Your choice is saved in the config. Change or unset **Toggle Feature Guide Key** in the same section; Configuration Manager is optional. [Guide controls](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/inventory-actions.md#show-or-hide-the-quick-guide).
 
 The three buttons default to **Auto**: each appears on hover or controller focus. Choose **On** to keep a button visible or **Off** to hide it. Saved restock and pickup rules remain active when their button is hidden.
 

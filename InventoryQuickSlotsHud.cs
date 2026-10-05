@@ -263,12 +263,12 @@ public sealed partial class InventorySlotsPlugin
         UpdateQuickSlotsHotkeyBarBinding(element, marker, slot);
 
         element.m_selection?.SetActive(false);
-        element.m_equiped?.SetActive(false);
         element.m_queued?.SetActive(false);
         TryApplyEpicLootMagicItemBackground(element.m_go, element.m_equiped, item, inventoryGrid: false);
 
         if (item == null)
         {
+            element.m_equiped?.SetActive(false);
             element.m_icon?.gameObject.SetActive(false);
             SetQuickHudDurability(element, marker, null);
             element.m_amount?.gameObject.SetActive(false);

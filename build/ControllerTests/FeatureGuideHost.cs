@@ -40,9 +40,10 @@ public sealed partial class InventoryActionsPlugin
     public static bool TestGuideShown => IsFeatureGuideVisible();
     public static string TestGuideYaml => File.ReadAllText(ClientStateFilePath);
     public static string TestGuideFilePath => ClientStateFilePath;
-    public static bool TestGuideSavePending => _featureGuideSavePending;
-    public static void TestRetryGuideSave(bool flush = false) => RetryFeatureGuideStateSave(flush);
-    public static void TestReloadGuide() {
+    public static string TestGuideState => _featureGuideState.Value.ToString();
+    public static void TestSetGuideConfig(string value) => _featureGuideState.Value = Enum.Parse<FeatureGuideState>(value);
+    public static bool TestSaveClientState() => SaveClientState();
+    public static void TestReloadClientState() {
 #if INVENTORY_SLOTS
         InventoryClient.ClientStateLoaded = false;
 #else
@@ -53,7 +54,12 @@ public sealed partial class InventoryActionsPlugin
     public static void TestLoadGuideYaml(string yaml) {
         Directory.CreateDirectory(Path.GetDirectoryName(ClientStateFilePath)!);
         File.WriteAllText(ClientStateFilePath, yaml);
-        TestReloadGuide();
+        TestReloadClientState();
+#if INVENTORY_SLOTS
+        EnsureClientStateLoaded();
+#else
+        GetClientState();
+#endif
     }
     public static void TestCleanupGuideFiles() { if (Directory.Exists(TestGuideDirectory)) Directory.Delete(TestGuideDirectory, true); }
     public static void TestGuideHotkey() => HandleFeatureGuideToggleHotkey(Player.m_localPlayer);
@@ -76,10 +82,10 @@ public sealed partial class InventoryActionsPlugin
         _favoriteMemoryPending = _favoriteMemorySavePending = false;
         _favoriteMemorySaveRetryAt = 0f;
 #endif
+        _featureGuideState = new(FeatureGuideState.Expanded);
+        _featureGuideState.SettingChanged += OnFeatureGuideStateChanged;
         _featureGuideToggleKey = new(new KeyboardShortcut(KeyCode.F6));
         _featureGuideVisibilityFrame = -1;
-        _featureGuideSavePending = false;
-        _featureGuideSaveRetryAt = 0f;
         _controllerGuideFrame = -1;
         Input.Down.Clear(); Input.Held.Clear();
         UnifiedPopup.Visible = PlayerCustomizaton.Visible = Hud.PieceSelection = Hud.Radial = false;

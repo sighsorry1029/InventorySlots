@@ -1,3 +1,4 @@
+using System;
 using BepInEx.Configuration;
 using TMPro;
 using UnityEngine;
@@ -12,10 +13,18 @@ namespace InventoryActions;
 public sealed partial class InventoryActionsPlugin
 #endif
 {
+    public enum FeatureGuideState
+    {
+        Expanded,
+        Collapsed,
+        Hidden
+    }
+
+    private static ConfigEntry<FeatureGuideState> _featureGuideState = null!;
     private static ConfigEntry<KeyboardShortcut> _featureGuideToggleKey = null!;
     private static int _featureGuideVisibilityFrame = -1;
-    private static bool _featureGuideSavePending;
-    private static float _featureGuideSaveRetryAt;
+    private const string FeatureGuideStateDescription =
+        "Choose Expanded, Collapsed, or Hidden for the feature guide. Applies immediately and is saved in this config across characters and sessions. The guide shortcut, controller toggle, and mouse triangle update this same setting. You can choose Hidden here even when Toggle Feature Guide Key is None. Not synced with server.";
     private const string FeatureGuideToggleKeyDescription =
         "Press to cycle the feature guide: Expanded -> Collapsed -> Hidden -> Expanded. Works during gameplay with the inventory open or closed. Remembers the state locally. Ignored while typing or using menus/dialogs. None unsets this shortcut. Configuration Manager is optional. Not synced with server.";
 
@@ -61,17 +70,16 @@ public sealed partial class InventoryActionsPlugin
             SetFeatureGuideState(visible: true, collapsed: !IsFeatureGuideCollapsed());
     }
 
-    private static void SaveFeatureGuideState()
-    {
-        _featureGuideSavePending = !SaveClientState();
-        _featureGuideSaveRetryAt = Time.unscaledTime + 5f;
-    }
+    private static bool IsFeatureGuideVisible() => _featureGuideState?.Value != FeatureGuideState.Hidden;
 
-    private static void RetryFeatureGuideStateSave(bool flush = false)
-    {
-        if (_featureGuideSavePending && (flush || Time.unscaledTime >= _featureGuideSaveRetryAt))
-            SaveFeatureGuideState();
-    }
+    private static bool IsFeatureGuideCollapsed() => _featureGuideState?.Value == FeatureGuideState.Collapsed;
+
+    private static void SetFeatureGuideState(bool visible, bool collapsed) =>
+        _featureGuideState.Value = !visible ? FeatureGuideState.Hidden :
+            collapsed ? FeatureGuideState.Collapsed : FeatureGuideState.Expanded;
+
+    private static void OnFeatureGuideStateChanged(object? sender, EventArgs args) =>
+        InvalidateFeatureGuideTextAndMeasurements();
 
     private static bool IsFeatureGuideHotkeyBlocked(Player player)
     {

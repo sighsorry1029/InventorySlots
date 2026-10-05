@@ -1109,7 +1109,6 @@ internal static class Tests
         Assert.Equal(64f, inventory.QuickSlotsHudPosition!.X);
         Assert.Equal(-520f, inventory.QuickSlotsHudPosition.Y);
         Assert.Equal(70f, inventory.QuickSlotsHudElementSpace);
-        Assert.False(inventory.FeatureGuideCollapsed, "feature guide should start expanded");
         Assert.True(normalized.Players != null, "players root should be created");
     }
 
@@ -1122,8 +1121,7 @@ internal static class Tests
                 EquipmentSlotsPanelPosition = new InventorySlotsClientPanelPosition(12f, 34f),
                 QuickSlotsPanelPosition = new InventorySlotsClientPanelPosition(-56f, -78f),
                 QuickSlotsHudPosition = new InventorySlotsClientPanelPosition(90f, -123f),
-                QuickSlotsHudElementSpace = 42f,
-                FeatureGuideCollapsed = true
+                QuickSlotsHudElementSpace = 42f
             },
             Players = new Dictionary<string, InventorySlotsClientPlayerState>
             {
@@ -1149,7 +1147,6 @@ internal static class Tests
         Assert.Equal(90f, inventory.QuickSlotsHudPosition!.X);
         Assert.Equal(-123f, inventory.QuickSlotsHudPosition.Y);
         Assert.Equal(42f, inventory.QuickSlotsHudElementSpace);
-        Assert.True(inventory.FeatureGuideCollapsed, "feature guide collapsed state should be preserved");
         Assert.False(normalized.Players.ContainsKey(" "), "blank player ids should be removed");
         Assert.True(normalized.Players.ContainsKey("PlayerOne"), "player ids should be trimmed");
         Assert.True(normalized.Players.ContainsKey("playerone"), "players dictionary should stay case-insensitive");

@@ -10,11 +10,13 @@ Press **F6** during gameplay to cycle **Expanded → Collapsed → Hidden → Ex
 
 The guide stays in the upper gap to the left of the crafting panel, including while the inventory is closed. Opening/closing the inventory no longer moves it beside the hotbar. Its top-right corner stays anchored when expanding or collapsing; available space still follows resolution, UI scale, and panel layout changes.
 
-The guide starts expanded and remembers its last state for the next session in `BepInEx/config/InventorySlots/ClientState.yml` or `BepInEx/config/InventoryActions.ClientState.yml`. This preference belongs to the local client across characters. Guide visibility and folded state are controlled directly, without separate config options.
+**Feature Guide State** lets you choose **Expanded**, **Collapsed**, or **Hidden** directly in Configuration Manager, even with the guide shortcut unset. Find it under **5 - Client UI** in InventorySlots or **2 - Client** in InventoryActions. It defaults to Expanded and is saved in the mod's `.cfg` file across characters and sessions. F6, LT + R3, and the mouse triangle update this same client-only setting.
+
+When updating from a version that saved the guide in ClientState YAML, select Hidden once again if desired. Previous guide preferences are not imported; favorite slots and other ClientState data are retained.
 
 **Toggle Feature Guide Key** is client-only and supports another key or a combination; **None** disables the shortcut. Find it under **6 - Client Keys** in InventorySlots or **2 - Client** in InventoryActions. The key is ignored while typing, using configuration menus, or interacting with dialogs.
 
-**Configuration Manager is optional.** F1 opens that separate mod's settings window only when it is installed and uses that binding. You can also edit the shortcut in `BepInEx/config/sighsorry.InventorySlots.cfg` or `BepInEx/config/sighsorry.InventoryActions.cfg` while the game is closed. If you hide the guide and unset its keyboard shortcut, assign a shortcut again or use **LT + R3** in the inventory to restore it.
+**Configuration Manager is optional.** F1 opens that separate mod's settings window only when it is installed and uses that binding. You can also edit **Feature Guide State** and the shortcut in `BepInEx/config/sighsorry.InventorySlots.cfg` or `BepInEx/config/sighsorry.InventoryActions.cfg` while the game is closed. To restore a hidden guide with its keyboard shortcut unset, select Expanded or Collapsed in the setting, or use **LT + R3** in the inventory.
 
 ## Favorites and sorting
 
@@ -75,7 +77,7 @@ Target rules are client settings shared across characters. Slot memory is charac
 | InventorySlots | `InventorySlots/ClientState.yml` |
 | InventoryActions | `InventoryActions.ClientState.yml` |
 
-InventoryActions stores each character under `players.<playerId>.favoriteSlots`, alongside the shared guide state. Previous `InventoryActions.Favorites.<playerId>.txt` files are not read or migrated; re-register favorites when updating from that format. The old files are left untouched.
+InventoryActions stores each character under `players.<playerId>.favoriteSlots`. Guide state is stored separately in the mod's `.cfg` file. Previous `InventoryActions.Favorites.<playerId>.txt` files are not read or migrated; re-register favorites when updating from that format. The old files are left untouched.
 
 ### Leave one item
 

@@ -12,8 +12,6 @@ namespace InventoryActions;
 
 internal sealed class InventoryActionsClientState
 {
-    public bool FeatureGuideCollapsed { get; set; }
-    public bool FeatureGuideHidden { get; set; }
     public Dictionary<string, InventoryActionsClientPlayerState> Players { get; set; } = new(StringComparer.Ordinal);
 }
 
@@ -31,7 +29,7 @@ internal sealed class InventoryActionsFavoriteSlot
 
 public sealed partial class InventoryActionsPlugin
 {
-    // UI preferences belong to this client, not to the currently loaded character.
+    // Favorite slots and remembered items are stored separately for each character.
     private static InventoryActionsClientState? _clientState;
     private static bool _clientStateDirectWriteFallbackLogged;
     private static bool _clientStateLoadFailed;
@@ -58,18 +56,6 @@ public sealed partial class InventoryActionsPlugin
             Log.LogWarning($"Failed to load InventoryActions client state from {ClientStateFilePath}: {ex.Message}");
         }
         return _clientState;
-    }
-
-    private static bool IsFeatureGuideVisible() => !GetClientState().FeatureGuideHidden;
-    private static bool IsFeatureGuideCollapsed() => GetClientState().FeatureGuideCollapsed;
-
-    private static void SetFeatureGuideState(bool visible, bool collapsed)
-    {
-        InventoryActionsClientState state = GetClientState();
-        state.FeatureGuideHidden = !visible;
-        state.FeatureGuideCollapsed = visible && collapsed;
-        InvalidateFeatureGuideTextAndMeasurements();
-        SaveFeatureGuideState();
     }
 
     private static bool SaveClientState()

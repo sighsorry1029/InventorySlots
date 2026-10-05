@@ -11,9 +11,16 @@ The source-linked guide checks cover the F6 and inventory-only LT + R3
 Expanded/Collapsed/Hidden cycle, rebinding and None, held-input repeat prevention,
 R3 release/menu suppression, button and non-grid focus, disabled optional hotkeys,
 early input polling, device-specific guidance, and modal/lifecycle guards.
-The real client-state adapters serialize to temporary YAML files and reload them.
-Cases cover failed-save retries, shutdown without a player, preserving other
-characters and preferences, and InventoryActions ignoring legacy TXT files.
+Direct config changes use the same source-linked guide logic and change-event
+adapter, including with the shortcut unset. The real client-state adapters
+serialize to temporary YAML files: old guide fields are ignored, guide changes
+do not write YAML, and favorite/layout data survive removal of those fields.
+InventoryActions cases also cover favorite-save retries, shutdown without a
+player, other characters, and ignoring legacy TXT files.
+Config entries are doubles here. `InventoryActions/build/RuleConfigSmoke` can
+additionally check the built plugin's actual guide enum against real BepInEx
+config save/reload by passing the plugin DLL and original game Managed directory
+after its BepInEx core and temporary-output arguments.
 Unity rendering and actual device input remain outside this harness.
 
 This executable compiles the real `Shared/ItemRules/InventoryController.cs`

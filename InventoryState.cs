@@ -49,8 +49,8 @@ public sealed partial class InventorySlotsPlugin
         public readonly Dictionary<int, RectTransform> QuickSlotPanels = new();
         public readonly List<MovedPlayerStatPanel> MovedPlayerStatPanels = new();
         public readonly Dictionary<int, Vector3> QuickSlotPanelOutroStartPositions = new();
-        public readonly Dictionary<int, GameObject> FavoriteKeyHintObjects = new();
-        public readonly Dictionary<int, GameObject> PinnedTooltipKeyHintObjects = new();
+        public readonly InventoryKeyHintGroupState InventoryKeyHints = new();
+        public readonly InventoryKeyHintGroupState ContainerKeyHints = new();
         public RectTransform? QuickSlotsHotkeyBarRect;
         public HotkeyBar? QuickSlotsHotkeyBar;
         public RectTransform? PlayerStatPanelHost;

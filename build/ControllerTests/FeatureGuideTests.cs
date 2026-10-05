@@ -31,10 +31,10 @@ internal static partial class Program
         Check(Plugin.TestGuideToggles == 2 && !Plugin.TestGuideShown, "Next click hides guide");
         ButtonFrame();
         Check(!Plugin.IsControllerItemMenuOpen(), "Guide toggle never leaves a pending R3 tap");
-        Plugin.TestGuideReady = false; Plugin.TestGuideKey(KeyCode.None); Plugin.TestReloadGuide();
+        Plugin.TestGuideReady = false; Plugin.TestGuideKey(KeyCode.None);
         ButtonFrame("JoyLTrigger", "JoyRStick");
         Check(Plugin.TestGuideToggles == 3 && Plugin.TestGuideShown && !Plugin.TestGuideCollapsed,
-            "Controller restores expanded guide without a HUD object or keyboard binding after YAML reload");
+            "Controller restores expanded guide without a HUD object or keyboard binding");
         Check(Player.m_localPlayer.Messages.Count == 1 && Player.m_localPlayer.Messages[0].Contains("inventory") &&
             !Player.m_localPlayer.Messages[0].Contains("F6"), "Controller hide notice gives inventory/chord recovery instructions");
 

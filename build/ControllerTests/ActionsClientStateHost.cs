@@ -26,7 +26,7 @@ public sealed partial class InventoryActionsPlugin
     public static void TestClearFavorites() { Runtime.FavoriteSlots.Clear(); FavoriteSlotItems.Clear(); SaveFavorites(Player.m_localPlayer); }
     public static void TestRestartState()
     {
-        TestReloadGuide();
+        TestReloadClientState();
         Runtime.LoadedFavoritesPlayerId = "";
         Runtime.FavoriteSlots.Clear(); FavoriteSlotItems.Clear();
         _favoriteMemorySavePending = false;
