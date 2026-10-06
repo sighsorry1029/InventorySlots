@@ -657,8 +657,9 @@ public sealed partial class InventorySlotsPlugin
             }
         }
 
-        CraftingStation? station = recipe != null ? recipe.GetRequiredStation(quality) : null;
-        int requiredStationLevel = recipe != null ? recipe.GetRequiredStationLevel(quality) : 0;
+        bool refinement = currentStation != null && currentStation.m_upgrader;
+        CraftingStation? station = refinement ? currentStation : recipe != null ? recipe.GetRequiredStation(quality) : null;
+        int requiredStationLevel = refinement ? 1 : recipe != null ? recipe.GetRequiredStationLevel(quality) : 0;
         bool stationRequirementKnown = !veiledMasked || recipe == null || KnowsVeiledRecipeStationRequirement(recipe, quality);
         bool stationAvailable = station == null ||
                                 HasNoCraftCost() ||
@@ -801,8 +802,9 @@ public sealed partial class InventorySlotsPlugin
                 requirementKnown ? null : Color.white);
         }
 
-        CraftingStation? station = recipe != null ? recipe.GetRequiredStation(quality) : null;
-        int requiredStationLevel = recipe != null ? recipe.GetRequiredStationLevel(quality) : 0;
+        bool refinement = currentStation != null && currentStation.m_upgrader;
+        CraftingStation? station = refinement ? currentStation : recipe != null ? recipe.GetRequiredStation(quality) : null;
+        int requiredStationLevel = refinement ? 1 : recipe != null ? recipe.GetRequiredStationLevel(quality) : 0;
         bool stationRequirementKnown = !veiledMasked || recipe == null || KnowsVeiledRecipeStationRequirement(recipe, quality);
         bool stationAvailable = station == null ||
                                 HasNoCraftCost() ||

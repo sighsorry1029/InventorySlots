@@ -36,6 +36,31 @@ Implemented on main after `83ba1cf` (2026-09-16), included in InventorySlots 1.5
 
 ## Remaining game checks
 
+### Refinement compatibility (Valheim 1.0.16)
+
+Refinement previews the successful quality increment without the ordinary safe
+quality cap. A localized warning about failed refinement lowering quality or
+destroying the item is shown above the item details in List and in the bottom
+status HUD in Grid. Unlike the native warning, it does not claim the item has
+reached maximum safe quality: native refinement also accepts lower-quality items.
+The action uses the native Refine label and
+the active refinement station's level-one requirement. Probabilities are not
+displayed; vanilla still owns randomness, downgrade/destruction and refunds.
+
+`CraftingRefinement.cs` observes the native outcome branches and exact replacement
+results. Special-slot destruction is terminal before refunds; an invalid surviving
+replacement is recovered before costs. Ordinary cell mutation remains vanilla.
+The source-linked `build/RefinementTests` and original-DLL `build/HarmonySmoke`
+checks cover these boundaries without launching Unity.
+
+Remaining runtime checks: List/Grid/pinned previews at and above the safe cap;
+station switches; success, downgrade and destruction in regular, equipment and
+quick slots (including a full ordinary inventory); favorite identity and EpicLoot
+metadata/effects; refunds and save/reload after each outcome. None of these game
+sessions is claimed as completed by the automated checks.
+
+### View and optional-tab regression checks
+
 1. Switch both ways in Craft/Upgrade with search, a category and favorites active; check the selected recipe, count and retained Grid zoom. Repeat during queued crafting and cancellation.
 2. Click/list-scroll/drag scrollbar through a long list. Selection should stay put while scrolling. Select A, hover B and press the pin key: pin B while the right-side details remain A and no automatic hover popup appears. Scroll under the stationary pointer and pin the newly visible row; move outside the list and check there is no stale pin target. Scroll a long right-side description without moving the list; try controller scrolling and pinned comparisons.
 3. Select different styles, unavailable recipes, veiled recipes, upgrade gear and long translated/modded names. With Jewelcrafting, select gear with several gems, gear with no gems, then gemmed gear again. Change its gems, switch tabs/views and check that icons refresh, disappear when empty and leave room for the scrollable body. Clear a search with no results. Check the detail icon/name/body and lower requirements update together.

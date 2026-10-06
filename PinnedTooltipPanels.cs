@@ -969,12 +969,12 @@ public sealed partial class InventorySlotsPlugin
         return Mathf.Max(120f, GetPinnedTooltipPanelSize(parent).y - topReserved - bottomReserved);
     }
 
-    private static Vector2 ApplyPinnedTooltipDynamicTextLayout(RectTransform panel, TMP_Text text, int slot, Vector2 groupOffset, float topReserved, float bottomReserved, float maxTextViewportHeight = 0f, bool resetScroll = true)
+    private static Vector2 ApplyPinnedTooltipDynamicTextLayout(RectTransform panel, TMP_Text text, int slot, Vector2 groupOffset, float topReserved, float bottomReserved, float maxTextViewportHeight = 0f, bool resetScroll = true, Vector2? sizeLimit = null)
     {
         RectTransform content = EnsurePinnedTooltipTextScrollContent(panel, text);
         PinnedTooltipPanelUiCache cache = panel.GetComponent<PinnedTooltipPanelUiCache>();
         RectTransform parent = panel.parent as RectTransform ?? panel;
-        string layoutSignature = GetPinnedTooltipTextLayoutSignature(panel, text, slot, groupOffset, topReserved, bottomReserved, maxTextViewportHeight);
+        string layoutSignature = GetPinnedTooltipTextLayoutSignature(panel, text, slot, groupOffset, topReserved, bottomReserved, maxTextViewportHeight) + sizeLimit;
         if (!resetScroll &&
             panel.gameObject.activeInHierarchy &&
             string.Equals(cache.TextLayoutSignature, layoutSignature, StringComparison.Ordinal))
@@ -982,7 +982,9 @@ public sealed partial class InventorySlotsPlugin
             return panel.rect.size;
         }
 
-        Vector2 maxSize = GetPinnedTooltipPanelSize(parent);
+        // External chat snapshots stay visible when the inventory is hidden;
+        // their bounds must not use the animated inventory's vertical frame.
+        Vector2 maxSize = sizeLimit ?? GetPinnedTooltipPanelSize(parent);
         float textWidth = Mathf.Max(40f, maxSize.x - 44f);
         text.enabled = true;
         text.gameObject.SetActive(true);
@@ -999,7 +1001,9 @@ public sealed partial class InventorySlotsPlugin
         float desiredTextViewportHeight = hasTextViewportCap ? Mathf.Min(contentHeight, maxTextViewportHeight) : contentHeight;
         float desiredHeight = topReserved + bottomReserved + desiredTextViewportHeight;
         float minimumUsableHeight = topReserved + bottomReserved + 72f;
-        Vector2 size = GetPinnedTooltipPanelSize(parent, desiredHeight, minimumUsableHeight);
+        Vector2 size = sizeLimit.HasValue
+            ? new Vector2(maxSize.x, Mathf.Clamp(desiredHeight, Mathf.Min(minimumUsableHeight, maxSize.y), maxSize.y))
+            : GetPinnedTooltipPanelSize(parent, desiredHeight, minimumUsableHeight);
         Vector2 position = GetPinnedTooltipPosition(parent, slot, size, groupOffset);
         SetCenteredRectLayout(panel, position, size);
 
@@ -1013,7 +1017,9 @@ public sealed partial class InventorySlotsPlugin
             float cappedPanelHeight = topReserved + bottomReserved + availableTextHeight;
             if (cappedPanelHeight < size.y - 0.5f)
             {
-                size = GetPinnedTooltipPanelSize(parent, cappedPanelHeight, minimumUsableHeight);
+                size = sizeLimit.HasValue
+                    ? new Vector2(maxSize.x, Mathf.Clamp(cappedPanelHeight, Mathf.Min(minimumUsableHeight, maxSize.y), maxSize.y))
+                    : GetPinnedTooltipPanelSize(parent, cappedPanelHeight, minimumUsableHeight);
                 position = GetPinnedTooltipPosition(parent, slot, size, groupOffset);
                 SetCenteredRectLayout(panel, position, size);
             }
@@ -1061,7 +1067,7 @@ public sealed partial class InventorySlotsPlugin
             viewportImage.raycastTarget = false;
         }
 
-        cache.TextLayoutSignature = GetPinnedTooltipTextLayoutSignature(panel, text, slot, groupOffset, topReserved, bottomReserved, maxTextViewportHeight);
+        cache.TextLayoutSignature = GetPinnedTooltipTextLayoutSignature(panel, text, slot, groupOffset, topReserved, bottomReserved, maxTextViewportHeight) + sizeLimit;
         return size;
     }
 

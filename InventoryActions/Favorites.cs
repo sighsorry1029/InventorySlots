@@ -1,3 +1,5 @@
+using System.Reflection;
+using HarmonyLib;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -5,6 +7,18 @@ namespace InventoryActions;
 
 public sealed partial class InventoryActionsPlugin
 {
+    private static readonly MethodInfo FavoriteGetButtonPos = AccessTools.DeclaredMethod(typeof(InventoryGrid), "GetButtonPos", new[] { typeof(GameObject) });
+    private static readonly MethodInfo FavoriteGetPositionFromIndex = AccessTools.DeclaredMethod(typeof(InventoryGrid), "GetPositionFromIndex", new[] { typeof(int) });
+    private static readonly AccessTools.FieldRef<InventoryGrid, int> FavoriteGridWidth = AccessTools.FieldRefAccess<InventoryGrid, int>("m_width");
+
+    private static int GetUnpatchedFavoriteGridWidth(InventoryGrid grid)
+    {
+        // GetButtonPos scans the same element list for each cell. Use its native mapping only
+        // while neither mapping method is patched; check again to respect late patch/unpatch.
+        return FavoriteGetButtonPos != null && FavoriteGetPositionFromIndex != null &&
+               Harmony.GetPatchInfo(FavoriteGetButtonPos) == null && Harmony.GetPatchInfo(FavoriteGetPositionFromIndex) == null
+            ? FavoriteGridWidth(grid) : 0;
+    }
 
     internal static bool HandleFavoriteClick(InventoryGrid grid, UIInputHandler clickHandler)
     {
@@ -105,8 +119,10 @@ public sealed partial class InventoryActionsPlugin
 
         EnsureFavoritesLoaded(player);
         Color borderColor = FavoriteBorderColor;
-        foreach (InventoryElement element in grid.m_elements)
+        int width = GetUnpatchedFavoriteGridWidth(grid);
+        for (int index = 0; index < grid.m_elements.Count; ++index)
         {
+            InventoryElement element = grid.m_elements[index];
             if (element == null || IsUnityNull(element))
             {
                 continue;
@@ -118,7 +134,7 @@ public sealed partial class InventoryActionsPlugin
                 continue;
             }
 
-            Vector2i pos = grid.GetButtonPos(element.gameObject);
+            Vector2i pos = width > 0 ? new Vector2i(index % width, index / width) : grid.GetButtonPos(element.gameObject);
             if (!CanFavoriteCell(inventory, pos) || !Runtime.FavoriteSlots.Contains(pos))
             {
                 HideFavoriteBorder(element);

@@ -12,6 +12,12 @@ public sealed partial class InventorySlotsPlugin
         PrepareCraftingTabAdapterPreflight(gui);
         CraftingTabAdapterState adapter = GetCraftingTabAdapterState(gui);
 
+        // Optional tabs retain their full refresh and dynamic compatibility policies.
+        if (reason == CraftingPanelUpdateReason.FrameTick && adapter.Kind != CraftingTabAdapterKind.Vanilla)
+        {
+            reason = CraftingPanelUpdateReason.RecipeChanged;
+        }
+
         if (reason == CraftingPanelUpdateReason.RecipeListChanged)
         {
             ClearCraftingRecipeCaches();

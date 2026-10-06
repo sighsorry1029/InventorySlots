@@ -14,6 +14,7 @@ public sealed partial class InventorySlotsPlugin
         try
         {
             BindConfigs();
+            BindItemLinksConfig();
             BindItemRuleConfigs();
             EnsureDefaultYamlFiles();
             InitializeJewelcraftingSlotCompatibility();
@@ -47,6 +48,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         ProcessDeferredEquipmentVisuals();
+        UpdateItemLinks();
         ApplyMyLittleUICraftingCompatibility();
 
         if (!InventoryGui.IsVisible())
@@ -123,13 +125,34 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
+    private static void UpdateInventoryDialogLayering()
+    {
+        if (IsDedicatedServer || !InventoryGui.IsVisible()) return;
+        InventoryGui gui = InventoryGui.instance;
+        if (gui == null) return;
+
+        RectTransform? quickPanel = null;
+        if (gui.m_playerGrid != null)
+            InventoryPanels.QuickSlotPanels.TryGetValue(gui.m_playerGrid.GetInstanceID(), out quickPanel);
+
+        // Run after inventory/crafting layout and UI click handlers for this frame.
+        InventoryDialogLayering.Update(gui, quickPanel);
+    }
+
     private static bool ShouldDelayPeriodicFullIntegrityAudit()
     {
         return InventorySafety.HeavyAuditDelayUntil > Time.time;
     }
 
+    private void OnDisable()
+    {
+        ResetItemLinks();
+    }
+
     private void OnDestroy()
     {
+        ResetItemLinks();
+        ClearFeatureGuideLayout();
         InventoryPanels.InventoryKeyHints.Clear();
         InventoryPanels.ContainerKeyHints.Clear();
         RememberFavoriteSlotItems(Player.m_localPlayer, flush: true);

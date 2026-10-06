@@ -20,7 +20,7 @@ var privateAccess = new HashSet<string>();
 var references = new HashSet<string>();
 IEnumerable<TypeDefinition> Types(IEnumerable<TypeDefinition> types) => types.SelectMany(t => new[] { t }.Concat(Types(t.NestedTypes)));
 bool Game(TypeReference type) => type.Scope is AssemblyNameReference assembly &&
-    (assembly.Name.StartsWith("assembly_") || assembly.Name.StartsWith("Unity") || assembly.Name is "gui_framework" or "SoftReferenceableAssets");
+    (assembly.Name.StartsWith("assembly_") || assembly.Name.StartsWith("Unity") || assembly.Name is "gui_framework" or "SoftReferenceableAssets" or "Splatform");
 TypeReference Unwrap(TypeReference type) => type is TypeSpecification specification ? Unwrap(specification.ElementType) : type;
 string ParameterType(TypeReference type) => type is ByReferenceType reference ? reference.ElementType.FullName : type.FullName;
 void CheckType(TypeReference type)
@@ -146,6 +146,17 @@ if (Types(mod.MainModule.Types).Any(t => t.Name == "InventoryControllerAccess"))
         failures.Add("Controller navigation patch target mismatch: InputSystemUIInputModule.ProcessNavigation");
     else reflectedContracts.Add($"Controller: {navigation[0].FullName} [{navigation[0].Attributes}]");
 }
+// The frame cache reads the private selected variant through a cached accessor.
+if (Types(mod.MainModule.Types).Any(t => t.Fields.Any(f => f.Name == "CraftingFrameSelectedVariant")))
+{
+    using var game = AssemblyDefinition.ReadAssembly(Path.Combine(args[1], "assembly_valheim.dll"));
+    var field = Types(game.MainModule.Types).Single(t => t.FullName == "InventoryGui")
+        .Fields.SingleOrDefault(f => f.Name == "m_selectedVariant");
+    if (field == null || field.FieldType.FullName != "System.Int32" || field.IsStatic || field.IsLiteral)
+        failures.Add("Crafting frame field accessor mismatch: InventoryGui.m_selectedVariant");
+    else reflectedContracts.Add($"Crafting frame: {field.FullName} [{field.Attributes}]");
+}
+
 // The shared native adapter resolves these private members once through AccessTools.
 if (Types(mod.MainModule.Types).Any(t => t.Name == "NativeContainerHandoff"))
 {
@@ -250,6 +261,8 @@ if (Types(mod.MainModule.Types).Any(t => t.FullName == "InventorySlots.Inventory
 
     if (runtimeFields.Contains("CraftingSelectedRecipeIndex"))
         CheckReflectedMethod("InventoryGui", "GetSelectedRecipeIndex", "System.Int32", false, "System.Boolean");
+    if (runtimeFields.Contains("ItemLinkChatHideTimer"))
+        CheckReflectedField("Chat", "m_hideTimer", "System.Single", false);
 
     if (runtimeFields.Contains("SharedContainerLocalInUse"))
     {

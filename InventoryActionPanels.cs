@@ -144,7 +144,7 @@ public sealed partial class InventorySlotsPlugin
             InventoryPanels.InventorySortPanel.localPosition = sortPanelPosition;
         }
 
-        DisableActionPanelChildren(InventoryPanels.InventorySortPanel);
+        DisableActionPanelChildren(InventoryPanels.InventorySortPanel, "InventorySlots_PlayerSortButton");
 
         Button? sortButton = EnsureActionButton(InventoryPanels.InventorySortPanel, gui.m_takeAllButton, "InventorySlots_PlayerSortButton", "S", () => SortPlayerInventory(Player.m_localPlayer));
         RegisterControllerSortButton(gui, false, sortButton);
@@ -326,12 +326,13 @@ public sealed partial class InventorySlotsPlugin
         target.localPosition = source.localPosition;
     }
 
-    private static void DisableActionPanelChildren(RectTransform panel)
+    private static void DisableActionPanelChildren(RectTransform panel, string activeButtonName)
     {
         for (int i = 0; i < panel.childCount; i++)
         {
             Transform child = panel.GetChild(i);
-            if (child.name.StartsWith("InventorySlots_", StringComparison.Ordinal))
+            if (child.name.StartsWith("InventorySlots_", StringComparison.Ordinal) &&
+                !string.Equals(child.name, activeButtonName, StringComparison.Ordinal))
             {
                 child.gameObject.SetActive(false);
             }

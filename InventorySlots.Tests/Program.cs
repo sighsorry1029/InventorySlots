@@ -2,6 +2,7 @@ using InventorySlots;
 using InventoryPersistence;
 
 TestRunner.Run(
+    ("Refinement previews success above the safe cap without ordinary-station downgrades", CraftingViewTests.RefinementPreviewsSuccessfulQuality),
     ("MUC restock waits for the matching response to finish applying", MultiUserChestRestockTests.ResponseCorrelation),
     ("MUC timeout blocks retries and accepts a late original response", MultiUserChestRestockTests.TimeoutAndLateResponse),
     ("MUC cancellation cannot resume a batch", MultiUserChestRestockTests.CancelDuringResponse),

@@ -16,6 +16,8 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
+    private static readonly Vector3[] QuickSlotHudAnchorCorners = new Vector3[4];
+
     private static void PositionQuickSlotPanel(InventoryGrid playerGrid, RectTransform quickPanel, Vector3 targetGridLocalPosition, float elementSpace)
     {
         // IsVisible stays true briefly after Hide, and vanilla can update the
@@ -69,6 +71,16 @@ public sealed partial class InventorySlotsPlugin
 
     private static void CaptureQuickSlotHudAnchor(RectTransform quickPanel, Vector3 targetPosition, float elementSpace)
     {
+        // Player's native slide changes the target even before our own intro
+        // timer ends. Persist only its settled pose, never each animation frame.
+        InventoryGui? gui = InventoryGui.instance;
+        if (gui == null || InventoryPanels.QuickSlotPanelIntroActive ||
+            InventoryPanels.QuickSlotPanelOutroActive || IsInventoryPanelClosing(gui) ||
+            !IsInventoryPanelAnimationSettled(gui))
+        {
+            return;
+        }
+
         if (_quickSlotHudFollowsPanel != null && _quickSlotHudFollowsPanel.Value == Toggle.Off)
         {
             return;
@@ -92,13 +104,9 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        Vector3 currentPosition = quickPanel.localPosition;
-        quickPanel.localPosition = targetPosition;
-        Vector3[] worldCorners = new Vector3[4];
-        quickPanel.GetWorldCorners(worldCorners);
-        quickPanel.localPosition = currentPosition;
-
-        Vector3 anchoredPosition = hudRoot.InverseTransformPoint(worldCorners[1]);
+        quickPanel.GetWorldCorners(QuickSlotHudAnchorCorners);
+        Vector3 targetOffset = quickPanel.parent.TransformVector(targetPosition - quickPanel.localPosition);
+        Vector3 anchoredPosition = hudRoot.InverseTransformPoint(QuickSlotHudAnchorCorners[1] + targetOffset);
         float hudElementSpace = Mathf.Max(1f, elementSpace);
         bool shouldSave =
             !InventoryPanels.QuickSlotHudAnchorValid ||
@@ -137,29 +145,28 @@ public sealed partial class InventorySlotsPlugin
 
     private static void DestroyDuplicateQuickSlotPanels(InventoryGrid playerGrid, RectTransform current)
     {
-        HashSet<Transform> parents = new();
         if (current.parent != null)
         {
-            parents.Add(current.parent);
+            DestroyDuplicateQuickSlotPanelsUnder(current.parent, current);
         }
 
-        if (playerGrid.m_gridRoot != null)
+        if (playerGrid.m_gridRoot != null && playerGrid.m_gridRoot != current.parent)
         {
-            parents.Add(playerGrid.m_gridRoot);
+            DestroyDuplicateQuickSlotPanelsUnder(playerGrid.m_gridRoot, current);
         }
+    }
 
-        foreach (Transform parent in parents)
+    private static void DestroyDuplicateQuickSlotPanelsUnder(Transform parent, RectTransform current)
+    {
+        for (int i = parent.childCount - 1; i >= 0; i--)
         {
-            for (int i = parent.childCount - 1; i >= 0; i--)
+            Transform child = parent.GetChild(i);
+            if (child == current || !string.Equals(child.name, QuickSlotPanelName, StringComparison.Ordinal))
             {
-                Transform child = parent.GetChild(i);
-                if (child == current || !string.Equals(child.name, QuickSlotPanelName, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                UnityEngine.Object.Destroy(child.gameObject);
+                continue;
             }
+
+            UnityEngine.Object.Destroy(child.gameObject);
         }
     }
 

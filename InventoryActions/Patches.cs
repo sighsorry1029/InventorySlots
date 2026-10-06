@@ -69,6 +69,12 @@ internal static class InventoryGuiCloseContainerInventoryActionsPatch
     }
 }
 
+[HarmonyPatch(typeof(InventoryGui), "OnDestroy")]
+internal static class InventoryGuiDestroyContainerButtonLayoutPatch
+{
+    private static void Prefix(InventoryGui __instance) => InventoryActionsPlugin.ReleaseContainerActionButtonLayout(__instance);
+}
+
 [HarmonyPatch(typeof(Container), "StackAll")]
 internal static class ContainerStackAllInventoryActionsPatch
 {

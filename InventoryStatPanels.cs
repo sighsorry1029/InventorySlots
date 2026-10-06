@@ -16,13 +16,15 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
+    private static readonly List<MovedPlayerStatPanel> PlayerStatLayout = new();
+
     private static float GetAdvancedConfigFloat(ConfigEntry<float>? config, float fallback) =>
         config?.Value ?? fallback;
 
     private static void UpdatePlayerStatPanels(RectTransform equipmentPanel, int equipmentColumns, float elementSpace)
     {
         InventoryGui? gui = InventoryGui.instance;
-        if (gui == null || equipmentPanel == null)
+        if (gui == null || equipmentPanel == null || IsInventoryPanelClosing(gui))
         {
             RestorePlayerStatPanels();
             return;
@@ -40,11 +42,10 @@ public sealed partial class InventorySlotsPlugin
         host.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, elementSpace * 1.35f);
         host.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, elementSpace * 1.6f);
         host.gameObject.SetActive(true);
-        host.SetAsFirstSibling();
+        if (host.GetSiblingIndex() != 0) host.SetAsFirstSibling();
 
         MovePlayerStatPanelGroup(gui, host);
         LayoutPlayerStatPanels(elementSpace);
-        host.SetAsFirstSibling();
     }
 
     private static RectTransform EnsurePlayerStatPanelHost(RectTransform equipmentPanel)
@@ -145,7 +146,10 @@ public sealed partial class InventorySlotsPlugin
             moved.SortOrder = sortOrder;
         }
 
-        root.SetParent(host, false);
+        if (root.parent != host)
+        {
+            root.SetParent(host, false);
+        }
     }
 
     private static bool ShouldMovePlayerStatSibling(InventoryGui gui, RectTransform sibling)
@@ -206,14 +210,30 @@ public sealed partial class InventorySlotsPlugin
         // Native/mod UI siblings can appear between Armor and Weight. Their
         // hierarchy order must not push the core stats apart (including when
         // Jewelcrafting inserts its Synergy clone before Armor).
-        foreach (MovedPlayerStatPanel panel in InventoryPanels.MovedPlayerStatPanels
-                     .OrderBy(panel => GetPlayerStatPanelLayoutOrder(panel.Kind)).ThenBy(panel => panel.SortOrder))
+        PlayerStatLayout.Clear();
+        foreach (MovedPlayerStatPanel panel in InventoryPanels.MovedPlayerStatPanels)
         {
             if (IsUnityNull(panel.Rect) || !panel.Rect.gameObject.activeSelf)
             {
                 continue;
             }
 
+            // Stable insertion keeps equal-key ordering and the original
+            // snapshot list intact for restoration, without per-frame LINQ buffers.
+            int index = PlayerStatLayout.Count;
+            int order = GetPlayerStatPanelLayoutOrder(panel.Kind);
+            while (index > 0)
+            {
+                MovedPlayerStatPanel previous = PlayerStatLayout[index - 1];
+                int previousOrder = GetPlayerStatPanelLayoutOrder(previous.Kind);
+                if (previousOrder < order || previousOrder == order && previous.SortOrder <= panel.SortOrder) break;
+                index--;
+            }
+            PlayerStatLayout.Insert(index, panel);
+        }
+
+        foreach (MovedPlayerStatPanel panel in PlayerStatLayout)
+        {
             panel.Rect.anchorMin = new Vector2(0f, 1f);
             panel.Rect.anchorMax = new Vector2(0f, 1f);
             panel.Rect.pivot = new Vector2(0f, 1f);
@@ -230,8 +250,23 @@ public sealed partial class InventorySlotsPlugin
                 row++;
             }
 
-            panel.Rect.SetAsLastSibling();
         }
+
+        // Place the active suffix from the back so earlier moves cannot shift
+        // already-positioned entries; an unchanged layout performs no reorder.
+        for (int i = PlayerStatLayout.Count - 1; i >= 0; i--)
+        {
+            RectTransform rect = PlayerStatLayout[i].Rect;
+            Transform? parent = rect.parent;
+            if (parent == null) continue;
+            int index = parent.childCount - 1;
+            for (int j = i + 1; j < PlayerStatLayout.Count; j++)
+            {
+                if (PlayerStatLayout[j].Rect.parent == parent) index--;
+            }
+            if (rect.GetSiblingIndex() != index) rect.SetSiblingIndex(index);
+        }
+        PlayerStatLayout.Clear();
     }
 
     private static int GetPlayerStatPanelLayoutOrder(PlayerStatPanelKind kind) => kind switch

@@ -572,7 +572,6 @@ public sealed partial class InventorySlotsPlugin
         text.enableAutoSizing = false;
         text.fontSize = 12f;
         text.lineSpacing = -3f;
-        text.overflowMode = TextOverflowModes.Overflow;
         text.color = new Color(0.78f, 0.88f, 0.94f, 0.92f);
     }
 
@@ -586,6 +585,15 @@ public sealed partial class InventorySlotsPlugin
             string guide = controllerHints ? GetControllerFeatureGuideText() : LocalizeUi(
                 "$inventoryslots_feature_guide",
                 "<b>InventorySlots quick guide</b>\n<color=#FFA94D>[{tooltipKey}]</color> over an inventory or chest item, or a crafting recipe: Pin tooltip\n<color=#FFA94D>[{favoriteKey}]</color> over an inventory slot or crafting recipe: Toggle favorite\nWhile looking at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching items nearby (favorite slots excluded)\nWhile looking at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill existing items in favorite slots from nearby chests up to their targets\nCustom slots and rules: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>");
+            if (!controllerHints && ItemLinksEnabled)
+            {
+                string shareHint = "\n" + LocalizeUi("$inventoryslots_feature_guide_chat_share",
+                    "Share in chat: Pin an inventory/chest item tooltip → Click the chat button at the tooltip's top right → Press Enter to send");
+                // Insert separately so an older external guide translation still gets the hint.
+                int rulesPath = guide.IndexOf("config/InventorySlots/InventorySlots.yml", StringComparison.Ordinal);
+                int rulesLine = rulesPath >= 0 ? guide.LastIndexOf('\n', rulesPath) : -1;
+                guide = rulesLine >= 0 ? guide.Insert(rulesLine, shareHint) : guide + shareHint;
+            }
             if (HasExternalMultiUserChestActive)
             {
                 string notice = UsesVanillaContainerProtocol
@@ -1082,7 +1090,6 @@ public sealed partial class InventorySlotsPlugin
         rect.localRotation = Quaternion.identity;
 
         Image image = rect.GetComponent<Image>();
-        image.sprite = GetSolidUiSprite();
         image.raycastTarget = false;
         rect.gameObject.SetActive(true);
         return rect;

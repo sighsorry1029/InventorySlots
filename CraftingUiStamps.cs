@@ -26,7 +26,10 @@ internal readonly struct CraftingFrameFastPathStamp : IEquatable<CraftingFrameFa
         int recipeVariantVersion,
         int hoveredRecipeIndex,
         int screenWidth,
-        int screenHeight)
+        int screenHeight,
+        int visibleAvailabilityHash = 0,
+        bool searchFocused = false,
+        int selectedVariant = 0)
     {
         IsValid = true;
         GuiId = guiId;
@@ -44,6 +47,9 @@ internal readonly struct CraftingFrameFastPathStamp : IEquatable<CraftingFrameFa
         HoveredRecipeIndex = hoveredRecipeIndex;
         ScreenWidth = screenWidth;
         ScreenHeight = screenHeight;
+        VisibleAvailabilityHash = visibleAvailabilityHash;
+        SearchFocused = searchFocused;
+        SelectedVariant = selectedVariant;
     }
 
     public bool IsValid { get; }
@@ -62,6 +68,9 @@ internal readonly struct CraftingFrameFastPathStamp : IEquatable<CraftingFrameFa
     private int HoveredRecipeIndex { get; }
     private int ScreenWidth { get; }
     private int ScreenHeight { get; }
+    private int VisibleAvailabilityHash { get; }
+    private bool SearchFocused { get; }
+    private int SelectedVariant { get; }
 
     public bool Equals(CraftingFrameFastPathStamp other) =>
         IsValid == other.IsValid &&
@@ -79,7 +88,10 @@ internal readonly struct CraftingFrameFastPathStamp : IEquatable<CraftingFrameFa
         RecipeVariantVersion == other.RecipeVariantVersion &&
         HoveredRecipeIndex == other.HoveredRecipeIndex &&
         ScreenWidth == other.ScreenWidth &&
-        ScreenHeight == other.ScreenHeight;
+        ScreenHeight == other.ScreenHeight &&
+        VisibleAvailabilityHash == other.VisibleAvailabilityHash &&
+        SearchFocused == other.SearchFocused &&
+        SelectedVariant == other.SelectedVariant;
 
     public override bool Equals(object? obj) =>
         obj is CraftingFrameFastPathStamp other && Equals(other);
@@ -104,6 +116,9 @@ internal readonly struct CraftingFrameFastPathStamp : IEquatable<CraftingFrameFa
             hash = hash * 397 ^ HoveredRecipeIndex;
             hash = hash * 397 ^ ScreenWidth;
             hash = hash * 397 ^ ScreenHeight;
+            hash = hash * 397 ^ VisibleAvailabilityHash;
+            hash = hash * 397 ^ SearchFocused.GetHashCode();
+            hash = hash * 397 ^ SelectedVariant;
             return hash;
         }
     }

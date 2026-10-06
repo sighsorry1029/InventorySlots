@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.5.20
+
+- Added client-only item tooltips in chat: use the chat button on a pinned inventory or container tooltip to add an item to your existing chat draft, then press Enter. Crafting tooltips remain locally pinnable without a share button. Hover a received item while chat is open and press Mouse3 to pin or unpin its tooltip. Ordinary chat channels, permissions, and text filtering remain in use; clients without the feature see a readable item label. Includes English/Korean help and bounded expiring link data.
+- Preserved `/s` and `/w` channel prefixes in item-sharing drafts, inherited each chat channel's text color, and kept hover tooltips beside chat. Mouse3 pinning keeps the current draft and prevents the same press from triggering a secondary attack.
+- Added optional Clan 1.1.4 (API v6) integration for hover tooltips and pinning in Clan chat, using authenticated sender identity and current effective clan membership checks. Neither mod requires the other; update Clan on servers and clients together for its new chat protocol.
+- Added a short English/Korean chat-sharing instruction before the configuration path in the mouse/keyboard quick guide while **Enable Item Tooltips in Chat** is on. Tooltip action hints use **Mouse3** in both languages without repeating the snapshot disclaimer.
+- Kept the feature guide stationary during inventory opening/closing animations. Guide spacing still follows settled panel layout, sizes, resolution, and UI scale.
+- Reduced repeated inventory button, panel hierarchy, stat-panel, and hint updates. Quick-slot HUD positions are saved only from settled layouts, preventing opening/closing animations from writing intermediate positions.
+- Reused crafting layout on unchanged vanilla Craft/Upgrade frames while retaining full refreshes for changed recipes, input, crafting queues, and optional crafting tabs. These changes reduce repeated UI work; no in-game frame-rate improvement has been measured.
+- Fixed refinement-forge previews above the normal quality cap, added a quality-independent warning about failed refinement lowering quality or destroying the item, restored the Refine button, and showed the refinement station's requirement in list/grid tooltips. The warning no longer claims that items below the safe cap are already at maximum safe quality. No probability display or random-roll changes.
+- Preserved native refinement success, downgrade, and destruction outcomes in equipment/quick slots. Intentional destruction no longer triggers item-loss recovery, and upgrade favorites follow the actual surviving replacement instead of an identical item elsewhere.
+- Kept open Compendium, Skills, Trophies, Achievements, variant, and split dialogs above the ordinary inventory, crafting, and quick-slot panels in the native inventory hierarchy, without changing the order of other mod popups.
+
 ## 1.5.19
 
 - Added client-only **Feature Guide State** under **5 - Client UI**: Expanded, Collapsed, or Hidden. Configure it directly without assigning a hotkey; F6, LT + R3, and the mouse triangle update the same saved config setting.

@@ -115,6 +115,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void UpdateCraftingStationAndWarningControls(InventoryGui gui, RectTransform grid, Vector2 requiredStationPosition, bool updateLayout)
     {
+        _craftingListStatusText = "";
         if (ShouldShowCraftingStatusHud(gui))
         {
             LayoutCraftingStatusHud(gui, grid, updateLayout);
@@ -264,7 +265,8 @@ public sealed partial class InventorySlotsPlugin
     private static void LayoutCraftingStatusHud(InventoryGui gui, RectTransform grid, bool updateLayout)
     {
         string warning = GetCraftingStatusHudText(gui);
-        if (_craftingListViewActive && IsJewelcraftingSocketTabActive(gui))
+        if (_craftingListViewActive && (IsJewelcraftingSocketTabActive(gui) ||
+            ShouldShowUpgradeCraftingStatusHud(gui) && IsRefinementStationActive()))
         {
             _craftingListStatusText = warning;
             HideCraftingSocketWarning();
@@ -327,6 +329,11 @@ public sealed partial class InventorySlotsPlugin
         if (item?.m_shared == null)
         {
             return "";
+        }
+
+        if (IsRefinementStationActive())
+        {
+            return LocalizeUi("$inventoryslots_refinement_warning", "If refinement fails, the item may lose quality or be destroyed.");
         }
 
         int currentQuality = Mathf.Max(1, item.m_quality);
@@ -555,10 +562,10 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        int currentQuality = Mathf.Max(1, item!.m_quality);
-        int maxQuality = Mathf.Max(currentQuality, item.m_shared.m_maxQuality);
-        int nextQuality = Mathf.Min(currentQuality + 1, maxQuality);
-        string label = currentQuality < maxQuality ? $"{currentQuality} > {nextQuality}" : LocalizeUi("$inventoryslots_max", "Max");
+        bool refinement = IsRefinementStationActive();
+        int currentQuality = refinement ? item!.m_quality : Mathf.Max(1, item!.m_quality);
+        int nextQuality = CraftingViewCore.UpgradePreviewQuality(currentQuality, item.m_shared.m_maxQuality, refinement);
+        string label = currentQuality < nextQuality ? $"{currentQuality} > {nextQuality}" : LocalizeUi("$inventoryslots_max", "Max");
         if (CraftingUi.UpgradeProgressionText != null)
         {
             CraftingTextCacheState cache = GetCraftingTextCache(_craftingUpgradeProgressionRect.gameObject);
@@ -633,8 +640,10 @@ public sealed partial class InventorySlotsPlugin
         }
 
         int quality = gui.m_selectedRecipe.ItemData == null ? 1 : gui.m_selectedRecipe.ItemData.m_quality + 1;
-        bool allowedQuality = quality <= recipe.m_item.m_itemData.m_shared.m_maxQuality;
-        CraftingStation requiredStation = recipe.GetRequiredStation(quality);
+        CraftingStation? currentStation = Player.m_localPlayer != null ? Player.m_localPlayer.GetCurrentCraftingStation() : null;
+        bool refinement = currentStation != null && currentStation.m_upgrader;
+        bool allowedQuality = refinement || quality <= recipe.m_item.m_itemData.m_shared.m_maxQuality;
+        CraftingStation requiredStation = refinement ? currentStation! : recipe.GetRequiredStation(quality);
         if (requiredStation == null || !allowedQuality)
         {
             gui.m_minStationLevelIcon.gameObject.SetActive(false);
@@ -643,7 +652,7 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        int requiredLevel = recipe.GetRequiredStationLevel(quality);
+        int requiredLevel = refinement ? 1 : recipe.GetRequiredStationLevel(quality);
         bool veiledMasked = IsVeiledRecipeMasked(gui.m_selectedRecipe);
         bool stationRequirementKnown = !veiledMasked || KnowsVeiledRecipeStationRequirement(recipe, quality);
         const float iconSize = 44f;
@@ -669,7 +678,6 @@ public sealed partial class InventorySlotsPlugin
         gui.m_minStationLevelText.enableAutoSizing = true;
         gui.m_minStationLevelText.fontSizeMin = 12f;
         gui.m_minStationLevelText.fontSizeMax = 18f;
-        CraftingStation? currentStation = Player.m_localPlayer != null ? Player.m_localPlayer.GetCurrentCraftingStation() : null;
         bool missingLevel = stationRequirementKnown && (currentStation == null || currentStation.GetLevel() < requiredLevel);
         gui.m_minStationLevelText.color = missingLevel && !ZoneSystem.instance.GetGlobalKey(GlobalKeys.NoCraftCost) && Mathf.Sin(Time.time * 10f) > 0f
             ? Color.red
@@ -837,6 +845,8 @@ public sealed partial class InventorySlotsPlugin
 
         string label = IsJewelcraftingSocketTabActive(gui)
             ? LocalizeUi("$jc_add_socket_button", "Socket")
+            : IsRefinementStationActive()
+            ? LocalizeUi("$inventory_upgraderbutton", "Refine")
             : gui.m_selectedRecipe.ItemData != null
             ? LocalizeUi("$inventory_upgradebutton", "Upgrade")
             : LocalizeUi("$inventory_craftbutton", "Craft");

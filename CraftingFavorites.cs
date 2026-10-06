@@ -259,11 +259,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void CaptureUpgradeFavoriteBeforeCrafting(InventoryGui gui)
     {
-        _pendingUpgradeFavoriteItemId = "";
-        _pendingUpgradeFavoritePrefab = "";
-        _pendingUpgradeFavoriteQuality = -1;
-        _pendingUpgradeFavoriteVariant = -1;
-        _pendingUpgradeFavoriteGridPos = new Vector2i(-1, -1);
+        ClearPendingUpgradeFavorite();
 
         ItemData? item = gui?.m_craftUpgradeItem;
         string id = GetUpgradeFavoriteItemKey(item);
@@ -277,6 +273,20 @@ public sealed partial class InventorySlotsPlugin
         _pendingUpgradeFavoriteQuality = item.m_quality + 1;
         _pendingUpgradeFavoriteVariant = item.m_variant;
         _pendingUpgradeFavoriteGridPos = item.m_gridPos;
+        _pendingUpgradeFavoriteOriginal = item;
+        _pendingUpgradeFavoriteIsRefinement = IsRefinementStationActive();
+    }
+
+    internal static void ClearPendingUpgradeFavorite()
+    {
+        _pendingUpgradeFavoriteItemId = "";
+        _pendingUpgradeFavoritePrefab = "";
+        _pendingUpgradeFavoriteQuality = -1;
+        _pendingUpgradeFavoriteVariant = -1;
+        _pendingUpgradeFavoriteGridPos = new Vector2i(-1, -1);
+        _pendingUpgradeFavoriteOriginal = null;
+        _pendingUpgradeFavoriteRefinementResult = null;
+        _pendingUpgradeFavoriteIsRefinement = false;
     }
 
     internal static void RestoreUpgradeFavoriteAfterCrafting(InventoryGui gui, Player player)
@@ -290,10 +300,22 @@ public sealed partial class InventorySlotsPlugin
         _pendingUpgradeFavoriteItemId = "";
 
         Inventory? inventory = player?.GetInventory();
-        ItemData? upgraded = inventory?.GetItemAt(_pendingUpgradeFavoriteGridPos.x, _pendingUpgradeFavoriteGridPos.y);
-        if (!IsPendingUpgradeFavoriteItem(upgraded))
+        ItemData? upgraded;
+        if (_pendingUpgradeFavoriteIsRefinement)
         {
-            upgraded = inventory?.m_inventory.FirstOrDefault(IsPendingUpgradeFavoriteItem);
+            // Only the causal vanilla AddItem result may inherit this favorite.
+            // Destruction, cancellation, and a failed add must not tag a lookalike.
+            upgraded = _pendingUpgradeFavoriteRefinementResult;
+            if (inventory == null || _pendingUpgradeFavoriteOriginal == null ||
+                inventory.ContainsItem(_pendingUpgradeFavoriteOriginal) || upgraded == null ||
+                !inventory.ContainsItem(upgraded) || ReferenceEquals(upgraded, _pendingUpgradeFavoriteOriginal) ||
+                !IsPendingUpgradeFavoriteItem(upgraded)) return;
+        }
+        else
+        {
+            upgraded = inventory?.GetItemAt(_pendingUpgradeFavoriteGridPos.x, _pendingUpgradeFavoriteGridPos.y);
+            if (!IsPendingUpgradeFavoriteItem(upgraded))
+                upgraded = inventory?.m_inventory.FirstOrDefault(IsPendingUpgradeFavoriteItem);
         }
 
         if (upgraded == null)

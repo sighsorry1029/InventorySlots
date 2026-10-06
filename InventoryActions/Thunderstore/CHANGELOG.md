@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.13
+
+- Kept the feature guide stationary during inventory opening/closing animations. Guide spacing still follows settled panel layout, sizes, resolution, and UI scale.
+- Avoided restoring and rebuilding container action-button geometry on unchanged frames. Layout changes, replaced controls, ownership changes, closing the inventory, and UI teardown still refresh or restore the controls as needed.
+- Reduced repeated slot-coordinate searches when refreshing favorite borders. The native mapping remains in use when other mods patch it, preserving slot eligibility and click behavior.
+- These caches remain in memory and create no additional configuration files. No in-game frame-rate improvement has been measured.
+
 ## 1.1.12
 
 - Added client-only **Feature Guide State** under **2 - Client**: Expanded, Collapsed, or Hidden. Configure it directly without assigning a hotkey; F6, LT + R3, and the mouse triangle update the same saved config setting.

@@ -61,6 +61,14 @@
         <Reference Include="0Harmony">
             <HintPath>$(BepInExPath)\core\0Harmony.dll</HintPath>
         </Reference>
+        <Reference Include="Splatform">
+            <HintPath>$(CorlibPath)\Splatform.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="gui_framework">
+            <HintPath>$(CorlibPath)\gui_framework.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
         <Reference Include="assembly_guiutils" Publicize="true">
             <HintPath>$(CorlibPath)\assembly_guiutils.dll</HintPath>
             <Private>false</Private>

@@ -45,7 +45,7 @@ internal static class InventoryGuiCraftingPanelRedesignPatch
 {
     private static void Postfix(InventoryGui __instance)
     {
-        InventorySlotsPlugin.UpdateCraftingPanelRedesign(__instance, CraftingPanelUpdateReason.FrameTick);
+        InventorySlotsPlugin.UpdateCraftingPanelRedesign(__instance, CraftingPanelUpdateReason.StateChanged);
     }
 }
 
@@ -56,7 +56,8 @@ internal static class InventoryGuiCraftingRecipeRedesignPatch
 {
     private static void Postfix(InventoryGui __instance)
     {
-        InventorySlotsPlugin.UpdateCraftingPanelRedesign(__instance, CraftingPanelUpdateReason.RecipeChanged);
+        // Vanilla calls UpdateRecipe every visible frame, including idle frames.
+        InventorySlotsPlugin.UpdateCraftingPanelRedesign(__instance, CraftingPanelUpdateReason.FrameTick);
     }
 }
 
@@ -172,6 +173,7 @@ internal static class InventoryGuiUpgradeFavoriteCraftingPatch
         if (__state)
         {
             InventorySlotsPlugin.EndCraftingInventoryLimitNotice(showMessage: false);
+            InventorySlotsPlugin.ClearPendingUpgradeFavorite();
         }
 
         return __exception;

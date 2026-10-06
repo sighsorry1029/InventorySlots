@@ -1,12 +1,19 @@
+using HarmonyLib;
 using UnityEngine;
 
 namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
+    private static readonly AccessTools.FieldRef<InventoryGui, int> CraftingFrameSelectedVariant =
+        AccessTools.FieldRefAccess<InventoryGui, int>("m_selectedVariant");
+
     private static bool TryRunCraftingPanelFrameFastPath(InventoryGui gui, CraftingTabAdapterState adapter)
     {
-        if (!CanRunCraftingPanelFrameFastPath())
+        // Scroll input belongs to the full path; never replay a step after
+        // a fast-path input handler dirties the layout and falls through.
+        if (adapter.Kind != CraftingTabAdapterKind.Vanilla ||
+            !CanRunCraftingPanelFrameFastPath() || HasUnconsumedUiScrollInput())
         {
             return false;
         }
@@ -19,7 +26,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         RectTransform? grid = _craftingRecipeGrid;
-        if (grid == null || IsUnityNull(grid))
+        if (grid == null || IsUnityNull(grid) || grid.parent != gui.m_crafting || !grid.gameObject.activeSelf)
         {
             return false;
         }
@@ -62,7 +69,9 @@ public sealed partial class InventorySlotsPlugin
 
     private static void RefreshCraftingPanelDynamicFrameUi(InventoryGui gui, RectTransform grid, CraftingTabAdapterState adapter)
     {
+        UpdateCraftingQueueLifecycle(gui);
         SuppressCraftingTabAdapterFrameResidue(gui, adapter);
+        SuppressJewelcraftingCraftingSocketUiForRedesign(gui);
         LayoutCraftingTabAdapterBottomControls(gui, grid, adapter);
         UpdateCraftingRecipeGridZoomHint(gui, grid);
         UpdateCraftingTooltipRecipeOverlay(gui);
@@ -75,7 +84,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void StoreCraftingFrameFastPathSignature(InventoryGui gui, CraftingTabAdapterState adapter)
     {
-        if (!CanRunCraftingPanelFrameFastPath())
+        if (adapter.Kind != CraftingTabAdapterKind.Vanilla || !CanRunCraftingPanelFrameFastPath())
         {
             ResetCraftingFrameFastPathStamp();
             return;
@@ -107,7 +116,10 @@ public sealed partial class InventorySlotsPlugin
             _craftingRecipeVariantVersion,
             CraftingController.HoveredRecipeIndex,
             Screen.width,
-            Screen.height);
+            Screen.height,
+            GetCraftingRecipeGridAvailabilityHash(gui, GetCraftingRecipePageStart(), adapter),
+            CraftingUi.SearchInput != null && CraftingUi.SearchInput.isFocused,
+            CraftingFrameSelectedVariant(gui));
     }
 
     private static bool HasActiveCraftingPinnedTooltip()

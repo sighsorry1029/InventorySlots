@@ -148,14 +148,16 @@ public sealed partial class InventorySlotsPlugin
         return IsCraftingRecipeActionAvailable(gui, pair, originalIndex: -1);
     }
 
-    private static bool IsCraftingRecipeActionAvailable(InventoryGui? gui, InventoryGui.RecipeDataPair pair, int originalIndex)
+    private static bool IsCraftingRecipeActionAvailable(InventoryGui? gui, InventoryGui.RecipeDataPair pair, int originalIndex) =>
+        IsCraftingRecipeActionAvailable(pair, originalIndex, GetCraftingTabAdapterState(gui));
+
+    private static bool IsCraftingRecipeActionAvailable(InventoryGui.RecipeDataPair pair, int originalIndex, CraftingTabAdapterState adapter)
     {
         if (IsVeiledRecipeMasked(pair))
         {
             return false;
         }
 
-        CraftingTabAdapterState adapter = GetCraftingTabAdapterState(gui);
         return adapter.Kind switch
         {
             CraftingTabAdapterKind.JewelcraftingSocket => CanAttemptJewelcraftingSocket(pair),

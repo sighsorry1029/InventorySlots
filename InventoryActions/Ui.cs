@@ -76,31 +76,43 @@ public sealed partial class InventoryActionsPlugin
             return;
         }
 
+        if (Runtime.ContainerButtonLayoutGui != gui ||
+            Runtime.TakeAllButtonOriginal?.Rect != takeAllRect || Runtime.StackAllButtonOriginal?.Rect != stackRect)
+        {
+            ReleaseContainerActionButtonLayout();
+            Runtime.ContainerButtonLayoutGui = gui;
+        }
         CaptureRectTransformSnapshot(ref Runtime.TakeAllButtonOriginal, takeAllRect);
         CaptureRectTransformSnapshot(ref Runtime.StackAllButtonOriginal, stackRect);
-        RestoreContainerActionButtonLayout();
 
         if (!CanMutateContainerDirectly(currentContainer, allowLocalWithoutZNetView: true))
         {
+            RestoreContainerActionButtonLayout();
             HideContainerActionButtons();
             return;
         }
 
-        AlignContainerActionButtonRows(takeAllRect, stackRect);
-        float buttonHeight = Mathf.Clamp(Mathf.Max(GetRectHeight(takeAllRect), GetRectHeight(stackRect)), 24f, 36f);
-        const float gap = 4f;
-        float takeAllWidth = GetRectWidth(takeAllRect);
-        float stackAllWidth = GetRectWidth(stackRect);
-
+        // Resolve current controls before matching: another UI mod may have renamed or replaced one.
         Runtime.ContainerStoreAllButton = EnsureActionButton(takeAllParent, gui.m_takeAllButton, "InventoryActions_StoreAllButton", LocalizeUi("$inventoryactions_button_place_all", "Place all"), () => StoreAllToCurrentContainer(Player.m_localPlayer));
-        LayoutButtonPair(takeAllRect, Runtime.ContainerStoreAllButton, takeAllWidth, buttonHeight, gap, addedButtonOnRight: true);
-        SetTooltip(Runtime.ContainerStoreAllButton, LocalizeUi("$inventoryactions_button_place_all", "Place all"), "Move all non-favorited regular inventory items into the current container.");
-
         Runtime.ContainerRestockButton = EnsureActionButton(stackParent, gui.m_stackAllButton, "InventoryActions_RestockButton", LocalizeUi("$inventoryactions_button_take_stacks", "Take stacks"), () => RestockFromCurrentContainer(Player.m_localPlayer));
-        LayoutButtonPair(stackRect, Runtime.ContainerRestockButton, stackAllWidth, buttonHeight, gap, addedButtonOnRight: false);
-        SetTooltip(Runtime.ContainerRestockButton, LocalizeUi("$inventoryactions_button_take_stacks", "Take stacks"), "Fill matching non-favorited partial stacks from the current container.");
+        Runtime.ContainerSortButton = EnsureActionButton(stackParent, gui.m_takeAllButton, "InventoryActions_ContainerSortButton", "S", () => SortCurrentContainer(Player.m_localPlayer));
+        bool layoutChanged = Runtime.ContainerButtonLayout?.Matches(takeAllRect, stackRect,
+            Runtime.ContainerStoreAllButton, Runtime.ContainerRestockButton, Runtime.ContainerSortButton) != true;
+        const float gap = 4f;
+        if (layoutChanged)
+        {
+            RestoreContainerActionButtonLayout();
+            AlignContainerActionButtonRows(takeAllRect, stackRect);
+            float buttonHeight = Mathf.Clamp(Mathf.Max(GetRectHeight(takeAllRect), GetRectHeight(stackRect)), 24f, 36f);
+            float takeAllWidth = GetRectWidth(takeAllRect);
+            float stackAllWidth = GetRectWidth(stackRect);
+            LayoutButtonPair(takeAllRect, Runtime.ContainerStoreAllButton, takeAllWidth, buttonHeight, gap, addedButtonOnRight: true);
+            LayoutButtonPair(stackRect, Runtime.ContainerRestockButton, stackAllWidth, buttonHeight, gap, addedButtonOnRight: false);
+            LayoutContainerSortButton(stackRect, Runtime.ContainerSortButton, buttonHeight);
+        }
 
-        Runtime.ContainerSortButton = EnsureContainerSortButton(stackRect, gui.m_takeAllButton, buttonHeight);
+        SetTooltip(Runtime.ContainerStoreAllButton, LocalizeUi("$inventoryactions_button_place_all", "Place all"), "Move all non-favorited regular inventory items into the current container.");
+        SetTooltip(Runtime.ContainerRestockButton, LocalizeUi("$inventoryactions_button_take_stacks", "Take stacks"), "Fill matching non-favorited partial stacks from the current container.");
         RegisterControllerSortButton(gui, true, Runtime.ContainerSortButton);
         SetTooltip(Runtime.ContainerSortButton, LocalizeUi("$inventoryactions_action_sort", "Sort"), "Sort the current container.");
         SetButtonActive(Runtime.ContainerStoreAllButton, true);
@@ -109,6 +121,11 @@ public sealed partial class InventoryActionsPlugin
         SetButtonInteractable(Runtime.ContainerStoreAllButton, true);
         SetButtonInteractable(Runtime.ContainerRestockButton, true);
         SetButtonInteractable(Runtime.ContainerSortButton, true);
+        if (layoutChanged && Runtime.ContainerStoreAllButton != null && Runtime.ContainerRestockButton != null && Runtime.ContainerSortButton != null)
+        {
+            Runtime.ContainerButtonLayout = new ContainerButtonLayoutSnapshot(takeAllRect, stackRect,
+                Runtime.ContainerStoreAllButton, Runtime.ContainerRestockButton, Runtime.ContainerSortButton);
+        }
     }
 
     private static void AlignContainerActionButtonRows(RectTransform takeAllRect, RectTransform stackAllRect)
@@ -293,26 +310,17 @@ public sealed partial class InventoryActionsPlugin
         LayoutButtonRect(addedRect, width, buttonHeight, addedPosition);
     }
 
-    private static Button? EnsureContainerSortButton(RectTransform stackButton, Button template, float buttonHeight)
+    private static void LayoutContainerSortButton(RectTransform stackButton, Button? sortButton, float buttonHeight)
     {
-        RectTransform? parent = stackButton?.parent as RectTransform ?? template.transform.parent as RectTransform;
-        if (parent == null)
-        {
-            return null;
-        }
-
-        Button? sortButton = EnsureActionButton(parent, template, "InventoryActions_ContainerSortButton", "S", () => SortCurrentContainer(Player.m_localPlayer));
         if (sortButton == null)
         {
-            return null;
+            return;
         }
 
         RectTransform sortRect = (RectTransform)sortButton.transform;
         float sortWidth = buttonHeight;
-        RectTransform anchor = stackButton ?? (RectTransform)template.transform;
-        CopyRectTransformFrame(anchor, sortRect);
-        LayoutButtonRect(sortRect, sortWidth, buttonHeight, anchor.localPosition + new Vector3(GetRectWidth(anchor) * 0.5f + SortButtonOutsideGap + sortWidth * 0.5f, 0f, 0f));
-        return sortButton;
+        CopyRectTransformFrame(stackButton, sortRect);
+        LayoutButtonRect(sortRect, sortWidth, buttonHeight, stackButton.localPosition + new Vector3(GetRectWidth(stackButton) * 0.5f + SortButtonOutsideGap + sortWidth * 0.5f, 0f, 0f));
     }
 
     private static void LayoutButtonRect(RectTransform rect, float width, float height, Vector3 localPosition)
@@ -560,6 +568,7 @@ public sealed partial class InventoryActionsPlugin
 
     private static void RestoreContainerActionButtonLayout()
     {
+        Runtime.ContainerButtonLayout = null;
         Runtime.TakeAllButtonOriginal?.Restore();
         Runtime.StackAllButtonOriginal?.Restore();
     }
@@ -569,6 +578,12 @@ public sealed partial class InventoryActionsPlugin
         RestoreContainerActionButtonLayout();
         Runtime.TakeAllButtonOriginal = null;
         Runtime.StackAllButtonOriginal = null;
+        Runtime.ContainerButtonLayoutGui = null;
+    }
+
+    internal static void ReleaseContainerActionButtonLayout(InventoryGui gui)
+    {
+        if (Runtime.ContainerButtonLayoutGui == gui) ReleaseContainerActionButtonLayout();
     }
 
     private static void SetButtonActive(Button? button, bool active)

@@ -2,7 +2,10 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
-    private static int GetCraftingRecipeGridAvailabilityHash(InventoryGui gui, int pageStart)
+    private static int GetCraftingRecipeGridAvailabilityHash(InventoryGui gui, int pageStart) =>
+        GetCraftingRecipeGridAvailabilityHash(gui, pageStart, GetCraftingTabAdapterState(gui));
+
+    private static int GetCraftingRecipeGridAvailabilityHash(InventoryGui gui, int pageStart, CraftingTabAdapterState adapter)
     {
         unchecked
         {
@@ -22,7 +25,7 @@ public sealed partial class InventorySlotsPlugin
                 hash = hash * 31 + originalIndex;
                 hash = hash * 31 + (pair.Recipe != null && pair.Recipe.m_enabled ? 1 : 0);
                 hash = hash * 31 + (pair.CanCraft ? 1 : 0);
-                bool actionAvailable = IsCraftingRecipeActionAvailable(gui, pair, originalIndex);
+                bool actionAvailable = IsCraftingRecipeActionAvailable(pair, originalIndex, adapter);
                 hash = hash * 31 + (actionAvailable ? 1 : 0);
             }
 

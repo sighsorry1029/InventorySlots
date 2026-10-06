@@ -1,4 +1,14 @@
 inventoryslots_search: Search
+inventoryslots_itemlink_share: Insert into chat
+inventoryslots_itemlink_share_help: "Add this tooltip to your chat draft. Press Enter to send; your current text is kept."
+inventoryslots_itemlink_pin_action: Pin / unpin
+inventoryslots_feature_guide_chat_share: "Share in chat: Pin an inventory/chest item tooltip → Click the chat button at the tooltip's top right → Press Enter to send"
+inventoryslots_itemlink_close_help: Open chat or inventory to close
+inventoryslots_itemlink_link: Item link
+inventoryslots_itemlink_loading: Loading shared tooltip…
+inventoryslots_itemlink_unavailable: "Shared tooltip unavailable. The sender may be offline, sharing may be disabled, or the link may have expired."
+inventoryslots_itemlink_draft_full: There is not enough room in the chat draft for this item link.
+inventoryslots_itemlink_too_large: This tooltip is too large to share in chat.
 inventoryslots_style: Style
 inventoryslots_view_grid: Grid
 inventoryslots_view_list: List
@@ -55,6 +65,7 @@ inventoryslots_quick_slot_format: "Quick {index}"
 inventoryslots_clear_favorites_hint_format: "{key}: clear favorites"
 inventoryslots_inventory_limit_reached: "{item}: you can carry at most {max}."
 inventoryslots_upgrade_safety_canceled: Upgrade canceled because the equipped item could not be returned to its slot safely.
+inventoryslots_refinement_warning: If refinement fails, the item may lose quality or be destroyed.
 
 inventoryslots_rules_restock_title: Restock targets
 inventoryslots_rules_mode_off: "Restock: Off"

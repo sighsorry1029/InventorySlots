@@ -22,6 +22,8 @@ internal sealed class InventoryActionRuntimeState
     public Button? ContainerSortButton;
     public RectTransformSnapshot? TakeAllButtonOriginal;
     public RectTransformSnapshot? StackAllButtonOriginal;
+    public InventoryGui? ContainerButtonLayoutGui;
+    public ContainerButtonLayoutSnapshot? ContainerButtonLayout;
     public Sprite? TrashIconSprite;
     public GameObject? TrashConfirmDialog;
     public Inventory? TrashPendingInventory;
@@ -57,7 +59,7 @@ internal sealed class InventoryGridElementMarker : MonoBehaviour
 
 internal sealed class RectTransformSnapshot
 {
-    private readonly Transform _parent;
+    private readonly Transform? _parent;
     private readonly int _siblingIndex;
     private readonly Vector2 _anchorMin;
     private readonly Vector2 _anchorMax;
@@ -69,6 +71,7 @@ internal sealed class RectTransformSnapshot
     private readonly Vector3 _localPosition;
     private readonly Quaternion _localRotation;
     private readonly Vector3 _localScale;
+    private readonly Rect _bounds;
 
     public RectTransformSnapshot(RectTransform rect)
     {
@@ -85,13 +88,23 @@ internal sealed class RectTransformSnapshot
         _localPosition = rect.localPosition;
         _localRotation = rect.localRotation;
         _localScale = rect.localScale;
+        _bounds = rect.rect;
     }
 
     public RectTransform Rect { get; }
 
+    // Include resolved bounds: stretched controls can change size when only their parent resizes.
+    public bool Matches(RectTransform? rect) => rect != null && Rect == rect &&
+        rect.parent == _parent && rect.GetSiblingIndex() == _siblingIndex &&
+        rect.anchorMin == _anchorMin && rect.anchorMax == _anchorMax && rect.pivot == _pivot &&
+        rect.sizeDelta == _sizeDelta && rect.anchoredPosition == _anchoredPosition &&
+        rect.offsetMin == _offsetMin && rect.offsetMax == _offsetMax &&
+        rect.localPosition == _localPosition && rect.localRotation == _localRotation &&
+        rect.localScale == _localScale && rect.rect == _bounds;
+
     public void Restore()
     {
-        if (Rect == null)
+        if (Rect == null || Matches(Rect))
         {
             return;
         }
@@ -116,4 +129,29 @@ internal sealed class RectTransformSnapshot
             Rect.SetSiblingIndex(Mathf.Clamp(_siblingIndex, 0, _parent.childCount - 1));
         }
     }
+}
+
+// Geometry only. Container ownership, captions, tooltips and controller state stay live.
+internal sealed class ContainerButtonLayoutSnapshot
+{
+    private readonly RectTransformSnapshot _takeAll;
+    private readonly RectTransformSnapshot _stackAll;
+    private readonly RectTransformSnapshot _storeAll;
+    private readonly RectTransformSnapshot _restock;
+    private readonly RectTransformSnapshot _sort;
+
+    public ContainerButtonLayoutSnapshot(RectTransform takeAll, RectTransform stackAll, Button storeAll, Button restock, Button sort)
+    {
+        _takeAll = new RectTransformSnapshot(takeAll);
+        _stackAll = new RectTransformSnapshot(stackAll);
+        _storeAll = new RectTransformSnapshot((RectTransform)storeAll.transform);
+        _restock = new RectTransformSnapshot((RectTransform)restock.transform);
+        _sort = new RectTransformSnapshot((RectTransform)sort.transform);
+    }
+
+    public bool Matches(RectTransform takeAll, RectTransform stackAll, Button? storeAll, Button? restock, Button? sort) =>
+        storeAll != null && restock != null && sort != null &&
+        _takeAll.Matches(takeAll) && _stackAll.Matches(stackAll) &&
+        _storeAll.Matches(storeAll.transform as RectTransform) &&
+        _restock.Matches(restock.transform as RectTransform) && _sort.Matches(sort.transform as RectTransform);
 }

@@ -265,8 +265,10 @@ public sealed partial class InventorySlotsPlugin
             return "";
         }
 
-        int currentQuality = Mathf.Max(1, item.m_quality);
-        int nextQuality = Mathf.Clamp(currentQuality + 1, 1, Mathf.Max(1, item.m_shared?.m_maxQuality ?? currentQuality + 1));
+        bool refinement = IsRefinementStationActive();
+        int currentQuality = refinement ? item.m_quality : Mathf.Max(1, item.m_quality);
+        int nextQuality = CraftingViewCore.UpgradePreviewQuality(
+            currentQuality, item.m_shared?.m_maxQuality ?? currentQuality + 1, refinement);
         int amount = pair.Recipe?.m_amount ?? 1;
         ItemData currentPreview = CreateUpgradeTooltipPreviewItem(item, currentQuality);
         ItemData upgradedPreview = CreateUpgradeTooltipPreviewItem(item, nextQuality);

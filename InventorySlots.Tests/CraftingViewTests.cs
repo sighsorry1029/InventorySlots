@@ -2,6 +2,17 @@ using InventorySlots;
 
 internal static class CraftingViewTests
 {
+    public static void RefinementPreviewsSuccessfulQuality()
+    {
+        Assert.Equal(5, CraftingViewCore.UpgradePreviewQuality(4, 3, true));
+        Assert.Equal(4, CraftingViewCore.UpgradePreviewQuality(3, 3, true));
+        Assert.Equal(2, CraftingViewCore.UpgradePreviewQuality(1, 3, true));
+        Assert.Equal(1, CraftingViewCore.UpgradePreviewQuality(0, 3, true));
+        Assert.Equal(2, CraftingViewCore.UpgradePreviewQuality(1, 3, false));
+        Assert.Equal(3, CraftingViewCore.UpgradePreviewQuality(3, 3, false));
+        Assert.Equal(4, CraftingViewCore.UpgradePreviewQuality(4, 3, false));
+    }
+
     public static void ListSupportsKnownCraftingTabs()
     {
         CraftingTabAdapterKind[] supported =

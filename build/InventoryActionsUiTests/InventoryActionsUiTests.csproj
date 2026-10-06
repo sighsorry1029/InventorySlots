@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Runtime models also include unrelated fields not exercised by this isolated harness. -->
+    <NoWarn>$(NoWarn);CS0649</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../InventoryActions/RuntimeModels.cs" Link="RuntimeModels.cs" />
+    <Compile Include="$(BaseIntermediateOutputPath)ProductionMethods.cs" />
+  </ItemGroup>
+  <Target Name="ExtractProductionMethods" BeforeTargets="CoreCompile">
+    <Exec Command="pwsh -NoProfile -File &quot;$(MSBuildProjectDirectory)/ExtractMethods.ps1&quot;" />
+  </Target>
+</Project>

@@ -8,6 +8,11 @@ internal static class CraftingViewCore
 {
     internal const int ListRows = 14;
 
+    // Refinement previews the successful native outcome, even above the safe cap.
+    // At an ordinary station an already-refined item must not preview a downgrade.
+    internal static int UpgradePreviewQuality(int current, int safeMaximum, bool refinement) =>
+        refinement ? current + 1 : Math.Min(current + 1, Math.Max(current, safeMaximum));
+
     internal static bool UseList(CraftingViewMode mode, CraftingTabAdapterKind tab) =>
         mode == CraftingViewMode.List && new CraftingTabAdapterState(tab).IsRedesign;
 

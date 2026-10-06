@@ -54,8 +54,31 @@ namespace UnityEngine
     public class Object { public static void Destroy(Object value) { } }
     public sealed class Transform
     {
-        public GameObject? gameObject;
-        public Transform? parent;
+        public GameObject gameObject = null!;
+        private Transform? _parent;
+        private readonly List<Transform> _children = new();
+        public static int SiblingWrites;
+        public Transform? parent
+        {
+            get => _parent;
+            set
+            {
+                if (_parent == value) return;
+                _parent?._children.Remove(this);
+                _parent = value;
+                _parent?._children.Add(this);
+            }
+        }
+        public int childCount => _children.Count;
+        public Transform GetChild(int index) => _children[index];
+        public int GetSiblingIndex() => _parent?._children.IndexOf(this) ?? 0;
+        public void SetSiblingIndex(int index)
+        {
+            if (_parent == null) return;
+            SiblingWrites++;
+            _parent._children.Remove(this);
+            _parent._children.Insert(Math.Clamp(index, 0, _parent._children.Count), this);
+        }
         public bool IsChildOf(Transform root) => this == root || (parent?.IsChildOf(root) ?? false);
     }
     public class GameObject : Object
@@ -160,6 +183,10 @@ public sealed class InventoryGui : UnityEngine.Component
     public object? m_dragItem;
     public UnityEngine.Component? m_splitDialog;
     public UnityEngine.Component? m_variantDialog;
+    public UnityEngine.Transform m_inventoryRoot = new UnityEngine.GameObject().transform;
+    public UnityEngine.Transform? m_player, m_info, m_crafting;
+    public UnityEngine.Component? m_skillsDialog, m_textsDialog, m_achievementsPanel;
+    public UnityEngine.GameObject? m_trophiesPanel;
     public bool IsSkillsPanelOpen, IsTextPanelOpen, IsTrophisPanelOpen, IsAchievementsPanelOpen;
     public static bool IsVisible() => Visible;
     private void Update() { }

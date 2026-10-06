@@ -46,6 +46,8 @@ Preview the stat changes from an upgrade before crafting it.
 
 Scroll long descriptions and pin up to three tooltips for comparison.
 
+Use the chat button on a pinned inventory or container item tooltip to share its details. It adds an item link to your chat draft; press Enter when ready. Hover a received link with chat open, then press Mouse3 to pin it. [Item links](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/item-links.md)
+
 | Compare potions | Compare meals |
 | --- | --- |
 | <a href="https://i.ibb.co/JWzSGMcd/favoritecomparepotions.gif"><img src="https://i.ibb.co/JWzSGMcd/favoritecomparepotions.gif" alt="Comparing potion effects with pinned tooltips" width="400"></a> | <a href="https://i.ibb.co/j9bNG7Ft/comparemeal.gif"><img src="https://i.ibb.co/j9bNG7Ft/comparemeal.gif" alt="Comparing meals with pinned tooltips" width="400"></a> |

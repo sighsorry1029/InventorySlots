@@ -131,7 +131,10 @@ public sealed partial class InventorySlotsPlugin
                 }
 
                 RectTransform elementRect = (RectTransform)element!.gameObject.transform;
-                elementRect.SetParent(targetPanel, false);
+                if (elementRect.parent != targetPanel)
+                {
+                    elementRect.SetParent(targetPanel, false);
+                }
                 elementRect.localScale = Vector3.one;
                 elementRect.localRotation = Quaternion.identity;
                 elementRect.localPosition = quickSlot ? GetQuickSlotPanelElementPosition(visibleIndex, playerGrid.m_elementSpace) : GetCustomSlotPanelElementPosition(visibleIndex, playerGrid.m_elementSpace);

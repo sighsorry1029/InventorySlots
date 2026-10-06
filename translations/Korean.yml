@@ -1,4 +1,14 @@
 inventoryslots_search: 검색
+inventoryslots_itemlink_share: 채팅에 넣기
+inventoryslots_itemlink_share_help: "현재 툴팁을 채팅 초안에 추가합니다. 작성 중인 내용은 유지되며, Enter를 눌러 전송합니다."
+inventoryslots_itemlink_pin_action: 고정 / 해제
+inventoryslots_feature_guide_chat_share: "채팅 공유: 인벤토리·상자 아이템 툴팁 고정 → 툴팁 우상단 채팅 버튼 클릭 → Enter로 전송"
+inventoryslots_itemlink_close_help: 채팅이나 인벤토리를 열어 닫기
+inventoryslots_itemlink_link: 아이템 링크
+inventoryslots_itemlink_loading: 공유 툴팁을 불러오는 중…
+inventoryslots_itemlink_unavailable: "공유 툴팁을 불러올 수 없습니다. 보낸 사람이 접속을 종료했거나 공유를 껐거나 링크가 만료되었을 수 있습니다."
+inventoryslots_itemlink_draft_full: 이 아이템 링크를 넣을 채팅 입력 공간이 부족합니다.
+inventoryslots_itemlink_too_large: 이 툴팁은 채팅으로 공유하기에 너무 큽니다.
 inventoryslots_style: 스타일
 inventoryslots_view_grid: 격자
 inventoryslots_view_list: 목록
@@ -55,6 +65,7 @@ inventoryslots_quick_slot_format: "퀵 {index}"
 inventoryslots_clear_favorites_hint_format: "{key}: 즐겨찾기 해제"
 inventoryslots_inventory_limit_reached: "{item}: 최대 {max}개까지 지닐 수 있습니다."
 inventoryslots_upgrade_safety_canceled: 장착 아이템을 슬롯에 안전하게 되돌릴 수 없어 업그레이드를 취소했습니다.
+inventoryslots_refinement_warning: 정제에 실패하면 품질이 하락하거나 아이템이 파괴될 수 있습니다.
 
 inventoryslots_rules_restock_title: 보충 대상
 inventoryslots_rules_mode_off: "보충: 끄기"

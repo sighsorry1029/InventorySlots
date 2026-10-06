@@ -23,6 +23,13 @@ config save/reload by passing the plugin DLL and original game Managed directory
 after its BepInEx core and temporary-output arguments.
 Unity rendering and actual device input remain outside this harness.
 
+InventorySlots also source-links `InventoryDialogLayering.cs`. Hierarchy cases
+check misplaced base panels, all six native dialog references, simultaneous
+dialogs, unrelated popups, hidden/reparented objects, quick-slot outro parents,
+and no further sibling writes once the order is correct. The Transform double
+models sibling insertion; Canvas sorting and Unity's LateUpdate scheduling still
+require in-game checks.
+
 This executable compiles the real `Shared/ItemRules/InventoryController.cs`
 and `Shared/ItemRules/InventoryButtonNavigation.cs` against a small fake host,
 for either plugin's preprocessor branch. It exercises dispatch, focus state,

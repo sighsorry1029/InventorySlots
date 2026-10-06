@@ -63,6 +63,7 @@ internal sealed class InventoryActionButtonMarker : MonoBehaviour
 
 internal sealed class PinnedTooltipPanelUiCache : MonoBehaviour
 {
+    public Button? ItemShareButton { get; set; }
     public Image? Background { get; set; }
     public TMP_Text? BodyText { get; set; }
     public ScrollableTooltipBodyState TextScrollBody { get; } = new();

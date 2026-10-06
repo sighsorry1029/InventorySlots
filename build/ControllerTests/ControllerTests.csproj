@@ -17,6 +17,7 @@
     <PackageReference Include="YamlDotNet" Version="16.3.0" />
   </ItemGroup>
   <ItemGroup Condition="'$(ControllerTarget)' == 'InventorySlots'">
+    <Compile Include="../../InventoryDialogLayering.cs" Link="InventoryDialogLayering.cs" />
     <Compile Include="../../ClientStateModels.cs" Link="ClientStateModels.cs" />
     <Compile Include="../../ClientStateCore.cs" Link="ClientStateCore.cs" />
     <Compile Include="../../InventoryClientState.cs" Link="InventoryClientState.cs" />

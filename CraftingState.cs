@@ -405,6 +405,9 @@ public sealed partial class InventorySlotsPlugin
     private static string _pendingUpgradeFavoritePrefab = "";
     private static int _pendingUpgradeFavoriteQuality = -1;
     private static int _pendingUpgradeFavoriteVariant = -1;
+    private static ItemDrop.ItemData? _pendingUpgradeFavoriteOriginal;
+    private static ItemDrop.ItemData? _pendingUpgradeFavoriteRefinementResult;
+    private static bool _pendingUpgradeFavoriteIsRefinement;
     private static int _visibleRecycleNReclaimTabFrame = -1;
     private static int _visibleRecycleNReclaimTabGuiId = -1;
     private static Vector2i _pendingUpgradeFavoriteGridPos = new(-1, -1);

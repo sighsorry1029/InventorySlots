@@ -178,6 +178,7 @@ public sealed partial class InventorySlotsPlugin
         PinnedTooltips.Inventory.JewelcraftingTooltipRoots[slot] = FindJewelcraftingTooltipRoot(panel);
 
         PinnedTooltips.Inventory.Panels[slot] = panel;
+        EnsureItemShareButton(panel, slot);
         return panel;
     }
 

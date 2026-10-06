@@ -253,7 +253,9 @@ internal static partial class Program
         CheckItemRuleControllerState();
         CheckControllerFeatureGuide();
         CheckFeatureGuideHotkey();
-#if !INVENTORY_SLOTS
+#if INVENTORY_SLOTS
+        CheckInventoryDialogLayering();
+#else
         CheckActionsClientState();
 #endif
         Console.WriteLine($"{typeof(Plugin).Namespace}: {_checks} controller dispatcher/navigation checks passed (source-linked fake host; no Unity/game/device execution).");

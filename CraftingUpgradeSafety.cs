@@ -156,6 +156,8 @@ internal sealed class EquipmentSlotUpgradeTransaction
     public bool RolledBack { get; set; }
     public bool RollbackInProgress { get; set; }
     public bool Closed { get; set; }
+    public bool IsRefinement { get; set; }
+    public RefinementOutcome? RefinementOutcome { get; set; }
     public ItemData? ReplacementResult { get; set; }
 }
 
@@ -262,9 +264,16 @@ public sealed partial class InventorySlotsPlugin
                 ? CleanPrefabName(recipe.m_item.gameObject.name)
                 : "";
             int expectedQuality = original.m_quality + 1;
+            bool refinement = IsRefinementStationActive();
+            if (refinement && !InventoryGuiRefinementOutcomePatch.Ready)
+            {
+                abortCrafting = true;
+                NotifyUnsafeEquipmentSlotUpgradeCanceled(player, "the native refinement outcomes could not be verified");
+                return null;
+            }
             if (string.IsNullOrWhiteSpace(originalPrefab) ||
                 !string.Equals(originalPrefab, expectedPrefab, StringComparison.OrdinalIgnoreCase) ||
-                expectedQuality > recipeItem.m_shared.m_maxQuality)
+                !refinement && expectedQuality > recipeItem.m_shared.m_maxQuality)
             {
                 abortCrafting = true;
                 NotifyUnsafeEquipmentSlotUpgradeCanceled(
@@ -300,7 +309,10 @@ public sealed partial class InventorySlotsPlugin
                 expectedQuality,
                 original.m_variant,
                 initialItems,
-                _activeEquipmentSlotUpgradeTransaction);
+                _activeEquipmentSlotUpgradeTransaction)
+            {
+                IsRefinement = refinement
+            };
             _activeEquipmentSlotUpgradeTransaction = transaction;
             return transaction;
         }
@@ -354,6 +366,11 @@ public sealed partial class InventorySlotsPlugin
 
         try
         {
+            if (transaction.Committed)
+            {
+                return;
+            }
+
             if (!transaction.ReplacementAddAttempted &&
                 transaction.Inventory.ContainsItem(transaction.OriginalItem) &&
                 !IsEquipmentSlotUpgradeOriginalStateIntact(transaction) &&
@@ -468,12 +485,14 @@ public sealed partial class InventorySlotsPlugin
         EquipmentSlotUpgradeTransaction? transaction = _activeEquipmentSlotUpgradeTransaction;
         if (transaction == null ||
             transaction.Closed ||
+            transaction.Committed ||
             transaction.ReplacementAddAttempted ||
             transaction.ReplacementAddInProgress ||
             !ReferenceEquals(inventory, transaction.Inventory) ||
             inventory.ContainsItem(transaction.OriginalItem) ||
             stack != 1 ||
-            quality <= 0 ||
+            (quality <= 0 && !(transaction.RefinementOutcome == RefinementOutcome.Downgrade &&
+                quality == transaction.ExpectedQuality)) ||
             variant < 0 ||
             position != transaction.OriginalPosition ||
             !string.Equals(CleanPrefabName(name), transaction.ExpectedPrefab, StringComparison.OrdinalIgnoreCase))
@@ -689,6 +708,15 @@ public sealed partial class InventorySlotsPlugin
         }
 
         ItemData? rawResult = result;
+        if (transaction.IsRefinement &&
+            (transaction.ReplacementResult == null || !transaction.Inventory.ContainsItem(transaction.ReplacementResult)) && rawResult != null &&
+            !transaction.InitialItems.Contains(rawResult) && transaction.Inventory.ContainsItem(rawResult))
+        {
+            // Retain the causal add result for cleanup even if another mod gave
+            // it unexpected metadata. Restoring the original must not leave this
+            // new owned item behind; pre-existing inventory items are never claimed.
+            transaction.ReplacementResult = rawResult;
+        }
         ItemData? candidate = FindEquipmentSlotUpgradeResult(transaction, rawResult);
         if (exception == null && candidate != null)
         {

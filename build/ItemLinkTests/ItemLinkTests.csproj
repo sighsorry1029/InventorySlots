@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../ItemLinkCore.cs" Link="ItemLinkCore.cs" />
+    <Compile Include="../../ItemLinkClan.cs" Link="ItemLinkClan.cs" />
+    <Compile Include="$(BaseIntermediateOutputPath)CursorMethods.cs" />
+  </ItemGroup>
+  <Target Name="ExtractCursorMethods" BeforeTargets="CoreCompile">
+    <Exec Command="pwsh -NoProfile -File &quot;$(MSBuildProjectDirectory)/ExtractCursorMethods.ps1&quot;" />
+  </Target>
+</Project>

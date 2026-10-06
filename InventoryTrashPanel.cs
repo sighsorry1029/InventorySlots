@@ -88,7 +88,7 @@ public sealed partial class InventorySlotsPlugin
             _inventoryTrashPanel.localPosition = panelPosition;
         }
 
-        DisableActionPanelChildren(_inventoryTrashPanel);
+        DisableActionPanelChildren(_inventoryTrashPanel, InventoryTrashButtonName);
 
         Button? trashButton = EnsureActionButton(
             _inventoryTrashPanel,

@@ -7,7 +7,10 @@ internal static class ChatHasFocusInventorySlotsInputPatch
 {
     private static void Postfix(ref bool __result)
     {
-        __result = __result || InventorySlotsPlugin.IsCraftingSearchFocused() || InventorySlotsPlugin.IsItemRuleInputBlocked();
+        // Sample the gesture even if TMP still has focus: EventSystem can deselect
+        // it later in this frame, before PlayerController consumes the same press.
+        __result = InventorySlotsPlugin.IsItemLinkInputBlocked() || __result ||
+                   InventorySlotsPlugin.IsCraftingSearchFocused() || InventorySlotsPlugin.IsItemRuleInputBlocked();
     }
 }
 

@@ -673,12 +673,20 @@ public sealed partial class InventorySlotsPlugin
 
         ConfigureBackgroundRect(background, width, height);
         ConfigureBackgroundRect(darken, width, height);
-        if (darken.GetSiblingIndex() != 0)
+        // The stat host stays behind the equipment background. Reserve its
+        // index here so background and stat layout do not reorder each other.
+        RectTransform? statHost = InventoryPanels.PlayerStatPanelHost;
+        int backgroundStart = statHost != null && statHost.parent == panel ? 1 : 0;
+        if (backgroundStart != 0 && statHost!.GetSiblingIndex() != 0)
         {
-            darken.SetAsFirstSibling();
+            statHost.SetAsFirstSibling();
+        }
+        if (darken.GetSiblingIndex() != backgroundStart)
+        {
+            darken.SetSiblingIndex(backgroundStart);
         }
 
-        int backgroundSiblingIndex = Mathf.Min(1, background.parent.childCount - 1);
+        int backgroundSiblingIndex = Mathf.Min(backgroundStart + 1, background.parent.childCount - 1);
         if (background.GetSiblingIndex() != backgroundSiblingIndex)
         {
             background.SetSiblingIndex(backgroundSiblingIndex);
@@ -763,7 +771,12 @@ public sealed partial class InventorySlotsPlugin
     {
         RectTransform border = EnsureSlotPanelDragBorder(panel, panelName);
         ConfigureBackgroundRect(border, width, height);
-        border.SetSiblingIndex(Mathf.Min(2, panel.childCount - 1));
+        RectTransform? statHost = InventoryPanels.PlayerStatPanelHost;
+        int borderIndex = Mathf.Min(statHost != null && statHost.parent == panel ? 3 : 2, panel.childCount - 1);
+        if (border.GetSiblingIndex() != borderIndex)
+        {
+            border.SetSiblingIndex(borderIndex);
+        }
         border.gameObject.SetActive(true);
     }
 

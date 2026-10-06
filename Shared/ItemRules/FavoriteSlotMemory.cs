@@ -40,6 +40,9 @@ public sealed partial class InventoryActionsPlugin
     // callback where swapping two items may still be in progress.
     private void LateUpdate()
     {
+#if INVENTORY_SLOTS
+        UpdateInventoryDialogLayering();
+#endif
         Player? player = Player.m_localPlayer;
         if (player == null || FavoriteMemoryAccess.IsLoading(player)) return;
         Inventory inventory = ((Humanoid)player).GetInventory();
