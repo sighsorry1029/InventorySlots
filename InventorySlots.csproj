@@ -16,7 +16,7 @@
         <FileAlignment>512</FileAlignment>
         <LangVersion>preview</LangVersion>
         <Nullable>enable</Nullable>
-        <BuildPackage Condition="'$(BuildPackage)' == '' AND '$(Configuration)' == 'Release'">true</BuildPackage>
+        <BuildPackage Condition="'$(BuildPackage)' == '' AND '$(Configuration)' == 'Release' AND '$(OS)' == 'Windows_NT'">true</BuildPackage>
         <BuildPackage Condition="'$(BuildPackage)' == ''">false</BuildPackage>
         <ILRepackTargetsFile>$(MSBuildProjectDirectory)\build\ILRepack.targets</ILRepackTargetsFile>
     </PropertyGroup>

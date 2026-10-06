@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.21
+
+- Updated AdventureBackpacks integration to use its official ABAPI client for backpack queries and removed the custom patches on its internal equipped-item lookup methods.
+- Preserved custom-slot backpack close-state and proxy cleanup when unequipping or switching backpacks, with checked cleanup contracts until the public API exposes this operation.
+- Avoided restarting quick-slot opening animations when an already-open inventory shows a backpack. Reopening during a close transition cancels the outgoing animation, and the following quick-slot HUD stays hidden while its inventory panel is visible or animating.
+- Replaced AdventureBackpacks-specific bone-reordering reflection with local armor bone mapping. Default Release ZIP packaging is now limited to Windows, where its packaging commands run.
+
 ## 1.5.20
 
 - Added client-only item tooltips in chat: use the chat button on a pinned inventory or container tooltip to add an item to your existing chat draft, then press Enter. Crafting tooltips remain locally pinnable without a share button. Hover a received item while chat is open and press Mouse3 to pin or unpin its tooltip. Ordinary chat channels, permissions, and text filtering remain in use; clients without the feature see a readable item label. Includes English/Korean help and bounded expiring link data.

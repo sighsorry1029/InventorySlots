@@ -8,7 +8,6 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
-    private static bool _adventureBackpacksPatchesApplied;
     private static ItemData? _lastAdventureBackpackCompatItem;
     private static ItemData? _lastSmoothbrainBackpackCompatItem;
     private static ItemData? _lastRustyBagCompatItem;
@@ -16,14 +15,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void InitializeBackpackCompatibility()
     {
-        if (!_adventureBackpacksPatchesApplied &&
-            TryGetAdventureBackpacksApi(out AdventureBackpacksApi? adventureApi) &&
-            adventureApi != null)
-        {
-            adventureApi.ApplyPatches(_instance._harmony);
-            _adventureBackpacksPatchesApplied = true;
-        }
-
+        _ = TryGetAdventureBackpacksApi(out _);
         _ = TryGetSmoothbrainBackpacksApi(out _);
         _ = TryGetRustyBagsApi(out _);
     }
@@ -133,15 +125,8 @@ public sealed partial class InventorySlotsPlugin
 
         bool externalStateChanged = OnHipLanternCustomEquipmentEquipped(player, item);
 
-        if (IsAdventureBackpackItem(item) &&
-            TryGetAdventureBackpacksApi(out AdventureBackpacksApi? adventureApi) &&
-            adventureApi != null)
+        if (IsAdventureBackpackItem(item))
         {
-            if (!ReferenceEquals(_lastAdventureBackpackCompatItem, item) || !adventureApi.IsBackpackEquippedFlagSet())
-            {
-                adventureApi.OnCustomBackpackEquipped(player, item);
-            }
-
             _lastAdventureBackpackCompatItem = item;
         }
 
@@ -247,17 +232,6 @@ public sealed partial class InventorySlotsPlugin
             }
 
             _lastAdventureBackpackCompatItem = current;
-            if (current != null)
-            {
-                api.OnCustomBackpackEquipped(player, current);
-            }
-
-            return;
-        }
-
-        if (current != null && !api.IsBackpackEquippedFlagSet())
-        {
-            api.OnCustomBackpackEquipped(player, current);
         }
     }
 
@@ -337,48 +311,5 @@ public sealed partial class InventorySlotsPlugin
             out api);
     }
 
-    private static void AdventureBackpackIsBackpackEquippedPostfix(Player player, ref bool __result)
-    {
-        if (!__result && player != null && FindCustomEquippedItem(player, IsAdventureBackpackItem) != null)
-        {
-            __result = true;
-        }
-    }
 
-    private static void AdventureBackpackIsThisBackpackEquippedPostfix(Player player, ItemData itemData, ref bool __result)
-    {
-        if (__result || player == null || itemData == null || !IsAdventureBackpackItem(itemData))
-        {
-            return;
-        }
-
-        __result = GetCustomEquippedItems(player).Any(item => ReferenceEquals(item, itemData));
-    }
-
-    private static void AdventureBackpackGetEquippedBackpackPrefix(Player player, ref ItemData? __state)
-    {
-        if (player == null)
-        {
-            return;
-        }
-
-        Humanoid humanoid = player;
-        __state = humanoid.m_shoulderItem;
-        if (!IsAdventureBackpackItem(humanoid.m_shoulderItem))
-        {
-            ItemData? customBackpack = FindCustomEquippedItem(player, IsAdventureBackpackItem);
-            if (customBackpack != null)
-            {
-                humanoid.m_shoulderItem = customBackpack;
-            }
-        }
-    }
-
-    private static void AdventureBackpackGetEquippedBackpackPostfix(Player player, ItemData? __state)
-    {
-        if (player != null)
-        {
-            ((Humanoid)player).m_shoulderItem = __state;
-        }
-    }
 }

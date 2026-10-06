@@ -61,6 +61,8 @@ InventorySlots cannot be combined with other slot owners declared incompatible: 
 
 Keep generated compatibility slot IDs unchanged when editing YAML. Optional integrations use the relevant installed mod's supported interfaces; this list does not mean every feature of every mod shares the same layout.
 
+AdventureBackpacks queries use its official ABAPI client. Custom-slot unequipping also needs its close-state and container-proxy cleanup, which ABAPI does not currently expose. InventorySlots checks those specific cleanup signatures before enabling the adapter; it does not invoke AdventureBackpacks' internal equipment patches or replace the player's cape reference. The supplied AdventureBackpacks 2.2.9 DLL was checked against these contracts. This is not an exact-version restriction or a claim of in-game multiplayer verification.
+
 ## InventoryActions with other slot mods
 
 InventoryActions does not replace the slot layout. It is incompatible with **InventorySlots** and **Quick Stack Store** to avoid duplicate controls and automatic item actions.

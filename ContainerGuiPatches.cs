@@ -67,14 +67,18 @@ internal static class InventoryGuiPlaceStacksPatch
 [HarmonyPatch(typeof(InventoryGui), "Show")]
 internal static class InventoryGuiShowValidateInventoryPatch
 {
-    private static void Prefix()
+    private static void Prefix(InventoryGui __instance, out bool __state)
     {
+        // IsVisible remains true briefly after Hide. A closing inventory (or a
+        // hover preview with a visible animator) is not an already-open inventory.
+        __state = InventoryGui.IsVisible() &&
+            __instance.m_animator != null && __instance.m_animator.GetBool("visible");
         InventorySlotsPlugin.BeforeRealInventoryGuiShown();
     }
 
-    private static void Postfix()
+    private static void Postfix(bool __state)
     {
-        InventorySlotsPlugin.OnInventoryGuiShow();
+        InventorySlotsPlugin.OnInventoryGuiShow(__state);
     }
 }
 

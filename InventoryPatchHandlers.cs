@@ -750,10 +750,14 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
-    internal static void OnInventoryGuiShow()
+    internal static void OnInventoryGuiShow(bool wasAlreadyVisible = false)
     {
         OnRealInventoryGuiShown();
-        StartQuickSlotPanelIntroAnimation();
+        if (!wasAlreadyVisible || InventoryPanels.QuickSlotPanelOutroActive)
+        {
+            StartQuickSlotPanelIntroAnimation();
+        }
+
         Player? player = Player.m_localPlayer;
         if (player != null && !player.m_isLoading)
         {

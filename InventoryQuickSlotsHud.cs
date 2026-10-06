@@ -40,7 +40,8 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        if (Hud.IsUserHidden() || !Hud.instance.IsVisible())
+        bool hudFollowsPanel = _quickSlotHudFollowsPanel == null || _quickSlotHudFollowsPanel.Value == Toggle.On;
+        if (Hud.IsUserHidden() || !Hud.instance.IsVisible() || (hudFollowsPanel && (InventoryGui.IsVisible() || InventoryPanels.QuickSlotPanelIntroActive || InventoryPanels.QuickSlotPanelOutroActive)))
         {
             if (!IsUnityNull(InventoryPanels.QuickSlotsHotkeyBarRect) &&
                 InventoryPanels.QuickSlotsHotkeyBarRect!.gameObject.activeSelf)

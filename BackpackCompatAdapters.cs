@@ -5,6 +5,7 @@ using System.Reflection;
 using HarmonyLib;
 using UnityEngine;
 using ItemData = ItemDrop.ItemData;
+using AdventureBackpacks.API.Client;
 
 namespace InventorySlots;
 
@@ -12,68 +13,45 @@ public sealed partial class InventorySlotsPlugin
 {
     private sealed class AdventureBackpacksApi
     {
-        private readonly MethodInfo _isBackpackMethod;
-        private readonly MethodInfo? _equipItemPostfixMethod;
-        private readonly MethodInfo? _unequipItemPrefixMethod;
-        private readonly MethodInfo? _isBackpackEquippedMethod;
-        private readonly MethodInfo? _isThisBackpackEquippedMethod;
-        private readonly MethodInfo? _getEquippedBackpackMethod;
-        private readonly MethodInfo? _reorderBonesMethod;
-        private readonly FieldInfo? _backpackEquippedField;
+        private readonly FieldInfo _backpackIsOpenField;
+        private readonly FieldInfo _backpackEquippedField;
+        private readonly MethodInfo _destroyBackpackContainerProxyMethod;
 
-        private AdventureBackpacksApi(
-            MethodInfo isBackpackMethod,
-            MethodInfo? equipItemPostfixMethod,
-            MethodInfo? unequipItemPrefixMethod,
-            MethodInfo? isBackpackEquippedMethod,
-            MethodInfo? isThisBackpackEquippedMethod,
-            MethodInfo? getEquippedBackpackMethod,
-            MethodInfo? reorderBonesMethod,
-            FieldInfo? backpackEquippedField)
+        private AdventureBackpacksApi(FieldInfo backpackIsOpenField, FieldInfo backpackEquippedField,
+            MethodInfo destroyBackpackContainerProxyMethod)
         {
-            _isBackpackMethod = isBackpackMethod;
-            _equipItemPostfixMethod = equipItemPostfixMethod;
-            _unequipItemPrefixMethod = unequipItemPrefixMethod;
-            _isBackpackEquippedMethod = isBackpackEquippedMethod;
-            _isThisBackpackEquippedMethod = isThisBackpackEquippedMethod;
-            _getEquippedBackpackMethod = getEquippedBackpackMethod;
-            _reorderBonesMethod = reorderBonesMethod;
+            _backpackIsOpenField = backpackIsOpenField;
             _backpackEquippedField = backpackEquippedField;
+            _destroyBackpackContainerProxyMethod = destroyBackpackContainerProxyMethod;
         }
 
         public static bool TryCreate(Assembly assembly, out AdventureBackpacksApi? api, out string detail)
         {
             api = null;
-            Type? abApiType = assembly.GetType("AdventureBackpacks.API.ABAPI");
-            MethodInfo? isBackpackMethod = abApiType?.GetMethod(
-                "IsBackpack",
-                BindingFlags.Public | BindingFlags.Static,
-                null,
-                new[] { typeof(ItemData) },
-                null);
-            if (isBackpackMethod == null)
+            if (!ABAPIClient.IsLoaded())
             {
-                detail = "AdventureBackpacks.API.ABAPI.IsBackpack was not found";
+                detail = "AdventureBackpacks not loaded";
                 return false;
             }
 
-            Type? humanoidPatchesType = assembly.GetType("AdventureBackpacks.Patches.HumanoidPatches");
-            Type? equipPatchType = humanoidPatchesType?.GetNestedType("HumanoidEquipItemPatch", BindingFlags.NonPublic);
-            Type? unequipPatchType = humanoidPatchesType?.GetNestedType("HumanoidUnequipItemPatch", BindingFlags.NonPublic);
-            Type? playerExtensionsType = assembly.GetType("AdventureBackpacks.Extensions.PlayerExtensions");
-            Type? inventoryGuiPatchesType = assembly.GetType("AdventureBackpacks.Patches.InventoryGuiPatches");
-            Type? boneReorderType = assembly.GetType("Vapok.Common.Tools.BoneReorder");
+            // ABAPI has no custom-slot unequip/close operation yet. Keep this
+            // narrow, checked cleanup contract instead of invoking native patches
+            // or temporarily replacing the player's shoulder equipment.
+            Type? guiPatches = assembly.GetType("AdventureBackpacks.Patches.InventoryGuiPatches");
+            FieldInfo? backpackIsOpen = guiPatches?.GetField("BackpackIsOpen", BindingFlags.Public | BindingFlags.Static);
+            FieldInfo? backpackEquipped = guiPatches?.GetField("BackpackEquipped", BindingFlags.Public | BindingFlags.Static);
+            MethodInfo? destroyProxy = assembly.GetType("AdventureBackpacks.Extensions.PlayerExtensions")?.GetMethod(
+                "DestroyBackpackContainerProxy", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(Player) }, null);
+            if (backpackIsOpen?.FieldType != typeof(bool) || backpackIsOpen.IsInitOnly || backpackIsOpen.IsLiteral ||
+                backpackEquipped?.FieldType != typeof(bool) || backpackEquipped.IsInitOnly || backpackEquipped.IsLiteral ||
+                destroyProxy == null || destroyProxy.ReturnType != typeof(void) || destroyProxy.ContainsGenericParameters)
+            {
+                detail = "AdventureBackpacks custom-slot unequip cleanup contract was not found";
+                return false;
+            }
 
-            api = new AdventureBackpacksApi(
-                isBackpackMethod,
-                equipPatchType?.GetMethod("Postfix", BindingFlags.NonPublic | BindingFlags.Static),
-                unequipPatchType?.GetMethod("Prefix", BindingFlags.NonPublic | BindingFlags.Static),
-                playerExtensionsType?.GetMethod("IsBackpackEquipped", BindingFlags.Public | BindingFlags.Static),
-                playerExtensionsType?.GetMethod("IsThisBackpackEquipped", BindingFlags.Public | BindingFlags.Static),
-                playerExtensionsType?.GetMethod("GetEquippedBackpack", BindingFlags.Public | BindingFlags.Static),
-                AccessTools.Method(boneReorderType, "ReorderBones"),
-                inventoryGuiPatchesType?.GetField("BackpackEquipped", BindingFlags.Public | BindingFlags.Static));
-            detail = "";
+            api = new AdventureBackpacksApi(backpackIsOpen, backpackEquipped, destroyProxy);
+            detail = string.Empty;
             return true;
         }
 
@@ -84,117 +62,42 @@ public sealed partial class InventorySlotsPlugin
                 return false;
             }
 
-            try
-            {
-                return _isBackpackMethod.Invoke(null, new object[] { item }) is true;
-            }
-            catch
+            return ABAPIClient.IsBackpack(item);
+        }
+
+        public bool IsBackpackEquipped(Player player)
+        {
+            if (player == null)
             {
                 return false;
             }
-        }
 
-        public bool IsBackpackEquippedFlagSet()
-        {
-            try
-            {
-                return _backpackEquippedField?.GetValue(null) is true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        public void OnCustomBackpackEquipped(Player player, ItemData item)
-        {
-            if (player == null || item == null || !IsBackpack(item))
-            {
-                return;
-            }
-
-            try
-            {
-                _equipItemPostfixMethod?.Invoke(null, new object[] { item, true });
-                _backpackEquippedField?.SetValue(null, true);
-            }
-            catch (Exception)
-            {
-            }
+            return ABAPIClient.IsBackpackEquipped(player);
         }
 
         public void OnCustomBackpackUnequipping(Player player, ItemData item)
         {
-            if (player == null || item == null || !IsBackpack(item))
-            {
-                return;
-            }
-
-            Humanoid humanoid = player;
-            ItemData? originalShoulderItem = humanoid.m_shoulderItem;
-            try
-            {
-                humanoid.m_shoulderItem = item;
-                _unequipItemPrefixMethod?.Invoke(null, new object[] { item });
-            }
-            catch (Exception)
-            {
-            }
-            finally
-            {
-                humanoid.m_shoulderItem = originalShoulderItem;
-            }
-        }
-
-        public void ReorderBones(VisEquipment visEquipment, int itemHash, List<GameObject>? instances)
-        {
-            if (_reorderBonesMethod == null || IsUnityNull(visEquipment) || instances == null || instances.Count == 0)
+            if (player == null || player != Player.m_localPlayer || item == null || !IsBackpack(item))
             {
                 return;
             }
 
             try
             {
-                _reorderBonesMethod.Invoke(null, new object[] { visEquipment, itemHash, instances });
+                InventoryGui? inventoryGui = InventoryGui.instance;
+                if (inventoryGui != null && inventoryGui.IsContainerOpen())
+                {
+                    inventoryGui.CloseContainer();
+                }
+
+                _backpackIsOpenField.SetValue(null, false);
+                _backpackEquippedField.SetValue(null, false);
+                _destroyBackpackContainerProxyMethod.Invoke(null, new object[] { player });
             }
-            catch
+            catch (Exception exception)
             {
+                Log.LogWarning($"AdventureBackpacks custom-slot unequip cleanup failed: {exception.GetBaseException().Message}");
             }
-        }
-
-        public void ApplyPatches(Harmony harmony)
-        {
-            PatchOptional(
-                harmony,
-                _isBackpackEquippedMethod,
-                postfix: nameof(AdventureBackpackIsBackpackEquippedPostfix),
-                label: "AdventureBackpacks IsBackpackEquipped");
-            PatchOptional(
-                harmony,
-                _isThisBackpackEquippedMethod,
-                postfix: nameof(AdventureBackpackIsThisBackpackEquippedPostfix),
-                label: "AdventureBackpacks IsThisBackpackEquipped");
-            PatchOptional(
-                harmony,
-                _getEquippedBackpackMethod,
-                prefix: nameof(AdventureBackpackGetEquippedBackpackPrefix),
-                postfix: nameof(AdventureBackpackGetEquippedBackpackPostfix),
-                label: "AdventureBackpacks GetEquippedBackpack");
-        }
-
-        private static void PatchOptional(Harmony harmony, MethodInfo? target, string? prefix = null, string? postfix = null, string? label = null)
-        {
-            if (harmony == null || target == null)
-            {
-                return;
-            }
-
-            MethodInfo? prefixMethod = prefix == null ? null : AccessTools.Method(typeof(InventorySlotsPlugin), prefix);
-            MethodInfo? postfixMethod = postfix == null ? null : AccessTools.Method(typeof(InventorySlotsPlugin), postfix);
-            harmony.Patch(
-                target,
-                prefixMethod == null ? null : new HarmonyMethod(prefixMethod),
-                postfixMethod == null ? null : new HarmonyMethod(postfixMethod));
         }
     }
 
