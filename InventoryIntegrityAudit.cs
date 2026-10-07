@@ -303,7 +303,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool ProjectSlotDisplayState(Player player, Inventory inventory)
     {
-        bool changed = false;
+        bool changed = ReconcileMagicSupremacyTomeAssignments(player, inventory);
 
         foreach (SlotDefinition slot in SlotDefinitions)
         {

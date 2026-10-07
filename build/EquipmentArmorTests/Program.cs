@@ -112,6 +112,16 @@ player.m_utilityItem = alias;
 Equal(10f, Plugin.GetProjectedEquipmentArmor(player), "custom item temporarily aliased as utility is not counted twice");
 
 player = Fresh();
+ItemData tome = Custom(player, "utility", false, SlotKind.BuiltIn);
+tome.m_customData["tome"] = "true";
+Equal(0f, Plugin.GetProjectedEquipmentArmor(player), "custom-owned Utility Tome respects armor opt-out");
+Plugin.SlotDefinitions[0].ApplyArmor = true;
+Plugin.Invalidate();
+Equal(10f, Plugin.GetProjectedEquipmentArmor(player), "Utility Tome armor opt-in follows its selected slot");
+player.m_utilityItem = tome;
+Equal(10f, Plugin.GetProjectedEquipmentArmor(player), "Utility Tome with a stale native alias is counted once");
+
+player = Fresh();
 foreach (string id in new[] { "helmet", "chest", "legs", "cape" })
     Plugin.SlotDefinitions.Add(new SlotDefinition(id, SlotKind.BuiltIn, true));
 player.m_helmetItem = new();

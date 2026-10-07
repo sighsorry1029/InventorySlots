@@ -8,6 +8,7 @@ public sealed partial class InventorySlotsPlugin
     private static void ValidateAndProjectInventory(Player player, Inventory inventory)
     {
         bool changed = ReconcileCircletExtendedLegacyHelmetState(player, inventory);
+        changed |= ReconcileMagicSupremacyTomeAssignments(player, inventory);
         List<ItemData> items = new(inventory.m_inventory.Count);
         foreach (ItemData item in inventory.m_inventory)
         {
@@ -342,7 +343,7 @@ public sealed partial class InventorySlotsPlugin
         return TryMoveToFirstFreeRegularCell(player, inventory, item);
     }
 
-    private static bool TryMoveOverlappingItemToOverflowPreservationCell(Inventory inventory, ItemData item)
+    private static bool TryMoveOverlappingItemToOverflowPreservationCell(Inventory inventory, ItemData item, bool preserveCurrentCell = true)
     {
         if (inventory == null || item == null || !inventory.ContainsItem(item))
         {
@@ -352,7 +353,9 @@ public sealed partial class InventorySlotsPlugin
         InventorySlotSafetyCore.GridCell cell = InventorySlotSafetyCore.SelectNonOverlappingPreservationCell(
             inventory.GetWidth(),
             inventory.GetHeight(),
-            new InventorySlotSafetyCore.GridCell(item.m_gridPos.x, item.m_gridPos.y),
+            preserveCurrentCell
+                ? new InventorySlotSafetyCore.GridCell(item.m_gridPos.x, item.m_gridPos.y)
+                : new InventorySlotSafetyCore.GridCell(-1, -1),
             (x, y) =>
             {
                 foreach (ItemData other in inventory.m_inventory)
@@ -430,6 +433,78 @@ public sealed partial class InventorySlotsPlugin
             }
         }
 
+        return changed;
+    }
+
+    private static bool ReconcileMagicSupremacyTomeAssignments(Player player, Inventory inventory)
+    {
+        ItemData? keeper = null;
+        bool keeperValid = false;
+        List<ItemData>? duplicates = null;
+        foreach (ItemData item in inventory.m_inventory)
+        {
+            if (!IsInventorySlotsCustomEquipped(item) || !IsMagicSupremacyBeltItem(item))
+            {
+                continue;
+            }
+
+            SlotDefinition? slot = GetSlotFromItemMarker(item);
+            bool valid = slot != null && IsValidCustomEquipmentAssignment(player, item, slot);
+
+            if (keeper == null)
+            {
+                keeper = item;
+                keeperValid = valid;
+            }
+            else
+            {
+                duplicates ??= new List<ItemData> { keeper };
+                duplicates.Add(item);
+                if (valid && !keeperValid)
+                {
+                    keeper = item;
+                    keeperValid = true;
+                }
+            }
+        }
+
+        if (duplicates == null)
+        {
+            return false;
+        }
+
+        ItemData? native = CaptureMagicSupremacyEquippedState(player);
+        SlotDefinition? nativeSlot = native == null ? null : GetSlotFromItemMarker(native);
+        if (native != null && duplicates.Contains(native) &&
+            (!keeperValid || nativeSlot != null && IsValidCustomEquipmentAssignment(player, native, nativeSlot)))
+        {
+            keeper = native;
+        }
+
+        bool changed = false;
+        foreach (ItemData duplicate in duplicates)
+        {
+            if (ReferenceEquals(duplicate, keeper))
+            {
+                continue;
+            }
+
+            if (!TryReleaseItemToRegularInventory(player, inventory, duplicate, "only one Magic Supremacy Tome can be equipped"))
+            {
+                // Recovery of conflicting saved assignments must preserve both items.
+                // Normal equip transactions instead reject and roll back when full.
+                if (!TryMoveOverlappingItemToOverflowPreservationCell(inventory, duplicate, preserveCurrentCell: false))
+                {
+                    continue;
+                }
+
+                UnequipInventorySlotsItem(player, duplicate);
+            }
+
+            changed = true;
+        }
+
+        RestoreMagicSupremacyEquippedState(player, keeper);
         return changed;
     }
 

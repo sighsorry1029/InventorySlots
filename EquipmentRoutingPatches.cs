@@ -15,10 +15,16 @@ internal static class HumanoidUseItemRouteToDedicatedSlotPatch
 [HarmonyPatch(typeof(Humanoid), "EquipItem", typeof(ItemData), typeof(bool))]
 internal static class HumanoidEquipItemRouteToDedicatedSlotPatch
 {
-    private static bool Prefix(Humanoid __instance, ItemData item, ref bool __result)
+    [HarmonyBefore("Dreanegade.Magic_Supremacy")]
+    private static bool Prefix(Humanoid __instance, ItemData item, ref bool __result, out ItemData? __state)
     {
-        return !InventorySlotsPlugin.TryOverrideHumanoidEquipItem(__instance, item, ref __result);
+        __state = InventorySlotsPlugin.BeginMagicSupremacyEquipScope();
+        bool handled = InventorySlotsPlugin.TryOverrideHumanoidEquipItem(__instance, item, ref __result);
+        if (handled) InventorySlotsPlugin.SuppressMagicSupremacyNativeEquip(item);
+        return !handled;
     }
+
+    private static void Finalizer(ItemData? __state) => InventorySlotsPlugin.EndMagicSupremacyEquipScope(__state);
 }
 
 [HarmonyPatch(typeof(Humanoid), "IsItemEquiped")]

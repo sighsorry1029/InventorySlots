@@ -65,6 +65,8 @@ namespace InventorySlots
 
     public sealed partial class InventorySlotsPlugin
     {
+        private static bool UsesCustomEquipmentState(ItemDrop.ItemData item, SlotDefinition slot) =>
+            slot.Kind == SlotKind.CustomEquipment || slot.Id == "utility" && item.m_customData.ContainsKey("tome");
         private const string SlotIdKey = "slot";
         private const string EquippedByKey = "owner";
         internal static readonly List<SlotDefinition> SlotDefinitions = new();

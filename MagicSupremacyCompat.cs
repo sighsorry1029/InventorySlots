@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using HarmonyLib;
 using ItemData = ItemDrop.ItemData;
 
 namespace InventorySlots;
@@ -8,11 +9,48 @@ namespace InventorySlots;
 public sealed partial class InventorySlotsPlugin
 {
     private static ItemData? _lastMagicSupremacyBeltCompatItem;
+    [ThreadStatic] private static ItemData? _magicSupremacyHandledEquipItem;
+    private static bool _magicSupremacyEquipGuardFailed;
 
     private static void InitializeMagicSupremacyCompatibility()
     {
-        _ = TryGetMagicSupremacyApi(out _);
+        if (!TryGetMagicSupremacyApi(out MagicSupremacyApi? api) || api == null) return;
+        try
+        {
+            _instance._harmony.Patch(api.NativeEquipPrefix,
+                prefix: new HarmonyMethod(typeof(InventorySlotsPlugin), nameof(AllowMagicSupremacyNativeEquipPrefix)));
+        }
+        catch (Exception ex)
+        {
+            _magicSupremacyEquipGuardFailed = true;
+            Log.LogWarning($"Magic Supremacy compatibility disabled: could not guard its native equip prefix: {ex.GetBaseException().Message}");
+        }
     }
+
+    private static void ShutdownMagicSupremacyCompatibility()
+    {
+        // Keep the guard for the same lifetime as our existing Harmony routing
+        // patches. Removing only this guard would let native postfixes re-equip
+        // an item after a failed InventorySlots transaction.
+        _magicSupremacyHandledEquipItem = null;
+        _lastMagicSupremacyBeltCompatItem = null;
+    }
+
+    internal static ItemData? BeginMagicSupremacyEquipScope()
+    {
+        ItemData? previous = _magicSupremacyHandledEquipItem;
+        _magicSupremacyHandledEquipItem = null;
+        return previous;
+    }
+
+    internal static void SuppressMagicSupremacyNativeEquip(ItemData item) => _magicSupremacyHandledEquipItem = item;
+    internal static void EndMagicSupremacyEquipScope(ItemData? previous) => _magicSupremacyHandledEquipItem = previous;
+
+    // HarmonyX runs every prefix even when our outer prefix skips EquipItem.
+    // Guard the external prefix body itself; its default __state then keeps its
+    // postfix inactive. Calls not handled by InventorySlots remain untouched.
+    private static bool AllowMagicSupremacyNativeEquipPrefix(ItemData item) =>
+        !ReferenceEquals(item, _magicSupremacyHandledEquipItem);
 
     private static bool TryAddMagicSupremacyCompatSlot(YamlSlot slot, string id)
     {
@@ -48,6 +86,40 @@ public sealed partial class InventorySlotsPlugin
         TryGetMagicSupremacyApi(out MagicSupremacyApi? api) &&
         api != null &&
         api.IsBeltItem(item);
+
+    // A Tome in the Utility cell still belongs to Magic Supremacy's native tome slot.
+    // Giving it the vanilla utility reference would also project its effects/visuals there.
+    private static bool UsesCustomEquipmentState(ItemData item, SlotDefinition slot) =>
+        slot.Kind == SlotKind.CustomEquipment || slot.Id == "utility" && IsMagicSupremacyBeltItem(item);
+
+    private static ItemData? CaptureMagicSupremacyEquippedState(Player player) =>
+        TryGetMagicSupremacyApi(out MagicSupremacyApi? api) && api != null ? api.GetEquippedBelt(player) : null;
+
+    private static void RestoreMagicSupremacyEquippedState(Player player, ItemData? previous)
+    {
+        if (!TryGetMagicSupremacyApi(out MagicSupremacyApi? api) || api == null)
+        {
+            return;
+        }
+
+        ItemData? current = api.GetEquippedBelt(player);
+        if (current != null && !ReferenceEquals(current, previous))
+        {
+            api.ClearBeltIfCurrent(player, current);
+        }
+
+        if (previous != null)
+        {
+            api.SyncBelt(player, previous);
+        }
+
+        // A failed unrelated equip can snapshot a Tome owned only by the external
+        // mod. Do not adopt it into our tracker and clear it on the next custom sync.
+        _lastMagicSupremacyBeltCompatItem = previous != null && IsInventorySlotsCustomEquipped(previous) &&
+            previous.m_customData.TryGetValue(EquippedByKey, out string owner) && owner == GetPlayerId(player)
+                ? previous
+                : null;
+    }
 
     private static void SyncMagicSupremacyCompatState(Player player)
     {
@@ -120,6 +192,11 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool TryGetMagicSupremacyApi(out MagicSupremacyApi? api)
     {
+        if (_magicSupremacyEquipGuardFailed)
+        {
+            api = null;
+            return false;
+        }
         const string capability = "Magic Supremacy";
         return TryGetCompatApi(
             MagicSupremacyGuid,

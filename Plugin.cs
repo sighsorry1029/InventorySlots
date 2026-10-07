@@ -58,7 +58,8 @@ public sealed partial class InventorySlotsPlugin : BaseUnityPlugin
     private const string RustyBagSlotId = "rustybags.bag";
     private const string RustyQuiverSlotId = "rustybags.quiver";
     private const string MagicSupremacyBeltSlotId = "magicsupremacy.belt";
-    private const string MagicSupremacyNativeBeltSlotId = "belt";
+    // Keep our YAML/save ID stable; Magic Supremacy's native equipment slot is tome.
+    private const string MagicSupremacyNativeTomeSlotId = "tome";
     private const string HipLanternSlotId = "hiplantern.lantern";
     private const string MultiUserChestIgnoreZdoKey = "MUC_Ignore";
     private const string ConfigDirectoryName = "InventorySlots";

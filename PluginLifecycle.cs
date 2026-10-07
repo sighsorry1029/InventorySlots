@@ -164,6 +164,7 @@ public sealed partial class InventorySlotsPlugin
         ShutdownItemRules();
         DestroyRestockModeIcons();
         ShutdownEpicLootCompatibility();
+        ShutdownMagicSupremacyCompatibility();
         _epicLootStackingApi = null;
         CancelContainerAreaTransfer();
         SharedContainerLocalViewers.Clear();

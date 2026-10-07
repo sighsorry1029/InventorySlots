@@ -44,9 +44,10 @@ public sealed partial class InventorySlotsPlugin
             return true;
         }
 
-        if (TryRouteHumanoidEquipToDedicatedSlot(humanoid, item))
+        bool routed = TryRouteHumanoidEquipToDedicatedSlot(humanoid, item, out bool handled);
+        if (routed || handled)
         {
-            result = true;
+            result = routed;
             return true;
         }
 

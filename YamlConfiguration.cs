@@ -612,12 +612,17 @@ public sealed partial class InventorySlotsPlugin
         SlotDefinitions.Clear();
 
         List<YamlSlot> yamlSlots = _yamlConfig.Slots ?? new List<YamlSlot>();
+        bool hasMagicSupremacySlot = yamlSlots.Any(slot => NormalizeSlotId(slot.Id) == MagicSupremacyBeltSlotId);
 
         SlotDefinitions.Add(new SlotDefinition("helmet", GetSlotName(yamlSlots, "helmet", "Helmet"), SlotKind.BuiltIn, item => item?.m_shared?.m_itemType == ItemType.Helmet));
         SlotDefinitions.Add(new SlotDefinition("chest", GetSlotName(yamlSlots, "chest", "Chest"), SlotKind.BuiltIn, item => item?.m_shared?.m_itemType == ItemType.Chest));
         SlotDefinitions.Add(new SlotDefinition("legs", GetSlotName(yamlSlots, "legs", "Legs"), SlotKind.BuiltIn, item => item?.m_shared?.m_itemType == ItemType.Legs));
         SlotDefinitions.Add(new SlotDefinition("cape", GetSlotName(yamlSlots, "cape", "Cape"), SlotKind.BuiltIn, item => item?.m_shared?.m_itemType == ItemType.Shoulder));
-        SlotDefinitions.Add(new SlotDefinition("utility", GetSlotName(yamlSlots, "utility", "Utility"), SlotKind.BuiltIn, item => item?.m_shared?.m_itemType == ItemType.Utility && !IsJewelcraftingDedicatedJewelryItem(item) && !IsJewelcraftingUtilityGemBlocked(item)));
+        SlotDefinitions.Add(new SlotDefinition("utility", GetSlotName(yamlSlots, "utility", "Utility"), SlotKind.BuiltIn,
+            item => item?.m_shared != null && !IsJewelcraftingDedicatedJewelryItem(item) && !IsJewelcraftingUtilityGemBlocked(item) &&
+                    (IsMagicSupremacyBeltItem(item)
+                        ? !hasMagicSupremacySlot
+                        : item.m_shared.m_itemType == ItemType.Utility)));
         SlotDefinitions.Add(new SlotDefinition("trinket", GetSlotName(yamlSlots, "trinket", "Trinket"), SlotKind.BuiltIn, item => item?.m_shared?.m_itemType == ItemType.Trinket));
 
         HashSet<string> seenJewelcraftingSlots = new(StringComparer.OrdinalIgnoreCase);

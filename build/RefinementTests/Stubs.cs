@@ -80,6 +80,8 @@ namespace InventorySlots
     public class TestLog { public void LogError(object text) { } public void LogWarning(object text) { } }
     public sealed partial class InventorySlotsPlugin
     {
+        private static bool UsesCustomEquipmentState(ItemData item, SlotDefinition slot) =>
+            slot.Kind == SlotKind.CustomEquipment || slot.Id == "utility" && item.m_customData.ContainsKey("tome");
         internal static TestLog Log = new();
         internal static SlotDefinition TestSlot = new();
         internal static bool SocketActive, SlotAllowed = true;
@@ -107,7 +109,12 @@ namespace InventorySlots
         private static bool RestoreSlotEquipmentState(Player player, Inventory inventory, ItemData item, SlotDefinition slot)
         {
             item.m_equipped = true;
-            player.m_chestItem = item;
+            if (UsesCustomEquipmentState(item, slot))
+            {
+                item.m_customData[SlotIdKey] = slot.Id;
+                item.m_customData[EquippedByKey] = "test";
+            }
+            else player.m_chestItem = item;
             return true;
         }
         private static ItemData? GetBuiltInEquipmentSlotItem(Player player, SlotDefinition slot) => player.m_chestItem;

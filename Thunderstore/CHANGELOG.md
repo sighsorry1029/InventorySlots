@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.22
+
+- Fixed Magic Supremacy Tome recognition and equipped/save-state synchronization. Native tomes, including Frostcaller and Lightcaller, no longer need manual item entries; the existing `magicsupremacy.belt` YAML ID and its explicit item list remain supported.
+- Magic Supremacy Tomes use MagicBelt while its YAML entry exists, regardless of `utility.items`. Remove the entire `magicsupremacy.belt` entry to use Utility automatically, without listing Tome prefabs.
+- Preserved a single equipped native Tome, its saved state, and slot armor settings when equipping, replacing, restoring, or upgrading it. Failed replacements restore the previous items and equipment state, and Magic Supremacy's native equip handling cannot re-equip a rejected item afterward.
+- Kept Windcaller as an ordinary Utility item, allowing it to coexist with a native Tome in MagicBelt without being unequipped by an overlapping explicit item list.
+
 ## 1.5.21
 
 - Updated AdventureBackpacks integration to use its official ABAPI client for backpack queries and removed the custom patches on its internal equipped-item lookup methods.

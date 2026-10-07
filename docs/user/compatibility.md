@@ -50,7 +50,7 @@ InventorySlots cannot be combined with other slot owners declared incompatible: 
 | EpicLoot | Preserves item tooltip content and supports comparisons; equipment/custom routing can be configured in YAML. |
 | AdventureBackpacks / Smoothbrain Backpacks | Backpack slots and equipped-backpack synchronization. |
 | RustyBags | Bag/quiver slots and equipped-state synchronization. |
-| Magic Supremacy | Belt slot and equipped-belt synchronization. |
+| Magic Supremacy | MagicBelt slot with native Tome equipment and saved-state synchronization. |
 | BetterArchery | Conservative handling of its quiver/reserved cells. |
 | AzuCraftyBoxes | Shows nearby material counts/colors through its optional API. AzuCraftyBoxes remains responsible for consumption. |
 | Recycle N Reclaim | Grid/List support for the Reclaim tab. |
@@ -60,6 +60,22 @@ InventorySlots cannot be combined with other slot owners declared incompatible: 
 | ServerCharacters / ServerManager | In multiplayer, leaves character recovery to that mod and skips InventorySlots' extra-slot backup save/restore. Single-player backup behavior is unchanged. |
 
 Keep generated compatibility slot IDs unchanged when editing YAML. Optional integrations use the relevant installed mod's supported interfaces; this list does not mean every feature of every mod shares the same layout.
+
+Magic Supremacy's native `tome` definition supplies the accepted items automatically, including its Frostcaller and Lightcaller tomes. Keep InventorySlots' existing `magicsupremacy.belt` YAML ID; the default `MagicBelt` display name can be changed. An empty `items` list is sufficient for native tomes. In Magic Supremacy 3.1.3, `ArmorWindcallerUtility_DO` is not a native tome. You can still explicitly add it to the YAML `items` list as an InventorySlots custom item, without registering it in Magic Supremacy's native Tome state. `applyArmor` remains independent of item acceptance.
+
+- Keep the `magicsupremacy.belt` entry to equip native Tomes in MagicBelt. Tomes cannot be placed in Utility while this entry exists, even if listed in `utility.items`.
+- Remove that entire entry to use Utility instead. Keep the ordinary `utility` entry; no Tome item list is needed for this fallback.
+
+The dedicated configuration needs no explicit Tome names:
+
+```yaml
+  - id: magicsupremacy.belt
+    name: MagicBelt
+    applyArmor: false
+    items: []
+```
+
+Only one native Tome can be equipped. Equipping another moves the previous Tome into ordinary inventory; if displaced items cannot fit, the change is rolled back. Windcaller remains an ordinary Utility item and can coexist with a native Tome in MagicBelt. This option does not turn Utility into a general-purpose slot for arbitrary armor or weapons.
 
 AdventureBackpacks queries use its official ABAPI client. Custom-slot unequipping also needs its close-state and container-proxy cleanup, which ABAPI does not currently expose. InventorySlots checks those specific cleanup signatures before enabling the adapter; it does not invoke AdventureBackpacks' internal equipment patches or replace the player's cape reference. The supplied AdventureBackpacks 2.2.9 DLL was checked against these contracts. This is not an exact-version restriction or a claim of in-game multiplayer verification.
 

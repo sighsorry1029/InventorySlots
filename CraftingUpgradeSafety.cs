@@ -984,7 +984,7 @@ public sealed partial class InventorySlotsPlugin
                 transaction,
                 result);
         }
-        else if (transaction.OriginalSlot.Kind == SlotKind.BuiltIn)
+        else if (transaction.OriginalSlot.Kind == SlotKind.BuiltIn && !UsesCustomEquipmentState(result, transaction.OriginalSlot))
         {
             if (!IsEquipmentSlotUpgradeResultEquipped(transaction, result))
             {
@@ -1017,6 +1017,7 @@ public sealed partial class InventorySlotsPlugin
         ItemData result)
     {
         if (transaction.OriginalSlot.Kind != SlotKind.BuiltIn ||
+            UsesCustomEquipmentState(result, transaction.OriginalSlot) ||
             !transaction.Inventory.ContainsItem(result) ||
             !MatchesExpectedEquipmentSlotUpgradeResult(transaction, result) ||
             !IsEquipmentSlotUpgradeItemSoleCellOccupant(
@@ -1140,7 +1141,7 @@ public sealed partial class InventorySlotsPlugin
             return true;
         }
 
-        if (slot.Kind == SlotKind.BuiltIn)
+        if (slot.Kind == SlotKind.BuiltIn && !UsesCustomEquipmentState(item, slot))
         {
             return item.m_equipped && ((Humanoid)player).IsItemEquiped(item);
         }

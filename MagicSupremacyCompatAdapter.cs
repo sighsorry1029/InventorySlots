@@ -17,6 +17,7 @@ public sealed partial class InventorySlotsPlugin
         private readonly MethodInfo _clearSavedEquippedGuidMethod;
         private readonly FieldInfo _slotIdField;
         private object? _beltDefinition;
+        public MethodInfo NativeEquipPrefix { get; }
 
         private MagicSupremacyApi(
             MethodInfo getMatchingSlotDefinitionMethod,
@@ -26,7 +27,8 @@ public sealed partial class InventorySlotsPlugin
             MethodInfo getOrCreateItemGuidMethod,
             MethodInfo setSavedEquippedGuidMethod,
             MethodInfo clearSavedEquippedGuidMethod,
-            FieldInfo slotIdField)
+            FieldInfo slotIdField,
+            MethodInfo nativeEquipPrefix)
         {
             _getMatchingSlotDefinitionMethod = getMatchingSlotDefinitionMethod;
             _getDefinitionBySlotIdMethod = getDefinitionBySlotIdMethod;
@@ -36,6 +38,7 @@ public sealed partial class InventorySlotsPlugin
             _setSavedEquippedGuidMethod = setSavedEquippedGuidMethod;
             _clearSavedEquippedGuidMethod = clearSavedEquippedGuidMethod;
             _slotIdField = slotIdField;
+            NativeEquipPrefix = nativeEquipPrefix;
         }
 
         public static bool TryCreate(Assembly assembly, out MagicSupremacyApi? api, out string detail)
@@ -76,6 +79,11 @@ public sealed partial class InventorySlotsPlugin
             MethodInfo? setSavedEquippedGuidMethod = FindMethod(customSlotSystemType, "SetSavedEquippedGuid", 3);
             MethodInfo? clearSavedEquippedGuidMethod = FindMethod(customSlotSystemType, "ClearSavedEquippedGuid", 2);
             FieldInfo? slotIdField = customSlotDefinitionType?.GetField("SlotId", BindingFlags.Public | BindingFlags.Instance);
+            Type? equipStateType = customSlotSystemType?.GetNestedType("EquipPatchState", BindingFlags.NonPublic);
+            Type? equipPatchType = customSlotSystemType?.GetNestedType("Humanoid_EquipItem_CustomSlots", BindingFlags.NonPublic);
+            MethodInfo? nativeEquipPrefix = equipStateType == null ? null : equipPatchType?.GetMethod(
+                "Prefix", BindingFlags.NonPublic | BindingFlags.Static, null,
+                new[] { typeof(Humanoid), typeof(ItemData), typeof(bool), equipStateType.MakeByRefType() }, null);
 
             if (customSlotSystemType == null ||
                 customSlotDefinitionType == null ||
@@ -86,9 +94,9 @@ public sealed partial class InventorySlotsPlugin
                 getOrCreateItemGuidMethod == null ||
                 setSavedEquippedGuidMethod == null ||
                 clearSavedEquippedGuidMethod == null ||
-                slotIdField == null)
+                slotIdField == null || nativeEquipPrefix == null || nativeEquipPrefix.ReturnType != typeof(void))
             {
-                detail = "Magic_Supremacy.CustomSlotSystem belt slot methods were not found";
+                detail = "Magic_Supremacy.CustomSlotSystem tome slot methods were not found";
                 return false;
             }
 
@@ -100,7 +108,8 @@ public sealed partial class InventorySlotsPlugin
                 getOrCreateItemGuidMethod,
                 setSavedEquippedGuidMethod,
                 clearSavedEquippedGuidMethod,
-                slotIdField);
+                slotIdField,
+                nativeEquipPrefix);
             detail = "";
             return true;
         }
@@ -123,23 +132,25 @@ public sealed partial class InventorySlotsPlugin
             }
         }
 
-        public bool IsBeltEquipped(Player player, ItemData item)
+        public ItemData? GetEquippedBelt(Player player)
         {
-            if (player == null || item == null)
+            if (player == null)
             {
-                return false;
+                return null;
             }
 
             try
             {
-                object? current = _getEquippedItemMethod.Invoke(null, new object[] { player, MagicSupremacyNativeBeltSlotId });
-                return ReferenceEquals(current, item);
+                return _getEquippedItemMethod.Invoke(null, new object[] { player, MagicSupremacyNativeTomeSlotId }) as ItemData;
             }
             catch
             {
-                return false;
+                return null;
             }
         }
+
+        public bool IsBeltEquipped(Player player, ItemData item) =>
+            item != null && ReferenceEquals(GetEquippedBelt(player), item);
 
         public void SyncBelt(Player player, ItemData item)
         {
@@ -162,7 +173,7 @@ public sealed partial class InventorySlotsPlugin
                     _setSavedEquippedGuidMethod.Invoke(null, new object[] { player, definition, guidString });
                 }
 
-                _setEquippedItemMethod.Invoke(null, new object[] { player, MagicSupremacyNativeBeltSlotId, item });
+                _setEquippedItemMethod.Invoke(null, new object[] { player, MagicSupremacyNativeTomeSlotId, item });
             }
             catch (Exception)
             {
@@ -178,14 +189,14 @@ public sealed partial class InventorySlotsPlugin
 
             try
             {
-                object? current = _getEquippedItemMethod.Invoke(null, new object[] { player, MagicSupremacyNativeBeltSlotId });
+                object? current = _getEquippedItemMethod.Invoke(null, new object[] { player, MagicSupremacyNativeTomeSlotId });
                 if (current != null && !ReferenceEquals(current, item))
                 {
                     return;
                 }
 
                 object? definition = GetBeltDefinition();
-                _setEquippedItemMethod.Invoke(null, new object?[] { player, MagicSupremacyNativeBeltSlotId, null });
+                _setEquippedItemMethod.Invoke(null, new object?[] { player, MagicSupremacyNativeTomeSlotId, null });
                 if (definition != null)
                 {
                     _clearSavedEquippedGuidMethod.Invoke(null, new object[] { player, definition });
@@ -203,7 +214,7 @@ public sealed partial class InventorySlotsPlugin
                 return _beltDefinition;
             }
 
-            _beltDefinition = _getDefinitionBySlotIdMethod.Invoke(null, new object[] { MagicSupremacyNativeBeltSlotId });
+            _beltDefinition = _getDefinitionBySlotIdMethod.Invoke(null, new object[] { MagicSupremacyNativeTomeSlotId });
             return IsBeltDefinition(_beltDefinition) ? _beltDefinition : null;
         }
 
@@ -217,7 +228,7 @@ public sealed partial class InventorySlotsPlugin
             try
             {
                 return _slotIdField.GetValue(definition) is string slotId &&
-                       string.Equals(slotId, MagicSupremacyNativeBeltSlotId, StringComparison.Ordinal);
+                       string.Equals(slotId, MagicSupremacyNativeTomeSlotId, StringComparison.Ordinal);
             }
             catch
             {

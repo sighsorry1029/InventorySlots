@@ -171,6 +171,26 @@ foreach (bool throwAfter in new[] { false, true })
     Check(player.Inventory.m_inventory.Count == (refund ? 2 : 1) && Plugin.Active == null, "Refunds retained without resurrecting equipment");
 }
 
+{
+    var (player, gui, original) = Fresh(2, SlotKind.BuiltIn, refinement: false);
+    Plugin.TestSlot.Id = "utility";
+    player.m_chestItem = null;
+    original.m_customData["tome"] = "true";
+    original.m_customData[Plugin.SlotIdKey] = "utility";
+    original.m_customData[Plugin.EquippedByKey] = "test";
+    var transaction = Begin(player, gui);
+    Remove(player, original);
+    var scope = Plugin.BeginEquipmentSlotUpgradeReplacementAdd(player.Inventory, "Shield", 1, 3, 0, original.m_gridPos);
+    ItemData? result = new() { m_quality = 3 };
+    result.m_customData["tome"] = "true";
+    player.Inventory.m_inventory.Add(result);
+    Plugin.FinalizeEquipmentSlotUpgradeReplacementAdd(scope, ref result, null);
+    Plugin.CompleteEquipmentSlotUpgradeTransaction(transaction);
+    Check(transaction.Committed && !player.Inventory.ContainsItem(original), "Custom-owned Utility upgrade retains exactly its replacement");
+    Check(result!.m_customData[Plugin.SlotIdKey] == "utility" && result.m_customData[Plugin.EquippedByKey] == "test" && player.m_chestItem == null,
+        "Custom-owned Utility replacement keeps its marker and avoids native fallback references");
+}
+
 foreach (bool interrupted in new[] { false, true })
 {
     var (player, gui, original) = Fresh();

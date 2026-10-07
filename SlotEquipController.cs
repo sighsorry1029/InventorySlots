@@ -163,7 +163,7 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        if (slot.Kind == SlotKind.BuiltIn)
+        if (slot.Kind == SlotKind.BuiltIn && !UsesCustomEquipmentState(item, slot))
         {
             return RestoreBuiltInSlotEquipmentState(player, inventory, item, slot);
         }
@@ -250,6 +250,9 @@ public sealed partial class InventorySlotsPlugin
         bool incomingWasInInventory = ContainsExactItemReference(inventory, item);
         Vector2i incomingOriginalPos = item.m_gridPos;
         bool incomingOriginalPosUsed = false;
+        bool customEquipmentState = UsesCustomEquipmentState(item, slot);
+        bool incomingTome = IsMagicSupremacyBeltItem(item);
+        ItemData? magicSupremacyStateSnapshot = CaptureMagicSupremacyEquippedState(player);
         ItemData? hipLanternStateSnapshot =
             slot.Kind == SlotKind.CustomEquipment
                 ? CaptureHipLanternEquippedState(player)
@@ -290,6 +293,7 @@ public sealed partial class InventorySlotsPlugin
 
             try
             {
+                RestoreMagicSupremacyEquippedState(player, magicSupremacyStateSnapshot);
                 bool circletStateRestored = false;
                 foreach (SlotEquipItemSnapshot snapshot in itemSnapshots)
                 {
@@ -350,9 +354,31 @@ public sealed partial class InventorySlotsPlugin
                 }
             }
 
+            // Tome ownership is shared across all allowed cells, even when a different
+            // Tome is not on this cell's explicit list. Vacate its old cell as well so
+            // inventory validation cannot auto-equip the displaced item again.
+            if (incomingTome)
+            {
+                foreach (ItemData other in inventory.m_inventory.ToArray())
+                {
+                    if (other == item || !IsMagicSupremacyBeltItem(other) ||
+                        !(other.m_equipped || ((Humanoid)player).IsItemEquiped(other) || other.m_customData.ContainsKey(SlotIdKey)))
+                    {
+                        continue;
+                    }
+
+                    UnequipInventorySlotsItem(player, other);
+                    if (!IsUsableRegularCell(inventory, player, other.m_gridPos) &&
+                        !TryRelocateSlotEquipBlockingItem(player, inventory, other, item, incomingOriginalPos, ref incomingOriginalPosUsed))
+                    {
+                        return FailSlotEquip();
+                    }
+                }
+            }
+
             UnequipConflictingCustomEquipmentItems(player, inventory, item, slot);
 
-            if (slot.Kind == SlotKind.BuiltIn)
+            if (!customEquipmentState)
             {
                 if (!((Humanoid)player).IsItemEquiped(item) && !((Humanoid)player).EquipItem(item, true))
                 {
@@ -365,7 +391,7 @@ public sealed partial class InventorySlotsPlugin
                 item.m_equipped = true;
             }
 
-            if (slot.Kind == SlotKind.CustomEquipment)
+            if (customEquipmentState)
             {
                 MarkItemSlot(player, item, slot);
                 _ = OnCustomEquipmentCompatEquipped(player, item);
@@ -381,7 +407,7 @@ public sealed partial class InventorySlotsPlugin
 
             item.m_gridPos = target;
             ((Humanoid)player).SetupEquipment();
-            if (slot.Kind == SlotKind.CustomEquipment)
+            if (customEquipmentState)
             {
                 UpdateCustomEquipmentVisuals(player);
                 RefreshExternalEquipmentEffects(player);
@@ -471,10 +497,12 @@ public sealed partial class InventorySlotsPlugin
         Add(incoming);
         Add(FindItemForSlot(player, inventory, slot));
         Add(inventory.GetItemAt(target.x, target.y));
+        bool incomingTome = IsMagicSupremacyBeltItem(incoming);
 
         foreach (ItemData candidate in inventory.m_inventory.ToArray())
         {
-            if (candidate == null || candidate == incoming || !slot.Accepts(candidate))
+            if (candidate == null || candidate == incoming ||
+                !(slot.Accepts(candidate) || incomingTome && IsMagicSupremacyBeltItem(candidate)))
             {
                 continue;
             }
@@ -643,8 +671,9 @@ public sealed partial class InventorySlotsPlugin
         InventorySafety.SlotAutoEquipSuppressionDepth--;
     }
 
-    internal static bool TryRouteHumanoidEquipToDedicatedSlot(Humanoid humanoid, ItemData item)
+    internal static bool TryRouteHumanoidEquipToDedicatedSlot(Humanoid humanoid, ItemData item, out bool handled)
     {
+        handled = false;
         Player? player = Player.m_localPlayer;
         if (player == null || humanoid != (Humanoid)player)
         {
@@ -668,6 +697,9 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
+        // A failed Tome transaction must not fall through into Magic Supremacy's
+        // native equip prefix after we have restored the original equipment.
+        handled = IsMagicSupremacyBeltItem(item);
         return TryEquipIntoDedicatedSlot(player, inventory, item, slot!);
     }
 
@@ -1030,6 +1062,12 @@ public sealed partial class InventorySlotsPlugin
             bool explicitlyEquippedForSlot =
                 other.m_customData.TryGetValue(SlotIdKey, out string id) &&
                 string.Equals(id, slot.Id, StringComparison.OrdinalIgnoreCase);
+            // An explicit overlapping MagicBelt list must not unequip an accessory
+            // placed in Utility. Native Tome family conflicts were handled above.
+            if (slot.Id == MagicSupremacyBeltSlotId && !explicitlyEquippedForSlot)
+            {
+                continue;
+            }
             bool equipped = other.m_equipped || ((Humanoid)player).IsItemEquiped(other) || explicitlyEquippedForSlot;
             if (!equipped)
             {
