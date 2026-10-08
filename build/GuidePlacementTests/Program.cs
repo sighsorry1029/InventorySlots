@@ -162,6 +162,9 @@ internal static class Program
         f = new Fixture();
         f.Gui.m_player = f.Gui.m_info = f.Gui.m_crafting = null;
         Check(Guide.Area(f.Hud).width >= 0, "Missing optional panels are safe");
+#if INVENTORY_SLOTS
+        QuickSlotHudTests.Run();
+#endif
         Console.WriteLine($"Guide placement: {_checks} checks passed ({typeof(Guide).Namespace}).");
     }
 }

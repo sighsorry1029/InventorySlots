@@ -15,6 +15,7 @@ namespace UnityEngine
     public readonly record struct Vector2(float x, float y)
     {
         public static implicit operator Vector2(Vector3 value) => new(value.x, value.y);
+        public static implicit operator Vector3(Vector2 value) => new(value.x, value.y, 0);
         public static Vector2 Min(Vector2 a, Vector2 b) => new(Math.Min(a.x, b.x), Math.Min(a.y, b.y));
         public static Vector2 Max(Vector2 a, Vector2 b) => new(Math.Max(a.x, b.x), Math.Max(a.y, b.y));
     }
@@ -80,6 +81,7 @@ namespace UnityEngine
     {
         public static float Min(float a, float b) => Math.Min(a, b);
         public static float Max(float a, float b) => Math.Max(a, b);
+        public static float Clamp(float value, float min, float max) => Math.Clamp(value, min, max);
     }
     public readonly record struct AnimatorStateInfo(string Name, float normalizedTime)
     {
@@ -104,4 +106,12 @@ public sealed class InventoryGui
     public UnityEngine.Transform? m_armor, m_weight, m_repairPanel;
     public int Lookups;
     public T? GetComponent<T>() where T : class { Lookups++; return Animator as T; }
+}
+
+public sealed class InventoryGrid
+{
+    public UnityEngine.RectTransform? m_gridRoot;
+    public UnityEngine.Transform transform = new UnityEngine.RectTransform();
+    public float m_elementSpace = 70;
+    public UnityEngine.Vector3 Origin;
 }

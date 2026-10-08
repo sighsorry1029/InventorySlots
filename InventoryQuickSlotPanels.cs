@@ -108,16 +108,16 @@ public sealed partial class InventorySlotsPlugin
         Vector3 targetOffset = quickPanel.parent.TransformVector(targetPosition - quickPanel.localPosition);
         Vector3 anchoredPosition = hudRoot.InverseTransformPoint(QuickSlotHudAnchorCorners[1] + targetOffset);
         float hudElementSpace = Mathf.Max(1f, elementSpace);
-        bool shouldSave =
-            !InventoryPanels.QuickSlotHudAnchorValid ||
-            (InventoryPanels.QuickSlotHudAnchoredPosition - anchoredPosition).sqrMagnitude > 0.0001f ||
-            Mathf.Abs(InventoryPanels.QuickSlotHudElementSpace - hudElementSpace) > 0.01f;
-
+        anchoredPosition = ClampQuickSlotHudPosition(hudRoot.rect, anchoredPosition, hudElementSpace,
+            GetQuickPanelRows(GetQuickPanelSlots(Player.m_localPlayer).Count));
         InventoryPanels.QuickSlotHudAnchoredPosition = anchoredPosition;
         InventoryPanels.QuickSlotHudElementSpace = hudElementSpace;
         InventoryPanels.QuickSlotHudAnchorValid = true;
-        if (shouldSave && !InventoryPanels.DraggingQuickSlotsPanelOffset)
+        if (!InventoryPanels.DraggingQuickSlotsPanelOffset)
         {
+            // The hidden HUD may already have projected this position into the
+            // runtime cache. Save compares against persisted state and skips I/O
+            // when unchanged, so settled capture must not compare runtime alone.
             SaveQuickSlotHudAnchor();
         }
     }

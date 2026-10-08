@@ -56,6 +56,9 @@ internal static class ContainerTakeAllResponsInventorySlotsPatch
 internal static class ContainerRestockHoverTextPatch
 {
     [HarmonyPriority(Priority.Last)]
+    // Both mods append at Priority.Last. Keep restock beside vanilla Use,
+    // before CraftyBoxes appends its toggle hint, regardless of load order.
+    [HarmonyBefore("Azumatt.AzuCraftyBoxes")]
     private static void Postfix(Container __instance, ref string __result)
     {
         InventorySlotsPlugin.AppendContainerRestockHoverText(__instance, ref __result);

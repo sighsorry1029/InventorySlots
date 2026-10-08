@@ -706,7 +706,8 @@ public sealed partial class InventorySlotsPlugin
         }
 
         InvalidateSlotDefinitionCaches();
-        Log.LogInfo($"InventorySlots slot definitions rebuilt: {SlotDefinitions.Count} special slots, {PredefinedGroupDefinitions.Count} YAML custom groups.");
+        Log.Log(IsDedicatedServer ? BepInEx.Logging.LogLevel.Debug : BepInEx.Logging.LogLevel.Info,
+            $"InventorySlots slot definitions rebuilt: {SlotDefinitions.Count} special slots, {PredefinedGroupDefinitions.Count} YAML custom groups.");
     }
 
     private static string GetSlotName(IEnumerable<YamlSlot> slots, string id, string fallback)

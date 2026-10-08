@@ -198,6 +198,10 @@ public sealed partial class InventorySlotsPlugin
     [HarmonyPatch(typeof(GameCamera), nameof(GameCamera.UpdateMouseCapture))]
     private static class ItemLinkChatCursorPatch
     {
+        // The dedicated-server camera method has no cursor logic. Skip patching
+        // it instead of reporting the expected empty body as a compatibility issue.
+        private static bool Prepare() => !IsDedicatedServer;
+
         private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
         {
             var code = new List<CodeInstruction>(instructions);

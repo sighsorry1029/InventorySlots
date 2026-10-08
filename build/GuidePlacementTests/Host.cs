@@ -18,7 +18,27 @@ public sealed partial class InventoryActionsPlugin
         public static readonly Dictionary<int, RectTransform> CustomSlotPanels = new();
         public static readonly Dictionary<int, RectTransform> QuickSlotPanels = new();
         public static readonly List<MovedPlayerStatPanel> MovedPlayerStatPanels = new();
+        public static Vector2 QuickSlotsPanelRuntimeOffset = new(-80, -552);
+        public static Vector3 QuickSlotHudAnchoredPosition;
+        public static float QuickSlotHudElementSpace;
+        public static bool QuickSlotHudAnchorValid;
     }
+    private const int QuickSlotPanelColumns = 3;
+    private static Vector3 GetGridOrigin(InventoryGrid grid) => grid.Origin;
+    private static Vector3 GetSidePanelBasePosition(Vector3 origin, int width, float space) => origin + new Vector3(width * space, 0, 0);
+    private static Vector3 GetQuickSlotHudPosition() => InventoryPanels.QuickSlotHudAnchoredPosition;
+    private static float GetQuickSlotHudElementSpace() => InventoryPanels.QuickSlotHudElementSpace;
+    public static void SavedHud(Vector3 position, float space = 70)
+    {
+        InventoryPanels.QuickSlotHudAnchoredPosition = position;
+        InventoryPanels.QuickSlotHudElementSpace = space;
+        InventoryPanels.QuickSlotHudAnchorValid = true;
+        InventoryPanels.QuickSlotsPanelRuntimeOffset = new(-80, -552);
+    }
+    public static Vector3 HudPosition(RectTransform hud, InventoryGrid? grid, int rows, bool follows, out float space) =>
+        ResolveQuickSlotHudPosition(hud, grid, 8, rows, follows, out space);
+    public static Vector3 ClampHud(Rect viewport, Vector3 position, float space, int rows) =>
+        ClampQuickSlotHudPosition(viewport, position, space, rows);
     private readonly record struct MovedPlayerStatPanel(RectTransform Rect);
     private static RectTransform? _craftingGroupRail;
     public static void ExtraPanels(RectTransform equipment, RectTransform quick, RectTransform rail)

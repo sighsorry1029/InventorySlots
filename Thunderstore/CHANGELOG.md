@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.23
+
+- Fixed the quick-slot HUD starting partly below the screen until the inventory was opened. With panel following enabled, its position now comes from the inventory panel's settled layout before the first Tab press, without creating hidden inventory widgets.
+- Kept the full quick-slot HUD within the available screen area when restoring old positions or changing resolution/UI scale. With **Quick Slot HUD Follows Panel** off, valid saved positions remain unchanged and only clipped positions are corrected. Runtime positioning does not write the client-state file every frame.
+- Kept the container restock hint above AzuCraftyBoxes' toggle hint regardless of mod load order, grouping the default E and Alt+E hints before Shift+E without changing the controls.
+- Skipped the client-only chat cursor patch on dedicated servers, removing the misleading missing-camera-check warning. Routine slot-definition rebuild messages now use Debug level on dedicated servers; configuration synchronization and genuine client compatibility warnings remain unchanged.
+
 ## 1.5.22
 
 - Fixed Magic Supremacy Tome recognition and equipped/save-state synchronization. Native tomes, including Frostcaller and Lightcaller, no longer need manual item entries; the existing `magicsupremacy.belt` YAML ID and its explicit item list remain supported.

@@ -8,5 +8,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../Shared/ItemRules/FeatureGuidePlacement.cs" Link="FeatureGuidePlacement.cs" />
+    <Compile Include="../../InventoryQuickSlotHudLayout.cs" Link="InventoryQuickSlotHudLayout.cs" Condition="'$(GuideTarget)' == 'InventorySlots'" />
   </ItemGroup>
 </Project>

@@ -65,14 +65,18 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        float elementSpace = GetQuickSlotHudElementSpace();
+        Inventory inventory = ((Humanoid)player).GetInventory();
         int panelRows = GetQuickPanelRows(quickSlots.Count);
-        InventoryPanels.QuickSlotsHotkeyBarRect.localPosition = GetQuickSlotHudPosition();
+        float elementSpace = GetQuickSlotHudElementSpace();
+        Vector3 position = InventoryPanels.QuickSlotsHotkeyBarRect.parent is RectTransform hudRoot
+            ? ResolveQuickSlotHudPosition(hudRoot, InventoryGui.instance?.m_playerGrid,
+                inventory.GetWidth(), panelRows, hudFollowsPanel, out elementSpace)
+            : GetQuickSlotHudPosition();
+        InventoryPanels.QuickSlotsHotkeyBarRect.localPosition = position;
         InventoryPanels.QuickSlotsHotkeyBarRect.sizeDelta = new Vector2(QuickSlotPanelColumns * elementSpace, panelRows * elementSpace);
         hotkeyBar.m_elementSpace = elementSpace;
         EnsureQuickSlotsHotkeyBarElementCount(hotkeyBar, quickSlots.Count);
 
-        Inventory inventory = ((Humanoid)player).GetInventory();
         for (int i = 0; i < quickSlots.Count; i++)
         {
             SlotDefinition slot = quickSlots[i];

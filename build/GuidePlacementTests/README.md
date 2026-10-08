@@ -15,3 +15,12 @@ dotnet run --project build/GuidePlacementTests -c Debug -p:GuideTarget=Inventory
 
 These are isolated geometry/lifecycle checks, not a Unity rendering or actual
 gameplay test. Verify both guides in game with rapid Tab, F6 states and UI scale.
+
+The InventorySlots target also source-links `InventoryQuickSlotHudLayout.cs`.
+HUD cases cover placement before the first Tab, interrupted native slides,
+late layout readiness, GUI recreation, different canvas scales, saved positions
+with panel following disabled, resolution/root-pivot changes and full multi-row
+screen bounds. The test host supplies the inventory origin and side-panel base;
+it does not create actual Unity inventory widgets or validate rendering.
+In game, also check fresh/existing ClientState.yml, HUD hiding, dragging and
+`Quick Slot HUD Follows Panel` On/Off at more than one resolution/UI scale.
