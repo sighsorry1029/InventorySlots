@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>LodPrefabDiagnostics</AssemblyName>
+    <RootNamespace>LodPrefabDiagnostics</RootNamespace>
+    <Version>1.0.0</Version>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GamePath Condition="'$(GamePath)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Valheim</GamePath>
+    <GameManagedPath>$(GamePath)\valheim_Data\Managed</GameManagedPath>
+    <BepInExCorePath>$(GamePath)\BepInEx\core</BepInExCorePath>
+    <DeployToGame Condition="'$(DeployToGame)' == ''">false</DeployToGame>
+    <GamePluginPath Condition="'$(GamePluginPath)' == ''">$(GamePath)\BepInEx\plugins</GamePluginPath>
+  </PropertyGroup>
+  <!-- Original game references; no publicizer, merge, server sync or package target. -->
+  <ItemGroup>
+    <Compile Remove="Tests/**/*.cs" />
+    <Reference Include="BepInEx"><HintPath>$(BepInExCorePath)\BepInEx.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="0Harmony"><HintPath>$(BepInExCorePath)\0Harmony.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="assembly_valheim"><HintPath>$(GameManagedPath)\assembly_valheim.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine"><HintPath>$(GameManagedPath)\UnityEngine.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(GameManagedPath)\UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+  <Target Name="DeployDiagnosticPlugin" AfterTargets="Build" Condition="'$(DeployToGame)' == 'true'">
+    <MakeDir Directories="$(GamePluginPath)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(GamePluginPath)" />
+  </Target>
+</Project>
