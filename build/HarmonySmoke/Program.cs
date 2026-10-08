@@ -6,13 +6,14 @@ using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
 
-internal static class Program
+internal static partial class Program
 {
     private static string[] folders = Array.Empty<string>();
     private static int Main(string[] args)
     {
-        if (args.Length != 3) throw new ArgumentException("Usage: <mod.dll> <original Managed> <BepInEx core>");
-        folders = new[] { Path.GetFullPath(args[1]), Path.GetFullPath(args[2]), Path.GetDirectoryName(Path.GetFullPath(args[0]))! };
+        if (args.Length < 3 || args.Length > 4) throw new ArgumentException("Usage: <mod.dll> <original Managed> <BepInEx core> [AdminQoL.dll]");
+        folders = new[] { Path.GetFullPath(args[1]), Path.GetFullPath(args[2]), Path.GetDirectoryName(Path.GetFullPath(args[0]))! }
+            .Concat(args.Length == 4 ? new[] { Path.GetDirectoryName(Path.GetFullPath(args[3]))! } : Array.Empty<string>()).ToArray();
         AppDomain.CurrentDomain.AssemblyResolve += (_, eventArgs) =>
         {
             string fileName = new AssemblyName(eventArgs.Name).Name + ".dll";
@@ -107,15 +108,16 @@ internal static class Program
         Check(unchangedCapture.Count == captureInput.Count && unchangedCapture.Zip(captureInput,
             (a, b) => a.opcode == b.opcode && Equals(a.operand, b.operand)).All(same => same),
             "native Ctrl+F1 toggle, capture field, menu/radial branches and cursor API calls are preserved");
-        Console.WriteLine("17 checks passed using original game IL. No Unity initialization or game session was executed.");
+        int autoPickupChecks = CheckAutoPickup(game, mod, args.Length == 4 ? Assembly.LoadFrom(Path.GetFullPath(args[3])) : null);
+        Console.WriteLine($"{17 + autoPickupChecks} checks passed using original game IL and isolated pickup predicates. No Unity initialization or game session was executed.");
         return 0;
     }
 
-    private static List<CodeInstruction> ReadStraightLineBody(MethodInfo method)
+    private static List<CodeInstruction> ReadStraightLineBody(MethodInfo method, ILGenerator? generator = null)
     {
         // HarmonyX's older MonoMod IL copier does not support this verifier's
         // CoreCLR runtime. Read actual bytes without installing patches. Native
-        // branch offsets are retained as data; this verifier does not execute IL.
+        // branch offsets are retained as data unless a label generator is supplied.
         var codes = typeof(OpCodes).GetFields(BindingFlags.Static | BindingFlags.Public)
             .Where(f => f.FieldType == typeof(OpCode)).Select(f => (OpCode)f.GetValue(null)!)
             .ToDictionary(c => unchecked((ushort)c.Value));
@@ -123,8 +125,11 @@ internal static class Program
         if (body.ExceptionHandlingClauses.Count != 0) throw new InvalidOperationException("Unexpected protected region in original method");
         using var reader = new BinaryReader(new MemoryStream(body.GetILAsByteArray()!));
         var result = new List<CodeInstruction>();
+        var offsets = new Dictionary<int, CodeInstruction>();
+        var branches = new List<(CodeInstruction Code, int[] Targets)>();
         while (reader.BaseStream.Position < reader.BaseStream.Length)
         {
+            int offset = (int)reader.BaseStream.Position;
             ushort code = reader.ReadByte();
             if (code == 0xfe) code = (ushort)(0xfe00 | reader.ReadByte());
             OpCode opcode = codes[code];
@@ -148,7 +153,31 @@ internal static class Program
                 OperandType.InlineSwitch => Enumerable.Range(0, reader.ReadInt32()).Select(_ => reader.ReadInt32()).ToArray(),
                 _ => throw new InvalidOperationException("Unsupported original IL operand: " + opcode)
             };
-            result.Add(new CodeInstruction(opcode, operand));
+            var instruction = new CodeInstruction(opcode, operand);
+            result.Add(instruction);
+            offsets.Add(offset, instruction);
+            int end = (int)reader.BaseStream.Position;
+            if (opcode.OperandType == OperandType.InlineBrTarget || opcode.OperandType == OperandType.ShortInlineBrTarget)
+                branches.Add((instruction, new[] { end + Convert.ToInt32(operand) }));
+            else if (opcode.OperandType == OperandType.InlineSwitch)
+                branches.Add((instruction, ((int[])operand!).Select(delta => end + delta).ToArray()));
+        }
+        if (generator != null)
+        {
+            foreach (var branch in branches)
+            {
+                // Harmony ILManipulator creates a fresh label per branch, even
+                // when multiple branches share the same destination instruction.
+                var labels = branch.Targets.Select(target =>
+                {
+                    Label label = generator.DefineLabel();
+                    offsets[target].labels.Add(label);
+                    return label;
+                }).ToArray();
+                branch.Code.operand = branch.Code.opcode == OpCodes.Switch
+                    ? labels
+                    : labels[0];
+            }
         }
         return result;
     }

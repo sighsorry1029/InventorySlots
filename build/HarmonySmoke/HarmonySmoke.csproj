@@ -8,5 +8,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="0Harmony"><HintPath>$(BepInExCorePath)\0Harmony.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Mono.Cecil"><HintPath>$(BepInExCorePath)\Mono.Cecil.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
 </Project>

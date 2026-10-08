@@ -589,10 +589,11 @@ public sealed partial class InventorySlotsPlugin
             {
                 string shareHint = "\n" + LocalizeUi("$inventoryslots_feature_guide_chat_share",
                     "Share in chat: Pin an inventory/chest item tooltip → Click the chat button at the tooltip's top right → Press Enter to send");
-                // Insert separately so an older external guide translation still gets the hint.
-                int rulesPath = guide.IndexOf("config/InventorySlots/InventorySlots.yml", StringComparison.Ordinal);
-                int rulesLine = rulesPath >= 0 ? guide.LastIndexOf('\n', rulesPath) : -1;
-                guide = rulesLine >= 0 ? guide.Insert(rulesLine, shareHint) : guide + shareHint;
+                // Keep sharing beside pinning, including in older external translations.
+                // Key placeholders are replaced below, after locating the pinning line.
+                int tooltipKey = guide.IndexOf("{tooltipKey}", StringComparison.Ordinal);
+                int tooltipLineEnd = tooltipKey >= 0 ? guide.IndexOf('\n', tooltipKey) : -1;
+                guide = tooltipLineEnd >= 0 ? guide.Insert(tooltipLineEnd, shareHint) : guide + shareHint;
             }
             if (HasExternalMultiUserChestActive)
             {

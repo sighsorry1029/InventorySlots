@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.5.25
+
+- Fixed the auto-pickup capacity optimization being skipped when Harmony assigns different branch labels to the same destination. Supported pickup code now applies the weight-first check without the misleading compatibility warning; unrecognized code still keeps its existing checks.
+- Applied the optimization before AdminQoL changes the auto-pickup carry-limit check, preserving AdminQoL's effective weight limit and the existing pickup exclusions, ownership handling, and manual pickup behavior.
+
+## 1.5.24
+
+- Avoided repeated slot-capacity scans during auto pickup when an item's full stack would exceed carry weight. The native weight check now runs first; pickup limits, exclusions, manual pickup, and ownership handling are unchanged. Unrecognized modified pickup code keeps its existing checks.
+- Moved the chat-sharing instruction directly below tooltip pinning in the mouse/keyboard quick guide, before favorites. The instruction still appears only when **Enable Item Tooltips in Chat** is on.
+
 ## 1.5.23
 
 - Fixed the quick-slot HUD starting partly below the screen until the inventory was opened. With panel following enabled, its position now comes from the inventory panel's settled layout before the first Tab press, without creating hidden inventory widgets.
