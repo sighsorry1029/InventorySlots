@@ -1,6 +1,7 @@
 using InventorySlots;
 using UnityEngine;
 
+CraftingEntryTests.Run();
 InventorySlotsPlugin.CheckFrames();
 
 namespace InventorySlots

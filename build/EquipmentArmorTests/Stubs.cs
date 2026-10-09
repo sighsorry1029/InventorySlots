@@ -9,10 +9,14 @@ public sealed class ItemDrop
         public bool m_equipped = true;
         public int m_quality = 1;
         public int ArmorCalls;
+        public Action? BeforeArmor;
+        public Exception? ArmorError;
 
         public float GetArmor()
         {
             ArmorCalls++;
+            BeforeArmor?.Invoke();
+            if (ArmorError != null) throw ArmorError;
             return m_shared.m_armor + (m_quality - 1) * m_shared.m_armorPerLevel;
         }
     }
@@ -70,10 +74,12 @@ namespace InventorySlots
         private const string SlotIdKey = "slot";
         private const string EquippedByKey = "owner";
         internal static readonly List<SlotDefinition> SlotDefinitions = new();
+        internal static Action<ItemDrop.ItemData>? InspectItem;
 
         internal static void Reset()
         {
             SlotDefinitions.Clear();
+            InspectItem = null;
             ClearCustomEquipmentProjectionCache();
             InvalidateCustomEquipmentProjectionCache();
         }
@@ -84,6 +90,7 @@ namespace InventorySlots
         internal static int SetCount(Player player) => GetCachedCustomEquipmentSetCount(player, "test-set");
         internal static float Modifier(Player player) => GetCachedCustomEquipmentModifierValues(player)?[0] ?? 0f;
         internal static int EquippedCount(Player player) => GetCustomEquippedItems(player).Count;
+        internal static IReadOnlyList<ItemDrop.ItemData> EquippedItems(Player player) => GetCustomEquippedItems(player);
 
         internal static void MarkCustom(Player player, ItemDrop.ItemData item, string slotId)
         {
@@ -97,8 +104,12 @@ namespace InventorySlots
             slot = SlotDefinitions.FirstOrDefault(candidate => string.Equals(candidate.Id, id, StringComparison.OrdinalIgnoreCase));
             return slot != null;
         }
-        private static bool IsInventorySlotsCustomEquipped(ItemDrop.ItemData? item) =>
-            item != null && item.m_equipped && item.m_customData.ContainsKey(SlotIdKey);
+        private static bool IsInventorySlotsCustomEquipped(ItemDrop.ItemData? item)
+        {
+            if (item == null) return false;
+            InspectItem?.Invoke(item);
+            return item.m_equipped && item.m_customData.ContainsKey(SlotIdKey);
+        }
         private static SlotDefinition? GetSlotFromItemMarker(ItemDrop.ItemData item) =>
             item.m_customData.TryGetValue(SlotIdKey, out string? id)
                 ? SlotDefinitions.FirstOrDefault(slot => string.Equals(slot.Id, id, StringComparison.OrdinalIgnoreCase))

@@ -9,6 +9,14 @@ public sealed partial class InventorySlotsPlugin
 {
     internal static void UpdateCraftingPanelRedesign(InventoryGui gui, CraftingPanelUpdateReason reason = CraftingPanelUpdateReason.FrameTick)
     {
+        // Vanilla can call UpdateRecipe later in the same frame as Hide because
+        // Update cached visibility before closing. Do not rebuild the UI that
+        // OnInventoryGuiHide just restored; IsVisible still has an outro grace.
+        if (reason == CraftingPanelUpdateReason.FrameTick && IsInventoryPanelClosing(gui))
+        {
+            return;
+        }
+
         PrepareCraftingTabAdapterPreflight(gui);
         CraftingTabAdapterState adapter = GetCraftingTabAdapterState(gui);
 

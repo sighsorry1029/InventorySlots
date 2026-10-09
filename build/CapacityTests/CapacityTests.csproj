@@ -6,9 +6,6 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="../../CraftingFrameFastPath.cs" Link="CraftingFrameFastPath.cs" />
-    <Compile Include="../../CraftingUiStamps.cs" Link="CraftingUiStamps.cs" />
-    <Compile Include="../../CraftingTabAdapterModels.cs" Link="CraftingTabAdapterModels.cs" />
     <Reference Include="Microsoft.CodeAnalysis"><HintPath>$(MSBuildToolsPath)/Roslyn/bincore/Microsoft.CodeAnalysis.dll</HintPath></Reference>
     <Reference Include="Microsoft.CodeAnalysis.CSharp"><HintPath>$(MSBuildToolsPath)/Roslyn/bincore/Microsoft.CodeAnalysis.CSharp.dll</HintPath></Reference>
   </ItemGroup>

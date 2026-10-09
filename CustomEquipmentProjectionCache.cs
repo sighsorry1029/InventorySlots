@@ -16,6 +16,7 @@ public sealed partial class InventorySlotsPlugin
     private static float _customEquipmentCacheWeight;
     private static float _customEquipmentCacheEitrRegen;
     private static float _customEquipmentCacheArmor;
+    private static bool _customEquipmentCacheArmorValid;
     private static float[]? _customEquipmentModifierValuesCache;
 
     private static void InvalidateCustomEquipmentProjectionCache()
@@ -47,7 +48,42 @@ public sealed partial class InventorySlotsPlugin
     private static float GetCachedCustomEquipmentArmor(Player player)
     {
         EnsureCustomEquipmentProjectionCache(player);
-        return _customEquipmentCacheArmor;
+        if (_customEquipmentCacheArmorValid || _customEquipmentCacheInventory == null)
+        {
+            return _customEquipmentCacheArmor;
+        }
+
+        // Item GetArmor patches can require a live world/player. Merely finding
+        // equipment for menu visuals or compatibility must not invoke them.
+        int version = _customEquipmentCacheBuiltVersion;
+        Inventory inventory = _customEquipmentCacheInventory;
+        string playerId = _customEquipmentCachePlayerId;
+        ItemData[] items = CustomEquippedItemsCache.ToArray();
+        float armor = 0f;
+        foreach (ItemData item in items)
+        {
+            if (item.m_shared == null) continue;
+            SlotDefinition? slot = GetSlotFromItemMarker(item);
+            if (slot != null && UsesCustomEquipmentState(item, slot))
+            {
+                armor += GetSlotItemArmor(item, slot);
+            }
+        }
+
+        // A provider may invalidate/rebuild equipment or query another player.
+        // Do not publish a partial total on exception, or an old total into that
+        // new cache. The snapshot also keeps those callbacks from invalidating
+        // this iteration. A changed context is recalculated on the next query.
+        if (_customEquipmentCachePlayer == player &&
+            _customEquipmentCacheInventory == inventory &&
+            string.Equals(_customEquipmentCachePlayerId, playerId, StringComparison.Ordinal) &&
+            _customEquipmentCacheBuiltVersion == version &&
+            _customEquipmentCacheVersion == version)
+        {
+            _customEquipmentCacheArmor = armor;
+            _customEquipmentCacheArmorValid = true;
+        }
+        return armor;
     }
 
     private static float[]? GetCachedCustomEquipmentModifierValues(Player player)
@@ -82,49 +118,55 @@ public sealed partial class InventorySlotsPlugin
         }
 
         ClearCustomEquipmentProjectionCache();
-        _customEquipmentCachePlayer = player;
-        _customEquipmentCacheInventory = inventory;
-        _customEquipmentCachePlayerId = playerId;
-        _customEquipmentCacheBuiltVersion = _customEquipmentCacheVersion;
-
         if (inventory == null)
         {
             return;
         }
 
-        foreach (ItemData item in inventory.m_inventory)
+        int version = _customEquipmentCacheVersion;
+        try
         {
-            if (item == null ||
-                !IsInventorySlotsCustomEquipped(item) ||
-                !item.m_customData.TryGetValue(EquippedByKey, out string equippedBy) ||
-                equippedBy != playerId)
+            foreach (ItemData item in inventory.m_inventory)
             {
-                continue;
-            }
+                if (item == null ||
+                    !IsInventorySlotsCustomEquipped(item) ||
+                    !item.m_customData.TryGetValue(EquippedByKey, out string? equippedBy) ||
+                    equippedBy != playerId)
+                {
+                    continue;
+                }
 
-            CustomEquippedItemsCache.Add(item);
-            if (item.m_shared == null)
-            {
-                continue;
-            }
+                CustomEquippedItemsCache.Add(item);
+                if (item.m_shared == null)
+                {
+                    continue;
+                }
 
-            _customEquipmentCacheWeight += item.m_shared.m_weight;
-            _customEquipmentCacheEitrRegen += item.m_shared.m_eitrRegenModifier;
-            SlotDefinition? slot = GetSlotFromItemMarker(item);
-            if (slot != null && UsesCustomEquipmentState(item, slot))
-            {
-                _customEquipmentCacheArmor += GetSlotItemArmor(item, slot);
-            }
+                _customEquipmentCacheWeight += item.m_shared.m_weight;
+                _customEquipmentCacheEitrRegen += item.m_shared.m_eitrRegenModifier;
 
-            string setName = item.m_shared.m_setName;
-            if (!string.IsNullOrEmpty(setName))
-            {
-                CustomEquipmentSetCountCache.TryGetValue(setName, out int count);
-                CustomEquipmentSetCountCache[setName] = count + 1;
-            }
+                string setName = item.m_shared.m_setName;
+                if (!string.IsNullOrEmpty(setName))
+                {
+                    CustomEquipmentSetCountCache.TryGetValue(setName, out int count);
+                    CustomEquipmentSetCountCache[setName] = count + 1;
+                }
 
-            AddCachedCustomEquipmentModifierValues(item);
+                AddCachedCustomEquipmentModifierValues(item);
+            }
         }
+        catch
+        {
+            ClearCustomEquipmentProjectionCache();
+            throw;
+        }
+
+        // Commit only a complete projection. If it was invalidated while being
+        // built, retain the starting version so the next query rebuilds it.
+        _customEquipmentCachePlayer = player;
+        _customEquipmentCacheInventory = inventory;
+        _customEquipmentCachePlayerId = playerId;
+        _customEquipmentCacheBuiltVersion = version;
     }
 
     private static void AddCachedCustomEquipmentModifierValues(ItemData item)
@@ -160,6 +202,7 @@ public sealed partial class InventorySlotsPlugin
         _customEquipmentCacheWeight = 0f;
         _customEquipmentCacheEitrRegen = 0f;
         _customEquipmentCacheArmor = 0f;
+        _customEquipmentCacheArmorValid = false;
         if (_customEquipmentModifierValuesCache != null)
         {
             Array.Clear(_customEquipmentModifierValuesCache, 0, _customEquipmentModifierValuesCache.Length);

@@ -313,7 +313,7 @@ public sealed partial class InventorySlotsPlugin
             for (int x = 0; x < inventory.GetWidth(); x++)
             {
                 Vector2i pos = new(x, y);
-                if (IsUsableRegularCell(inventory, player, pos) && !IsCellOccupied(occupied, x, y))
+                if (!IsCellOccupied(occupied, x, y) && IsUsableRegularCell(inventory, player, pos))
                 {
                     count++;
                 }
@@ -583,13 +583,15 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        int context = ComputeInventoryPlacementCacheContext(player, inventory);
-        int itemKey = ComputeCanAddItemCacheItemKey(item);
+        // Most mixed-drop probes cannot match the last failed item. Only scan
+        // progression/known materials after the cheap cache identity checks.
+        // Keep that live context check on every possible hit (including within
+        // one frame); learning a material need not raise Inventory.Changed.
         return ReferenceEquals(InventorySafety.CanAddItemFailureCacheInventory, inventory) &&
                InventorySafety.CanAddItemFailureCacheVersion == InventorySafety.InventoryPlacementCacheVersion &&
-               InventorySafety.CanAddItemFailureCacheContext == context &&
-               InventorySafety.CanAddItemFailureCacheItemKey == itemKey &&
-               InventorySafety.CanAddItemFailureCacheRequestedStack == requestedStack;
+               InventorySafety.CanAddItemFailureCacheRequestedStack == requestedStack &&
+               InventorySafety.CanAddItemFailureCacheItemKey == ComputeCanAddItemCacheItemKey(item) &&
+               InventorySafety.CanAddItemFailureCacheContext == ComputeInventoryPlacementCacheContext(player, inventory);
     }
 
     private static void CacheCanAddItemFailure(Player player, Inventory inventory, ItemData item, int requestedStack)
@@ -709,6 +711,20 @@ public sealed partial class InventorySlotsPlugin
         int capacity = 0;
         foreach (ItemData existing in inventory.m_inventory)
         {
+            // These are required by both ordinary and EpicLoot stacking. Reject
+            // obvious non-candidates before slot policy walks progression and
+            // equipment rules. Retain the full policy/metadata checks, in their
+            // original order, for every remaining candidate.
+            if (existing?.m_shared == null ||
+                existing.m_stack >= existing.m_shared.m_maxStackSize ||
+                existing.m_shared.m_name != item.m_shared.m_name ||
+                existing.m_quality != item.m_quality ||
+                (float)existing.m_worldLevel != item.m_worldLevel ||
+                existing.m_cheated != item.m_cheated)
+            {
+                continue;
+            }
+
             if (!CanUseAutomaticStackDestination(inventory, existing, item))
             {
                 continue;

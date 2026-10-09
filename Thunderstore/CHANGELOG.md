@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.0
+
+- Reduced repeated inventory-capacity work during auto pickup by rejecting full or unrelated stacks before evaluating slot rules, skipping occupied cells during empty-slot checks, and avoiding unnecessary failed-capacity cache lookups. Slot restrictions, progression unlocks, stack metadata, and EpicLoot stacking rules are preserved.
+- Deferred custom-equipment armor calculations until armor is actually requested, avoiding unnecessary armor-provider calls during equipment and visual synchronization after loading or failed connections. Failed or invalidated calculations no longer leave partial or stale cached totals.
+- Fixed the crafting interface being rebuilt later in the same frame after closing the inventory or a container. Closing now skips that redundant update while immediate reopening and explicit recipe updates remain supported.
+
 ## 1.5.25
 
 - Fixed the auto-pickup capacity optimization being skipped when Harmony assigns different branch labels to the same destination. Supported pickup code now applies the weight-first check without the misleading compatibility warning; unrecognized code still keeps its existing checks.

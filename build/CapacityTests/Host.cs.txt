@@ -1,0 +1,152 @@
+using System;
+using System.Collections.Generic;
+
+public static class CapacityProbe
+{
+    private sealed class Shared { public string m_name = "Wood"; public int m_maxStackSize = 50; }
+    private sealed class ItemData
+    {
+        public Shared m_shared = new();
+        public int m_stack = 1, m_quality = 1, m_worldLevel;
+        public bool m_cheated, Epic, Trusted, MetadataAllowed = true, MetadataMatches = true;
+        public bool DestinationAllowed = true;
+    }
+    private sealed class Player { }
+    private sealed class Inventory
+    {
+        public List<ItemData> m_inventory = new();
+        public int GetWidth() => 8;
+        public int GetHeight() => 12;
+    }
+    private readonly record struct Vector2i(int x, int y);
+    private static class InventorySafety
+    {
+        public static Inventory? CanAddItemFailureCacheInventory;
+        public static int CanAddItemFailureCacheVersion, InventoryPlacementCacheVersion;
+        public static int CanAddItemFailureCacheContext, CanAddItemFailureCacheItemKey, CanAddItemFailureCacheRequestedStack;
+    }
+    private static int SlotChecks, MetadataChecks, EpicChecks, ContextChecks, CellChecks, Checks;
+    private static int Context = 1;
+    private static bool EpicAllows = true, CacheAllowed = true;
+    private static readonly List<string> Order = new();
+    private static bool IsTrustedCustomDataStackingItem(ItemData item) => item.Trusted || item.Epic;
+    private static bool CanUseStackMetadataAutomaticStacking(ItemData item) => item.MetadataAllowed;
+    private static bool IsEpicLootStackingItem(ItemData item) => item.Epic;
+    private static bool CanMergeEpicLootStacks(ItemData existing, ItemData incoming)
+    { EpicChecks++; Order.Add("epic"); return existing.Epic && incoming.Epic && EpicAllows &&
+        existing.m_shared.m_name == incoming.m_shared.m_name && existing.m_quality == incoming.m_quality &&
+        existing.m_worldLevel == incoming.m_worldLevel && existing.m_cheated == incoming.m_cheated; }
+    private static bool HasCompatibleStackMetadata(ItemData a, ItemData b)
+    { MetadataChecks++; Order.Add("metadata"); return a.MetadataMatches && b.MetadataMatches; }
+    private static bool CanUseAutomaticStackDestination(Inventory inventory, ItemData existing, ItemData incoming)
+    { SlotChecks++; Order.Add("slot"); return existing != null && existing.DestinationAllowed; }
+    private static bool CanCacheCanAddItemFailure(ItemData item) => CacheAllowed;
+    private static int ComputeInventoryPlacementCacheContext(Player player, Inventory inventory) { ContextChecks++; return Context; }
+    private static int ComputeCanAddItemCacheItemKey(ItemData item) => item.m_quality;
+    private static int GetUsableRegularRows(Player player) => 4;
+    private static bool IsUsableRegularCell(Inventory inventory, Player player, Vector2i pos)
+    { CellChecks++; return pos.x != 7; } // Reserved last column is still excluded.
+    private static bool IsCellOccupied(HashSet<Vector2i> occupied, int x, int y) => occupied.Contains(new(x, y));
+    private static void Check(bool ok, string description)
+    { if (!ok) throw new Exception(description); Checks++; }
+    private static void ResetCounters() { SlotChecks = MetadataChecks = EpicChecks = ContextChecks = CellChecks = 0; Order.Clear(); }
+
+    /* PRODUCTION METHODS */
+
+    public static void Run(bool baseline)
+    {
+        var inventory = new Inventory();
+        var player = new Player();
+        var incoming = new ItemData();
+        // Repeated rejected Wood/RoundLog probes among unrelated equipment and
+        // full stacks: the reported workload, without game-specific timing claims.
+        for (int i = 0; i < 45; i++) inventory.m_inventory.Add(new ItemData
+            { m_shared = new Shared { m_name = "Equipment" + i, m_maxStackSize = 1 } });
+        ResetCounters();
+        for (int i = 0; i < 100; i++)
+        {
+            incoming.m_shared.m_name = i % 2 == 0 ? "Wood" : "RoundLog";
+            Check(CountStackSpaceForIncomingItem(inventory, incoming) == 0, "Unrelated/full inventory has no stack capacity");
+        }
+        Console.WriteLine($"Rejected mixed-item probes: slot policy calls={SlotChecks} (100 probes, 45 occupied cells)");
+        Check(baseline || SlotChecks == 0, "Unrelated/full stacks must not evaluate slot policy");
+
+        incoming = new ItemData();
+        var target = new ItemData { m_stack = 40 };
+        inventory.m_inventory.Clear(); inventory.m_inventory.Add(target);
+        Check(CountStackSpaceForIncomingItem(inventory, incoming) == 10, "Partial matching stack contributes exact capacity");
+        target.DestinationAllowed = false;
+        Check(CountStackSpaceForIncomingItem(inventory, incoming) == 0, "Locked/restricted slot cannot contribute capacity");
+        target.DestinationAllowed = true;
+        target.MetadataMatches = false;
+        Check(CountStackSpaceForIncomingItem(inventory, incoming) == 0, "Metadata veto remains authoritative");
+        target.MetadataMatches = true;
+        foreach (Action change in new Action[] {
+            () => target.m_shared.m_name = "RoundLog", () => target.m_quality++,
+            () => target.m_worldLevel++, () => target.m_cheated = true, () => target.m_stack = 50 })
+        {
+            target = new ItemData { m_stack = 40 }; inventory.m_inventory[0] = target;
+            change(); ResetCounters();
+            Check(CountStackSpaceForIncomingItem(inventory, incoming) == 0, "Changed identity/full stack is rejected");
+            Check(baseline || SlotChecks == 0, "Cheap mismatch avoids slot policy");
+        }
+        inventory.m_inventory[0] = null!;
+        Check(CountStackSpaceForIncomingItem(inventory, incoming) == 0, "Null inventory entry is ignored");
+        target = new ItemData { m_stack = 40 }; inventory.m_inventory[0] = target;
+        incoming.MetadataAllowed = false;
+        Check(CountStackSpaceForIncomingItem(inventory, incoming) == 0, "Unknown custom data remains protected");
+        incoming.Trusted = true;
+        Check(CountStackSpaceForIncomingItem(inventory, incoming) == 10, "Trusted orb stacking behavior is preserved");
+        incoming.Trusted = false; incoming.Epic = target.Epic = true;
+        ResetCounters(); EpicAllows = false;
+        Check(CountStackSpaceForIncomingItem(inventory, incoming) == 0 && EpicChecks == 1, "EpicLoot veto is retained");
+        Check(string.Join(",", Order) == "slot,epic", "Candidate slot policy precedes optional EpicLoot callback");
+        EpicAllows = true;
+        Check(CountStackSpaceForIncomingItem(inventory, incoming) == 10, "EpicLoot-approved partial stack contributes capacity");
+        incoming.Epic = target.Epic = false; incoming.MetadataAllowed = true;
+        target.m_shared.m_maxStackSize = 100;
+        Check(CountStackSpaceForIncomingItem(inventory, incoming) == 60, "Live maximum stack size is observed immediately");
+        ResetCounters();
+        Check(CountStackSpaceForIncomingItem(inventory, incoming) == 60, "Ordinary candidate remains allowed");
+        Check(string.Join(",", Order) == "slot,metadata", "Candidate slot policy precedes metadata callback");
+
+        InventorySafety.CanAddItemFailureCacheInventory = inventory;
+        InventorySafety.CanAddItemFailureCacheVersion = InventorySafety.InventoryPlacementCacheVersion = 1;
+        InventorySafety.CanAddItemFailureCacheContext = Context;
+        InventorySafety.CanAddItemFailureCacheItemKey = incoming.m_quality;
+        InventorySafety.CanAddItemFailureCacheRequestedStack = 20;
+        ResetCounters();
+        Check(TryGetCachedCanAddItemFailure(player, inventory, incoming, 20) && ContextChecks == 1,
+            "Cache hit still validates live progression context");
+        Context++;
+        Check(!TryGetCachedCanAddItemFailure(player, inventory, incoming, 20), "Same-frame context change invalidates failure");
+        Context--;
+        foreach (Action mismatch in new Action[] {
+            () => InventorySafety.CanAddItemFailureCacheInventory = new Inventory(),
+            () => InventorySafety.CanAddItemFailureCacheVersion = 0,
+            () => InventorySafety.CanAddItemFailureCacheItemKey++,
+            () => InventorySafety.CanAddItemFailureCacheRequestedStack++ })
+        {
+            InventorySafety.CanAddItemFailureCacheInventory = inventory;
+            InventorySafety.CanAddItemFailureCacheVersion = 1;
+            InventorySafety.CanAddItemFailureCacheItemKey = incoming.m_quality;
+            InventorySafety.CanAddItemFailureCacheRequestedStack = 20;
+            mismatch(); ResetCounters();
+            Check(!TryGetCachedCanAddItemFailure(player, inventory, incoming, 20), "Mismatched cache entry is ignored");
+            Check(baseline || ContextChecks == 0, "Cache miss avoids expensive progression context calculation");
+        }
+        CacheAllowed = false; ResetCounters();
+        Check(!TryGetCachedCanAddItemFailure(player, inventory, incoming, 20) && ContextChecks == 0,
+            "Uncacheable items bypass failure lookup");
+
+        var occupied = new HashSet<Vector2i>();
+        for (int y = 0; y < 4; y++) for (int x = 0; x < 8; x++) occupied.Add(new(x, y));
+        ResetCounters();
+        Check(CountUsableRegularEmptyCells(inventory, player, occupied) == 0, "Full regular grid has no empty cells");
+        Check(baseline || CellChecks == 0, "Occupied cells do not re-evaluate unlock/slot policy");
+        occupied.Remove(new(0, 1)); occupied.Remove(new(7, 1)); ResetCounters();
+        Check(CountUsableRegularEmptyCells(inventory, player, occupied) == 1, "Only usable empty cells count");
+        Check(baseline || CellChecks == 2, "Only the two empty cells need slot policy checks");
+        Console.WriteLine($"{Checks} capacity checks passed; isolated policy execution, no Unity/game session.");
+    }
+}

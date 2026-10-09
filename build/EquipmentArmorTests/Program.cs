@@ -132,4 +132,120 @@ player.Inventory.m_inventory.AddRange([player.m_helmetItem, player.m_chestItem, 
 Equal(0f, Plugin.GetProjectedEquipmentArmor(player), "native four armor slots are not added a second time");
 Equal(0f, Plugin.GetProjectedEquipmentArmor(null!), "absent player does not grant armor");
 
+// A menu character can have equipped items while a patched armor provider
+// cannot run yet. Finding those items must not invoke the provider at all.
+player = Fresh();
+ItemData previewA = Custom(player, "preview-a", true);
+ItemData previewB = Custom(player, "preview-b", true);
+var unavailable = new NullReferenceException("simulated provider without live world");
+previewA.ArmorError = previewB.ArmorError = unavailable;
+Equal(2, Plugin.EquippedCount(player), "preview equipment remains available without a live armor provider");
+Equal(4, Plugin.Weight(player), "preview weight does not request armor");
+Equal(0.3f, Plugin.Eitr(player), "preview eitr does not request armor");
+Equal(2, Plugin.SetCount(player), "preview set lookup does not request armor");
+Equal(0.4f, Plugin.Modifier(player), "preview modifiers do not request armor");
+Equal(0, previewA.ArmorCalls + previewB.ArmorCalls, "non-armor getters never call GetArmor");
+
+void ThrowsSame(Exception expected, Action action, string message)
+{
+    checks++;
+    try { action(); }
+    catch (Exception actual) when (ReferenceEquals(actual, expected)) { return; }
+    throw new InvalidOperationException(message);
+}
+
+// Fail after one item has contributed, then retry without a new inventory event.
+previewA.ArmorError = null;
+ThrowsSame(unavailable, () => Plugin.GetProjectedEquipmentArmor(player), "actual armor failures remain observable");
+Equal(2, Plugin.EquippedCount(player), "armor failure cannot truncate the equipment list");
+Equal(4, Plugin.Weight(player), "armor failure cannot truncate other projections");
+previewB.ArmorError = null;
+Equal(20, Plugin.GetProjectedEquipmentArmor(player), "armor retries the entire sum after a provider failure");
+Equal(2, previewA.ArmorCalls, "the successful first item is recalculated after failed aggregate");
+Equal(2, previewB.ArmorCalls, "the failed item is retried");
+Equal(20, Plugin.GetProjectedEquipmentArmor(player), "completed armor result is cached");
+Equal(4, previewA.ArmorCalls + previewB.ArmorCalls, "repeated completed query avoids providers");
+
+Plugin.Invalidate();
+previewA.BeforeArmor = () =>
+{
+    Equal(2, Plugin.EquippedCount(player), "provider reentry sees the complete equipment list");
+    Equal(4, Plugin.Weight(player), "provider reentry reads weight without recursively calculating armor");
+    Equal(2, Plugin.SetCount(player), "provider reentry reads a complete set count");
+};
+Equal(20, Plugin.GetProjectedEquipmentArmor(player), "ordinary getter reentry preserves the armor sum");
+
+// Rebuild the shared list inside GetArmor. The active sum must enumerate its
+// snapshot and must not mark that invalidated result as reusable.
+Plugin.Invalidate();
+previewA.BeforeArmor = () =>
+{
+    previewA.BeforeArmor = null;
+    Plugin.Invalidate();
+    Equal(2, Plugin.EquippedCount(player), "provider can rebuild equipment during armor calculation");
+};
+Equal(20, Plugin.GetProjectedEquipmentArmor(player), "rebuild during calculation does not invalidate the iterator");
+previewA.m_shared.m_armor = 15;
+Equal(25, Plugin.GetProjectedEquipmentArmor(player), "invalidated in-flight sum is recalculated on next query");
+
+// Query a different character during the callback; never publish the first
+// character's result into the second character's cache.
+var other = new Player { Id = "other-player" };
+ItemData otherItem = Custom(other, "other-item", true);
+otherItem.m_shared.m_armor = 30;
+Plugin.Invalidate();
+previewA.BeforeArmor = () =>
+{
+    previewA.BeforeArmor = null;
+    Equal(1, Plugin.EquippedCount(other), "provider can query another character's equipment");
+};
+Equal(25, Plugin.GetProjectedEquipmentArmor(player), "character switch does not truncate in-flight snapshot");
+Equal(30, Plugin.GetProjectedEquipmentArmor(other), "character switch cannot cache the previous character's armor");
+
+// An inventory instance replacement with the same player/id/version is also a
+// distinct cache context, even if a foreign callback omitted invalidation.
+Plugin.Invalidate();
+previewA.BeforeArmor = () =>
+{
+    previewA.BeforeArmor = null;
+    player.Inventory = new Inventory();
+    ItemData replacement = Custom(player, "replacement", true);
+    replacement.m_shared.m_armor = 40;
+    Equal(1, Plugin.EquippedCount(player), "provider can replace the inventory instance");
+};
+Equal(25, Plugin.GetProjectedEquipmentArmor(player), "old inventory snapshot completes independently");
+Equal(40, Plugin.GetProjectedEquipmentArmor(player), "old inventory total is not published into replacement cache");
+
+// Failed non-armor projection must also clear partial data and retry. Keep an
+// existing view to verify that the failed builder does not leave it truncated.
+player = Fresh();
+ItemData normalA = Custom(player, "normal-a", true);
+ItemData normalB = Custom(player, "normal-b", true);
+var view = Plugin.EquippedItems(player);
+Plugin.Invalidate();
+Plugin.InspectItem = item => { if (ReferenceEquals(item, normalB)) throw unavailable; };
+ThrowsSame(unavailable, () => Plugin.EquippedCount(player), "projection failure remains observable");
+Equal(0, view.Count, "failed projection clears the partially populated list");
+Plugin.InspectItem = null;
+Equal(2, Plugin.EquippedCount(player), "failed projection retries without another invalidation");
+Equal(4, Plugin.Weight(player), "retry sums weight exactly once");
+Equal(2, Plugin.SetCount(player), "retry sums sets exactly once");
+Equal(0.4f, Plugin.Modifier(player), "retry sums modifiers exactly once");
+
+Plugin.Invalidate();
+int inspections = 0;
+Plugin.InspectItem = _ => { if (++inspections == 1) Plugin.Invalidate(); };
+Equal(2, Plugin.EquippedCount(player), "projection can finish after an in-flight invalidation");
+Equal(2, Plugin.EquippedCount(player), "in-flight invalidation forces next projection rebuild");
+Equal(4, inspections, "builder does not commit the newer invalidation version");
+Equal(2, Plugin.EquippedCount(player), "complete retried projection is reused");
+Equal(4, inspections, "valid projection avoids item inspection");
+Plugin.InspectItem = null;
+
+normalB.m_shared = null!;
+Plugin.Invalidate();
+Equal(2, Plugin.EquippedCount(player), "missing shared data does not truncate remaining equipment");
+Equal(10, Plugin.GetProjectedEquipmentArmor(player), "missing shared data is excluded from armor");
+Equal(0, normalB.ArmorCalls, "invalid shared data does not reach armor providers");
+
 Console.WriteLine($"PASS: {checks} equipment armor assertions using linked production projection code and a fake game host.");
