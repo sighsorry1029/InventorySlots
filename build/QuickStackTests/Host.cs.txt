@@ -1,0 +1,144 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+public readonly record struct Vector2i(int x, int y);
+public class ItemData
+{
+    public enum ItemType { None, Material, OneHandedWeapon, Bow, Shield, Helmet, Chest, Ammo, Customization,
+        Legs, Hands, Trophy, TwoHandedWeapon, Torch, Misc, Shoulder, Utility, Tool, Attach_Atgeir, Fish,
+        TwoHandedWeaponLeft, AmmoNonEquipable, Consumable, Trinket }
+    public class Shared { public string m_name = "base"; public int m_maxStackSize = 1; public ItemType m_itemType = ItemType.Material; }
+    public Shared m_shared = new();
+    public int m_stack = 1, m_quality = 1, m_worldLevel;
+    public bool m_cheated, m_equipped, Favorite, Special, MetadataAllowed = true;
+    public Vector2i m_gridPos = new(0, 1);
+    public ItemData Clone() => (ItemData)MemberwiseClone();
+}
+public class Player { public bool IsItemEquiped(ItemData item) => item.m_equipped; }
+public class Inventory
+{
+    public List<ItemData> m_inventory = new();
+    public int Width = 3, Height = 2, Changes, MoveCalls;
+    public bool Veto;
+    public int GetWidth() => Width;
+    public int GetHeight() => Height;
+    public List<ItemData> GetAllItems() => m_inventory;
+    public ItemData? GetItemAt(int x, int y) => m_inventory.FirstOrDefault(i => i.m_gridPos == new Vector2i(x, y));
+    public void Changed() => Changes++;
+    // Fake native positional move: inventory ownership and source quantities are
+    // mutated together. This does not simulate Harmony or native Unity callbacks.
+    public bool MoveItemToThis(Inventory from, ItemData source, int requested, int x, int y)
+    {
+        MoveCalls++;
+        if (Veto || !from.m_inventory.Contains(source)) return false;
+        var target = GetItemAt(x, y);
+        int moved = Math.Min(source.m_stack, Math.Min(requested, target == null
+            ? source.m_shared.m_maxStackSize : target.m_shared.m_maxStackSize - target.m_stack));
+        if (moved <= 0) return false;
+        if (target == null) { target = source.Clone(); target.m_stack = 0; target.m_gridPos = new(x, y); m_inventory.Add(target); }
+        target.m_stack += moved;
+        source.m_stack -= moved;
+        if (source.m_stack == 0) from.m_inventory.Remove(source);
+        return true;
+    }
+}
+public static class ContainerActionCore { /* CORE */ }
+public class Boundaries
+{
+    protected static bool IsRegularActionItem(Inventory inventory, ItemData item) => !item.Special && item.m_gridPos.y > 0;
+    protected static bool IsRegularActionItem(Player player, Inventory inventory, ItemData item) => IsRegularActionItem(inventory, item);
+    protected static bool IsFavoriteProtected(Player player, Inventory inventory, ItemData item) => item.Favorite;
+    protected static bool CanUseContainerActionStacking(ItemData item) => item.MetadataAllowed;
+    protected static bool IsTrustedCustomDataStackingItem(ItemData item) => false;
+    protected static bool IsEpicLootStackingItem(ItemData item) => false;
+    protected static bool CanMergeEpicLootStacks(ItemData target, ItemData source) => false;
+    protected static bool CanShareInventoryStack(ItemData target, ItemData source) =>
+        target.m_shared.m_name == source.m_shared.m_name && target.m_quality == source.m_quality &&
+        target.m_worldLevel == source.m_worldLevel && target.m_cheated == source.m_cheated;
+    protected static void NotifyInventoryChanged(Inventory inventory) => inventory.Changed();
+    protected static int CompareGridOrder(Vector2i a, Vector2i b) => a.y != b.y ? a.y.CompareTo(b.y) : a.x.CompareTo(b.x);
+}
+public class Slots : Boundaries
+{
+    /* SLOTS */
+    public static bool Eligible(ItemData item) => ShouldQuickStackItem(new(), new(), item);
+    public static int Transfer(Inventory from, Inventory to) => QuickStackItemsIntoContainer(new(), from, to, from.m_inventory.Where(Eligible).ToList());
+}
+public class Actions : Boundaries
+{
+    private class MucTransferSession { public Player Player = new(); public Inventory Inventory = new(); }
+    private class Container { public Inventory m_inventory = new(); }
+    public static (ItemData? Source, ItemData? Target, Vector2i Cell, int Amount)? Sent;
+    private static bool SendMucTransfer(MucTransferSession session, Container container, ItemData source, ItemData? target, Vector2i cell, int amount)
+    { Sent = (source, target, cell, amount); return true; }
+    /* ACTIONS */
+    public static bool Eligible(ItemData item) => ShouldQuickStackItem(new(), new(), item);
+    public static int Transfer(Inventory from, Inventory to) => QuickStackItemsIntoContainer(from, to, GetQuickStackCandidates(new(), from));
+    public static bool Muc(Inventory from, Inventory to) { Sent = null; return TrySendMucQuickStack(new() { Inventory = from }, new() { m_inventory = to }); }
+}
+public static class Checks
+{
+    private static int Count;
+    private static void Check(bool condition, string message) { Count++; if (!condition) throw new Exception(message); }
+    private static ItemData Item(string name = "base", int max = 1, int count = 1, int x = 0, int y = 1) => new()
+    { m_shared = new() { m_name = name, m_maxStackSize = max }, m_stack = count, m_gridPos = new(x, y) };
+    public static void Run()
+    {
+        foreach (var (name, eligible, transfer) in new (string, Func<ItemData, bool>, Func<Inventory, Inventory, int>)[]
+            { ("Slots", Slots.Eligible, Slots.Transfer), ("Actions", Actions.Eligible, Actions.Transfer) })
+        {
+            Check(eligible(Item()), name + ": single material must be a candidate");
+            Check(!eligible(null!), name + ": null item");
+            Check(!eligible(new() { m_shared = null! }), name + ": null shared data");
+            foreach (ItemData.ItemType type in Enum.GetValues<ItemData.ItemType>())
+            {
+                var item = Item(); item.m_shared.m_itemType = type;
+                Check(eligible(item) == (type == ItemData.ItemType.Material), name + ": single item type " + type);
+                item.m_shared.m_maxStackSize = 20;
+                Check(eligible(item), name + ": preserve stackable item type " + type);
+            }
+            foreach (Action<ItemData> protect in new Action<ItemData>[] {
+                i => i.Favorite = true, i => i.Special = true, i => i.m_gridPos = new(0, 0),
+                i => i.MetadataAllowed = false, i => i.m_equipped = true })
+            { var item = Item(); protect(item); Check(!eligible(item), name + ": source protection"); }
+            Check(!eligible(Item(max: 0)), name + ": invalid max size remains excluded");
+            var source = Item(); var seed = Item(x: 0, y: 0);
+            var from = new Inventory(); from.m_inventory.Add(source);
+            var to = new Inventory(); to.m_inventory.Add(seed);
+            Check(transfer(from, to) == 1, name + ": same material moves to a free cell");
+            Check(from.m_inventory.Count == 0 && seed.m_stack == 1 && to.m_inventory.Count == 2 &&
+                to.GetItemAt(1, 0)?.m_stack == 1 && !ReferenceEquals(to.GetItemAt(1, 0), source), name + ": source removed once, seed intact, new stack top first");
+            Check(transfer(from, to) == 0, name + ": repeat cannot duplicate moved item");
+            foreach (string blocked in new[] { "empty", "different", "full", "veto" })
+            {
+                source = Item(); from = new(); from.m_inventory.Add(source);
+                to = new() { Width = blocked == "full" ? 1 : 3, Height = 1, Veto = blocked == "veto" };
+                if (blocked != "empty") to.m_inventory.Add(Item(blocked == "different" ? "other" : "base", y: 0));
+                Check(transfer(from, to) == 0 && from.m_inventory.Contains(source) && source.m_stack == 1, name + ": no loss when " + blocked);
+            }
+            from = new(); from.m_inventory.Add(Item()); from.m_inventory.Add(Item(x: 1));
+            to = new() { Width = 2, Height = 1 }; to.m_inventory.Add(Item(y: 0));
+            Check(transfer(from, to) == 1 && from.m_inventory.Count == 1 && to.m_inventory.Sum(i => i.m_stack) == 2, name + ": only available cell used");
+            from = new(); from.m_inventory.Add(Item("wood", 20, 20));
+            seed = Item("wood", 20, 20, y: 0); to = new(); to.m_inventory.Add(seed);
+            Check(transfer(from, to) == 1 && seed.m_stack == 20 && to.GetItemAt(1, 0)?.m_stack == 20, name + ": full ordinary stack spills into empty cell");
+            from = new(); from.m_inventory.Add(Item("wood", 20, 15));
+            seed = Item("wood", 20, 10, y: 0); to = new(); to.m_inventory.Add(seed);
+            Check(transfer(from, to) == 1 && seed.m_stack == 20 && to.GetItemAt(1, 0)?.m_stack == 5, name + ": ordinary partial stack filled before free cell");
+        }
+        foreach (string condition in new[] { "allowed", "favorite", "equipped", "special", "metadata", "different", "empty", "full" })
+        {
+            var source = Item(); source.Favorite = condition == "favorite"; source.m_equipped = condition == "equipped";
+            source.Special = condition == "special"; source.MetadataAllowed = condition != "metadata";
+            var from = new Inventory(); from.m_inventory.Add(source);
+            var to = new Inventory { Width = condition == "full" ? 1 : 3, Height = 1 };
+            if (condition != "empty") to.m_inventory.Add(Item(condition == "different" ? "other" : "base", y: 0));
+            Check(Actions.Muc(from, to) == (condition == "allowed"), "MUC candidate dispatch: " + condition);
+            if (condition == "allowed") Check(Actions.Sent is { } request && request.Target == null &&
+                ReferenceEquals(request.Source, source) && request.Cell == new Vector2i(1, 0) && request.Amount == 1 &&
+                from.m_inventory.Contains(source), "MUC requests one new cell through adapter without locally removing source");
+        }
+        Console.WriteLine($"{Count} quick-stack checks passed for both mods; native transfer and MUC request boundaries are doubles, no game execution.");
+    }
+}

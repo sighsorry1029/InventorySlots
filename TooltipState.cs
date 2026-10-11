@@ -69,6 +69,7 @@ public sealed partial class InventorySlotsPlugin
         public float FeatureGuideWrappedHeight = 176f;
         public float NextFeatureGuideTextRefreshTime;
         public RectTransform? InventoryWheelHint;
+        public RectTransform? InventoryWheelHintBackground;
         public TMP_Text? InventoryWheelHintText;
         public TMP_FontAsset? DefaultFontAsset;
         public Material? DefaultFontMaterial;

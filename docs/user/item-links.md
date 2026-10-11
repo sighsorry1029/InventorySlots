@@ -7,7 +7,7 @@
 
 Item labels are underlined and inherit the message's channel color, including Clan's configured color. Hover tooltips stay beside the chat window while the pointer moves across a link. They prefer the side with enough room, stay within the screen, and render above chat if space is tight. Middle-clicking a link or its hover tooltip reserves that press for pinning, keeps the chat draft and selection, and does not trigger a secondary attack.
 
-**5 - Client UI → Enable Item Tooltips in Chat** enables or disables this feature locally. It is on by default and is not server-synced. Sending a link does not immediately send a chat message or change the current channel. Vanilla `/w` is a nearby whisper, not a private message to a named player.
+**3 - Client UI → Enable Item Tooltips in Chat** enables or disables this feature locally. It is on by default and is not server-synced. Sending a link does not immediately send a chat message or change the current channel. Vanilla `/w` is a nearby whisper, not a private message to a named player.
 
 Both players need this feature for interactive links. A client without it sees an ordinary readable item label with a short link ID. No additional server-side item-link component is required by the protocol. General InventorySlots installation requirements still apply independently.
 

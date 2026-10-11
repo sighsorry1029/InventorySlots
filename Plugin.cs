@@ -88,7 +88,8 @@ public sealed partial class InventorySlotsPlugin : BaseUnityPlugin
     private const int QuickSlotPanelColumns = 3;
     private const int QuickSlotPanelRows = 3;
     private const float SidePanelGapColumns = 1.45f;
-    private const float SidePanelBackgroundPadding = 16f;
+    // The native player background starts 14 units above its first slot.
+    private const float SidePanelBackgroundPadding = 14f;
     private const float PlayerStatPanelGap = -8f;
     private const int HotbarRowsToSwitch = 2;
     private const int HotbarSwitchFavoriteRow = 1;
@@ -104,27 +105,22 @@ public sealed partial class InventorySlotsPlugin : BaseUnityPlugin
     private const float HeavySafetyAuditActivityDelay = 2f;
     private const float PendingSlotActionTimeout = 30f;
     private const float InventoryPinnedJewelcraftingReservedHeight = 190f;
-    private const string ProgressiveSlotsConfigSection = "2 - Progressive Slots";
-    private const string InventoryButtonsConfigSection = "3 - Inventory Buttons";
-    private const string ClientConfigSection = "4 - Client";
-    private const string ClientUiConfigSection = "5 - Client UI";
-    private const string ClientKeysConfigSection = "6 - Client Keys";
+    private const string ClientConfigSection = "2 - Client";
+    private const string ClientUiConfigSection = "3 - Client UI";
+    private const string ClientKeysConfigSection = "4 - Client Keys";
+    private const string ProgressiveSlotsConfigSection = "5 - Progressive Slots";
+    private const string InventoryButtonsConfigSection = "6 - Inventory Buttons";
     private const string ControllerInputConfigSection = "7 - Controller Input";
     private static readonly Vector2 HotbarSwitchHintOffset = new(0f, -32f);
     private static readonly Color HotbarSwitchHintColor = new(174f / 255f, 224f / 255f, 1f, 1f);
     private const float HotbarSwitchHintFontSize = 16f;
-    private static readonly Vector2 InventoryWheelHintOffset = new(0f, -32f);
     private static readonly Color InventoryWheelHintColor = new(174f / 255f, 224f / 255f, 1f, 1f);
-    private const float InventoryWheelHintSize = 0f;
     private static readonly Vector2 PinnedTooltipFixedPanelSize = new(345f, 600f);
     private static readonly Vector2 InventoryPinnedTooltipFixedOffset = new(828f, -384f);
     private static readonly Vector2 CraftingPinnedTooltipFixedOffset = new(-900f, 0f);
     private static readonly Vector2 QuickSlotsPanelFixedOffset = new(
         ClientStateCore.DefaultQuickSlotsPanelX,
         ClientStateCore.DefaultQuickSlotsPanelY);
-    private static readonly Vector2 QuickSlotsHudFallbackPosition = new(
-        ClientStateCore.DefaultQuickSlotsHudX,
-        ClientStateCore.DefaultQuickSlotsHudY);
     private static readonly Vector2 EquipmentSlotsPanelFixedOffset = new(
         ClientStateCore.DefaultEquipmentSlotsPanelX,
         ClientStateCore.DefaultEquipmentSlotsPanelY);

@@ -67,15 +67,39 @@ internal static partial class Program
         gui.m_inventoryRoot = null!;
         InventorySlots.InventoryDialogLayering.Update(gui, null);
         Check(Transform.SiblingWrites == 0, "Missing root is safe during teardown");
+
+        (gui, panels) = CreateLayerFixture("Player", "Sort", "Quick", "Container", "Info", "Crafting", "Texts", "Popup");
+        panels["Texts"].SetActive(true);
+        InventorySlots.InventoryDialogLayering.Update(gui, panels["Quick"].transform, panels["Sort"].transform);
+        CheckLayerOrder(gui, panels, "Player", "Quick", "Container", "Info", "Crafting", "Sort", "Texts", "Popup");
+        int writes = Transform.SiblingWrites;
+        InventorySlots.InventoryDialogLayering.Update(gui, panels["Quick"].transform, panels["Sort"].transform);
+        Check(Transform.SiblingWrites == writes, "Stable sort hierarchy is not rewritten every frame");
+
+        foreach (string dialog in new[] { "Split", "Achievements", "Trophies", "Variant", "Skills", "Texts" })
+        {
+            (gui, panels) = CreateLayerFixture("Player", dialog, "Popup", "Sort", "Container", "Quick");
+            panels[dialog].SetActive(true);
+            InventorySlots.InventoryDialogLayering.Update(gui, panels["Quick"].transform, panels["Sort"].transform);
+            CheckLayerOrder(gui, panels, "Player", "Container", "Quick", "Sort", dialog, "Popup");
+        }
+
+        (gui, panels) = CreateLayerFixture("Sort", "Player", "Quick", "Container", "Popup");
+        InventorySlots.InventoryDialogLayering.Update(gui, panels["Quick"].transform, panels["Sort"].transform);
+        CheckLayerOrder(gui, panels, "Player", "Quick", "Container", "Sort", "Popup");
+        panels["Quick"].transform.parent = new GameObject().transform;
+        InventorySlots.InventoryDialogLayering.Update(gui, panels["Quick"].transform, panels["Sort"].transform);
+        CheckLayerOrder(gui, panels, "Player", "Container", "Sort", "Popup");
     }
 
     private static (InventoryGui, Dictionary<string, GameObject>) CreateLayerFixture(params string[] order)
     {
         InventoryGui gui = new();
         Dictionary<string, GameObject> panels = new();
-        foreach (string name in new[] { "Player", "Quick", "Info", "Crafting", "Split", "Achievements", "Trophies", "Variant", "Skills", "Texts", "Popup" })
+        foreach (string name in new[] { "Player", "Container", "Quick", "Sort", "Info", "Crafting", "Split", "Achievements", "Trophies", "Variant", "Skills", "Texts", "Popup" })
             panels[name] = new GameObject();
         gui.m_player = panels["Player"].transform;
+        gui.m_container = panels["Container"].transform;
         gui.m_info = panels["Info"].transform;
         gui.m_crafting = panels["Crafting"].transform;
         gui.m_splitDialog = new Component { gameObject = panels["Split"] };

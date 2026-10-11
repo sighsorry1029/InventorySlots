@@ -16,12 +16,71 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
+    private static InventoryGui? _inventoryClosingLayoutGui;
+    private static CanvasGroup? _inventoryClosingInputGroup;
+    private static bool _inventoryClosingBlocksRaycasts;
+
+    internal static bool IsInventoryClosingLayoutPending(InventoryGui? gui) =>
+        gui != null && _inventoryClosingLayoutGui == gui;
+
+    internal static void CancelInventoryClosingLayout(InventoryGui gui)
+    {
+        if (_inventoryClosingLayoutGui == gui) ClearInventoryClosingLayout();
+    }
+
+    private static void ClearInventoryClosingLayout()
+    {
+        if (_inventoryClosingInputGroup != null)
+            _inventoryClosingInputGroup.blocksRaycasts = _inventoryClosingBlocksRaycasts;
+        _inventoryClosingInputGroup = null;
+        _inventoryClosingLayoutGui = null;
+    }
+
+    private static void DeferInventoryClosingLayoutRestore()
+    {
+        // Hide stops input/crafting immediately, but the animator still renders
+        // these panels. Restore their native layout only once the root is hidden.
+        InventoryGui? gui = InventoryGui.instance;
+        if (IsInventoryClosingLayoutPending(gui)) return;
+        ClearInventoryClosingLayout();
+        _inventoryClosingLayoutGui = gui;
+        if (gui != null && gui.m_inventoryRoot != null && gui.m_inventoryRoot.gameObject.activeInHierarchy)
+        {
+            // Preserve visuals, not interaction. Reuse a root-local group without
+            // changing alpha/interactable (which would tint the closing controls).
+            _inventoryClosingInputGroup = gui.m_inventoryRoot.GetComponent<CanvasGroup>() ??
+                gui.m_inventoryRoot.gameObject.AddComponent<CanvasGroup>();
+            _inventoryClosingBlocksRaycasts = _inventoryClosingInputGroup.blocksRaycasts;
+            _inventoryClosingInputGroup.blocksRaycasts = false;
+        }
+        CraftingUi.SearchInput?.DeactivateInputField();
+        _craftingCountInput?.DeactivateInputField();
+        UpdateInventoryClosingLayout();
+    }
+
+    private static void UpdateInventoryClosingLayout()
+    {
+        InventoryGui? gui = _inventoryClosingLayoutGui;
+        if (gui == null || gui != InventoryGui.instance)
+        {
+            ClearInventoryClosingLayout();
+            return;
+        }
+        if (gui.m_inventoryRoot != null && gui.m_inventoryRoot.gameObject.activeInHierarchy) return;
+
+        ClearInventoryClosingLayout();
+        RestorePlayerStatPanels();
+        HideCraftingPanelRedesign();
+    }
+
     internal static void UpdateInventoryGridUi(InventoryGrid playerGrid, Player player)
     {
         if (playerGrid == null || player == null || playerGrid.m_gridRoot == null || playerGrid.m_elements == null)
         {
             return;
         }
+
+        if (IsInventoryClosingLayoutPending(InventoryGui.instance)) return;
 
         if (!InventoryGui.IsVisible())
         {

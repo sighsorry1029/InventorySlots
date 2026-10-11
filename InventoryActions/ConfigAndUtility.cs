@@ -13,6 +13,7 @@ namespace InventoryActions;
 
 public sealed partial class InventoryActionsPlugin
 {
+    private enum SortButtonSide { Right, Left }
     // Valheim 1.0 changed this private notification to a two-argument method.
     // Native MoveItemToThis handles acquisition/cheat notifications itself;
     // these flushes preserve the previous no-argument notification semantics.
@@ -37,6 +38,7 @@ public sealed partial class InventoryActionsPlugin
     private static ConfigEntry<Toggle> _containerActionSuccessFx = null!;
     private static ConfigEntry<KeyboardShortcut> _favoriteModifierKey = null!;
     private static ConfigEntry<KeyboardShortcut> _containerRestockKey = null!;
+    private static ConfigEntry<SortButtonSide> _sortButtonSide = null!;
     private static ConfigEntry<string> _sortButtonPositionOffset = null!;
     private static string? _cachedSortButtonPositionOffsetText;
     private static Vector2 _cachedSortButtonPositionOffset;
@@ -76,12 +78,16 @@ public sealed partial class InventoryActionsPlugin
                 null,
                 new ConfigurationManagerAttributes { Order = 870 }),
             synchronizedSetting: false);
+        _sortButtonSide = ConfigEntry(ClientConfigSection, "Sort Button Side", SortButtonSide.Left,
+            new ConfigDescription("Place the player inventory and container sort buttons on the Left or Right edge. Applies immediately. Sort Button Position adds an extra offset to the player button on the selected side.",
+                null, new ConfigurationManagerAttributes { Order = 850 }), synchronizedSetting: false);
+        _sortButtonSide.SettingChanged += OnSortButtonSideChanged;
         _sortButtonPositionOffset = ConfigEntry(
             ClientConfigSection,
             "Sort Button Position",
             "x: 0 y: 0",
             new ConfigDescription(
-                "Client-only position offset for the player inventory sort button. Format: x: 0 y: 0. Positive x moves right; positive y moves up.",
+                "Client-only position offset for the player inventory sort button, relative to the selected Sort Button Side. Format: x: 0 y: 0. Positive x moves right; positive y moves up.",
                 null,
                 new ConfigurationManagerAttributes
                 {

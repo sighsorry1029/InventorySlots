@@ -13,6 +13,9 @@ public sealed partial class InventoryActionsPlugin
     public static int TestMenuChoice;
     public static string TestGridHint = "";
     public static bool TestPlayerSortVisible, TestContainerSortVisible, TestSortInteractable;
+    private enum SortButtonSide { Right, Left }
+    private static BepInEx.Configuration.ConfigEntry<SortButtonSide> _sortButtonSide = new(SortButtonSide.Right);
+    public static void TestSortOnLeft(bool left) => _sortButtonSide.Value = left ? SortButtonSide.Left : SortButtonSide.Right;
     public static string? TestSortFocus => _controllerSortFocus?.ToString();
     private static void TestResetMenuAdapter()
     {
@@ -21,6 +24,7 @@ public sealed partial class InventoryActionsPlugin
         TestGridHint = "";
         TestPlayerSortVisible = TestContainerSortVisible = false;
         TestSortInteractable = true;
+        TestSortOnLeft(false);
     }
     private static void ShowControllerItemMenu(InventoryGui gui, InventoryGrid grid, bool offerFavorite, bool favorite, int choice)
     { TestMenuShown = true; TestMenuFavorite = offerFavorite; TestMenuChoice = choice; }

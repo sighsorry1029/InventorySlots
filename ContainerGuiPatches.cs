@@ -73,6 +73,7 @@ internal static class InventoryGuiShowValidateInventoryPatch
         // hover preview with a visible animator) is not an already-open inventory.
         __state = InventoryGui.IsVisible() &&
             __instance.m_animator != null && __instance.m_animator.GetBool("visible");
+        InventorySlotsPlugin.CancelInventoryClosingLayout(__instance);
         InventorySlotsPlugin.BeforeRealInventoryGuiShown();
     }
 

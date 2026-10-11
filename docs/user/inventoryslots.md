@@ -18,13 +18,21 @@ The purchase conditions use progression in the current world. **Maximum Extra Ro
 
 Regular storage coordinates remain reserved, with equipment and quick slots after them. Unlocking or hiding rows does not reshuffle saved items. If a row becomes locked while it contains items, its occupied cells stay accessible for recovery; its empty cells do not become extra storage.
 
-In **4 - Client**, choose **Fixed** to show all unlocked rows or **Expandable** to adjust the visible row count with the mouse wheel. The expandable count is remembered locally. The configured hotbar-switch key rotates the visible hotbar row without moving item coordinates. **Auto Favorite Hotbar Switch Row** defaults to Off; On favorites the second row when the character loads or spawns.
+In **2 - Client**, choose **Fixed** to show all unlocked rows or **Expandable** to adjust the visible row count with the mouse wheel. The expandable count is remembered locally. The configured hotbar-switch key rotates the visible hotbar row without moving item coordinates. **Auto Favorite Hotbar Switch Row** defaults to Off; On favorites the second row when the character loads or spawns.
+
+In **3 - Client UI**, **Sort Button Side** places both inventory and chest S buttons on the Left (default) or Right edge, using the same edge spacing. They appear above the equipment and quick-slot panels and below inventory dialogs. **Show Inventory Wheel Hint** displays the mouse-wheel icon just below the player inventory, centered between columns 4 and 5, when extra expandable rows are available. It follows the panel as rows expand or collapse, does not block clicks, and hides if an open chest occupies that space.
 
 ## Equipment and quick slots
 
 The six built-in equipment IDs are `helmet`, `chest`, `legs`, `cape`, `utility`, and `trinket`. Their names can be changed in YAML, but their IDs must stay fixed. With **Enable Equipment Slot Progression** On, a slot unlocks after the character discovers, carries, or has equipped an item that it accepts.
 
 Quick slots appear in a side panel and on the HUD. **Quick Slot Rows** reserves up to three rows of three slots. With progression enabled, row 1 is available initially, row 2 unlocks with `HardAntler`, and row 3 with `CryptKey`.
+
+The default equipment panel aligns its slot rows and top background edge with the player inventory. The quick-slot panel starts directly below it with matching columns and a narrow gap. These are initial positions; dragging either panel does not move the other.
+
+**Quick Slot HUD Follows Panel** defaults to **Off**. The separate HUD starts below the chest weight display's reference position with all nine player rows visible. These are independent default positions: moving equipment, opening a chest, or expanding rows does not reposition the HUD. Its unset default uses the HUD viewport's top-left corner and game UI scale, so changing aspect ratio keeps the same placement; screen bounds take priority when space is limited. Turn following On to make the HUD follow the inventory quick-slot panel again.
+
+Saved panel positions are preserved. Renumbered `.cfg` sections use their new defaults as described below. To apply the new layout to an existing installation, select Left and turn following Off. With the game closed, set `inventory.equipmentSlotsPanelPosition` to `{x: -82, y: 0}`, `inventory.quickSlotsPanelPosition` to `{x: -82, y: -235}`, and `inventory.quickSlotsHudPosition` to `null` in `InventorySlots/ClientState.yml`. Keep the rest of that file, including favorite memory. A null HUD position selects the viewport-based default; a saved position retains its existing HUD-local coordinates.
 
 `QuickSlots` in YAML defines accepted item groups. Defaults include `Melee`, `Ranged`, `Magic`, `healthfood`, `staminafood`, `eitrfood`, `mead`, and `potion`. These rules also affect automatic placement: a matching item's new stack prefers the hotbar before regular rows; a non-matching item prefers regular rows. Compatible partial stacks fill first, and an explicit drag destination is preserved.
 
@@ -67,7 +75,9 @@ When InventorySlots is installed on the server, its synchronized settings and th
 
 The current YAML paths above are the ones to edit. Older root-level `InventorySlots.yml`, `InventorySlots.Client.yml`, and inline `resourceMap` settings are not imported; reapply any custom values to the current files.
 
-Configuration Manager groups settings into **1 - General**, **2 - Progressive Slots**, **3 - Inventory Buttons**, **4 - Client**, **5 - Client UI**, **6 - Client Keys**, and **7 - Controller Input**. Shared button and restock settings are explained in the inventory-actions guide.
+Configuration Manager groups settings into **1 - General**, **2 - Client**, **3 - Client UI**, **4 - Client Keys**, **5 - Progressive Slots**, **6 - Inventory Buttons**, and **7 - Controller Input**. Shared button and restock settings are explained in the inventory-actions guide.
+
+These renumbered sections do not import values from the previous section names. Reapply any custom client, UI, key, progression, restock, or pickup-exclusion settings under the new sections. General and Controller Input settings, configuration YAML, and `ClientState.yml` are unchanged.
 
 **1 - General → Food Fork Color Mode** controls food fork icons in player/container inventories and crafting results:
 
@@ -132,11 +142,11 @@ Search matches display names, English names, internal/prefab names, and recipe m
 
 Craft, Upgrade, Jewelcrafting's Socket, and Recycle N Reclaim's Reclaim tabs support both views. In List, Socket warnings and Reclaim status messages appear above the item description; material costs, returned-item icons, and action buttons stay below. Other external tabs retain their own layouts.
 
-Hover tooltips can scroll, and up to three pinned tooltips can compare gear, meals, potions, or recipes. List recipes can still be pinned with the configured pin key. Upgrade tooltips highlight changed values in yellow. **5 - Client UI** controls tooltip opacity and pinned-panel options; **6 - Client Keys** contains the bindings.
+Hover tooltips can scroll, and up to three pinned tooltips can compare gear, meals, potions, or recipes. List recipes can still be pinned with the configured pin key. Upgrade tooltips highlight changed values in yellow. **3 - Client UI** controls tooltip opacity and pinned-panel options; **4 - Client Keys** contains the bindings.
 
 ### Sort tiers
 
-Crafting and inventory/container sorting have separate client sort preferences. `TierThenGroup` sorts by resource tier first; `GroupThenTier` sorts by group first. Crafting controls are on its panel, while inventory/container settings are under **4 - Client**.
+Crafting and inventory/container sorting have separate client sort preferences. `TierThenGroup` sorts by resource tier first; `GroupThenTier` sorts by group first. Crafting controls are on its panel, while inventory/container settings are under **2 - Client**.
 
 `InventorySlots/ResourceMap.yml` maps tier names to materials. Order runs **top to bottom**; the first tier listing a duplicate material wins. These tiers affect sorting, not crafting costs or unlocks.
 

@@ -11,8 +11,9 @@ public sealed partial class InventorySlotsPlugin
     {
         // Vanilla can call UpdateRecipe later in the same frame as Hide because
         // Update cached visibility before closing. Do not rebuild the UI that
-        // OnInventoryGuiHide just restored; IsVisible still has an outro grace.
-        if (reason == CraftingPanelUpdateReason.FrameTick && IsInventoryPanelClosing(gui))
+        // OnInventoryGuiHide is preserving; IsVisible still has an outro grace.
+        if (reason == CraftingPanelUpdateReason.FrameTick &&
+            (IsInventoryClosingLayoutPending(gui) || IsInventoryPanelClosing(gui)))
         {
             return;
         }

@@ -111,5 +111,35 @@ internal static partial class Program
         Check(!Plugin.IsInventoryButtonNavigationActive(), "Arriving at edge cannot enter S twice in same frame");
         ButtonFrame("JoyDPadRight");
         Check(Plugin.IsInventoryButtonNavigationActive(), "Additional Right from edge enters S");
+        foreach (bool container in new[] { false, true })
+        {
+            gui = PrepareButtonRow(0);
+            Plugin.TestSortOnLeft(true);
+            Plugin.TestPlayerSortVisible = Plugin.TestContainerSortVisible = true;
+            Plugin.TestContainerOpen = container;
+            InventoryGrid grid = container ? gui.ContainerGrid : gui.m_playerGrid;
+            gui.m_playerGrid.m_uiGroup.IsActive = !container; gui.ContainerGrid.m_uiGroup.IsActive = container;
+            Vector2i cell = new(0, container ? 0 : 3);
+            grid.m_selected = cell;
+            ButtonFrame();
+            Check(Plugin.TestGridHint.Contains("←: Sort") && !Plugin.TestGridHint.Contains("→: Sort"),
+                "Left layout advertises the matching edge: " + container);
+            ButtonFrame("JoyDPadRight");
+            Check(!Plugin.IsInventoryButtonNavigationActive(), "Right at left edge stays in grid: " + container);
+            ButtonFrame("JoyDPadLeft");
+            Check(Plugin.TestSortFocus == container.ToString(), "Left enters the matching sort button: " + container);
+            ButtonFrame("JoyButtonA");
+            Check((container ? Plugin.TestContainerSorts : Plugin.TestPlayerSorts) == 1, "Left S sorts correct inventory: " + container);
+            ButtonFrame("JoyDPadLeft");
+            Check(Plugin.IsInventoryButtonNavigationActive(), "Outward Left does not leave left S: " + container);
+            ButtonFrame("JoyDPadRight");
+            Check(!Plugin.IsInventoryButtonNavigationActive() && grid.m_selected == cell,
+                "Right from left S restores exact source cell: " + container);
+            grid.m_selected = new Vector2i(7, cell.y);
+            ButtonFrame();
+            Check(!Plugin.TestGridHint.Contains("Sort"), "Opposite edge does not advertise sort: " + container);
+            ButtonFrame("JoyDPadRight");
+            Check(!Plugin.IsInventoryButtonNavigationActive(), "Old right edge cannot enter left S: " + container);
+        }
     }
 }

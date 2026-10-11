@@ -2,8 +2,9 @@
 
 The October 2026 review uses the original Valheim 1.0.16 Windows client
 (Steam build 25527674). In that build, `InventoryGui.UpdateRecipe` runs every
-visible frame; `UpdateCraftingPanel` is a structural refresh. Native methods,
-Harmony ordering, inventory validation, and item operations are not skipped.
+visible frame; `UpdateCraftingPanel` is a structural refresh. Inventory validation
+and item operations are not skipped. The closing-layout fix below also skips
+the final native visual refresh after Hide.
 
 ## Changes
 
@@ -16,7 +17,7 @@ Harmony ordering, inventory validation, and item operations are not skipped.
 - Sort/trash buttons remain active across refreshes. Slot parents and stat
   sibling order are changed only when needed. Backgrounds reserve the stat host's
   index, preventing the two layout routines from repeatedly moving each other.
-  Stat restoration cannot be undone by vanilla's final update in the Hide frame.
+  Stat restoration waits until the closing inventory root is inactive.
 - Wheel hint sprites and constrained guide overflow modes are no longer reset
   before their final value is applied each frame.
 - The existing crafting fast path is used for idle vanilla Craft/Upgrade frames.
@@ -27,6 +28,30 @@ Harmony ordering, inventory validation, and item operations are not skipped.
   it, preventing a fast-path attempt from applying the same input twice.
   Progress cleanup, requirements, bottom controls, tooltip updates, and optional
   Jewelcrafting socket UI suppression continue on reused frames.
+
+## Closing layout preservation
+
+The 2026-10-11 fix checks the installed original Valheim 1.0.17 client.
+`InventoryGui.Update` caches visibility before handling Tab, so its Hide frame
+can still run `UpdateInventory` and `UpdateRecipe`. Restoring vanilla crafting
+and stat layouts immediately in Hide exposed them during the remaining slide.
+The mod now retains those layouts until `m_inventoryRoot` is inactive and skips
+the final native inventory/recipe visual tick and its own layout refresh.
+Queue cancellation, pins, hover and text focus are cleared immediately. A
+root-local CanvasGroup temporarily blocks pointer input without changing alpha
+or interactable colors; its prior raycast state is restored on completion,
+reopening, GUI replacement/destruction or plugin shutdown. Show cancels pending
+cleanup before native crafting initialization, including rapid reopening.
+
+The original `SoftRef/Bundles/d59cfac` contains the IngameGui prefab and inventory
+animation clips (SHA-256
+`b8b5e179949f81f914a7ddcaf2381142175f2a0a6fbd2e2476456017da0beb89`).
+UnityPy 1.25.3 inspection confirms `m_inventoryRoot` references GameObject `root`.
+`inventory_hide` animates `root.m_IsActive` from 1 at 0 seconds to 0 at 0.5 seconds;
+`inventory_hidden` keeps it at 0. Cleanup uses actual root visibility, not a
+hard-coded timer or the shorter `IsVisible()` frame grace. This is resource
+inspection, not an in-game animation test. Other mods' Harmony postfixes still
+run and require in-game combination testing.
 
 ## Verification and limits
 

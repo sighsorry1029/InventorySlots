@@ -184,7 +184,7 @@ public sealed class InventoryGui : UnityEngine.Component
     public UnityEngine.Component? m_splitDialog;
     public UnityEngine.Component? m_variantDialog;
     public UnityEngine.Transform m_inventoryRoot = new UnityEngine.GameObject().transform;
-    public UnityEngine.Transform? m_player, m_info, m_crafting;
+    public UnityEngine.Transform? m_player, m_container, m_info, m_crafting;
     public UnityEngine.Component? m_skillsDialog, m_textsDialog, m_achievementsPanel;
     public UnityEngine.GameObject? m_trophiesPanel;
     public bool IsSkillsPanelOpen, IsTextPanelOpen, IsTrophisPanelOpen, IsAchievementsPanelOpen;

@@ -19,7 +19,7 @@ namespace InventoryActions;
 public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
 {
     internal const string ModName = "InventoryActions";
-    internal const string ModVersion = "1.1.13";
+    internal const string ModVersion = "1.1.14";
     internal const string Author = "sighsorry";
     internal const string ModGUID = $"{Author}.{ModName}";
     private const string ExternalMultiUserChestGuid = "com.maxsch.valheim.MultiUserChest";
@@ -160,6 +160,7 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
         RememberFavoriteSlotItems(Player.m_localPlayer, flush: true);
         FlushPendingClientState();
         if (_featureGuideState != null) _featureGuideState.SettingChanged -= OnFeatureGuideStateChanged;
+        if (_sortButtonSide != null) _sortButtonSide.SettingChanged -= OnSortButtonSideChanged;
         _epicLootStackingApi = null;
         _extraSlotsPlugin = null;
         _extraSlotsPlayerRows = null;

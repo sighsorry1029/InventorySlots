@@ -81,7 +81,7 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        if (_quickSlotHudFollowsPanel != null && _quickSlotHudFollowsPanel.Value == Toggle.Off)
+        if (_quickSlotHudFollowsPanel?.Value != Toggle.On)
         {
             return;
         }

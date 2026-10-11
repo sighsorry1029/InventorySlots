@@ -6,12 +6,17 @@ namespace InventorySlots;
 internal static class ClientStateCore
 {
     public const int DefaultLastExpandableRows = 4;
-    public const float DefaultEquipmentSlotsPanelX = -80f;
+    // Keep the wood-panel edges close after matching the native 14-unit inset.
+    public const float DefaultEquipmentSlotsPanelX = -82f;
     public const float DefaultEquipmentSlotsPanelY = 0f;
-    public const float DefaultQuickSlotsPanelX = -80f;
-    public const float DefaultQuickSlotsPanelY = -552f;
-    public const float DefaultQuickSlotsHudX = 64f;
-    public const float DefaultQuickSlotsHudY = -520f;
+    public const float DefaultQuickSlotsPanelX = -82f;
+    // Three 70-unit equipment rows and both 14-unit background margins, minus
+    // a 3-unit overlap for the wood sprite's transparent top/bottom edges.
+    public const float DefaultQuickSlotsPanelY = -235f;
+    // Fixed viewport offsets from the native 70-unit grid, below chest weight
+    // with nine visible player rows. No panel tracking.
+    public const float DefaultQuickSlotsHudLeft = 628.5f;
+    public const float DefaultQuickSlotsHudTop = 821f;
     public const float DefaultQuickSlotsHudElementSpace = 70f;
 
     public static InventorySlotsClientState Normalize(InventorySlotsClientState? state)
@@ -26,10 +31,13 @@ internal static class ClientStateCore
             state.Inventory.QuickSlotsPanelPosition,
             DefaultQuickSlotsPanelX,
             DefaultQuickSlotsPanelY);
-        state.Inventory.QuickSlotsHudPosition = NormalizePanelPosition(
-            state.Inventory.QuickSlotsHudPosition,
-            DefaultQuickSlotsHudX,
-            DefaultQuickSlotsHudY);
+        // A missing HUD position uses the actual viewport's top-left reference.
+        // Saved positions remain in HUD-root local coordinates, including old files.
+        if (state.Inventory.QuickSlotsHudPosition is { } hudPosition &&
+            (!IsFinite(hudPosition.X) || !IsFinite(hudPosition.Y)))
+        {
+            state.Inventory.QuickSlotsHudPosition = null;
+        }
         if (state.Inventory.QuickSlotsHudElementSpace < 1f ||
             !IsFinite(state.Inventory.QuickSlotsHudElementSpace))
         {

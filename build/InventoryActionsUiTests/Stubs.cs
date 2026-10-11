@@ -112,6 +112,8 @@ public class InventoryElement : Component { }
 public class InventoryGrid
 {
     public int Width = 8, Lookups;
+    public float m_elementSpace = 70;
+    public Vector3 Origin;
     public Inventory m_inventory = Player.m_localPlayer.Inventory;
     public readonly List<InventoryElement> m_elements = new();
     public Vector2i GetButtonPos(GameObject go)
@@ -132,6 +134,19 @@ namespace InventoryActions
         internal static int PermissionChecks, Captions, Tooltips, ControllerRegistrations, AllowedRows = 100;
         internal static readonly HashSet<InventoryElement> Shown = new();
         private const float SortButtonOutsideGap = 1f;
+        private static readonly Vector2 InventorySortButtonFixedOffset = new(2, 2);
+        private static bool SortButtonsOnLeft;
+        internal static int NavigationResets;
+        private static void ResetInventoryButtonNavigation() => NavigationResets++;
+        private static Vector3 GetGridOrigin(InventoryGrid grid) => grid.Origin;
+        private static int GetInventoryGridWidth(InventoryGrid grid) => grid.Width;
+        internal static Vector3 SortPosition(InventoryGrid grid, float buttonSize, int rows) =>
+            GetInventorySortPanelPosition(grid, buttonSize, rows);
+        internal static void SetSortSide(bool left)
+        {
+            SortButtonsOnLeft = left;
+            OnSortButtonSideChanged(null!, EventArgs.Empty);
+        }
         private static Color FavoriteBorderColor => new(1, 1, 0);
         private static bool CanMutateContainerDirectly(Container container, bool allowLocalWithoutZNetView)
         { ++PermissionChecks; return container.Allowed; }

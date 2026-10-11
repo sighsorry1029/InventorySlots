@@ -94,6 +94,11 @@ internal static class InventoryGridFavoriteRightClickPatch
 [HarmonyPatch(typeof(InventoryGui), "UpdateInventory")]
 internal static class InventoryGuiUpdateInventoryPatch
 {
+    // Native Update cached visibility before Hide. Do not reset cell visibility
+    // in its final same-frame update while the closing layout is frozen.
+    private static bool Prefix(InventoryGui __instance) =>
+        !InventorySlotsPlugin.IsInventoryClosingLayoutPending(__instance);
+
     private static void Postfix(InventoryGrid ___m_playerGrid, Player player)
     {
         InventorySlotsPlugin.OnInventoryGuiUpdateInventory(___m_playerGrid, player);

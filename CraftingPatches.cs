@@ -8,7 +8,11 @@ namespace InventorySlots;
 [HarmonyPatch(typeof(InventoryGui), "OnDestroy")]
 internal static class InventoryGuiCraftingViewDestroyPatch
 {
-    private static void Prefix(InventoryGui __instance) => InventorySlotsPlugin.DestroyCraftingListViewUi(__instance);
+    private static void Prefix(InventoryGui __instance)
+    {
+        InventorySlotsPlugin.CancelInventoryClosingLayout(__instance);
+        InventorySlotsPlugin.DestroyCraftingListViewUi(__instance);
+    }
 }
 
 [HarmonyPatch(typeof(ScrollRect), nameof(ScrollRect.OnScroll))]
@@ -54,6 +58,11 @@ internal static class InventoryGuiCraftingPanelRedesignPatch
 [HarmonyAfter(new[] { "org.bepinex.plugins.jewelcrafting", "Azumatt.Recycle_N_Reclaim" })]
 internal static class InventoryGuiCraftingRecipeRedesignPatch
 {
+    // The last native tick after Hide re-enables vanilla details/buttons. Keep
+    // the rendered layout intact without rebuilding the redesign during outro.
+    private static bool Prefix(InventoryGui __instance) =>
+        !InventorySlotsPlugin.IsInventoryClosingLayoutPending(__instance);
+
     private static void Postfix(InventoryGui __instance)
     {
         // Vanilla calls UpdateRecipe every visible frame, including idle frames.

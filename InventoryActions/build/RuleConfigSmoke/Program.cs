@@ -76,7 +76,7 @@ internal static class Program
             method.Name == "Bind" && method.IsGenericMethodDefinition && method.GetParameters().Length == 4 &&
             method.GetParameters()[0].ParameterType == typeof(string) &&
             method.GetParameters()[3].ParameterType == typeof(ConfigDescription)).MakeGenericMethod(stateType);
-        string section = modName == "InventorySlots" ? "5 - Client UI" : "2 - Client";
+        string section = modName == "InventorySlots" ? "3 - Client UI" : "2 - Client";
         ConfigEntryBase Bind(ConfigFile file) => (ConfigEntryBase)bind.Invoke(file, new object[]
             { section, "Feature Guide State", Enum.Parse(stateType, "Expanded"), new ConfigDescription("") })!;
         ConfigFile config = new(path, false) { SaveOnConfigSet = true };

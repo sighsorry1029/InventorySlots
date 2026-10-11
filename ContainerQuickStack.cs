@@ -211,7 +211,9 @@ public sealed partial class InventorySlotsPlugin
     private static bool ShouldQuickStackItem(Player player, Inventory inventory, ItemData item)
     {
         return item?.m_shared != null &&
-               item.m_shared.m_maxStackSize > 1 &&
+               // Single materials such as mead bases use a fresh chest cell.
+               (item.m_shared.m_maxStackSize > 1 ||
+                item.m_shared.m_maxStackSize == 1 && item.m_shared.m_itemType == ItemData.ItemType.Material) &&
                IsRegularActionItem(player, inventory, item) &&
                !IsEquippedContainerMoveSource(player, item) &&
                !IsFavoriteProtected(player, inventory, item) &&

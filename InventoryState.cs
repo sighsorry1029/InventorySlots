@@ -55,6 +55,9 @@ public sealed partial class InventorySlotsPlugin
         public HotkeyBar? QuickSlotsHotkeyBar;
         public RectTransform? PlayerStatPanelHost;
         public RectTransform? InventorySortPanel;
+        public RectTransform? SortButtonLayer;
+        public readonly SortButtonHost PlayerSortHost = new();
+        public readonly SortButtonHost ContainerSortHost = new();
         public RectTransform? CurrencyPocketPanel;
         public Button? ContainerRestockButton;
         public Button? ContainerStoreAllButton;

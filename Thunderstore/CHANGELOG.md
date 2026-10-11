@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.6.1
+
+- Quick Stack now moves non-stackable materials, including mead bases, into free cells in chests that already contain the same item. Non-stackable equipment remains excluded; favorite, protected-slot, access, and metadata checks still apply. Restock behavior is unchanged.
+- Added client-only **Sort Button Side**, defaulting to **Left**, for both inventory and container S buttons. Their edge spacing matches, controller navigation follows the selected side, and the buttons stay above equipment/quick-slot panels while remaining below inventory dialogs.
+- Kept the quick guide at an independent screen-relative position. Moving or resizing inventory, equipment, quick-slot, or crafting panels no longer changes its position or width; panels may overlap the guide.
+- Aligned the default equipment rows with the inventory grid and placed the quick-slot panel directly below the equipment panel with matching columns. **Quick Slot HUD Follows Panel** now defaults to **Off**; an unsaved HUD position uses a viewport-relative default below the chest weight panel's nine-row reference position, with screen bounds respected. Existing saved panel/HUD positions are preserved.
+- Moved the original mouse-wheel hint just below the inventory, centered between columns 4 and 5. It follows visible row changes and hides when an open chest overlaps it.
+- Prevented the original crafting layout and inventory cells from briefly reappearing during the closing animation. Layout restoration waits until the inventory root is hidden; input and crafting stop immediately, and rapid reopening cancels the deferred restoration.
+- Reordered config sections to **2 - Client**, **3 - Client UI**, **4 - Client Keys**, **5 - Progressive Slots**, and **6 - Inventory Buttons**. **Values under the old section names are not migrated:** reapply custom client/UI/key, progression, restock, and pickup-exclusion settings in the new sections. General, Controller Input, YAML rules, and saved ClientState data are retained.
+- Simplified internal custom-equipment lookup, single-chest transfer routing, and client-state text saving while preserving their existing behavior and safeguards.
+
 ## 1.6.0
 
 - Reduced repeated inventory-capacity work during auto pickup by rejecting full or unrelated stacks before evaluating slot rules, skipping occupied cells during empty-slot checks, and avoiding unnecessary failed-capacity cache lookups. Slot restrictions, progression unlocks, stack metadata, and EpicLoot stacking rules are preserved.

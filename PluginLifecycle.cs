@@ -49,11 +49,13 @@ public sealed partial class InventorySlotsPlugin
 
         ProcessDeferredEquipmentVisuals();
         UpdateItemLinks();
+        UpdateInventoryClosingLayout();
         ApplyMyLittleUICraftingCompatibility();
 
         if (!InventoryGui.IsVisible())
         {
-            UpdateMyLittleUICraftingObjectSuppression(InventoryGui.instance, shouldSuppress: false);
+            if (!IsInventoryClosingLayoutPending(InventoryGui.instance))
+                UpdateMyLittleUICraftingObjectSuppression(InventoryGui.instance, shouldSuppress: false);
             UpdateQuickSlotInventoryPanelsWhileHidden();
         }
 
@@ -127,16 +129,25 @@ public sealed partial class InventorySlotsPlugin
 
     private static void UpdateInventoryDialogLayering()
     {
-        if (IsDedicatedServer || !InventoryGui.IsVisible()) return;
+        if (IsDedicatedServer) return;
         InventoryGui gui = InventoryGui.instance;
         if (gui == null) return;
+
+        if (!InventoryGui.IsVisible() || IsInventoryPanelClosing(gui))
+        {
+            SetActionPanelActive(InventoryPanels.SortButtonLayer, false);
+            return;
+        }
+        SetActionPanelActive(InventoryPanels.SortButtonLayer, true);
+        InventoryPanels.PlayerSortHost.Follow();
+        InventoryPanels.ContainerSortHost.Follow();
 
         RectTransform? quickPanel = null;
         if (gui.m_playerGrid != null)
             InventoryPanels.QuickSlotPanels.TryGetValue(gui.m_playerGrid.GetInstanceID(), out quickPanel);
 
         // Run after inventory/crafting layout and UI click handlers for this frame.
-        InventoryDialogLayering.Update(gui, quickPanel);
+        InventoryDialogLayering.Update(gui, quickPanel, InventoryPanels.SortButtonLayer);
     }
 
     private static bool ShouldDelayPeriodicFullIntegrityAudit()
@@ -146,17 +157,21 @@ public sealed partial class InventorySlotsPlugin
 
     private void OnDisable()
     {
+        ClearInventoryClosingLayout();
         ResetItemLinks();
     }
 
     private void OnDestroy()
     {
+        ClearInventoryClosingLayout();
         ResetItemLinks();
         ClearFeatureGuideLayout();
+        ClearSortButtonLayer();
         InventoryPanels.InventoryKeyHints.Clear();
         InventoryPanels.ContainerKeyHints.Clear();
         RememberFavoriteSlotItems(Player.m_localPlayer, flush: true);
         if (_featureGuideState != null) _featureGuideState.SettingChanged -= OnFeatureGuideStateChanged;
+        if (_sortButtonSide != null) _sortButtonSide.SettingChanged -= OnSortButtonSideChanged;
         PendingEquipmentVisualPlayers.Clear();
         if (_craftingViewMode != null) _craftingViewMode.SettingChanged -= OnCraftingViewModeChanged;
         if (_foodForkColorMode != null) _foodForkColorMode.SettingChanged -= OnFoodForkColorModeChanged;

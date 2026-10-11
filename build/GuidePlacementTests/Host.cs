@@ -13,6 +13,10 @@ public sealed partial class InventoryActionsPlugin
     private const float FeatureGuideGap = 12;
     public static bool Settled(Animator? animator) => IsInventoryPanelAnimationSettled(animator);
 #if INVENTORY_SLOTS
+    private static class InventoryClient
+    {
+        public static InventorySlotsClientState ClientState = new();
+    }
     private static class InventoryPanels
     {
         public static readonly Dictionary<int, RectTransform> CustomSlotPanels = new();
@@ -30,11 +34,21 @@ public sealed partial class InventoryActionsPlugin
     private static float GetQuickSlotHudElementSpace() => InventoryPanels.QuickSlotHudElementSpace;
     public static void SavedHud(Vector3 position, float space = 70)
     {
+        InventoryClient.ClientState.Inventory.QuickSlotsHudPosition = new(position.x, position.y);
         InventoryPanels.QuickSlotHudAnchoredPosition = position;
         InventoryPanels.QuickSlotHudElementSpace = space;
         InventoryPanels.QuickSlotHudAnchorValid = true;
         InventoryPanels.QuickSlotsPanelRuntimeOffset = new(-80, -552);
     }
+    public static void UnsetHud()
+    {
+        InventoryClient.ClientState = ClientStateCore.Normalize(null);
+        InventoryPanels.QuickSlotHudAnchorValid = false;
+        InventoryPanels.QuickSlotHudElementSpace = InventoryClient.ClientState.Inventory.QuickSlotsHudElementSpace;
+        InventoryPanels.QuickSlotsPanelRuntimeOffset = new(
+            ClientStateCore.DefaultQuickSlotsPanelX, ClientStateCore.DefaultQuickSlotsPanelY);
+    }
+    public static bool HasSavedHud => InventoryClient.ClientState.Inventory.QuickSlotsHudPosition != null;
     public static Vector3 HudPosition(RectTransform hud, InventoryGrid? grid, int rows, bool follows, out float space) =>
         ResolveQuickSlotHudPosition(hud, grid, 8, rows, follows, out space);
     public static Vector3 ClampHud(Rect viewport, Vector3 position, float space, int rows) =>

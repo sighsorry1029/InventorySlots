@@ -3,7 +3,7 @@ $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $parts = [Collections.Generic.List[string]]::new()
 $parts.Add('using System; using System.Reflection; using HarmonyLib; using UnityEngine; using UnityEngine.UI; namespace InventoryActions; public sealed partial class InventoryActionsPlugin {')
 $sources = @{
-    'Ui.cs' = @('UpdateContainerActionButtons','AlignContainerActionButtonRows','LayoutButtonPair','LayoutContainerSortButton','LayoutButtonRect','CopyRectTransformFrame','HideContainerActionButtons','CaptureRectTransformSnapshot','RestoreContainerActionButtonLayout','ReleaseContainerActionButtonLayout','SetButtonActive','SetButtonInteractable','GetRectWidth','GetRectHeight')
+    'Ui.cs' = @('UpdateContainerActionButtons','AlignContainerActionButtonRows','LayoutButtonPair','LayoutContainerSortButton','GetInventorySortPanelPosition','OnSortButtonSideChanged','LayoutButtonRect','CopyRectTransformFrame','HideContainerActionButtons','CaptureRectTransformSnapshot','RestoreContainerActionButtonLayout','ReleaseContainerActionButtonLayout','SetButtonActive','SetButtonInteractable','GetRectWidth','GetRectHeight')
     'Favorites.cs' = @('GetUnpatchedFavoriteGridWidth','UpdateFavoriteBorders')
 }
 foreach ($file in $sources.Keys) {

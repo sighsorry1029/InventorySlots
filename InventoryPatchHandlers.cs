@@ -771,8 +771,10 @@ public sealed partial class InventorySlotsPlugin
         StartQuickSlotPanelOutroAnimation();
         PrunePendingSlotActions();
         RestoreContainerUiState();
-        RestorePlayerStatPanels();
-        HideCraftingPanelRedesign();
+        ClearCraftingQueue();
+        CraftingController.ClearHoveredRecipe();
+        HideCraftingPinnedTooltips();
+        DeferInventoryClosingLayoutRestore();
         HideInventoryPinnedTooltips();
         HideInventoryOwnedHoverTooltips();
         ClearInventoryHoverTooltipSources();

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.14
+
+- Quick Stack now moves non-stackable materials, including mead bases, into free cells in chests that already contain the same item, including supported MultiUserChest requests. Non-stackable equipment remains excluded; favorite, protected-slot, access, and metadata checks still apply. Restock behavior is unchanged.
+- Added client-only **Sort Button Side** under **2 - Client**, defaulting to **Left**, for both inventory and container S buttons. It applies immediately and updates controller navigation. **Sort Button Position** remains an additional player-button offset from the selected side, preserving existing values and supported inventory-mod layouts.
+- Kept the quick guide at an independent screen-relative position. Moving or resizing inventory or crafting panels no longer changes its position or width; panels may overlap the guide.
+- Simplified client-state text saving and centralized MultiUserChest session teardown without changing transfer requests, late-response handling, refund rules, or compatibility requirements.
+
 ## 1.1.13
 
 - Kept the feature guide stationary during inventory opening/closing animations. Guide spacing still follows settled panel layout, sizes, resolution, and UI scale.

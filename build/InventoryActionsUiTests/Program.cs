@@ -74,6 +74,54 @@ stretched.m_currentContainer = null; P.Refresh(stretched);
 Check(P.Runtime.ContainerButtonLayout == null && !P.Runtime.ContainerRestockButton!.gameObject.activeSelf, "missing container restores/hides");
 P.Release();
 
+foreach (bool splitParents in new[] { false, true })
+{
+    P.SetSortSide(false);
+    var sideGui = NewGui();
+    var take = (RectTransform)sideGui.m_takeAllButton!.transform;
+    var stack = (RectTransform)sideGui.m_stackAllButton!.transform;
+    if (splitParents) stack.SetParent(new GameObject("right-controls").transform, false);
+    P.Refresh(sideGui);
+    var sort = P.Runtime.ContainerSortButton!;
+    var sortRect = (RectTransform)sort.transform;
+    Check(sortRect.parent == stack.parent && sortRect.localPosition.x > stack.localPosition.x,
+        "default S is outside the right controls");
+    for (int repeat = 0; repeat < 2; repeat++)
+    {
+        foreach (bool left in new[] { true, false })
+        {
+            int resets = P.NavigationResets;
+            P.SetSortSide(left);
+            Check(P.Runtime.ContainerButtonLayout == null && P.NavigationResets == resets + 1,
+                "side change invalidates cached layout and controller focus");
+            Relayout(sideGui, "side change lays out even when geometry was unchanged");
+            var anchor = left ? take : stack;
+            float expected = left ? -76 : 226; // Original 120-wide controls at x=0/150, 30-wide S and 1-unit gap.
+            Check(sort == P.Runtime.ContainerSortButton && sortRect.parent == anchor.parent,
+                "side change reuses S under the selected native parent");
+            Check(sortRect.localPosition.x == expected, "S stays outside the selected original edge");
+            int count = new[] { take.parent!, stack.parent! }.Distinct()
+                .Sum(parent => parent.Children.Count(child => child.gameObject.name == "InventoryActions_ContainerSortButton"));
+            Check(count == 1, "repeated side changes never duplicate S");
+        }
+    }
+    P.SetSortSide(true);
+    sideGui.m_currentContainer!.Allowed = false; P.Refresh(sideGui);
+    Check(!sort.gameObject.activeSelf && take.sizeDelta.x == 120, "left selection preserves owner-loss restoration");
+    sideGui.m_currentContainer.Allowed = true; Relayout(sideGui, "left side restores after ownership returns");
+    Check(sortRect.parent == take.parent && sortRect.localPosition.x == -76, "left side survives owner regain");
+    P.Release(); Relayout(sideGui, "left side survives hide/reopen");
+    Check(take.sizeDelta.x == 58 && sortRect.localPosition.x == -76, "left reopen never shrinks native controls again");
+    P.Release();
+}
+var sortGrid = new InventoryGrid { Width = 10, m_elementSpace = 60, Origin = new(5, 0, 0) };
+P.SetSortSide(false);
+Check(P.SortPosition(sortGrid, 30, 6) == new Vector3(608, -328, 0), "right player button uses actual width, spacing and visible rows");
+P.SetSortSide(true);
+Check(P.SortPosition(sortGrid, 30, 6) == new Vector3(-28, -328, 0), "left player button mirrors the outside gap without changing its row");
+Check(P.SortPosition(sortGrid, 30, 4) == new Vector3(-28, -208, 0), "left player button follows a changed visible row count");
+P.SetSortSide(false);
+
 var grid = new InventoryGrid { Width = 3 }; // Inventory width remains 8.
 for (int i = 0; i < 9; ++i) grid.m_elements.Add(new GameObject($"cell{i}").AddComponent<InventoryElement>());
 P.Runtime.FavoriteSlots.Add(new Vector2i(1, 1)); P.Refresh(grid);

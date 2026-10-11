@@ -24,6 +24,7 @@ public sealed partial class InventorySlotsPlugin
     private static void UpdatePlayerStatPanels(RectTransform equipmentPanel, int equipmentColumns, float elementSpace)
     {
         InventoryGui? gui = InventoryGui.instance;
+        if (IsInventoryClosingLayoutPending(gui)) return;
         if (gui == null || equipmentPanel == null || IsInventoryPanelClosing(gui))
         {
             RestorePlayerStatPanels();

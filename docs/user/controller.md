@@ -12,7 +12,7 @@ Outside the inventory, the controller guide header says **Open inventory → LT 
 
 **F6** on the keyboard performs the same cycle during gameplay with the inventory open or closed. It can be rebound or unset and needs no Configuration Manager. The mouse triangle continues to expand/collapse only. [Guide controls](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/inventory-actions.md#show-or-hide-the-quick-guide).
 
-While the inventory is open, the quick guide sits at the top of the space to the left of the crafting panels, clear of the player inventory, equipment and weight panels. Its width adapts to the available space and UI scale; folding keeps the right edge in place. When the inventory closes it returns beside the HUD hotbar. If the panels leave no readable space, the guide is temporarily hidden instead of overlapping them.
+The quick guide uses a fixed screen-relative position near the upper right, including while the inventory is closed. Moving or resizing inventory, equipment, quick-slot or crafting panels does not move or resize it; those panels can overlap the guide. Its placement follows the screen and UI scale, and folding keeps its right edge in place.
 
 ## Favorite and sort without a combination
 
@@ -28,10 +28,12 @@ The menu and direct button navigation below work even when optional controller h
 
 | Start at | Input |
 | --- | --- |
-| Player inventory's bottom-right visible slot | Press Right once more to select the player's **S** button. |
-| Open chest's top-right slot | Press Right once more to select the chest's **S** button. |
+| Player inventory's bottom-left visible slot | Press Left once more to select the player's **S** button. |
+| Open chest's top-left slot | Press Left once more to select the chest's **S** button. |
 
-Press **A** to sort. **B**, Left, Up, or Down returns to the original grid slot. Sorting requires an available button and no picked-up item. Shoulder/tab navigation can leave the button for another inventory group.
+Press **A** to sort. **B**, Right, Up, or Down returns to the original grid slot. Sorting requires an available button and no picked-up item. Shoulder/tab navigation can leave the button for another inventory group.
+
+These controls use the default **Sort Button Side = Left**. Find the setting under **3 - Client UI** in InventorySlots, or **2 - Client** in InventoryActions. With Right selected, use the bottom-right player slot or top-right chest slot, press Right to select S, and Left to return. The on-screen hint follows this setting.
 
 ## Restock, Exclude, and Trash buttons
 

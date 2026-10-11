@@ -40,7 +40,7 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        bool hudFollowsPanel = _quickSlotHudFollowsPanel == null || _quickSlotHudFollowsPanel.Value == Toggle.On;
+        bool hudFollowsPanel = _quickSlotHudFollowsPanel?.Value == Toggle.On;
         if (Hud.IsUserHidden() || !Hud.instance.IsVisible() || (hudFollowsPanel && (InventoryGui.IsVisible() || InventoryPanels.QuickSlotPanelIntroActive || InventoryPanels.QuickSlotPanelOutroActive)))
         {
             if (!IsUnityNull(InventoryPanels.QuickSlotsHotkeyBarRect) &&
@@ -573,7 +573,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static float GetQuickSlotHudElementSpace()
     {
-        if (InventoryPanels.QuickSlotHudAnchorValid)
+        if (InventoryPanels.QuickSlotHudElementSpace > 0f)
         {
             return Mathf.Max(1f, InventoryPanels.QuickSlotHudElementSpace);
         }
@@ -588,7 +588,15 @@ public sealed partial class InventorySlotsPlugin
 
     private static Vector3 GetQuickSlotHudPosition()
     {
-        return InventoryPanels.QuickSlotHudAnchorValid ? InventoryPanels.QuickSlotHudAnchoredPosition : (Vector3)QuickSlotsHudFallbackPosition;
+        if (InventoryPanels.QuickSlotHudAnchorValid)
+        {
+            return InventoryPanels.QuickSlotHudAnchoredPosition;
+        }
+
+        return Hud.instance != null && Hud.instance.m_rootObject != null &&
+               Hud.instance.m_rootObject.transform is RectTransform hudRoot
+            ? GetDefaultQuickSlotHudPosition(hudRoot.rect)
+            : Vector3.zero;
     }
 
     private static float GetHudElementSpace()

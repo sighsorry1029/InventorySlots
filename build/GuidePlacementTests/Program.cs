@@ -81,7 +81,7 @@ internal static class Program
 
         var f = new Fixture();
         Rect initial = Guide.Area(f.Hud);
-        Check(initial.width > 160 && initial.yMax == 500, "Initial hidden inventory uses prefab shown pose");
+        Check(initial.width > 160 && initial.yMax == 500, "Initial guide has readable space and a fixed top inset");
         foreach (string state in new[] { "inventory_hidden", "inventory_show", "inventory_hide" })
         {
             f.Gui.Animator!.Visible = state == "inventory_show";
@@ -107,23 +107,48 @@ internal static class Program
         Equal(initial, Guide.Area(f.Hud), "Completed show");
         Check(f.Gui.Lookups == 1, "Animator lookup is cached");
 
-        // The only measured values kept across Tab are the three slide axes.
+#if INVENTORY_SLOTS
+        // Freely positioned quick slots must not resize the fixed guide, even
+        // when they are below it, dragged across the screen, or animating out.
+        foreach (Vector2 position in new[] { new Vector2(1000, -680), new Vector2(1100, -40), new Vector2(1200, -2680) })
+        {
+            f.Quick.anchoredPosition = position;
+            Equal(initial, Guide.Area(f.Hud), "Quick-slot position does not change guide bounds: " + position);
+        }
+        f.Quick.Size = new(500, 350);
+        Equal(initial, Guide.Area(f.Hud), "Quick-slot size does not change guide bounds");
+        f.Quick.Size = new(200, 180);
+        f.Settled();
+#endif
+
+        // Panels can overlap the guide, but never move it or reflow its text.
         f.Gui.m_crafting!.anchoredPosition = new(-100, -200);
         Rect moved = Guide.Area(f.Hud);
-        Check(moved.xMax < initial.xMax, "Settled layout edits update the reserved edge");
+        Equal(initial, moved, "Settled crafting position does not change guide bounds");
         f.Gui.Animator.Visible = false;
         f.Slide(1);
         Equal(moved, Guide.Area(f.Hud), "Close retains the edited settled pose");
         f.Gui.m_crafting.Size = new(600, 750);
-        Check(Guide.Area(f.Hud).xMax < moved.xMax, "Live panel widths are not cached");
+        Equal(initial, Guide.Area(f.Hud), "Crafting width does not change guide bounds");
+        foreach (RectTransform? panel in new[] { f.Gui.m_player, f.Gui.m_info, f.Gui.m_armor as RectTransform, f.Gui.m_repairPanel as RectTransform })
+        {
+            panel!.anchoredPosition = new(0, 0);
+            panel.Size = new(1920, 1080);
+            Equal(initial, Guide.Area(f.Hud), "Overlapping native panel does not change guide bounds");
+        }
+#if INVENTORY_SLOTS
+        var coveringPanel = Panel(f.Canvas, new(1920, 1080), new(0, 1), new(0, 0));
+        Guide.ExtraPanels(coveringPanel, coveringPanel, coveringPanel);
+        Equal(initial, Guide.Area(f.Hud), "Equipment, quick slots and crafting rail can overlap the guide");
+#endif
 
-        // Compare hidden animated and settled positions after resolution/scale
-        // changes. This checks coordinate conversion, not a copy of the algorithm.
+        // Only the HUD viewport controls placement; inventory transforms do not.
         f = new Fixture();
         f.Canvas.Size = f.Hud.Size = new(2560, 1440);
         f.Canvas.Scale = new(.9f, .9f);
         f.Hud.Scale = new(1.1f, 1.1f);
         Rect resized = Guide.Area(f.Hud);
+        Check(resized.xMax > initial.xMax && resized.yMax > initial.yMax, "Guide follows resized HUD viewport");
         f.Slide(.75f);
         Equal(resized, Guide.Area(f.Hud), "Live anchors and parent transforms while animating");
         f.Settled();
@@ -131,6 +156,7 @@ internal static class Program
         f.Gui.Animator!.Visible = false;
         f.Canvas.Rotation = .04f;
         Rect rotated = Guide.Area(f.Hud);
+        Equal(resized, rotated, "Inventory canvas rotation does not move the guide");
         f.Slide(.5f);
         // The independent quick-slot motion is vertical in inventory space;
         // rotation intentionally moves it horizontally in HUD space as well.
@@ -157,11 +183,13 @@ internal static class Program
             Guide.Awake(f.Gui);
             f.Gui.m_info!.anchoredPosition = new(-40, -90);
             f.Gui.m_player!.anchoredPosition = new(40, -90);
-            Check(Guide.Area(f.Hud).yMax == 450, "Unanimated UI honors current layout " + mode);
+            Equal(initial, Guide.Area(f.Hud), "Unanimated UI layout does not move the guide " + mode);
         }
         f = new Fixture();
         f.Gui.m_player = f.Gui.m_info = f.Gui.m_crafting = null;
-        Check(Guide.Area(f.Hud).width >= 0, "Missing optional panels are safe");
+        Equal(initial, Guide.Area(f.Hud), "Missing optional panels do not move the guide");
+        InventoryGui.instance = null;
+        Equal(initial, Guide.Area(f.Hud), "Guide area does not require an inventory GUI");
 #if INVENTORY_SLOTS
         QuickSlotHudTests.Run();
 #endif

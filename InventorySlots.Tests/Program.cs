@@ -62,6 +62,7 @@ TestRunner.Run(
     ("Crafting view switches reveal the same filtered recipe", CraftingViewTests.SwitchKeepsSelectedRecipe),
     ("Jewelcrafting socket actions refresh and guard the selected recipe pair", Tests.JewelcraftingSocketActionsRefreshAndGuardSelectedRecipePair),
     ("Client state normalize creates missing roots", Tests.ClientStateNormalizeCreatesMissingRoots),
+    ("Client state YAML preserves unset and saved HUD positions", Tests.ClientStateHudPositionRoundTrips),
     ("Client state normalize trims players and lists", Tests.ClientStateNormalizeTrimsPlayersAndLists),
     ("Client state normalize repairs non-finite layout values", Tests.ClientStateNormalizeRepairsNonFiniteLayoutValues),
     ("Client state writer recognizes symbolic-link replacement failures", Tests.ClientStateWriterRecognizesSymbolicLinkFailures),
@@ -1101,15 +1102,37 @@ internal static class Tests
         InventorySlotsClientInventoryState inventory = normalized.Inventory!;
         Assert.True(inventory.EquipmentSlotsPanelPosition != null, "equipment panel position should be created");
         Assert.True(inventory.QuickSlotsPanelPosition != null, "quick slot panel position should be created");
-        Assert.True(inventory.QuickSlotsHudPosition != null, "quick slot HUD position should be created");
-        Assert.Equal(-80f, inventory.EquipmentSlotsPanelPosition!.X);
+        Assert.True(inventory.QuickSlotsHudPosition == null, "unset HUD position should wait for the actual viewport");
+        Assert.Equal(-82f, inventory.EquipmentSlotsPanelPosition!.X);
         Assert.Equal(0f, inventory.EquipmentSlotsPanelPosition.Y);
-        Assert.Equal(-80f, inventory.QuickSlotsPanelPosition!.X);
-        Assert.Equal(-552f, inventory.QuickSlotsPanelPosition.Y);
-        Assert.Equal(64f, inventory.QuickSlotsHudPosition!.X);
-        Assert.Equal(-520f, inventory.QuickSlotsHudPosition.Y);
+        Assert.Equal(-82f, inventory.QuickSlotsPanelPosition!.X);
+        Assert.Equal(-235f, inventory.QuickSlotsPanelPosition.Y);
         Assert.Equal(70f, inventory.QuickSlotsHudElementSpace);
         Assert.True(normalized.Players != null, "players root should be created");
+    }
+
+    public static void ClientStateHudPositionRoundTrips()
+    {
+        var deserializer = new YamlDotNet.Serialization.DeserializerBuilder()
+            .WithNamingConvention(YamlDotNet.Serialization.NamingConventions.CamelCaseNamingConvention.Instance)
+            .Build();
+        var serializer = new YamlDotNet.Serialization.SerializerBuilder()
+            .WithNamingConvention(YamlDotNet.Serialization.NamingConventions.CamelCaseNamingConvention.Instance)
+            .Build();
+        foreach (string yaml in new[] { "inventory: {}", "inventory:\n  quickSlotsHudPosition: null" })
+        {
+            var state = ClientStateCore.Normalize(deserializer.Deserialize<InventorySlotsClientState>(yaml));
+            var reloaded = ClientStateCore.Normalize(deserializer.Deserialize<InventorySlotsClientState>(serializer.Serialize(state)));
+            Assert.True(reloaded.Inventory.QuickSlotsHudPosition == null, "missing/default HUD positions must remain viewport-relative after YAML save/reload");
+        }
+
+        const string savedYaml = "inventory:\n  quickSlotsPanelPosition: {x: -80, y: -552}\n  quickSlotsHudPosition: {x: 64, y: -520}\n  quickSlotsHudElementSpace: 62";
+        var saved = ClientStateCore.Normalize(deserializer.Deserialize<InventorySlotsClientState>(savedYaml));
+        var savedAgain = ClientStateCore.Normalize(deserializer.Deserialize<InventorySlotsClientState>(serializer.Serialize(saved))).Inventory;
+        Assert.Equal(-552f, savedAgain.QuickSlotsPanelPosition.Y);
+        Assert.Equal(64f, savedAgain.QuickSlotsHudPosition!.X);
+        Assert.Equal(-520f, savedAgain.QuickSlotsHudPosition.Y);
+        Assert.Equal(62f, savedAgain.QuickSlotsHudElementSpace);
     }
 
     public static void ClientStateNormalizeTrimsPlayersAndLists()
@@ -1175,8 +1198,7 @@ internal static class Tests
         Assert.Equal(23f, inventory.EquipmentSlotsPanelPosition.Y);
         Assert.Equal(-17f, inventory.QuickSlotsPanelPosition.X);
         Assert.Equal(ClientStateCore.DefaultQuickSlotsPanelY, inventory.QuickSlotsPanelPosition.Y);
-        Assert.Equal(ClientStateCore.DefaultQuickSlotsHudX, inventory.QuickSlotsHudPosition.X);
-        Assert.Equal(ClientStateCore.DefaultQuickSlotsHudY, inventory.QuickSlotsHudPosition.Y);
+        Assert.True(inventory.QuickSlotsHudPosition == null, "invalid HUD coordinates should recover using the viewport default");
         Assert.Equal(ClientStateCore.DefaultQuickSlotsHudElementSpace, inventory.QuickSlotsHudElementSpace);
     }
 

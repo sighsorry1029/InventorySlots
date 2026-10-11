@@ -194,8 +194,9 @@ public sealed partial class InventoryActionsPlugin
         // points, or onto the last column beside Sort. That same input must not
         // also enter either external button afterwards.
         if (downFromGrid || upFromGrid || rightFromGrid || leftFromGrid) _controllerButtonFrame = Time.frameCount;
-        if (rightFromGrid && !leftFromGrid && !downFromGrid && !upFromGrid &&
-            cell.x == grid.GetInventory().GetWidth() - 1)
+        bool towardSort = SortButtonsOnLeft ? leftFromGrid && !rightFromGrid : rightFromGrid && !leftFromGrid;
+        if (towardSort && !downFromGrid && !upFromGrid &&
+            cell.x == (SortButtonsOnLeft ? 0 : grid.GetInventory().GetWidth() - 1))
         {
             bool container = grid == gui.ContainerGrid;
             bool adjacentRow = container ? HasControllerContainer(gui) && cell.y == 0 : rows > 0 && cell.y == rows - 1;
@@ -277,9 +278,13 @@ public sealed partial class InventoryActionsPlugin
         }
         bool left = ControllerDirectionDown("Left"), right = ControllerDirectionDown("Right");
         bool up = ControllerDirectionDown("Up"), down = ControllerDirectionDown("Down");
-        if (left && !right || up != down) LeaveControllerSortButton(gui, container);
+        bool towardGrid = SortButtonsOnLeft ? right && !left : left && !right;
+        if (towardGrid || up != down) LeaveControllerSortButton(gui, container);
         return true;
     }
+
+    private static bool SortButtonsOnLeft =>
+        _sortButtonSide != null && _sortButtonSide.Value == SortButtonSide.Left;
 
     private static void LeaveControllerSortButton(InventoryGui gui, bool container)
     {

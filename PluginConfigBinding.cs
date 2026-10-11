@@ -36,6 +36,8 @@ public sealed partial class InventorySlotsPlugin
     private static ConfigEntry<Toggle> _quickSlotHudFollowsPanel = null!;
     private static ConfigEntry<InventoryRowsDisplayMode> _inventoryRowsDisplayMode = null!;
     private static ConfigEntry<Toggle> _showInventoryWheelButton = null!;
+    private enum SortButtonSide { Right, Left }
+    private static ConfigEntry<SortButtonSide> _sortButtonSide = null!;
     private static ConfigEntry<Toggle> _enableInventoryTrashPanel = null!;
     private static ConfigEntry<PinnedTooltipSlotMode> _pinnedTooltipSlots = null!;
     private static ConfigEntry<KeyboardShortcut> _pinnedTooltipKey = null!;
@@ -82,6 +84,62 @@ public sealed partial class InventorySlotsPlugin
         _serverConfigLocked = OrderedConfigEntry("1 - General", "Lock Configuration", Toggle.On, "When enabled, only server admins can modify this mod's synced configuration.", order: 1000);
         _ = ConfigSync.AddLockingConfigEntry(_serverConfigLocked);
 
+        _deathKeepRulesEnabled = OrderedConfigEntry("1 - General", "Enable Death Keep Rules", Toggle.On, "When enabled, items matching the YAML KeepOnDeath list stay in the player inventory instead of moving to the tombstone. When disabled, KeepOnDeath is ignored and death uses the normal tombstone behavior.", order: 990);
+        _enableInventoryTrashPanel = OrderedConfigEntry("1 - General", "Enable Inventory Trash Panel", Toggle.On, "When enabled, shows a trash panel below the player inventory. Dropping a held player-inventory item on it opens a confirmation dialog before deleting the held amount.", order: 980);
+
+        _areaQuickStackRange = OrderedConfigEntry("1 - General", "Area Quick Stack Range", 10f, new ConfigDescription("Range in meters from the hovered chest for Area Quick Stack. Set to 0 to use only that chest. Unused player-built chests can grant ownership before the transfer. The opened-container Place stacks button only uses the current container.", new AcceptableValueRange<float>(0f, 50f)), order: 970);
+        _areaRestockRange = OrderedConfigEntry("1 - General", "Area Take Stacks Range", 10f, new ConfigDescription("Range in meters from the hovered chest for Area Take Stacks. Set to 0 to use only that chest. Unused player-built chests can grant ownership before the transfer. The opened-container Take stacks button only uses the current container.", new AcceptableValueRange<float>(0f, 50f)), order: 960);
+
+        _enableSharedContainers = OrderedConfigEntry("1 - General", "Enable Multi User Chest", Toggle.On,
+            "Allows multiple players to view standard player-built chests. Item changes wait for an approved ownership handoff and fresh contents. Existing access restrictions still apply. The external MultiUserChest mod takes precedence. Changing this setting closes the local inventory and cancels pending actions before reopening.", order: 950);
+        _enableSharedContainers.SettingChanged += OnSharedContainerSettingChanged;
+        _sharedContainersActive = _enableSharedContainers.Value == Toggle.On;
+
+        _foodForkColorMode = OrderedConfigEntry("1 - General", "Food Fork Color Mode", FoodForkColorMode.EitrFirst,
+            "Food fork icon colors in player/container inventories and crafting results. EitrFirst: any positive eitr uses blue; otherwise higher health uses red, and higher or equal stamina uses yellow. Vanilla: use the game's ratio-based colors, including white for balanced food. Affects icons only, not food stats or food-group classification. Changes apply live.",
+            order: 940, synchronizedSetting: true);
+        _foodForkColorMode.SettingChanged += OnFoodForkColorModeChanged;
+
+        _inventoryRowsDisplayMode = OrderedConfigEntry(ClientConfigSection, "Inventory Rows Display Mode", InventoryRowsDisplayMode.Expandable, "Client-only regular inventory row display mode. Fixed always shows all unlocked regular inventory rows. Expandable restores the last locally remembered visible row count, reveals newly unlocked rows once, and changes it with mouse wheel while the inventory is open.", order: 900, synchronizedSetting: false);
+        _autoFavoriteHotbarSwitchRow = OrderedConfigEntry(ClientConfigSection, "Auto Favorite Hotbar Switch Row", Toggle.Off, "When enabled, marks row 2 as favorite when the local player is loaded or spawned. Turn this Off if you want row 2 favorites to stay manually controlled. Not synced with server.", order: 890, synchronizedSetting: false);
+        _inventorySortMode = OrderedConfigEntry(ClientConfigSection, "Inventory Sort Mode", CraftingRecipeSortMode.GroupThenTier, "Sorting mode used by player inventory and container sort buttons. GroupThenTier sorts predefined group first, then biome/resource tier. TierThenGroup sorts biome/resource tier first, then predefined group.", order: 880, synchronizedSetting: false);
+        _containerActionSuccessFx = OrderedConfigEntry(
+            ClientConfigSection,
+            "Container Action Success FX",
+            Toggle.On,
+            "Enables transient chest-unlock success effects for hover hold area quick stack/restock. Shows VFX at up to 10 changed containers and plays the SFX once at the interacted container. Nearby players who also enable this setting see the current action, but effects are not saved or replayed for later arrivals. Opened-container buttons do not spawn effects. Not synced with server.",
+            order: 870,
+            synchronizedSetting: false);
+        _containerPreviewCloseDelay = OrderedConfigEntry(ClientConfigSection, "Container Preview Close Delay", 0.3f, new ConfigDescription("Client-only container preview control. 0 disables the preview. Values above 0 enable it and set how many seconds, up to 1 second, the last valid container remains visible after looking away. A zero-sized placeholder inventory is never used.", new AcceptableValueRange<float>(0f, 1f)), order: 860, synchronizedSetting: false);
+        _mouseUiScrollMultiplier = OrderedConfigEntry(ClientConfigSection, "Mouse UI Scroll Multiplier", 1f, new ConfigDescription("Global multiplier for InventorySlots mouse-wheel UI scrolling. Applies to recipe pages, recipe zoom, expandable inventory rows, and InventorySlots tooltip scrolling. Not synced with server.", new AcceptableValueRange<float>(0.1f, 5f)), order: 790, synchronizedSetting: false);
+
+        _quickSlotHudFollowsPanel = OrderedConfigEntry(ClientUiConfigSection, "Quick Slot HUD Follows Panel", Toggle.Off, "Off keeps the quick slot HUD at its own saved position while the inventory panel moves independently. Turn this On to make the HUD follow the quick slot inventory panel. Not synced with server.", order: 910, synchronizedSetting: false);
+        _sortButtonSide = OrderedConfigEntry(ClientUiConfigSection, "Sort Button Side", SortButtonSide.Left, "Place both inventory and container sort buttons on the Left or Right edge. Controller navigation follows the selected side. Not synced with server.", order: 905, synchronizedSetting: false);
+        _sortButtonSide.SettingChanged += OnSortButtonSideChanged;
+        _showInventoryWheelButton = OrderedConfigEntry(ClientUiConfigSection, "Show Inventory Wheel Hint", Toggle.On, "Show the mouse wheel hint below the player inventory, centered between columns 4 and 5, when expandable rows are available. It follows the displayed row count and hides when an open container occupies that space. Not synced with server.", order: 900, synchronizedSetting: false);
+        _showHotbarSwitchHint = OrderedConfigEntry(ClientUiConfigSection, "Show Hotbar Switch Hint", Toggle.On, "Show the hotbar row switch hint next to the hotbar. Not synced with server.", order: 890, synchronizedSetting: false);
+        _featureGuideState = OrderedConfigEntry(ClientUiConfigSection, "Feature Guide State", FeatureGuideState.Expanded, FeatureGuideStateDescription, order: 880, synchronizedSetting: false);
+        _featureGuideState.SettingChanged += OnFeatureGuideStateChanged;
+        _showCraftingHoverTooltip = OrderedConfigEntry(ClientUiConfigSection, "Show Crafting Hover Tooltip", CraftingHoverTooltipMode.Full, "Controls InventorySlots recipe hover tooltips in the crafting station grid. Full shows the recipe title, item tooltip, and requirement row. TitleOnly shows only the recipe title. Off disables hover tooltips. Pinned crafting tooltips still work when this is Off. Not synced with server.", order: 870, synchronizedSetting: false);
+        _pinnedTooltipSlots = OrderedConfigEntry(ClientUiConfigSection, "Pinned Tooltip Slots", PinnedTooltipSlotMode.Two, "Number of comparison tooltip panels available for pinning. Inventory/container panels unfold from the inventory panel edge to the right, and crafting panels unfold from the crafting panel edge to the left.", order: 860, synchronizedSetting: false);
+        _pinnedTooltipBackgroundAlpha = OrderedConfigEntry(ClientUiConfigSection, "Pinned Tooltip Background Alpha", 0.9f, new ConfigDescription("Advanced alpha for pinned tooltip panel backgrounds. 0 is fully transparent and 1 is fully opaque. Not synced with server.", new AcceptableValueRange<float>(0f, 1f)), order: 850, synchronizedSetting: false);
+        _craftingHoverTooltipBackgroundAlpha = OrderedConfigEntry(ClientUiConfigSection, "Crafting Hover Tooltip Background Alpha", 0.9f, new ConfigDescription("Alpha for InventorySlots crafting recipe hover tooltip backgrounds. 0 is fully transparent and 1 is fully opaque. Not synced with server.", new AcceptableValueRange<float>(0f, 1f)), order: 840, synchronizedSetting: false);
+        _inventoryContainerHoverTooltipBackgroundAlpha = OrderedConfigEntry(ClientUiConfigSection, "Inventory Container Hover Tooltip Background Alpha", 0.9f, new ConfigDescription("Alpha for InventorySlots inventory and container hover tooltip backgrounds. 0 is fully transparent and 1 is fully opaque. Not synced with server.", new AcceptableValueRange<float>(0f, 1f)), order: 830, synchronizedSetting: false);
+        _playerStatBarLengthScaling = OrderedConfigEntry(ClientUiConfigSection, "Player Stat Bar Length Scaling", PlayerStatBarLengthScaling.Logarithmic, "Controls visual length scaling for player health, food, stamina, eitr, and adrenaline bars. Linear keeps vanilla proportional length. Logarithmic keeps values up to 100 unchanged and compresses higher values with the natural logarithm. Not synced with server.", order: 820, synchronizedSetting: false);
+        LoadInventoryPanelPositionsFromClientState();
+        _pinnedTooltipSlots.SettingChanged += (_, _) => InvalidatePinnedTooltipUi();
+        _pinnedTooltipBackgroundAlpha.SettingChanged += (_, _) => RefreshPinnedTooltipBackgrounds();
+        _showCraftingHoverTooltip.SettingChanged += (_, _) => OnCraftingHoverTooltipConfigChanged();
+        _craftingHoverTooltipBackgroundAlpha.SettingChanged += (_, _) => RefreshCraftingHoverTooltipBackground();
+        _inventoryContainerHoverTooltipBackgroundAlpha.SettingChanged += (_, _) => RefreshInventoryContainerHoverTooltipBackground();
+        _enableInventoryTrashPanel.SettingChanged += (_, _) => OnInventoryTrashPanelConfigChanged();
+        _autoFavoriteHotbarSwitchRow.SettingChanged += (_, _) => ApplyAutoFavoriteHotbarSwitchRowToLocalPlayer();
+        _quickSlotHudFollowsPanel.SettingChanged += (_, _) => OnQuickSlotHudFollowsPanelChanged();
+
+        BindCraftingClientConfigs();
+
+        // Keep first section registration in display order, including managers
+        // that preserve insertion order rather than sorting section names.
         _progressiveRowsEnabled = ConfigEntry(ProgressiveSlotsConfigSection, "Enable Progressive Rows", Toggle.On, "On: extra inventory rows unlock through item discovery. Off: immediately unlocks all extra rows set by Maximum Extra Rows (3 by default), without item discovery. Haldor's purchased rows remain independent.");
         _maxExtraRows = ConfigEntry(ProgressiveSlotsConfigSection, "Maximum Extra Rows", 3, new ConfigDescription("Maximum rows added by InventorySlots (0-3). Haldor's purchased rows are added independently. Previous values above 3 are capped at 3; internal slot coordinates remain fixed.", new AcceptableValueRange<int>(0, MaxProgressionExtraRows)));
         _rowUnlockItems = new[]
@@ -119,58 +177,6 @@ public sealed partial class InventorySlotsPlugin
             synchronizedSetting: false);
         _restockTargetStackLimitsConfig.SettingChanged += (_, _) => RefreshRestockTargetStackLimits();
         RefreshRestockTargetStackLimits();
-
-        _deathKeepRulesEnabled = OrderedConfigEntry("1 - General", "Enable Death Keep Rules", Toggle.On, "When enabled, items matching the YAML KeepOnDeath list stay in the player inventory instead of moving to the tombstone. When disabled, KeepOnDeath is ignored and death uses the normal tombstone behavior.", order: 990);
-        _enableInventoryTrashPanel = OrderedConfigEntry("1 - General", "Enable Inventory Trash Panel", Toggle.On, "When enabled, shows a trash panel below the player inventory. Dropping a held player-inventory item on it opens a confirmation dialog before deleting the held amount.", order: 980);
-
-        _areaQuickStackRange = OrderedConfigEntry("1 - General", "Area Quick Stack Range", 10f, new ConfigDescription("Range in meters from the hovered chest for Area Quick Stack. Set to 0 to use only that chest. Unused player-built chests can grant ownership before the transfer. The opened-container Place stacks button only uses the current container.", new AcceptableValueRange<float>(0f, 50f)), order: 970);
-        _areaRestockRange = OrderedConfigEntry("1 - General", "Area Take Stacks Range", 10f, new ConfigDescription("Range in meters from the hovered chest for Area Take Stacks. Set to 0 to use only that chest. Unused player-built chests can grant ownership before the transfer. The opened-container Take stacks button only uses the current container.", new AcceptableValueRange<float>(0f, 50f)), order: 960);
-
-        _enableSharedContainers = OrderedConfigEntry("1 - General", "Enable Multi User Chest", Toggle.On,
-            "Allows multiple players to view standard player-built chests. Item changes wait for an approved ownership handoff and fresh contents. Existing access restrictions still apply. The external MultiUserChest mod takes precedence. Changing this setting closes the local inventory and cancels pending actions before reopening.", order: 950);
-        _enableSharedContainers.SettingChanged += OnSharedContainerSettingChanged;
-        _sharedContainersActive = _enableSharedContainers.Value == Toggle.On;
-
-        _foodForkColorMode = OrderedConfigEntry("1 - General", "Food Fork Color Mode", FoodForkColorMode.EitrFirst,
-            "Food fork icon colors in player/container inventories and crafting results. EitrFirst: any positive eitr uses blue; otherwise higher health uses red, and higher or equal stamina uses yellow. Vanilla: use the game's ratio-based colors, including white for balanced food. Affects icons only, not food stats or food-group classification. Changes apply live.",
-            order: 940, synchronizedSetting: true);
-        _foodForkColorMode.SettingChanged += OnFoodForkColorModeChanged;
-
-        _inventoryRowsDisplayMode = OrderedConfigEntry(ClientConfigSection, "Inventory Rows Display Mode", InventoryRowsDisplayMode.Expandable, "Client-only regular inventory row display mode. Fixed always shows all unlocked regular inventory rows. Expandable restores the last locally remembered visible row count, reveals newly unlocked rows once, and changes it with mouse wheel while the inventory is open.", order: 900, synchronizedSetting: false);
-        _autoFavoriteHotbarSwitchRow = OrderedConfigEntry(ClientConfigSection, "Auto Favorite Hotbar Switch Row", Toggle.Off, "When enabled, marks row 2 as favorite when the local player is loaded or spawned. Turn this Off if you want row 2 favorites to stay manually controlled. Not synced with server.", order: 890, synchronizedSetting: false);
-        _inventorySortMode = OrderedConfigEntry(ClientConfigSection, "Inventory Sort Mode", CraftingRecipeSortMode.GroupThenTier, "Sorting mode used by player inventory and container sort buttons. GroupThenTier sorts predefined group first, then biome/resource tier. TierThenGroup sorts biome/resource tier first, then predefined group.", order: 880, synchronizedSetting: false);
-        _containerActionSuccessFx = OrderedConfigEntry(
-            ClientConfigSection,
-            "Container Action Success FX",
-            Toggle.On,
-            "Enables transient chest-unlock success effects for hover hold area quick stack/restock. Shows VFX at up to 10 changed containers and plays the SFX once at the interacted container. Nearby players who also enable this setting see the current action, but effects are not saved or replayed for later arrivals. Opened-container buttons do not spawn effects. Not synced with server.",
-            order: 870,
-            synchronizedSetting: false);
-        _containerPreviewCloseDelay = OrderedConfigEntry(ClientConfigSection, "Container Preview Close Delay", 0.3f, new ConfigDescription("Client-only container preview control. 0 disables the preview. Values above 0 enable it and set how many seconds, up to 1 second, the last valid container remains visible after looking away. A zero-sized placeholder inventory is never used.", new AcceptableValueRange<float>(0f, 1f)), order: 860, synchronizedSetting: false);
-        _mouseUiScrollMultiplier = OrderedConfigEntry(ClientConfigSection, "Mouse UI Scroll Multiplier", 1f, new ConfigDescription("Global multiplier for InventorySlots mouse-wheel UI scrolling. Applies to recipe pages, recipe zoom, expandable inventory rows, and InventorySlots tooltip scrolling. Not synced with server.", new AcceptableValueRange<float>(0.1f, 5f)), order: 790, synchronizedSetting: false);
-
-        _quickSlotHudFollowsPanel = OrderedConfigEntry(ClientUiConfigSection, "Quick Slot HUD Follows Panel", Toggle.On, "When enabled, the quick slot HUD follows the quick slot inventory panel position. Turn this Off to keep the HUD at its last saved position while moving the panel separately. Not synced with server.", order: 910, synchronizedSetting: false);
-        _showInventoryWheelButton = OrderedConfigEntry(ClientUiConfigSection, "Show Inventory Wheel Hint", Toggle.On, "Show the mouse wheel hint next to the player inventory when expandable inventory rows are available. Not synced with server.", order: 900, synchronizedSetting: false);
-        _showHotbarSwitchHint = OrderedConfigEntry(ClientUiConfigSection, "Show Hotbar Switch Hint", Toggle.On, "Show the hotbar row switch hint next to the hotbar. Not synced with server.", order: 890, synchronizedSetting: false);
-        _featureGuideState = OrderedConfigEntry(ClientUiConfigSection, "Feature Guide State", FeatureGuideState.Expanded, FeatureGuideStateDescription, order: 880, synchronizedSetting: false);
-        _featureGuideState.SettingChanged += OnFeatureGuideStateChanged;
-        _showCraftingHoverTooltip = OrderedConfigEntry(ClientUiConfigSection, "Show Crafting Hover Tooltip", CraftingHoverTooltipMode.Full, "Controls InventorySlots recipe hover tooltips in the crafting station grid. Full shows the recipe title, item tooltip, and requirement row. TitleOnly shows only the recipe title. Off disables hover tooltips. Pinned crafting tooltips still work when this is Off. Not synced with server.", order: 870, synchronizedSetting: false);
-        _pinnedTooltipSlots = OrderedConfigEntry(ClientUiConfigSection, "Pinned Tooltip Slots", PinnedTooltipSlotMode.Two, "Number of comparison tooltip panels available for pinning. Inventory/container panels unfold from the inventory panel edge to the right, and crafting panels unfold from the crafting panel edge to the left.", order: 860, synchronizedSetting: false);
-        _pinnedTooltipBackgroundAlpha = OrderedConfigEntry(ClientUiConfigSection, "Pinned Tooltip Background Alpha", 0.9f, new ConfigDescription("Advanced alpha for pinned tooltip panel backgrounds. 0 is fully transparent and 1 is fully opaque. Not synced with server.", new AcceptableValueRange<float>(0f, 1f)), order: 850, synchronizedSetting: false);
-        _craftingHoverTooltipBackgroundAlpha = OrderedConfigEntry(ClientUiConfigSection, "Crafting Hover Tooltip Background Alpha", 0.9f, new ConfigDescription("Alpha for InventorySlots crafting recipe hover tooltip backgrounds. 0 is fully transparent and 1 is fully opaque. Not synced with server.", new AcceptableValueRange<float>(0f, 1f)), order: 840, synchronizedSetting: false);
-        _inventoryContainerHoverTooltipBackgroundAlpha = OrderedConfigEntry(ClientUiConfigSection, "Inventory Container Hover Tooltip Background Alpha", 0.9f, new ConfigDescription("Alpha for InventorySlots inventory and container hover tooltip backgrounds. 0 is fully transparent and 1 is fully opaque. Not synced with server.", new AcceptableValueRange<float>(0f, 1f)), order: 830, synchronizedSetting: false);
-        _playerStatBarLengthScaling = OrderedConfigEntry(ClientUiConfigSection, "Player Stat Bar Length Scaling", PlayerStatBarLengthScaling.Logarithmic, "Controls visual length scaling for player health, food, stamina, eitr, and adrenaline bars. Linear keeps vanilla proportional length. Logarithmic keeps values up to 100 unchanged and compresses higher values with the natural logarithm. Not synced with server.", order: 820, synchronizedSetting: false);
-        LoadInventoryPanelPositionsFromClientState();
-        _pinnedTooltipSlots.SettingChanged += (_, _) => InvalidatePinnedTooltipUi();
-        _pinnedTooltipBackgroundAlpha.SettingChanged += (_, _) => RefreshPinnedTooltipBackgrounds();
-        _showCraftingHoverTooltip.SettingChanged += (_, _) => OnCraftingHoverTooltipConfigChanged();
-        _craftingHoverTooltipBackgroundAlpha.SettingChanged += (_, _) => RefreshCraftingHoverTooltipBackground();
-        _inventoryContainerHoverTooltipBackgroundAlpha.SettingChanged += (_, _) => RefreshInventoryContainerHoverTooltipBackground();
-        _enableInventoryTrashPanel.SettingChanged += (_, _) => OnInventoryTrashPanelConfigChanged();
-        _autoFavoriteHotbarSwitchRow.SettingChanged += (_, _) => ApplyAutoFavoriteHotbarSwitchRowToLocalPlayer();
-        _quickSlotHudFollowsPanel.SettingChanged += (_, _) => OnQuickSlotHudFollowsPanelChanged();
-
-        BindCraftingClientConfigs();
 
         _enableGamepadUiScroll = OrderedConfigEntry(ControllerInputConfigSection, "Enable Gamepad UI Scroll", Toggle.On, "Allow gamepad input to emulate InventorySlots UI scrolling while gamepad input is active. Not synced with server.", order: 600, synchronizedSetting: false);
         _gamepadUiScrollSource = OrderedConfigEntry(ControllerInputConfigSection, "Gamepad UI Scroll Source", GamepadUiScrollSource.RightStickY, "Gamepad input used for InventorySlots UI scrolling. RightStickY uses the right stick vertical axis; DPadVertical uses held up/down; RightStickYOrDPadVertical accepts either.", order: 590, synchronizedSetting: false);

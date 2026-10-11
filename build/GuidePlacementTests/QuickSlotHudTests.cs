@@ -83,6 +83,32 @@ internal static class QuickSlotHudTests
         Plugin.Destroy(gui);
         gridRoot.parent = nextPlayer;
         Equal(Plugin.HudPosition(hud, grid, 1, true, out _), new(-243.2f, -71.68f, 0), "GUI recreation cannot reuse the previous player's shown pose");
+
+        Plugin.UnsetHud();
+        hud.Scale = new(1, 1);
+        hud.Size = new(2560, 1440);
+        Equal(Plugin.HudPosition(hud, null, 3, false, out spacing), new(-651.5f, -101, 0),
+            "Fresh HUD uses the reference offset before inventory geometry exists");
+        Check(spacing == 70 && !Plugin.HasSavedHud, "Fresh viewport placement keeps default spacing without saving a transient GUI scale");
+        hud.Size = new(1920, 1080);
+        Equal(Plugin.HudPosition(hud, grid, 3, false, out _), new(-331.5f, -281, 0),
+            "Default placement adjusts when startup GUI scaling settles");
+        nextPlayer.anchoredPosition = new(500, -500);
+        Equal(Plugin.HudPosition(hud, grid, 3, false, out _), new(-331.5f, -281, 0),
+            "Default HUD is independent of inventory and quick-panel positions");
+        hud.Size = new(2560, 1080);
+        Equal(Plugin.HudPosition(hud, grid, 3, false, out _), new(-651.5f, -281, 0),
+            "Ultrawide keeps the same top-left offset rather than a center-relative position");
+        hud.Size = new(1440, 1080);
+        Equal(Plugin.HudPosition(hud, grid, 3, false, out _), new(-91.5f, -281, 0),
+            "4:3 keeps the same reference placement");
+        hud.Size = new(800, 600);
+        Equal(Plugin.HudPosition(hud, grid, 3, false, out _), new(182, -82, 0),
+            "A large UI scale keeps all default HUD rows within the available viewport");
+        hud.Size = new(1920, 1080);
+        Equal(Plugin.HudPosition(hud, grid, 3, false, out _), new(-331.5f, -281, 0),
+            "Returning to normal scale restores the unset default instead of retaining a clipped position");
+        Check(!Plugin.HasSavedHud, "Default layout and resize never overwrite client state");
         Console.WriteLine($"Quick slot HUD layout: {_checks} checks passed.");
     }
 }

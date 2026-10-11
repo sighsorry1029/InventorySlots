@@ -42,6 +42,8 @@ public static class EntryHost
 {
     private static int ReachedPreflight, Checks;
     private static Editor? _itemRuleEditor;
+    private static bool PendingClose;
+    private static bool IsInventoryClosingLayoutPending(InventoryGui gui) => PendingClose;
     /* ENTRY */
     /* CLOSING */
     private static void Expect(InventoryGui gui, CraftingPanelUpdateReason reason, bool reaches, string label)
@@ -70,6 +72,11 @@ public static class EntryHost
         Expect(gui, CraftingPanelUpdateReason.FrameTick, true, "Existing loading fallback remains intact");
         Player.m_localPlayer = null;
         Expect(gui, CraftingPanelUpdateReason.FrameTick, true, "Existing no-player fallback remains intact");
+        PendingClose = true;
+        Expect(gui, CraftingPanelUpdateReason.FrameTick, false, "Pending visual close blocks late postfix with no player");
+        Player.m_localPlayer = new Player { m_isLoading = true };
+        Expect(gui, CraftingPanelUpdateReason.FrameTick, false, "Pending visual close blocks late postfix while loading");
+        PendingClose = false;
         Player.m_localPlayer = new Player();
         _itemRuleEditor = new Editor { Owner = gui, _animator = new Animator { Visible = false } };
         gui.Animator.Visible = true;

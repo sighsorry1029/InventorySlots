@@ -266,7 +266,10 @@ public sealed partial class InventoryActionsPlugin
     private static bool ShouldQuickStackItem(Player player, Inventory inventory, ItemData item)
     {
         return item?.m_shared != null &&
-               item.m_shared.m_maxStackSize > 1 &&
+               // Single materials such as mead bases use a fresh chest cell;
+               // do not include material-type items equipped by other mods.
+               (item.m_shared.m_maxStackSize > 1 ||
+                item.m_shared.m_maxStackSize == 1 && item.m_shared.m_itemType == ItemData.ItemType.Material && !item.m_equipped) &&
                IsRegularActionItem(inventory, item) &&
                !IsFavoriteProtected(player, inventory, item) &&
                CanUseContainerActionStacking(item);

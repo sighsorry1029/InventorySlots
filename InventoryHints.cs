@@ -45,6 +45,7 @@ public sealed partial class InventorySlotsPlugin
     private static readonly Color FeatureGuideBackgroundColor = new(0.055f, 0.035f, 0.025f, 0.64f);
     private static readonly Color FeatureGuideToggleColor = new(1f, 0.663f, 0.302f, 0.92f);
     private static readonly Vector3[] HotbarElementWorldCorners = new Vector3[4];
+    private static readonly Vector3[] InventoryWheelHintWorldCorners = new Vector3[4];
 
     private static void UpdateInventorySideHints(InventoryGrid playerGrid, Vector3 origin, float elementSpace, int totalRegularRows)
     {
@@ -637,8 +638,8 @@ public sealed partial class InventorySlotsPlugin
     {
         bool korean = string.Equals(Localization.instance?.GetSelectedLanguage(), "Korean", StringComparison.OrdinalIgnoreCase);
         return LocalizeUi("$inventoryslots_feature_guide_controller", korean
-            ? "<b>InventorySlots 빠른 가이드</b>\n선택한 칸에서 {menuAction} 짧게: 작업 메뉴 · ↑↓ 선택 · {modeAction} 실행 · {closeAction} 뒤로\n내 인벤토리 맨 아래 오른쪽 / 상자 맨 위 오른쪽 칸에서 →: S 선택 · {modeAction}: 정렬\n선택적 단축키: 선택한 플레이어 칸에서 <color=#FFA94D>[{favoriteAction}]</color>: 즐겨찾기 · <color=#FFA94D>[{sortAction}]</color>: 선택 중인 인벤토리/상자 정렬\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: 보충 대상 / 자동 줍기 제외 열기 (집어 든 내 아이템이 있으면 등록)\n보조키를 놓고 마지막 표시 플레이어 행에서 방향키 아래: 보충/제외/휴지통 버튼 · 왼쪽/오른쪽: 켜진 버튼 선택\nAuto: 게임패드에서도 평소 접힘 · 선택한 버튼만 펼침 · 좌우 이동/이탈 시 이전 버튼 접힘 · On: 항상 펼침 · Off: 숨김\n버튼에서 {modeAction}: 보충/제외 목록 열기 또는 집은 내 아이템 등록 · 휴지통: 집은 아이템 삭제 확인\n버튼에서 위: 플레이어 칸 · 아래: 열린 상자\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 즐겨찾기 외 같은 종류를 주변 상자에 보관\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 목표 수량·빈 칸 보충 모드에 따라 즐겨찾기 보충\n규칙: ↑↓ 행 · ←→ 조작 선택 · {modeAction} 실행/편집 · {removeAction} 제거 · {closeAction} 닫기\n수량 편집: ↑ 증가 / ↓ 감소 · {modeAction}/{closeAction} 편집 종료 (자동 저장)\n커스텀 슬롯·규칙: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>"
-            : "<b>InventorySlots quick guide</b>\nTap {menuAction} on a selected slot: actions menu; ↑↓ select, {modeAction} apply, {closeAction} back\nPlayer bottom-right / chest top-right slot →: select S; {modeAction}: sort\nOptional shortcuts on the selected player slot, <color=#FFA94D>[{favoriteAction}]</color>: Favorite · <color=#FFA94D>[{sortAction}]</color>: Sort focused inventory/chest\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: Restock targets / pickup exclusions (register a picked-up player item)\nRelease modifier; D-pad down from the last visible player row: Restock / Exclude / Trash; left/right: enabled buttons\nAuto stays collapsed on gamepad: only the selected button expands; moving away retracts it. On: always expanded; Off: hidden\n{modeAction}: Open Restock/Exclude or register a held player item; Trash: confirm held item deletion\nOn buttons, up: player inventory; down: open chest\nLook at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching non-favorite items nearby\nLook at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill favorites using target quantities and empty-slot modes\nRules: ↑↓ rows; ←→ controls; {modeAction} use/edit; {removeAction} remove; {closeAction} close\nQuantity edit: ↑ increase / ↓ decrease; {modeAction}/{closeAction} finish (auto-saved)\nCustom slots and rules: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>");
+            ? "<b>InventorySlots 빠른 가이드</b>\n선택한 칸에서 {menuAction} 짧게: 작업 메뉴 · ↑↓ 선택 · {modeAction} 실행 · {closeAction} 뒤로\nS 옆 칸(내 인벤토리 마지막 행 / 상자 첫 행)에서 S 방향키: S 선택 · {modeAction}: 정렬\n선택적 단축키: 선택한 플레이어 칸에서 <color=#FFA94D>[{favoriteAction}]</color>: 즐겨찾기 · <color=#FFA94D>[{sortAction}]</color>: 선택 중인 인벤토리/상자 정렬\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: 보충 대상 / 자동 줍기 제외 열기 (집어 든 내 아이템이 있으면 등록)\n보조키를 놓고 마지막 표시 플레이어 행에서 방향키 아래: 보충/제외/휴지통 버튼 · 왼쪽/오른쪽: 켜진 버튼 선택\nAuto: 게임패드에서도 평소 접힘 · 선택한 버튼만 펼침 · 좌우 이동/이탈 시 이전 버튼 접힘 · On: 항상 펼침 · Off: 숨김\n버튼에서 {modeAction}: 보충/제외 목록 열기 또는 집은 내 아이템 등록 · 휴지통: 집은 아이템 삭제 확인\n버튼에서 위: 플레이어 칸 · 아래: 열린 상자\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 즐겨찾기 외 같은 종류를 주변 상자에 보관\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 목표 수량·빈 칸 보충 모드에 따라 즐겨찾기 보충\n규칙: ↑↓ 행 · ←→ 조작 선택 · {modeAction} 실행/편집 · {removeAction} 제거 · {closeAction} 닫기\n수량 편집: ↑ 증가 / ↓ 감소 · {modeAction}/{closeAction} 편집 종료 (자동 저장)\n커스텀 슬롯·규칙: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>"
+            : "<b>InventorySlots quick guide</b>\nTap {menuAction} on a selected slot: actions menu; ↑↓ select, {modeAction} apply, {closeAction} back\nFrom the slot beside S (player bottom row / chest top row), press toward S to select it; {modeAction}: sort\nOptional shortcuts on the selected player slot, <color=#FFA94D>[{favoriteAction}]</color>: Favorite · <color=#FFA94D>[{sortAction}]</color>: Sort focused inventory/chest\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: Restock targets / pickup exclusions (register a picked-up player item)\nRelease modifier; D-pad down from the last visible player row: Restock / Exclude / Trash; left/right: enabled buttons\nAuto stays collapsed on gamepad: only the selected button expands; moving away retracts it. On: always expanded; Off: hidden\n{modeAction}: Open Restock/Exclude or register a held player item; Trash: confirm held item deletion\nOn buttons, up: player inventory; down: open chest\nLook at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching non-favorite items nearby\nLook at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill favorites using target quantities and empty-slot modes\nRules: ↑↓ rows; ←→ controls; {modeAction} use/edit; {removeAction} remove; {closeAction} close\nQuantity edit: ↑ increase / ↓ decrease; {modeAction}/{closeAction} finish (auto-saved)\nCustom slots and rules: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>");
     }
 
     private static string GetFeatureGuideTitle(string expandedText)
@@ -954,28 +955,57 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        float configuredSize = InventoryWheelHintSize;
-        float size = configuredSize > 0f ? Mathf.Clamp(configuredSize, 8f, 64f) : Mathf.Clamp(elementSpace * 0.34f, 18f, 28f);
+        float size = Mathf.Clamp(elementSpace * 0.34f, 18f, 28f);
         float iconWidth = Mathf.Max(18f, size * 0.92f) * MouseWheelHintScale;
-        float iconHeight = Mathf.Max(28f, size * 1.32f) * MouseWheelHintScale;
-        Vector3 hintPosition = origin + new Vector3(-iconWidth * 0.5f - 9f, -(BaseRows - 1) * elementSpace, 0f) + (Vector3)InventoryWheelHintOffset;
-        RectTransform? playerPanel = InventoryGui.instance != null ? InventoryGui.instance.m_player : null;
-        if (playerPanel != null)
+        // The native sprite is square. A taller rect adds empty space above it
+        // with preserveAspect, pushing the visible icon away from the panel.
+        float iconHeight = iconWidth;
+        RectTransform gridRoot = playerGrid.m_gridRoot;
+        // Overlap the transparent sprite margin so the visible arrow sits close
+        // to the panel; the icon's rendered size and shape stay unchanged.
+        const float gap = -3f;
+        Vector3 hintPosition = origin + new Vector3(InventoryWidth * elementSpace * 0.5f,
+            -gridRoot.rect.height - gap - iconHeight * 0.5f, 0f);
+        // Slot rectangles are narrower than their cell spacing. Use the actual
+        // facing edges of columns 4/5 rather than the nominal four-cell offset.
+        if (playerGrid.m_elements.Count > 4 && playerGrid.m_elements[3]?.gameObject != null && playerGrid.m_elements[4]?.gameObject != null)
         {
-            RectTransform panelBackground = playerPanel.Find("Bkg") as RectTransform ?? playerPanel;
-            Canvas? canvas = TooltipUi.InventoryWheelHintText.canvas?.rootCanvas;
-            Camera? camera = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
-            Vector3 panelLeftWorld = panelBackground.TransformPoint(new Vector3(panelBackground.rect.xMin, panelBackground.rect.center.y, 0f));
-            float panelLeftScreen = RectTransformUtility.WorldToScreenPoint(camera, panelLeftWorld).x;
-            Vector2 hintScreenPosition = RectTransformUtility.WorldToScreenPoint(camera, playerGrid.m_gridRoot.TransformPoint(hintPosition));
-            // The hint pivot is its center. Place it halfway across the visible left margin.
-            hintScreenPosition.x = Mathf.Max(0f, panelLeftScreen) * 0.5f;
-            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(playerGrid.m_gridRoot, hintScreenPosition, camera, out Vector2 hintLocalPosition))
+            RectTransform fourth = (RectTransform)playerGrid.m_elements[3].gameObject.transform;
+            RectTransform fifth = (RectTransform)playerGrid.m_elements[4].gameObject.transform;
+            Vector3 fourthEdge = fourth.TransformPoint(new Vector3(fourth.rect.xMax, 0f, 0f));
+            Vector3 fifthEdge = fifth.TransformPoint(new Vector3(fifth.rect.xMin, 0f, 0f));
+            hintPosition.x = gridRoot.InverseTransformPoint((fourthEdge + fifthEdge) * 0.5f).x;
+        }
+        // The background is resized before this method, including expanded and
+        // recovery rows. Follow its visible bottom instead of a fixed row count.
+        InventoryGui gui = InventoryGui.instance;
+        if (gui != null && gui.m_player != null)
+        {
+            if (TooltipUi.InventoryWheelHintBackground == null || TooltipUi.InventoryWheelHintBackground.parent != gui.m_player)
+                TooltipUi.InventoryWheelHintBackground = gui.m_player.Find("Bkg") as RectTransform;
+            RectTransform background = TooltipUi.InventoryWheelHintBackground != null ? TooltipUi.InventoryWheelHintBackground : gui.m_player;
+            Vector3 bottom = background.TransformPoint(new Vector3(background.rect.center.x, background.rect.yMin, 0f));
+            hintPosition.y = gridRoot.InverseTransformPoint(bottom).y - gap - iconHeight * 0.5f;
+        }
+        // An open chest can occupy the area directly below the player panel.
+        // Do not draw a partial icon across its title or action buttons.
+        if (gui != null && gui.m_container != null && gui.m_container.gameObject.activeInHierarchy)
+        {
+            gui.m_container.GetWorldCorners(InventoryWheelHintWorldCorners);
+            Vector2 min = gridRoot.InverseTransformPoint(InventoryWheelHintWorldCorners[0]), max = min;
+            for (int i = 1; i < InventoryWheelHintWorldCorners.Length; i++)
             {
-                hintPosition.x = hintLocalPosition.x + InventoryWheelHintOffset.x;
+                Vector2 corner = gridRoot.InverseTransformPoint(InventoryWheelHintWorldCorners[i]);
+                min = Vector2.Min(min, corner);
+                max = Vector2.Max(max, corner);
+            }
+            Rect hintBounds = new(hintPosition.x - iconWidth * 0.5f, hintPosition.y - iconHeight * 0.5f, iconWidth, iconHeight);
+            if (hintBounds.Overlaps(Rect.MinMaxRect(min.x, min.y, max.x, max.y)))
+            {
+                SetHintActive(TooltipUi.InventoryWheelHint, false);
+                return;
             }
         }
-
         TooltipUi.InventoryWheelHint.localPosition = hintPosition;
         TooltipUi.InventoryWheelHint.sizeDelta = new Vector2(iconWidth, iconHeight);
         TooltipUi.InventoryWheelHintText.text = "";

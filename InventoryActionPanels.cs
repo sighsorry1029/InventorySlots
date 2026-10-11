@@ -19,7 +19,7 @@ public sealed partial class InventorySlotsPlugin
     private static void UpdateInventoryActionPanels(InventoryGrid playerGrid, Player player, Vector3 gridOrigin, int viewportRows)
     {
         InventoryGui gui = InventoryGui.instance;
-        if (gui == null || !InventoryGui.IsVisible())
+        if (gui == null || !InventoryGui.IsVisible() || IsInventoryPanelClosing(gui))
         {
             HideInventoryActionPanels(preservePlayerButtons: IsInventoryPanelClosing(gui));
             return;
@@ -30,7 +30,6 @@ public sealed partial class InventorySlotsPlugin
         UpdateInventoryTrashPanel(gui, playerGrid, player, gridOrigin, viewportRows);
         UpdateItemRuleUi(gui, gridOrigin, viewportRows);
         UpdateCurrencyPocketPanel(gui, playerGrid, gridOrigin);
-        RaiseInventorySortPanel();
     }
 
     private static void UpdateContainerActionPanel(InventoryGui gui)
@@ -118,7 +117,8 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        InventoryPanels.InventorySortPanel = EnsureActionPanel(playerGrid.m_gridRoot, InventorySortPanelName, InventoryPanels.InventorySortPanel);
+        RectTransform host = EnsureSortButtonHost(gui, InventoryPanels.PlayerSortHost, playerGrid.m_gridRoot, "PlayerSortHost");
+        InventoryPanels.InventorySortPanel = EnsureActionPanel(host, InventorySortPanelName, InventoryPanels.InventorySortPanel);
         if (InventoryPanels.InventorySortPanel == null)
         {
             return;
@@ -137,8 +137,11 @@ public sealed partial class InventorySlotsPlugin
             InventoryPanels.InventorySortPanel.localRotation = Quaternion.identity;
         }
 
-        Vector3 sortPanelPosition =
-            gridOrigin + new Vector3(InventoryWidth * playerGrid.m_elementSpace + SortButtonOutsideGap, -Mathf.Max(1, viewportRows) * playerGrid.m_elementSpace + buttonHeight, 0f) + (Vector3)InventorySortButtonFixedOffset;
+        float outsideOffset = SortButtonOutsideGap + InventorySortButtonFixedOffset.x;
+        float sortX = SortButtonsOnLeft ? -buttonWidth - outsideOffset : InventoryWidth * playerGrid.m_elementSpace + outsideOffset;
+        Vector3 sortPanelPosition = gridOrigin + new Vector3(sortX,
+            -Mathf.Max(1, viewportRows) * playerGrid.m_elementSpace + buttonHeight + InventorySortButtonFixedOffset.y, 0f);
+        sortPanelPosition.x = GetInventorySortPanelX(gui, playerGrid.m_gridRoot, buttonWidth, sortPanelPosition.x);
         if ((InventoryPanels.InventorySortPanel.localPosition - sortPanelPosition).sqrMagnitude > 0.0001f)
         {
             InventoryPanels.InventorySortPanel.localPosition = sortPanelPosition;
@@ -153,17 +156,29 @@ public sealed partial class InventorySlotsPlugin
         SetActionPanelActive(InventoryPanels.InventorySortPanel, true);
     }
 
-    private static void RaiseInventorySortPanel()
+    private static float GetInventorySortPanelX(InventoryGui gui, RectTransform gridRoot, float buttonWidth, float fallback)
     {
-        if (InventoryPanels.InventorySortPanel == null || IsUnityNull(InventoryPanels.InventorySortPanel) || !InventoryPanels.InventorySortPanel.gameObject.activeInHierarchy)
-        {
-            return;
-        }
+        Button anchorButton = SortButtonsOnLeft ? gui.m_takeAllButton : gui.m_stackAllButton;
+        if (gui.m_player == null || gui.m_container == null || anchorButton == null) return fallback;
+        RectTransform anchor = (RectTransform)anchorButton.transform;
+        if (anchor.parent == null) return fallback;
 
-        if (InventoryPanels.InventorySortPanel.GetSiblingIndex() != InventoryPanels.InventorySortPanel.parent.childCount - 1)
-        {
-            InventoryPanels.InventorySortPanel.SetAsLastSibling();
-        }
+        // Match the container's edge inset, not its animated world position. The
+        // native anchors exist while the chest is closed, and splitting its action
+        // buttons preserves the outer edges, so opening a chest does not move S.
+        Vector3 containerCenter = GetContainerSortButtonPosition(anchor, buttonWidth, (Vector3)ContainerSortButtonFixedOffset);
+        float containerX = gui.m_container.InverseTransformPoint(anchor.parent.TransformPoint(containerCenter)).x;
+        float containerEdge = SortButtonsOnLeft ? gui.m_container.rect.xMin : gui.m_container.rect.xMax;
+        float playerEdge = SortButtonsOnLeft ? gui.m_player.rect.xMin : gui.m_player.rect.xMax;
+        Vector3 playerCenter = gui.m_player.TransformPoint(new Vector3(playerEdge + containerX - containerEdge, 0f, 0f));
+        float x = gridRoot.InverseTransformPoint(playerCenter).x - buttonWidth * 0.5f;
+        return float.IsNaN(x) || float.IsInfinity(x) ? fallback : x;
+    }
+
+    private static void OnSortButtonSideChanged(object sender, EventArgs args)
+    {
+        ResetInventoryButtonNavigation();
+        // Normal visible-grid layout applies the new side on the next frame.
     }
 
     private static void UpdateCurrencyPocketPanel(InventoryGui gui, InventoryGrid playerGrid, Vector3 gridOrigin)
@@ -272,13 +287,15 @@ public sealed partial class InventorySlotsPlugin
 
     private static Button? EnsureContainerSortButton(RectTransform stackButton, Button template, float buttonHeight, Vector3 offset)
     {
-        RectTransform? parent = stackButton?.parent as RectTransform ?? template.transform.parent as RectTransform;
+        RectTransform anchor = SortButtonsOnLeft ? (RectTransform)template.transform : stackButton;
+        RectTransform? parent = anchor.parent as RectTransform;
         if (parent == null)
         {
             return null;
         }
 
-        Button? sortButton = EnsureActionButton(parent, template, "InventorySlots_SortButton", "S", () => SortCurrentContainer(Player.m_localPlayer));
+        RectTransform host = EnsureSortButtonHost(InventoryGui.instance, InventoryPanels.ContainerSortHost, parent, "ContainerSortHost");
+        Button? sortButton = EnsureActionButton(host, template, "InventorySlots_SortButton", "S", () => SortCurrentContainer(Player.m_localPlayer));
         if (sortButton == null)
         {
             return null;
@@ -286,10 +303,105 @@ public sealed partial class InventorySlotsPlugin
 
         RectTransform sortRect = (RectTransform)sortButton.transform;
         float sortWidth = buttonHeight;
-        RectTransform anchor = stackButton ?? (RectTransform)template.transform;
         CopyRectTransformFrame(anchor, sortRect);
-        LayoutButtonRect(sortRect, sortWidth, buttonHeight, anchor.localPosition + new Vector3(GetRectWidth(anchor) * 0.5f + SortButtonOutsideGap + sortWidth * 0.5f, 0f, 0f) + offset);
+        LayoutButtonRect(sortRect, sortWidth, buttonHeight, GetContainerSortButtonPosition(anchor, sortWidth, offset));
         return sortButton;
+    }
+
+    private static Vector3 GetContainerSortButtonPosition(RectTransform anchor, float width, Vector3 offset)
+    {
+        float direction = SortButtonsOnLeft ? -1f : 1f;
+        return anchor.localPosition + new Vector3(direction * (GetRectWidth(anchor) * 0.5f + SortButtonOutsideGap + width * 0.5f), 0f, 0f) + offset;
+    }
+
+    // Only the sort controls leave their original hierarchy. These two hosts
+    // preserve its coordinate system, animation, visibility and CanvasGroup input
+    // gates while allowing sibling ordering above the separate quick-slot panel.
+    private sealed class SortButtonHost
+    {
+        internal RectTransform? Rect;
+        internal RectTransform? Source;
+        internal Transform? SourceParent;
+        internal CanvasGroup? Group;
+        internal CanvasGroup[] SourceGroups = Array.Empty<CanvasGroup>();
+
+        internal void Follow()
+        {
+            if (Rect == null) return;
+            bool active = Source != null && Source.gameObject.activeInHierarchy;
+            SetActionPanelActive(Rect, active);
+            if (!active) return;
+            if (Rect.pivot != Source!.pivot) Rect.pivot = Source.pivot;
+            if (Rect.sizeDelta != Source.rect.size) Rect.sizeDelta = Source.rect.size;
+            if (Rect.position != Source.position) Rect.position = Source.position;
+            if (Rect.rotation != Source.rotation) Rect.rotation = Source.rotation;
+            Vector3 sourceScale = Source.lossyScale, parentScale = Rect.parent.lossyScale;
+            Vector3 scale = new(
+                Mathf.Abs(parentScale.x) > 0.0001f ? sourceScale.x / parentScale.x : 1f,
+                Mathf.Abs(parentScale.y) > 0.0001f ? sourceScale.y / parentScale.y : 1f,
+                Mathf.Abs(parentScale.z) > 0.0001f ? sourceScale.z / parentScale.z : 1f);
+            if (Rect.localScale != scale) Rect.localScale = scale;
+            float alpha = 1f;
+            bool interactable = true, raycasts = true, ignoreParents = false;
+            foreach (CanvasGroup sourceGroup in SourceGroups)
+            {
+                if (sourceGroup == null || !sourceGroup.isActiveAndEnabled) continue;
+                alpha *= sourceGroup.alpha;
+                interactable &= sourceGroup.interactable;
+                raycasts &= sourceGroup.blocksRaycasts;
+                if (sourceGroup.ignoreParentGroups) { ignoreParents = true; break; }
+            }
+            if (Group!.alpha != alpha) Group.alpha = alpha;
+            if (Group.interactable != interactable) Group.interactable = interactable;
+            if (Group.blocksRaycasts != raycasts) Group.blocksRaycasts = raycasts;
+            if (Group.ignoreParentGroups != ignoreParents) Group.ignoreParentGroups = ignoreParents;
+        }
+
+        internal void Clear()
+        {
+            Rect = Source = null;
+            SourceParent = null;
+            Group = null;
+            SourceGroups = Array.Empty<CanvasGroup>();
+        }
+    }
+
+    private static RectTransform EnsureSortButtonHost(InventoryGui gui, SortButtonHost host, RectTransform source, string name)
+    {
+        if (InventoryPanels.SortButtonLayer == null || InventoryPanels.SortButtonLayer.parent != gui.m_inventoryRoot)
+        {
+            ClearSortButtonLayer();
+            InventoryPanels.SortButtonLayer = EnsureActionPanel((RectTransform)gui.m_inventoryRoot, "InventorySlots_SortButtons", null);
+        }
+        if (host.Rect == null)
+        {
+            host.Rect = EnsureActionPanel(InventoryPanels.SortButtonLayer!, name, null);
+            host.Group = host.Rect!.gameObject.AddComponent<CanvasGroup>();
+        }
+        if (host.Source != source || host.SourceParent != source.parent)
+        {
+            host.Source = source;
+            host.SourceParent = source.parent;
+            var groups = new List<CanvasGroup>();
+            // The common inventory root is still inherited; do not multiply its
+            // opacity twice. Rebind only when the source hierarchy is replaced.
+            for (Transform node = source; node != null && node != gui.m_inventoryRoot; node = node.parent)
+                groups.AddRange(node.GetComponents<CanvasGroup>());
+            host.SourceGroups = groups.ToArray();
+        }
+        // Synchronize dimensions before assigning child local positions. LateUpdate
+        // follows any subsequent native animation; unchanged values cause no writes.
+        host.Follow();
+        return host.Rect!;
+    }
+
+    private static void ClearSortButtonLayer()
+    {
+        if (InventoryPanels.SortButtonLayer != null) UnityEngine.Object.Destroy(InventoryPanels.SortButtonLayer.gameObject);
+        InventoryPanels.SortButtonLayer = InventoryPanels.InventorySortPanel = null;
+        InventoryPanels.ContainerSortButton = null;
+        InventoryPanels.PlayerSortHost.Clear();
+        InventoryPanels.ContainerSortHost.Clear();
     }
 
     private static float GetContainerSortButtonSize(InventoryGui gui)

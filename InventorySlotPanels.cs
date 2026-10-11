@@ -484,9 +484,10 @@ public sealed partial class InventorySlotsPlugin
         EnsureClientStateLoaded();
         InventoryPanels.EquipmentSlotsPanelRuntimeOffset = GetClientPanelPosition(InventoryClient.ClientState.Inventory.EquipmentSlotsPanelPosition, EquipmentSlotsPanelFixedOffset);
         InventoryPanels.QuickSlotsPanelRuntimeOffset = GetClientPanelPosition(InventoryClient.ClientState.Inventory.QuickSlotsPanelPosition, QuickSlotsPanelFixedOffset);
-        InventoryPanels.QuickSlotHudAnchoredPosition = GetClientPanelPosition(InventoryClient.ClientState.Inventory.QuickSlotsHudPosition, QuickSlotsHudFallbackPosition);
+        InventorySlotsClientPanelPosition? hudPosition = InventoryClient.ClientState.Inventory.QuickSlotsHudPosition;
+        InventoryPanels.QuickSlotHudAnchoredPosition = GetClientPanelPosition(hudPosition, Vector2.zero);
         InventoryPanels.QuickSlotHudElementSpace = Mathf.Max(1f, InventoryClient.ClientState.Inventory.QuickSlotsHudElementSpace);
-        InventoryPanels.QuickSlotHudAnchorValid = true;
+        InventoryPanels.QuickSlotHudAnchorValid = hudPosition != null;
     }
 
     private static Vector2 GetClientPanelPosition(InventorySlotsClientPanelPosition? position, Vector2 fallback) =>
@@ -532,16 +533,17 @@ public sealed partial class InventorySlotsPlugin
         }
 
         EnsureClientStateLoaded();
-        InventorySlotsClientPanelPosition target = InventoryClient.ClientState.Inventory.QuickSlotsHudPosition;
+        InventorySlotsClientPanelPosition? target = InventoryClient.ClientState.Inventory.QuickSlotsHudPosition;
         Vector3 value = InventoryPanels.QuickSlotHudAnchoredPosition;
         float elementSpace = Mathf.Max(1f, InventoryPanels.QuickSlotHudElementSpace);
-        if (Mathf.Abs(target.X - value.x) <= 0.01f &&
+        if (target != null && Mathf.Abs(target.X - value.x) <= 0.01f &&
             Mathf.Abs(target.Y - value.y) <= 0.01f &&
             Mathf.Abs(InventoryClient.ClientState.Inventory.QuickSlotsHudElementSpace - elementSpace) <= 0.01f)
         {
             return;
         }
 
+        target ??= InventoryClient.ClientState.Inventory.QuickSlotsHudPosition = new InventorySlotsClientPanelPosition();
         target.X = value.x;
         target.Y = value.y;
         InventoryClient.ClientState.Inventory.QuickSlotsHudElementSpace = elementSpace;

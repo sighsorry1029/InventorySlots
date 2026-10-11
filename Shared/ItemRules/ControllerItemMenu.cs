@@ -147,9 +147,11 @@ public sealed partial class InventoryActionsPlugin
             (IsControllerInventoryButtonVisible(InventorySlideButton.Restock) ||
              IsControllerInventoryButtonVisible(InventorySlideButton.Exclude) || IsControllerInventoryButtonVisible(InventorySlideButton.Trash)))
             text += (text.Length > 0 ? "  ·  " : "") + LocalizeUi(prefix + "tools_hint", "↓: buttons");
-        if (!holdingItem && cell.x == grid.GetInventory().GetWidth() - 1 &&
+        if (!holdingItem && cell.x == (SortButtonsOnLeft ? 0 : grid.GetInventory().GetWidth() - 1) &&
             cell.y == (player ? GetControllerInventoryButtonRows(gui) - 1 : 0) && IsControllerSortButtonVisible(!player))
-            text += "  ·  " + LocalizeUi(prefix + "sort_hint", "→: Sort");
+            text += "  ·  " + (SortButtonsOnLeft
+                ? LocalizeUi(prefix + "sort_left_hint", "←: Sort")
+                : LocalizeUi(prefix + "sort_hint", "→: Sort"));
         SetControllerGridHelp(gui, text);
     }
 

@@ -9,5 +9,7 @@
   <ItemGroup>
     <Compile Include="../../Shared/ItemRules/FeatureGuidePlacement.cs" Link="FeatureGuidePlacement.cs" />
     <Compile Include="../../InventoryQuickSlotHudLayout.cs" Link="InventoryQuickSlotHudLayout.cs" Condition="'$(GuideTarget)' == 'InventorySlots'" />
+    <Compile Include="../../ClientStateCore.cs" Link="ClientStateCore.cs" Condition="'$(GuideTarget)' == 'InventorySlots'" />
+    <Compile Include="../../ClientStateModels.cs" Link="ClientStateModels.cs" Condition="'$(GuideTarget)' == 'InventorySlots'" />
   </ItemGroup>
 </Project>

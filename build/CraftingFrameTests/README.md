@@ -15,5 +15,18 @@ owned-animator/loading fallbacks. Before the guard, its first post-Hide case
 reproduces the unwanted entry into UI work. It does not execute the rest of the
 redesign renderer or the native Hide animation.
 
+The closing-layout regression compiles the production Hide handler, pending
+layout lifecycle, Show/Destroy and final native-tick gates, plus the stat-layout
+entry. It checks immediate queue/pin/focus cleanup, pointer gating without
+visual restoration, retaining the layout after logical visibility expires,
+one-time restoration when the native root becomes inactive, rapid reopening,
+repeated Hide, GUI replacement/destruction and an existing blocked CanvasGroup.
+The native InventoryGui 1.0.17 source was inspected: Update caches visibility
+before Hide and can still call UpdateInventory/UpdateRecipe in that frame.
+These native methods' existing Harmony patches skip that final update while
+the layout is pending. Other mods' postfixes still run.
+
 Unity and crafting operations are doubles. These checks are not a frame-time
 benchmark or a replacement for in-game crafting/refinement/controller testing.
+Also verify rapid Tab, death/logout while an input is focused, chest preview,
+and VNEI/Jewelcrafting/Reclaim tabs during closing in the game.

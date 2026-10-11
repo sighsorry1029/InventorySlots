@@ -25,9 +25,7 @@ internal sealed class InventorySlotsClientInventoryState
     public InventorySlotsClientPanelPosition QuickSlotsPanelPosition { get; set; } = new(
         ClientStateCore.DefaultQuickSlotsPanelX,
         ClientStateCore.DefaultQuickSlotsPanelY);
-    public InventorySlotsClientPanelPosition QuickSlotsHudPosition { get; set; } = new(
-        ClientStateCore.DefaultQuickSlotsHudX,
-        ClientStateCore.DefaultQuickSlotsHudY);
+    public InventorySlotsClientPanelPosition? QuickSlotsHudPosition { get; set; }
     public float QuickSlotsHudElementSpace { get; set; } = ClientStateCore.DefaultQuickSlotsHudElementSpace;
 }
 
