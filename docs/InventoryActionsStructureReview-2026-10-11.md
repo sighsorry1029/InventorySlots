@@ -108,6 +108,8 @@ CompatibilitySmoke.exe <final InventoryActions.dll> <original Managed> <BepInEx 
 
 이번에는 Unity Editor 6000.0.61f1의 Mono를 사용했다. Desktop .NET Framework 실행은 원본 Player 인터페이스의 기본 구현을 로드하지 못했고, .NET 9 우회 실행은 기존 Harmony 초기화 단계에서 실패했다. Mono에서는 10개 assertion 완료 후에도 기존 문서와 같은 exit 1이 남았다. 이 런타임 한계를 이번 구조 개선에서 수정하지 않았다.
 
+**같은 날 후속 수정:** 위 내용은 구조 개선 당시의 기록이다. 별도 조사에서 기존 Editor 실행기가 x86이고 Harmony 초기화만으로 종료 접근 위반이 재현됨을 확인했다. [새 검사 실행기](../InventoryActions/build/CompatibilitySmoke/README.md)는 원본 Valheim x64 Mono에서 정리까지 수행하며, `muc-session` 10개와 `muc-restock` 22개 검사 모두 종료 코드 0을 확인했다. 의도적인 managed 실패도 종료 코드 1로 전달된다. 생산 모드 코드와 게임/라이브러리 DLL은 수정하지 않았으며, 실제 게임 실행의 미검증 범위는 그대로다.
+
 원본 `ZNet.StopAll`을 실제 실행하거나 Harmony로 패치해 종료시킨 테스트가 아니다. postfix의 managed 상태 정리와 gate 동작을 독립 호출한 검사다. OnDestroy 전체는 UI/게임 의존성이 있으므로 코드 검토만 했다. 또한 심볼릭 링크 검사는 오류 분류만 검사했으며 실제 링크 fallback 쓰기 실행 검증은 아니다.
 
 기존 수동 계약 검토 항목은 동적 controller Harmony 대상과 ServerSync.VersionCheck다. 원본 메타데이터 검사·빌드 성공은 기존 publicizer 접근 전략이나 전체 선택적 reflection 계약의 런타임 보장이 아니다.

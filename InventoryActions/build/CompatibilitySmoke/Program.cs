@@ -16,6 +16,19 @@ internal static class Program
 
     private static int Main(string[] args)
     {
+        // Reject the unsupported host before JIT-loading any game or Harmony code.
+        // Unity Editor's bin/mono.exe can be x86 even on a 64-bit installation.
+        if (Type.GetType("Mono.Runtime") != null && IntPtr.Size != 8)
+        {
+            System.Console.Error.WriteLine("This harness requires x64 Mono. Use Run-MonoSmoke.ps1 with the original Valheim runtime.");
+            return 2;
+        }
+        return RunChecks(args);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static int RunChecks(string[] args)
+    {
         bool mucRestock = args.Length == 5 && args[3] == "--muc-restock";
         bool mucApi = args.Length == 5 && args[3] == "--muc-api";
         bool mucSession = args.Length == 4 && args[3] == "--muc-session";

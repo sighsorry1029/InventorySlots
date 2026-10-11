@@ -136,6 +136,13 @@ Atomicity, crash recovery and elimination of duplication/loss are not guaranteed
   harness pass. A further full-response identity probe encountered missing Unity
   native internal calls; those checks require the game and are not claimed here.
 
+  Follow-up on 2026-10-11: the old Editor executable was x86. The
+  [original-game x64 Mono runner](../InventoryActions/build/CompatibilitySmoke/README.md)
+  now completes these 22 checks and Mono cleanup with exit 0 against the current
+  Debug DLL. The separate session-teardown mode also passes 10 checks and exits
+  0. This resolves the isolated runner's shutdown failure; the Unity-native and
+  multiplayer scenarios above still require in-game validation.
+
 Not executed: actual Unity gameplay, local/remote-owner transfer and refund,
 two-player contention, host/dedicated/crossplay, disconnect/reconnect, or combined
 EpicLoot/slot-mod/MUC runtime tests. Test all three actions while inspecting both
