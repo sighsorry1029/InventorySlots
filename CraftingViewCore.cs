@@ -21,6 +21,22 @@ internal static class CraftingViewCore
     internal static int PageCount(bool list, int count, int capacity) =>
         list ? Math.Max(1, count - capacity + 1) : Math.Max(1, (count + capacity - 1) / capacity);
 
+    // Navigate displayed positions, never native recipe indices. Grid rows do
+    // not wrap horizontally; a short final row uses its nearest existing cell.
+    internal static int MoveSelection(bool list, int selected, int count, int columns, int horizontal, int vertical)
+    {
+        if (count <= 0) return -1;
+        if (selected < 0 || selected >= count) return 0;
+        if (list) return Math.Max(0, Math.Min(count - 1, selected + Math.Sign(vertical)));
+
+        columns = Math.Max(1, columns);
+        int rowStart = selected / columns * columns;
+        if (vertical < 0) return rowStart == 0 ? selected : selected - columns;
+        if (vertical > 0)
+            return rowStart + columns >= count ? selected : Math.Min(count - 1, selected + columns);
+        return Math.Max(rowStart, Math.Min(Math.Min(count - 1, rowStart + columns - 1), selected + Math.Sign(horizontal)));
+    }
+
     // A list scroll does not change selection. Reveal it only after a selection,
     // filter or view-mode change, retaining the current window when possible.
     internal static int RevealSelection(bool list, int page, int selected, int count, int capacity)

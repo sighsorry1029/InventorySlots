@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.2
+
+- Fixed controller crafting selection jumping through the original recipe order instead of the displayed, sorted and filtered order. D-pad and left-stick navigation now follow the visible recipes, including search results and favorites.
+- List navigation moves one recipe up or down. Grid navigation moves one column left or right and one row up or down, respects row edges and partial final rows, and reveals the selected recipe across page boundaries. Existing recipe/item identity and saved crafting styles are preserved.
+- Prevented D-pad recipe selection from also triggering configured UI scrolling while the crafting panel is focused; right-stick scrolling remains available. Search fields, dialogs and closing animations block recipe navigation, and foreign crafting tabs retain their existing controls.
+
 ## 1.6.1
 
 - Quick Stack now moves non-stackable materials, including mead bases, into free cells in chests that already contain the same item. Non-stackable equipment remains excluded; favorite, protected-slot, access, and metadata checks still apply. Restock behavior is unchanged.

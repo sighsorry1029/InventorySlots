@@ -186,6 +186,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static float GetGamepadDPadVertical()
     {
+        if (IsCraftingRecipeGamepadFocused(InventoryGui.instance)) return 0f;
         try
         {
             if (ZInput.GetButton("JoyDPadUp"))

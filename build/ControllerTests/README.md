@@ -94,3 +94,12 @@ button arrangement and a fake modal. The real
 Unity focus/highlight rendering, button geometry, game group activation,
 container coordinate mapping, hidden-cell recovery or real item protections.
 Those remain separate original-DLL and in-game checks.
+
+The InventorySlots target also source-links `CraftingControllerNavigation.cs`
+and `CraftingViewCore.cs`. Its fake recipe adapter supplies sorted/filtered native
+indices and records selection callbacks. Checks cover List/Grid directions,
+row/page boundaries, partial rows, view changes, duplicate frame calls, native
+input timing before the ZInput update marker, modal/closing/reserved input,
+foreign tabs and D-pad ownership. Native selection/variant application, actual
+input repeat timing, Harmony execution and rendered focus still require the
+original-DLL checks and an in-game controller session.

@@ -261,6 +261,8 @@ if (Types(mod.MainModule.Types).Any(t => t.FullName == "InventorySlots.Inventory
 
     if (runtimeFields.Contains("CraftingSelectedRecipeIndex"))
         CheckReflectedMethod("InventoryGui", "GetSelectedRecipeIndex", "System.Int32", false, "System.Boolean");
+    if (runtimeFields.Contains("CraftingSetRecipe"))
+        CheckReflectedMethod("InventoryGui", "SetRecipe", "System.Void", false, "System.Int32", "System.Boolean");
     if (runtimeFields.Contains("ItemLinkChatHideTimer"))
         CheckReflectedField("Chat", "m_hideTimer", "System.Single", false);
 

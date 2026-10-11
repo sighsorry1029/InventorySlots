@@ -255,6 +255,7 @@ internal static partial class Program
         CheckFeatureGuideHotkey();
 #if INVENTORY_SLOTS
         CheckInventoryDialogLayering();
+        CheckCraftingNavigation();
 #else
         CheckActionsClientState();
 #endif

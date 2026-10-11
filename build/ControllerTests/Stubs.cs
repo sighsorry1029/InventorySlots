@@ -175,6 +175,8 @@ public sealed class InventoryGrid : UnityEngine.Component
 }
 public sealed class InventoryGui : UnityEngine.Component
 {
+    public UIGroupHandler m_inventoryGroup = new() { IsActive = true };
+    public int ActiveGroup;
     public static InventoryGui instance = null!;
     public static bool Visible;
     public InventoryGrid m_playerGrid = new();
@@ -191,6 +193,7 @@ public sealed class InventoryGui : UnityEngine.Component
     public static bool IsVisible() => Visible;
     private void Update() { }
     private void UpdateGamepad() { }
+    private void UpdateRecipeGamepadInput() { }
 }
 public sealed class UIGamePad : UnityEngine.Component
 {
@@ -206,6 +209,7 @@ public sealed class ZInput
     public static readonly List<string> ResetCalls = new();
     public static void Update(float dt) { }
     public static bool IsExclusiveGamepadActive() => Exclusive;
+    public static bool IsTouchActive() => false;
     public string GetBoundKeyString(string action, bool gamepad) => action;
     public static bool GetButton(string action) => Held.Contains(action);
     public static bool GetButtonDown(string action) => Down.Contains(action);

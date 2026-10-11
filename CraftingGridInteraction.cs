@@ -1,4 +1,5 @@
 using System;
+using HarmonyLib;
 using ItemData = ItemDrop.ItemData;
 using TMPro;
 using UnityEngine;
@@ -8,6 +9,11 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
+    // SetRecipe is private in the original game DLL, including the controller path.
+    private static readonly Action<InventoryGui, int, bool> CraftingSetRecipe =
+        AccessTools.MethodDelegate<Action<InventoryGui, int, bool>>(
+            AccessTools.Method(typeof(InventoryGui), "SetRecipe", new[] { typeof(int), typeof(bool) }));
+
     private static readonly Color CraftingRecipeUnavailableBackgroundColor = new(0.055f, 0.035f, 0.025f, 0.42f);
     private static readonly Color CraftingRecipeDefaultCraftableBackgroundColor = new(1f, 0.58f, 0.16f, 0.44f);
     private static readonly Color CraftingRecipeSelectedBackgroundColor = new(0.42f, 0.68f, 0.92f, 0.62f);
@@ -914,7 +920,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void SetCraftingRecipeWithStoredVariant(InventoryGui gui, int index, bool center)
     {
-        gui.SetRecipe(index, center);
+        CraftingSetRecipe(gui, index, center);
         ApplyCraftingRecipeVariantToGui(gui, index);
     }
 
