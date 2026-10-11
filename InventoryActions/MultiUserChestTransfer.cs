@@ -119,7 +119,6 @@ public sealed partial class InventoryActionsPlugin
     {
         internal readonly MultiUserChestRequestGate Gate = new();
         internal MucTransferSession Session = null!;
-        internal Container Container = null!;
         internal Inventory SourceInventory = null!, DestinationInventory = null!;
         internal ItemData Source = null!, OriginalSource = null!;
         internal ItemData? Target;
@@ -204,6 +203,16 @@ public sealed partial class InventoryActionsPlugin
         // repeated hotkeys cannot overlap it, and leave MUC cleanup to MUC.
     }
 
+    private static void ClearMucTransferSession()
+    {
+        // Only network/plugin teardown may discard an unresolved request and
+        // its favorite-memory protection. Ordinary cancellation must retain them.
+        CancelMucTransfer();
+        _mucTransferPending = null;
+        _mucUnconfirmedSeeds.Clear();
+        _mucSeedInventory = null;
+    }
+
     [HarmonyPatch(typeof(ZNet), "StopAll", typeof(bool))]
     private static class MucTransferNetworkStoppedPatch
     {
@@ -211,10 +220,7 @@ public sealed partial class InventoryActionsPlugin
         {
             // Peers/RPCs have been shut down. A new network session must not
             // inherit an unresolved request from the disconnected world.
-            CancelMucTransfer();
-            _mucTransferPending = null;
-            _mucUnconfirmedSeeds.Clear();
-            _mucSeedInventory = null;
+            ClearMucTransferSession();
         }
     }
 
@@ -341,7 +347,7 @@ public sealed partial class InventoryActionsPlugin
         bool deposit = session.Action == AreaContainerActionKind.QuickStack;
         var pending = new MucTransferPending
         {
-            Session = session, Container = container,
+            Session = session,
             SourceInventory = deposit ? session.Inventory : container.m_inventory,
             DestinationInventory = deposit ? container.m_inventory : session.Inventory,
             Source = source.Clone(), OriginalSource = source, Target = target, From = source.m_gridPos,

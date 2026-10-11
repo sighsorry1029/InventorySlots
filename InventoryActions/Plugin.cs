@@ -173,11 +173,8 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
         _showRuleTooltips.SettingChanged -= RefreshRuleTooltipVisibility;
         _autoPickupExcludedItems.Clear();
         CancelAreaContainerTransfer();
-        CancelMucTransfer();
+        ClearMucTransferSession();
         _mucTransferApi = null;
-        _mucTransferPending = null;
-        _mucUnconfirmedSeeds.Clear();
-        _mucSeedInventory = null;
         CloseInventoryTrashConfirmDialog();
         // Keep inventory action patches installed during runtime teardown to avoid item-move logic changing mid-session.
         Config.Save();

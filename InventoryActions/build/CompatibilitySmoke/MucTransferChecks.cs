@@ -2,10 +2,87 @@ using System;
 using System.Collections;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Serialization;
 using HarmonyLib;
 
 internal static class MucTransferChecks
 {
+    // Execute the compiled lifecycle entry points without MUC, Unity objects or RPCs.
+    // The API object is only an identity sentinel: no uninitialized member is read.
+    internal static int RunSession(Type plugin)
+    {
+        const BindingFlags members = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
+        const BindingFlags statics = BindingFlags.Static | BindingFlags.NonPublic;
+        FieldInfo Field(string name) => plugin.GetField(name, statics)!;
+        object? Read(string name) => Field(name).GetValue(null);
+        void Write(string name, object? value) => Field(name).SetValue(null, value);
+        object Create(string name) => Activator.CreateInstance(plugin.GetNestedType(name, BindingFlags.NonPublic)!, true)!;
+        object api = FormatterServices.GetUninitializedObject(plugin.GetNestedType("MultiUserChestTransferApi", BindingFlags.NonPublic)!);
+        object session = Create("MucTransferSession");
+        object pending = Create("MucTransferPending");
+        object gate = pending.GetType().GetField("Gate", members)!.GetValue(pending)!;
+        object? Gate(string method, params object[] args) => gate.GetType().GetMethod(method, members)!.Invoke(gate, args);
+        bool GateState(string name) => (bool)gate.GetType().GetProperty(name, members)!.GetValue(gate)!;
+        MethodInfo cancel = plugin.GetMethod("CancelMucTransfer", statics)!;
+        MethodInfo stopped = plugin.GetNestedType("MucTransferNetworkStoppedPatch", BindingFlags.NonPublic)!.GetMethod("Postfix", statics)!;
+        var seeds = (IDictionary)Read("_mucUnconfirmedSeeds")!;
+        Inventory inventory = new Inventory("session", null, 4, 4);
+        var item = new ItemDrop.ItemData();
+        int checks = 0;
+        void Check(bool value, string label)
+        {
+            if (!value) throw new Exception(label);
+            ++checks;
+            System.Console.WriteLine("PASS " + label);
+        }
+        void SeedSession()
+        {
+            Write("_mucTransfer", session);
+            Write("_mucTransferPending", pending);
+            Write("_mucSeedInventory", inventory);
+            seeds[new Vector2i(1, 1)] = item;
+        }
+        try
+        {
+            Write("_mucTransferApi", api);
+            SeedSession();
+            Gate("Begin", 0f);
+            Gate("Register", -17);
+            cancel.Invoke(null, null);
+            Check(Read("_mucTransfer") == null && !GateState("ContinueBatch"), "cancel stops only the local batch");
+            Check(ReferenceEquals(Read("_mucTransferPending"), pending) && GateState("Busy") && GateState("Registered"),
+                "cancel retains the in-flight request and its signed ID");
+            Check(ReferenceEquals(Read("_mucSeedInventory"), inventory) && ReferenceEquals(seeds[new Vector2i(1, 1)], item),
+                "cancel retains unconfirmed favorite-memory protection");
+            Check(ReferenceEquals(Read("_mucTransferApi"), api), "cancel keeps the optional API binding");
+            Check((bool)Gate("BeginResponse", -17)!, "late matching response can still apply after cancel");
+            Gate("FinishResponse", true);
+            Check(GateState("Completed") && !GateState("ContinueBatch"), "late success cannot restart a cancelled batch");
+
+            // A new outstanding batch must also be stopped by the network hook itself.
+            pending = Create("MucTransferPending");
+            gate = pending.GetType().GetField("Gate", members)!.GetValue(pending)!;
+            Gate("Begin", 1f);
+            SeedSession();
+            stopped.Invoke(null, null);
+            Check(Read("_mucTransfer") == null && !GateState("ContinueBatch"), "network stop cancels the current batch");
+            Check(Read("_mucTransferPending") == null && seeds.Count == 0 && Read("_mucSeedInventory") == null,
+                "network stop clears request and seed references from the old world");
+            Check(ReferenceEquals(Read("_mucTransferApi"), api), "network stop keeps the API for the next world");
+            stopped.Invoke(null, null);
+            Check(Read("_mucTransferPending") == null && seeds.Count == 0, "repeated network stop with no pending request is safe");
+        }
+        finally
+        {
+            Write("_mucTransfer", null);
+            Write("_mucTransferPending", null);
+            Write("_mucSeedInventory", null);
+            Write("_mucTransferApi", null);
+            seeds.Clear();
+        }
+        return checks;
+    }
+
     // API-only probe avoids Harmony/Unity scene execution and can also check
     // isolated external-DLL fixtures with changed versions or member contracts.
     internal static int RunApi(Type plugin, string mucDll)
