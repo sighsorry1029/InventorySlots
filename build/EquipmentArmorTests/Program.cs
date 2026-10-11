@@ -248,4 +248,52 @@ Equal(2, Plugin.EquippedCount(player), "missing shared data does not truncate re
 Equal(10, Plugin.GetProjectedEquipmentArmor(player), "missing shared data is excluded from armor");
 Equal(0, normalB.ArmorCalls, "invalid shared data does not reach armor providers");
 
-Console.WriteLine($"PASS: {checks} equipment armor assertions using linked production projection code and a fake game host.");
+// Compatibility and public API lookups share the non-armor projection. Test the
+// contract with real item identities and observable callbacks, not list contents alone.
+void Check(bool condition, string message)
+{
+    checks++;
+    if (!condition) throw new InvalidOperationException(message);
+}
+
+player = Fresh();
+ItemData first = Custom(player, "first", true);
+ItemData second = Custom(player, "second", true);
+ItemData excluded = Custom(player, "foreign", true);
+excluded.m_customData["owner"] = "another-player";
+first.ArmorError = second.ArmorError = unavailable;
+ItemData? found = second;
+int predicates = 0;
+bool Match(ItemData? item) { predicates++; return true; }
+Check(!Plugin.TryGetCustomEquippedItemForApi(null!, Match, out found) && found == null,
+    "null player clears API output without invoking predicate");
+Check(!Plugin.TryGetCustomEquippedItemForApi(player, null!, out found) && found == null,
+    "null predicate clears API output");
+Equal(0, predicates, "invalid API arguments do not invoke predicate");
+Check(Plugin.FindEquipped(null!, Match) == null, "compatibility lookup accepts absent player");
+Check(Plugin.TryGetCustomEquippedItemForApi(player, Match, out found) && ReferenceEquals(first, found),
+    "API returns the first matching equipped item instance");
+Equal(1, predicates, "lookup stops after its first match");
+Check(ReferenceEquals(first, Plugin.FindEquipped(player, _ => true)),
+    "compatibility lookup has the same first-match order");
+Check(!Plugin.TryGetCustomEquippedItemForApi(player, item => ReferenceEquals(item, excluded), out found)
+    && found == null, "foreign equipment is not visible through the API");
+Equal(0, first.ArmorCalls + second.ArmorCalls, "lookups never request unavailable armor providers");
+found = first;
+ThrowsSame(unavailable, () => Plugin.TryGetCustomEquippedItemForApi(player, _ => throw unavailable, out found),
+    "API preserves the predicate exception instance");
+Check(found == null, "failed predicate leaves API output null");
+ThrowsSame(unavailable, () => Plugin.FindEquipped(player, _ => throw unavailable),
+    "compatibility lookup preserves predicate exceptions");
+first.m_equipped = false;
+Plugin.Invalidate();
+Check(Plugin.TryGetCustomEquippedItemForApi(player, _ => true, out found) && ReferenceEquals(second, found),
+    "live invalidation removes unequipped items from API lookup");
+Check(ReferenceEquals(second, Plugin.FindEquipped(player, _ => true)),
+    "compatibility lookup sees the same refreshed projection");
+second.m_equipped = false;
+Plugin.Invalidate();
+Check(!Plugin.TryGetCustomEquippedItemForApi(player, _ => true, out found) && found == null,
+    "no matching equipment returns false and null");
+
+Console.WriteLine($"PASS: {checks} equipment projection assertions using linked production code and a fake game host.");

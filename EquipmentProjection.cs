@@ -205,26 +205,6 @@ public sealed partial class InventorySlotsPlugin
         return changed;
     }
 
-    internal static bool TryGetCustomEquippedItemForApi(Player player, System.Func<ItemData?, bool> predicate, out ItemData? item)
-    {
-        item = null;
-        if (player == null || predicate == null)
-        {
-            return false;
-        }
-
-        foreach (ItemData candidate in GetCustomEquippedItems(player))
-        {
-            if (predicate(candidate))
-            {
-                item = candidate;
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     internal static bool IsLocalPlayerHumanoid(Humanoid humanoid, out Player? player)
     {
         player = Player.m_localPlayer;

@@ -91,6 +91,8 @@ namespace InventorySlots
         internal static float Modifier(Player player) => GetCachedCustomEquipmentModifierValues(player)?[0] ?? 0f;
         internal static int EquippedCount(Player player) => GetCustomEquippedItems(player).Count;
         internal static IReadOnlyList<ItemDrop.ItemData> EquippedItems(Player player) => GetCustomEquippedItems(player);
+        internal static ItemDrop.ItemData? FindEquipped(Player player, Func<ItemDrop.ItemData?, bool> predicate) =>
+            FindCustomEquippedItem(player, predicate);
 
         internal static void MarkCustom(Player player, ItemDrop.ItemData item, string slotId)
         {

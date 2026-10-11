@@ -15,6 +15,10 @@ callback may rebuild equipment, change player or replace inventory without
 invalidating iteration or publishing an old total into the new context. Failed
 general projections clear partial state, and in-flight invalidation is retained.
 
+Compatibility and public API lookup checks cover item identity and first-match
+order, null arguments, ownership, short circuiting, live invalidation and
+predicate exception propagation without invoking armor providers.
+
 The game objects and existing slot-lookup helpers are test doubles. This does not
 run Unity, Harmony patches, server sync, or third-party equipment mods and is not
 an in-game compatibility result. YAML parsing/default checks run separately in

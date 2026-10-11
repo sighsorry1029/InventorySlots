@@ -265,16 +265,6 @@ public sealed partial class InventorySlotsPlugin
         _lastRustyQuiverCompatItem = currentQuiver;
     }
 
-    private static ItemData? FindCustomEquippedItem(Player player, Func<ItemData?, bool> predicate)
-    {
-        if (player == null)
-        {
-            return null;
-        }
-
-        return GetCustomEquippedItems(player).FirstOrDefault(item => item != null && predicate(item));
-    }
-
     private static bool TryGetAdventureBackpacksApi(out AdventureBackpacksApi? api)
     {
         const string capability = "AdventureBackpacks";

@@ -33,6 +33,36 @@ public sealed partial class InventorySlotsPlugin
         return CustomEquippedItemsCache;
     }
 
+    private static ItemData? FindCustomEquippedItem(Player player, Func<ItemData?, bool> predicate)
+    {
+        if (player == null)
+        {
+            return null;
+        }
+
+        foreach (ItemData item in GetCustomEquippedItems(player))
+        {
+            if (item != null && predicate(item))
+            {
+                return item;
+            }
+        }
+
+        return null;
+    }
+
+    internal static bool TryGetCustomEquippedItemForApi(Player player, Func<ItemData?, bool> predicate, out ItemData? item)
+    {
+        item = null;
+        if (player == null || predicate == null)
+        {
+            return false;
+        }
+
+        item = FindCustomEquippedItem(player, predicate);
+        return item != null;
+    }
+
     private static float GetCachedCustomEquipmentWeight(Player player)
     {
         EnsureCustomEquipmentProjectionCache(player);
