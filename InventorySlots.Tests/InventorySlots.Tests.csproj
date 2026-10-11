@@ -10,7 +10,6 @@
     <Compile Include="..\ClientStateCore.cs" Link="ClientStateCore.cs" />
     <Compile Include="..\ClientStateModels.cs" Link="ClientStateModels.cs" />
     <Compile Include="..\ContainerActionCore.cs" Link="ContainerActionCore.cs" />
-    <Compile Include="..\ContainerTransferCore.cs" Link="ContainerTransferCore.cs" />
     <Compile Include="..\ContainerAreaHandoffCore.cs" Link="ContainerAreaHandoffCore.cs" />
     <Compile Include="..\StuWardCompat.cs" Link="StuWardCompat.cs" />
     <Compile Include="..\CraftingRecipeViewCore.cs" Link="CraftingRecipeViewCore.cs" />
@@ -50,5 +49,7 @@
 
   <ItemGroup>
     <PackageReference Include="YamlDotNet" Version="16.3.0" />
+    <Reference Include="Microsoft.CodeAnalysis"><HintPath>$(MSBuildToolsPath)/Roslyn/bincore/Microsoft.CodeAnalysis.dll</HintPath></Reference>
+    <Reference Include="Microsoft.CodeAnalysis.CSharp"><HintPath>$(MSBuildToolsPath)/Roslyn/bincore/Microsoft.CodeAnalysis.CSharp.dll</HintPath></Reference>
   </ItemGroup>
 </Project>

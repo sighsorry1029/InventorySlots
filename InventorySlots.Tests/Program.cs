@@ -140,8 +140,7 @@ TestRunner.Run(
     ("Tooltip source cache prunes matching entries", Tests.TooltipSourceCachePrunesMatchingEntries),
     ("Tooltip source cache trims oldest entries", Tests.TooltipSourceCacheTrimsOldestEntries),
     ("Dynamic tooltip refresh stays bounded and change-driven", Tests.DynamicTooltipRefreshStaysBoundedAndChangeDriven),
-    ("Container transfer sums moved amounts and callbacks", Tests.ContainerTransferSumsMovedAmountsAndCallbacks),
-    ("Container transfer stays quiet when nothing moves", Tests.ContainerTransferStaysQuietWhenNothingMoves),
+    ("Single-container callbacks preserve movement and failure ordering", SingleContainerTransferTests.Run),
     ("Direct container actions use positional ownership-safe moves", Tests.DirectContainerActionsUsePositionalOwnershipSafeMoves),
     ("Container action success FX stays bounded and once per action", Tests.ContainerActionSuccessFxStaysBoundedAndOncePerAction),
     ("Container action success FX uses transient Everybody RPC", Tests.ContainerActionSuccessFxUsesTransientEverybodyRpc),
@@ -3482,50 +3481,6 @@ internal static class Tests
             "Quick HUD must refresh external tooltip state on the same bounded cadence");
     }
 
-    public static void ContainerTransferSumsMovedAmountsAndCallbacks()
-    {
-        FakeTransferContainer anchor = new("anchor", valid: true, moved: 2);
-        FakeTransferContainer invalid = new("invalid", valid: false, moved: 7);
-        FakeTransferContainer empty = new("empty", valid: true, moved: 0);
-        FakeTransferContainer nearby = new("nearby", valid: true, moved: 3);
-        List<string> visited = new();
-        List<string> changed = new();
-        int anyMovedCount = 0;
-
-        int moved = ContainerTransferCore.Run(
-            new FakeTransferContainer?[] { anchor, null, invalid, empty, nearby },
-            container => container.Valid,
-            container =>
-            {
-                visited.Add(container.Name);
-                return container.Moved;
-            },
-            (container, amount) => changed.Add($"{container.Name}:{amount}"),
-            () => anyMovedCount++);
-
-        Assert.Equal(5, moved);
-        Assert.Equal("anchor,empty,nearby", string.Join(",", visited));
-        Assert.Equal("anchor:2,nearby:3", string.Join(",", changed));
-        Assert.Equal(1, anyMovedCount);
-    }
-
-    public static void ContainerTransferStaysQuietWhenNothingMoves()
-    {
-        int changedCount = 0;
-        int anyMovedCount = 0;
-
-        int moved = ContainerTransferCore.Run(
-            new[] { new FakeTransferContainer("empty", valid: true, moved: 0) },
-            container => container.Valid,
-            container => container.Moved,
-            (_, _) => changedCount++,
-            () => anyMovedCount++);
-
-        Assert.Equal(0, moved);
-        Assert.Equal(0, changedCount);
-        Assert.Equal(0, anyMovedCount);
-    }
-
     public static void DirectContainerActionsUsePositionalOwnershipSafeMoves()
     {
         string repositoryRoot = FindRepositoryRoot();
@@ -3597,14 +3552,14 @@ internal static class Tests
             actionSource.Contains("private const int ContainerActionSuccessVfxLimit = 10;", StringComparison.Ordinal),
             "area success VFX must stay bounded to ten changed containers");
 
-        string directRun = ReadSourceSection(
-            actionSource,
-            "private static int RunContainerTransferAcrossContainers",
-            "private static void ShowContainerActionResult");
-        Assert.True(
-            directRun.Contains("TryBroadcastChangedContainerActionSuccessVfx", StringComparison.Ordinal),
-            "each directly changed container must use the bounded VFX broadcaster");
-        Assert.Equal(1, CountSourceOccurrences(directRun, "ContainerActionSuccessSfxKind"));
+        string ownershipSource = File.ReadAllText(Path.Combine(repositoryRoot, "ContainerAreaOwnership.cs"));
+        string record = ReadSourceSection(ownershipSource,
+            "private static void RecordContainerAreaTarget", "private static void FlushContainerAreaTransfer");
+        Assert.True(record.Contains("TryBroadcastChangedContainerActionSuccessVfx", StringComparison.Ordinal),
+            "the approved area path must use the bounded VFX broadcaster");
+        string complete = ReadSourceSection(actionSource,
+            "private static void CompleteContainerAreaTransfer", "private static List<Vector2i> GetPlayerActionSlots");
+        Assert.Equal(1, CountSourceOccurrences(complete, "ContainerActionSuccessSfxKind"));
 
         string limiter = ReadSourceSection(
             actionSource,
@@ -5333,20 +5288,6 @@ internal static class Tests
             hoveredRecipeIndex: 2,
             screenWidth: 1920,
             screenHeight: 1080);
-
-    private sealed class FakeTransferContainer
-    {
-        public FakeTransferContainer(string name, bool valid, int moved)
-        {
-            Name = name;
-            Valid = valid;
-            Moved = moved;
-        }
-
-        public string Name { get; }
-        public bool Valid { get; }
-        public int Moved { get; }
-    }
 
     private static SortKey Key(
         int resourceTier = 0,

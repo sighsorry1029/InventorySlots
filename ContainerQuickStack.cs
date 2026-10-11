@@ -92,7 +92,7 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        QuickStackIntoContainers(player, playerInventory, container, includeArea: false);
+        QuickStackIntoContainer(player, playerInventory, container);
         _containerQuickStackHoldConsumed = IsContainerQuickStackShortcutHeld();
         return true;
     }
@@ -184,10 +184,10 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        QuickStackIntoContainers(localPlayer, playerInventory, container, includeArea: false);
+        QuickStackIntoContainer(localPlayer, playerInventory, container);
     }
 
-    private static void QuickStackIntoContainers(Player localPlayer, Inventory playerInventory, Container container, bool includeArea)
+    private static void QuickStackIntoContainer(Player localPlayer, Inventory playerInventory, Container container)
     {
         List<ItemData> candidates = playerInventory.m_inventory
             .Where(item => ShouldQuickStackItem(localPlayer, playerInventory, item))
@@ -195,17 +195,15 @@ public sealed partial class InventorySlotsPlugin
         candidates.Sort((a, b) => -CompareGridOrder(a.m_gridPos, b.m_gridPos));
 
         InventoryGui.instance?.SetupDragItem(null, null, 0);
-        int moved = RunContainerTransferAcrossContainers(
-            localPlayer,
-            container,
-            includeArea,
-            areaForQuickStack: true,
-            targetContainer => QuickStackItemsIntoContainer(localPlayer, playerInventory, targetContainer.m_inventory, candidates),
-            () =>
-            {
-                playerInventory.Changed();
-                ClearCraftingRequirementAvailabilityCache();
-            });
+        // Drag cleanup can invoke callbacks; recheck before entering the move.
+        int moved = localPlayer != null && container != null && !IsUnityNull(container) && container.m_inventory != null
+            ? QuickStackItemsIntoContainer(localPlayer, playerInventory, container.m_inventory, candidates)
+            : 0;
+        if (moved > 0)
+        {
+            playerInventory.Changed();
+            ClearCraftingRequirementAvailabilityCache();
+        }
 
         ShowContainerActionResult(localPlayer, "$inventoryslots_action_stack", "Stack", moved);
     }

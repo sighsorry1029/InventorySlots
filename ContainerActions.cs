@@ -103,43 +103,7 @@ public sealed partial class InventorySlotsPlugin
         return containers;
     }
 
-    private static int RunContainerTransferAcrossContainers(
-        Player localPlayer,
-        Container anchorContainer,
-        bool includeArea,
-        bool areaForQuickStack,
-        Func<Container, int> transfer,
-        Action onMoved)
-    {
-        if (localPlayer == null || anchorContainer == null || transfer == null)
-        {
-            return 0;
-        }
-
-        int vfxLimit = includeArea && IsContainerActionSuccessFxEnabled() ? ContainerActionSuccessVfxLimit : 0;
-        int changedContainerVfxCount = 0;
-        List<Container> containers = includeArea
-            ? GetActionContainers(localPlayer, anchorContainer, areaForQuickStack)
-            : new List<Container> { anchorContainer };
-
-        return ContainerTransferCore.Run(
-            containers,
-            container => !IsUnityNull(container) && container.m_inventory != null,
-            transfer,
-            (container, _) => changedContainerVfxCount = TryBroadcastChangedContainerActionSuccessVfx(container, vfxLimit, changedContainerVfxCount),
-            () =>
-            {
-                onMoved?.Invoke();
-                if (vfxLimit > 0)
-                {
-                    BroadcastContainerActionSuccessFx(
-                        anchorContainer,
-                        ContainerActionSuccessSfxKind);
-                }
-            });
-    }
-
-    private static void ShowContainerActionResult(Player player, string actionToken, string actionFallback, int moved)
+    private static void ShowContainerActionResult(Player? player, string actionToken, string actionFallback, int moved)
     {
         if (player == null)
         {

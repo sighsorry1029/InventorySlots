@@ -29,7 +29,7 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        RestockFromContainer(localPlayer, playerInventory, container, ContainerTakeStacksMode.CurrentContainerMatchingStacks);
+        RestockFromContainer(localPlayer, playerInventory, container);
     }
 
     private static void HandleContainerRestockHotkey(Player player)
@@ -128,31 +128,29 @@ public sealed partial class InventorySlotsPlugin
         return TryStartContainerAreaTransfer(player, playerInventory, container, quickStack: false);
     }
 
-    private static void RestockFromContainer(Player localPlayer, Inventory playerInventory, Container container, ContainerTakeStacksMode mode)
+    private static void RestockFromContainer(Player localPlayer, Inventory playerInventory, Container container)
     {
         if (localPlayer == null || playerInventory == null || container == null || container.m_inventory == null)
         {
             return;
         }
 
-        bool includeArea = mode == ContainerTakeStacksMode.AreaFavoriteRestock;
+        const ContainerTakeStacksMode mode = ContainerTakeStacksMode.CurrentContainerMatchingStacks;
         List<ItemData> targets = playerInventory.m_inventory
             .Where(item => ShouldTakeStacksTarget(localPlayer, playerInventory, item, mode))
             .ToList();
         targets.Sort((a, b) => -CompareGridOrder(a.m_gridPos, b.m_gridPos));
 
         InventoryGui.instance?.SetupDragItem(null, null, 0);
-        int movedAmount = RunContainerTransferAcrossContainers(
-            localPlayer,
-            container,
-            includeArea,
-            areaForQuickStack: false,
-            sourceContainer => RestockTargetsFromContainer(playerInventory, sourceContainer.m_inventory, targets, mode),
-            () =>
-            {
-                playerInventory.Changed();
-                ClearCraftingRequirementAvailabilityCache();
-            });
+        // Drag cleanup can invoke callbacks; recheck before entering the move.
+        int movedAmount = localPlayer != null && container != null && !IsUnityNull(container) && container.m_inventory != null
+            ? RestockTargetsFromContainer(playerInventory, container.m_inventory, targets, mode)
+            : 0;
+        if (movedAmount > 0)
+        {
+            playerInventory.Changed();
+            ClearCraftingRequirementAvailabilityCache();
+        }
 
         ShowContainerActionResult(localPlayer, "$inventoryslots_action_take_stacks", "Take stacks", movedAmount);
     }
