@@ -140,4 +140,3 @@ CompatibilitySmoke.exe <final InventoryActions.dll> <original Managed> <BepInEx 
 - 이 문서는 별도 문서 커밋으로 남긴다.
 
 코드 커밋 후 기존 dirty 파일 80개가 그대로 남았다. 79개는 바이트 단위로 동일하며, `InventoryActions/Plugin.cs`는 이번 커밋의 종료 정리만 반영됐다. 그 파일에 이미 있던 sort 이벤트 해제 변경은 staging에서 제외했다. 남은 전체 tracked diff의 추가/삭제 줄이 작업 전 기록과 정확히 일치함을 확인했다. 인덱스는 비어 있다. 기존 변경을 일괄 커밋하거나 이동·폐기하지 않았다.
-
