@@ -20,6 +20,7 @@ internal sealed class QuickHudSlotMarker : MonoBehaviour
     public Image? DurabilityFill { get; set; }
     public GameObject? DurabilityObject { get; set; }
     public TMP_Text? BindingText { get; set; }
+    public CanvasGroup? VisibilityGroup { get; set; }
     public string TooltipSignature { get; set; } = "";
     public string TooltipTopic { get; set; } = "";
     public string TooltipText { get; set; } = "";
@@ -32,6 +33,21 @@ internal sealed class QuickHudSlotMarker : MonoBehaviour
 
 public sealed partial class InventorySlotsPlugin
 {
+    private static readonly QuickSlotHudVisibility QuickHudVisibility = new();
+
+    private static void SyncQuickSlotHudVisibility(Player player)
+    {
+        QuickHudVisibility.SyncContext(_quickSlotHudMode?.Value ?? QuickSlotHudMode.AllOnUse,
+            player.GetInstanceID(), InventoryDefinitions.SlotDefinitionVersion, GetUnlockedQuickSlotCount(player));
+    }
+
+    private static void NotifyQuickSlotHudUse(Player player, SlotDefinition slot)
+    {
+        // Input runs before the HUD update; initialize here so that first use is not lost.
+        SyncQuickSlotHudVisibility(player);
+        QuickHudVisibility.NotifyUse(slot.QuickSlotIndex, Time.unscaledTime);
+    }
+
     private static void UpdateQuickSlotsHud(Player player)
     {
         if (GetQuickSlotCount() <= 0 || Hud.instance == null || Hud.instance.m_rootObject == null)
@@ -40,8 +56,10 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
+        SyncQuickSlotHudVisibility(player);
+        float now = Time.unscaledTime;
         bool hudFollowsPanel = _quickSlotHudFollowsPanel?.Value == Toggle.On;
-        if (Hud.IsUserHidden() || !Hud.instance.IsVisible() || (hudFollowsPanel && (InventoryGui.IsVisible() || InventoryPanels.QuickSlotPanelIntroActive || InventoryPanels.QuickSlotPanelOutroActive)))
+        if (!QuickHudVisibility.IsVisible(now) || Hud.IsUserHidden() || !Hud.instance.IsVisible() || (hudFollowsPanel && (InventoryGui.IsVisible() || InventoryPanels.QuickSlotPanelIntroActive || InventoryPanels.QuickSlotPanelOutroActive)))
         {
             if (!IsUnityNull(InventoryPanels.QuickSlotsHotkeyBarRect) &&
                 InventoryPanels.QuickSlotsHotkeyBarRect!.gameObject.activeSelf)
@@ -80,11 +98,38 @@ public sealed partial class InventorySlotsPlugin
         for (int i = 0; i < quickSlots.Count; i++)
         {
             SlotDefinition slot = quickSlots[i];
+            if (!SetQuickHudElementVisibility(hotkeyBar.m_elements[i], QuickHudVisibility.GetSlotAlpha(slot.QuickSlotIndex, now)))
+            {
+                continue;
+            }
+
             ItemData? item = TryGetSlotGridPos(inventory, slot, out Vector2i gridPos)
                 ? inventory.GetItemAt(gridPos.x, gridPos.y)
                 : null;
             UpdateQuickSlotsHotkeyBarElement(player, hotkeyBar.m_elements[i], i, slot, item, elementSpace);
         }
+    }
+
+    private static bool SetQuickHudElementVisibility(HotkeyBar.ElementData element, float alpha)
+    {
+        if (IsUnityNull(element.m_go))
+        {
+            return false;
+        }
+
+        QuickHudSlotMarker marker = element.m_go.GetComponent<QuickHudSlotMarker>();
+        CanvasGroup group = marker.VisibilityGroup!;
+        group.alpha = alpha;
+        bool visible = alpha > 0f;
+        group.interactable = visible;
+        group.blocksRaycasts = visible;
+        // OnDisable also dismisses this cell's active UITooltip. Alpha alone does not.
+        if (element.m_go.activeSelf != visible)
+        {
+            element.m_go.SetActive(visible);
+        }
+
+        return visible;
     }
 
     private static HotkeyBar? EnsureQuickSlotsHotkeyBar()
@@ -208,7 +253,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static GameObject CreateCleanQuickHudElement(Transform parent, int index)
     {
-        GameObject go = new($"InventorySlots_QuickHotkeySlot{index + 1}", typeof(RectTransform), typeof(Image), typeof(UIInputHandler), typeof(UITooltip), typeof(QuickHudSlotMarker));
+        GameObject go = new($"InventorySlots_QuickHotkeySlot{index + 1}", typeof(RectTransform), typeof(Image), typeof(UIInputHandler), typeof(UITooltip), typeof(QuickHudSlotMarker), typeof(CanvasGroup));
         go.transform.SetParent(parent, false);
 
         Image background = go.GetComponent<Image>();
@@ -231,6 +276,7 @@ public sealed partial class InventorySlotsPlugin
         fill.offsetMin = Vector2.zero;
         fill.offsetMax = Vector2.zero;
         QuickHudSlotMarker marker = go.GetComponent<QuickHudSlotMarker>();
+        marker.VisibilityGroup = go.GetComponent<CanvasGroup>();
         marker.DurabilityObject = durability.gameObject;
         marker.DurabilityFill = fill.GetComponent<Image>();
 
@@ -257,11 +303,10 @@ public sealed partial class InventorySlotsPlugin
 
         element.m_go.transform.localPosition = GetQuickSlotPanelElementPosition(index, elementSpace);
         element.m_go.transform.localScale = Vector3.one;
-        element.m_go.SetActive(true);
         element.m_used = item != null;
 
         QuickHudSlotMarker marker = element.m_go.GetComponent<QuickHudSlotMarker>() ?? element.m_go.AddComponent<QuickHudSlotMarker>();
-        marker.Index = index;
+        marker.Index = slot.QuickSlotIndex;
         ConfigureQuickHudElementLayout(element, marker, elementSpace);
 
         ConfigureQuickSlotsHotkeyBarElementBackground(element);
@@ -701,6 +746,7 @@ public sealed partial class InventorySlotsPlugin
         ItemData? item = inventory.GetItemAt(pos.x, pos.y);
         if (item != null && slot.Accepts(item))
         {
+            NotifyQuickSlotHudUse(Player.m_localPlayer, slot);
             Player.m_localPlayer.UseItem(inventory, item, fromInventoryGui: InventoryGui.IsVisible());
             inventory.Changed();
         }
@@ -708,8 +754,10 @@ public sealed partial class InventorySlotsPlugin
 
     private static void ClearQuickSlotsHud()
     {
+        QuickHudVisibility.Clear();
         if (!IsUnityNull(InventoryPanels.QuickSlotsHotkeyBarRect))
         {
+            InventoryPanels.QuickSlotsHotkeyBarRect!.gameObject.SetActive(false);
             UnityEngine.Object.Destroy(InventoryPanels.QuickSlotsHotkeyBarRect!.gameObject);
         }
 

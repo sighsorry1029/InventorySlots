@@ -34,6 +34,7 @@ public sealed partial class InventorySlotsPlugin
     private static ConfigEntry<KeyboardShortcut> _containerRestockKey = null!;
     private static ConfigEntry<Toggle> _showHotbarSwitchHint = null!;
     private static ConfigEntry<Toggle> _quickSlotHudFollowsPanel = null!;
+    private static ConfigEntry<QuickSlotHudMode> _quickSlotHudMode = null!;
     private static ConfigEntry<InventoryRowsDisplayMode> _inventoryRowsDisplayMode = null!;
     private static ConfigEntry<Toggle> _showInventoryWheelButton = null!;
     private enum SortButtonSide { Right, Left }
@@ -113,6 +114,9 @@ public sealed partial class InventorySlotsPlugin
         _containerPreviewCloseDelay = OrderedConfigEntry(ClientConfigSection, "Container Preview Close Delay", 0.3f, new ConfigDescription("Client-only container preview control. 0 disables the preview. Values above 0 enable it and set how many seconds, up to 1 second, the last valid container remains visible after looking away. A zero-sized placeholder inventory is never used.", new AcceptableValueRange<float>(0f, 1f)), order: 860, synchronizedSetting: false);
         _mouseUiScrollMultiplier = OrderedConfigEntry(ClientConfigSection, "Mouse UI Scroll Multiplier", 1f, new ConfigDescription("Global multiplier for InventorySlots mouse-wheel UI scrolling. Applies to recipe pages, recipe zoom, expandable inventory rows, and InventorySlots tooltip scrolling. Not synced with server.", new AcceptableValueRange<float>(0.1f, 5f)), order: 790, synchronizedSetting: false);
 
+        _quickSlotHudMode = OrderedConfigEntry(ClientUiConfigSection, "Quick Slot HUD Mode", QuickSlotHudMode.AllOnUse,
+            "Off hides the HUD. AllOnUse shows all unlocked quick slots when a non-empty quick slot is used. UsedSlotOnUse shows only the used slots, keeping their original positions and separate timers. Both automatic modes show for 3 seconds, then fade out over 0.25 seconds; using a slot again restarts its timer, even if the item cannot currently be used. On keeps the HUD visible. Normal HUD visibility and Quick Slot HUD Follows Panel still apply. Does not affect quick slot inputs or the inventory quick-slot panel. Changes apply live. Not synced with server.",
+            order: 920, synchronizedSetting: false);
         _quickSlotHudFollowsPanel = OrderedConfigEntry(ClientUiConfigSection, "Quick Slot HUD Follows Panel", Toggle.Off, "Off keeps the quick slot HUD at its own saved position while the inventory panel moves independently. Turn this On to make the HUD follow the quick slot inventory panel. Not synced with server.", order: 910, synchronizedSetting: false);
         _sortButtonSide = OrderedConfigEntry(ClientUiConfigSection, "Sort Button Side", SortButtonSide.Left, "Place both inventory and container sort buttons on the Left or Right edge. Controller navigation follows the selected side. Not synced with server.", order: 905, synchronizedSetting: false);
         _sortButtonSide.SettingChanged += OnSortButtonSideChanged;

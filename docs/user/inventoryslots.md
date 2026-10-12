@@ -28,6 +28,17 @@ The six built-in equipment IDs are `helmet`, `chest`, `legs`, `cape`, `utility`,
 
 Quick slots appear in a side panel and on the HUD. **Quick Slot Rows** reserves up to three rows of three slots. With progression enabled, row 1 is available initially, row 2 unlocks with `HardAntler`, and row 3 with `CryptKey`.
 
+In **3 - Client UI**, **Quick Slot HUD Mode** controls the separate HUD:
+
+| Mode | Behavior |
+| --- | --- |
+| `Off` | Hide the HUD. Quick-slot inputs and the inventory quick-slot panel remain available. |
+| `AllOnUse` (default) | Using any non-empty quick slot shows all unlocked slots for 3 seconds, followed by a 0.25-second fade. Another use restarts the whole HUD timer. |
+| `UsedSlotOnUse` | Show only the used slots in their original positions, each with its own 3-second timer and 0.25-second fade. |
+| `On` | Keep the HUD visible. |
+
+Keyboard shortcuts, controller shortcuts, and right-clicking a visible HUD slot trigger the automatic modes. An eligible non-empty slot's use attempt counts even during cooldown; an empty slot does not. Reusing a fading slot immediately restores full opacity. These client-only settings apply live, still respect normal HUD visibility and **Quick Slot HUD Follows Panel**, and do not save transient timers. Timers continue to expire while the HUD is hidden.
+
 The default equipment panel aligns its slot rows and top background edge with the player inventory. The quick-slot panel starts directly below it with matching columns and a narrow gap. These are initial positions; dragging either panel does not move the other.
 
 **Quick Slot HUD Follows Panel** defaults to **Off**. The separate HUD starts below the chest weight display's reference position with all nine player rows visible. These are independent default positions: moving equipment, opening a chest, or expanding rows does not reposition the HUD. Its unset default uses the HUD viewport's top-left corner and game UI scale, so changing aspect ratio keeps the same placement; screen bounds take priority when space is limited. Turn following On to make the HUD follow the inventory quick-slot panel again.

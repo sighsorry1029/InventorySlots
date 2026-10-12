@@ -157,12 +157,14 @@ public sealed partial class InventorySlotsPlugin
 
     private void OnDisable()
     {
+        ClearQuickSlotsHud();
         ClearInventoryClosingLayout();
         ResetItemLinks();
     }
 
     private void OnDestroy()
     {
+        ClearQuickSlotsHud();
         ClearInventoryClosingLayout();
         ResetItemLinks();
         ClearFeatureGuideLayout();

@@ -2,6 +2,11 @@ using InventorySlots;
 using InventoryPersistence;
 
 TestRunner.Run(
+    ("Quick HUD On/Off and empty contexts preserve visibility policy", QuickSlotHudTests.PersistentModes),
+    ("Quick HUD whole-panel use holds then fades and restarts", QuickSlotHudTests.WholePanelTiming),
+    ("Quick HUD per-slot timers remain independent without packing cells", QuickSlotHudTests.IndependentSlots),
+    ("Quick HUD state resets across player, mode, definitions and progression changes", QuickSlotHudTests.ContextChanges),
+    ("Quick HUD timers expire even when rendering is skipped", QuickSlotHudTests.HiddenTimeAndInvalidSlots),
     ("Refinement previews success above the safe cap without ordinary-station downgrades", CraftingViewTests.RefinementPreviewsSuccessfulQuality),
     ("MUC restock waits for the matching response to finish applying", MultiUserChestRestockTests.ResponseCorrelation),
     ("MUC timeout blocks retries and accepts a late original response", MultiUserChestRestockTests.TimeoutAndLateResponse),

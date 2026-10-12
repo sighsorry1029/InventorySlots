@@ -136,6 +136,7 @@ public sealed partial class InventorySlotsPlugin
         ItemData? item = inventory.GetItemAt(pos.x, pos.y);
         if (item != null && slot.Accepts(item))
         {
+            NotifyQuickSlotHudUse(player, slot);
             player.UseItem(inventory, item, fromInventoryGui: false);
             inventory.Changed();
         }

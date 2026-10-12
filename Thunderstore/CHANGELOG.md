@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.3
+
+- Added client-only **Quick Slot HUD Mode** in **3 - Client UI**: `Off`, `AllOnUse` (default), `UsedSlotOnUse`, and `On`. Quick-slot keyboard/controller shortcuts and right-clicking a visible HUD slot trigger the automatic modes when the slot contains an accepted item, including use attempts during cooldown.
+- Automatic modes display the whole HUD or only the used slots for 3 seconds, then fade out over 0.25 seconds. Repeated use refreshes the whole HUD timer in `AllOnUse`, or that slot's independent timer in `UsedSlotOnUse`; slots keep their original positions. Hidden cells stop receiving clicks and showing hover tooltips.
+- Preserved quick-slot inputs, the inventory quick-slot panel, normal HUD visibility, and **Quick Slot HUD Follows Panel** behavior. Mode changes apply live, and transient timers reset when the player or available slot layout changes. Existing saved HUD-mode settings are preserved.
+
 ## 1.6.2
 
 - Fixed controller crafting selection jumping through the original recipe order instead of the displayed, sorted and filtered order. D-pad and left-stick navigation now follow the visible recipes, including search results and favorites.
