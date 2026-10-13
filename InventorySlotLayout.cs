@@ -600,14 +600,22 @@ public sealed partial class InventorySlotsPlugin
             return true;
         }
 
+        RefreshEquipmentSlotUnlockCache(player);
+        bool hasCachedResult = InventoryDefinitions.EquipmentSlotUnlockCache.TryGetValue(slot.Id, out bool cached);
+        // Only knowledge-derived true results may bypass the live carried-item check.
+        // A cached false must still allow an item acquired before discovery updates.
+        if (hasCachedResult && cached)
+        {
+            return true;
+        }
+
         if (InventoryContainsAcceptedSlotItem(inventory, slot) ||
             PlayerHasAcceptedEquippedItem(player, slot))
         {
             return true;
         }
 
-        RefreshEquipmentSlotUnlockCache(player);
-        if (InventoryDefinitions.EquipmentSlotUnlockCache.TryGetValue(slot.Id, out bool cached))
+        if (hasCachedResult)
         {
             return cached;
         }
@@ -735,12 +743,17 @@ public sealed partial class InventorySlotsPlugin
 
             ItemDrop drop = prefab.GetComponent<ItemDrop>();
             ItemData? item = drop?.m_itemData;
-            if (item?.m_shared == null || !slot.Accepts(item))
+            if (item?.m_shared == null)
             {
                 continue;
             }
 
-            if (PlayerKnowsItem(player, prefab, item))
+            // Custom YAML/compat predicates are much more expensive than a knowledge
+            // lookup. Unknown prefabs cannot unlock a slot, regardless of acceptance.
+            bool acceptedAndKnown = slot.Kind == SlotKind.CustomEquipment
+                ? PlayerKnowsItem(player, prefab, item) && slot.Accepts(item)
+                : slot.Accepts(item) && PlayerKnowsItem(player, prefab, item);
+            if (acceptedAndKnown)
             {
                 return true;
             }
@@ -773,6 +786,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void InvalidateSlotDefinitionCaches()
     {
+        InventoryDefinitions.YamlMatchTokens.Clear();
         unchecked
         {
             InventoryDefinitions.SlotDefinitionVersion++;

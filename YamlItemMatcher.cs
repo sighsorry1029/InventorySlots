@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using ItemData = ItemDrop.ItemData;
 
@@ -8,6 +7,85 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
+    // Syntax only: no item, group membership or ObjectDB alias results are cached.
+    // Ordinal keys preserve case-sensitive section names and the literal (Clone) suffix.
+    private sealed class YamlMatchToken
+    {
+        public readonly string Clean;
+        public readonly string Normalized;
+        public readonly string OnceCleaned;
+        public readonly string OnceNormalized;
+        public readonly string GroupId;
+        public readonly string? SectionId;
+
+        public YamlMatchToken(string token)
+        {
+            // Explicit references historically clean twice; alias values once.
+            // Keep both forms because removing a nested (Clone) is not idempotent.
+            OnceCleaned = CleanPrefabName(token);
+            OnceNormalized = NormalizeResourceToken(OnceCleaned);
+            Clean = CleanPrefabName(OnceCleaned);
+            Normalized = NormalizeResourceToken(Clean);
+            GroupId = NormalizeGroupId(token);
+            SectionId = TryNormalizeGroupSectionId(token, out string section) ? section : null;
+        }
+    }
+
+    private static YamlMatchToken GetYamlMatchToken(string token)
+    {
+        if (!InventoryDefinitions.YamlMatchTokens.TryGetValue(token, out YamlMatchToken prepared))
+        {
+            prepared = new YamlMatchToken(token);
+            InventoryDefinitions.YamlMatchTokens[token] = prepared;
+        }
+        return prepared;
+    }
+
+    // Item identities are read afresh for each query, then normalized at most once
+    // while comparing that item with a whole slot/group list.
+    private struct YamlItemIdentity
+    {
+        private readonly string _prefab;
+        private readonly string _shared;
+        private readonly string _stripped;
+        private string? _normalizedPrefab;
+        private string? _normalizedShared;
+        private string? _normalizedStripped;
+
+        public YamlItemIdentity(ItemData item)
+        {
+            _prefab = CleanPrefabName(GetItemPrefabName(item));
+            string shared = GetSharedName(item);
+            _shared = CleanPrefabName(shared);
+            _stripped = CleanPrefabName(StripLocalizationToken(shared));
+            _normalizedPrefab = _normalizedShared = _normalizedStripped = null;
+        }
+
+        public bool Matches(YamlMatchToken token)
+        {
+            if (MatchesIdentity(_prefab, ref _normalizedPrefab, token.Clean, token.Normalized) ||
+                MatchesIdentity(_shared, ref _normalizedShared, token.Clean, token.Normalized) ||
+                MatchesIdentity(_stripped, ref _normalizedStripped, token.Clean, token.Normalized))
+            {
+                return true;
+            }
+
+            // Keep aliases live: mods can register item names after YAML is loaded.
+            if (!TryGetKnownItemSharedName(token, out string sharedName)) return false;
+            YamlMatchToken alias = GetYamlMatchToken(sharedName);
+            return MatchesIdentity(_shared, ref _normalizedShared, alias.OnceCleaned, alias.OnceNormalized);
+        }
+
+        private static bool MatchesIdentity(string clean, ref string? normalized, string tokenClean, string tokenNormalized)
+        {
+            if (string.IsNullOrWhiteSpace(clean) || string.IsNullOrWhiteSpace(tokenClean)) return false;
+            if (string.Equals(clean, tokenClean, StringComparison.OrdinalIgnoreCase)) return true;
+            if (tokenNormalized.Length == 0) return false;
+            normalized ??= NormalizeResourceToken(clean);
+            return normalized.Length > 0 && string.Equals(normalized, tokenNormalized, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
     private static void RefreshItemNameTokens()
     {
         ObjectDB objectDb = ObjectDB.instance;
@@ -22,6 +100,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         ItemNameTokens.Clear();
+        InventoryDefinitions.YamlMatchTokens.Clear();
         InventoryDefinitions.CachedObjectDbItemCount = objectDb.m_items.Count;
 
         foreach (GameObject itemPrefab in objectDb.m_items)
@@ -64,9 +143,10 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
+        YamlItemIdentity identity = new(item);
         foreach (string token in items)
         {
-            if (ItemMatchesYamlReferenceToken(item, token))
+            if (!string.IsNullOrWhiteSpace(token) && ItemMatchesPreparedYamlReference(item, ref identity, GetYamlMatchToken(token)))
             {
                 return true;
             }
@@ -82,18 +162,23 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        if (ItemMatchesExactPrefabOrName(item, token))
+        YamlItemIdentity identity = new(item);
+        return ItemMatchesPreparedYamlReference(item, ref identity, GetYamlMatchToken(token));
+    }
+
+    private static bool ItemMatchesPreparedYamlReference(ItemData item, ref YamlItemIdentity identity, YamlMatchToken token)
+    {
+        if (identity.Matches(token))
         {
             return true;
         }
 
-        if (TryNormalizeGroupSectionId(token, out string sectionGroupId))
+        if (token.SectionId != null)
         {
-            return ItemMatchesTopLevelGroup(item, sectionGroupId);
+            return ItemMatchesBuiltInPredefinedGroup(item, token.SectionId);
         }
 
-        string groupId = NormalizeGroupId(token);
-        return !string.IsNullOrWhiteSpace(groupId) && ItemMatchesPredefinedGroup(item, groupId);
+        return ItemMatchesPreparedGroup(item, ref identity, token.GroupId);
     }
 
     private static bool ItemMatchesTopLevelGroup(ItemData item, string groupId)
@@ -109,7 +194,12 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        string id = NormalizeGroupId(groupId);
+        YamlItemIdentity identity = new(item);
+        return ItemMatchesPreparedGroup(item, ref identity, NormalizeGroupId(groupId));
+    }
+
+    private static bool ItemMatchesPreparedGroup(ItemData item, ref YamlItemIdentity identity, string id)
+    {
         if (string.IsNullOrWhiteSpace(id))
         {
             return false;
@@ -117,10 +207,15 @@ public sealed partial class InventorySlotsPlugin
 
         if (PredefinedGroupDefinitions.TryGetValue(id, out List<string> items))
         {
-            return items.Any(token => ItemMatchesExactPrefabOrName(item, token));
+            // Group members are exact identities, not recursive group references.
+            foreach (string token in items)
+            {
+                if (!string.IsNullOrWhiteSpace(token) && identity.Matches(GetYamlMatchToken(token))) return true;
+            }
+            return false;
         }
 
-        return ItemMatchesBuiltInPredefinedGroup(item, id);
+        return BuiltInGroupMatchers.ContainsKey(id) && ItemMatchesBuiltInPredefinedGroup(item, id);
     }
 
     private static bool ItemMatchesExactPrefabOrName(ItemData item, string token)
@@ -130,27 +225,18 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        string clean = CleanPrefabName(token);
-        return ItemIdentityTokenMatches(GetItemPrefabName(item), clean) ||
-               ItemIdentityTokenMatches(GetSharedName(item), clean) ||
-               ItemIdentityTokenMatches(StripLocalizationToken(GetSharedName(item)), clean) ||
-               ItemMatchesKnownItemNameToken(item, clean);
+        YamlItemIdentity identity = new(item);
+        return identity.Matches(GetYamlMatchToken(token));
     }
 
-    private static bool ItemMatchesKnownItemNameToken(ItemData item, string token)
+    private static bool TryGetKnownItemSharedName(YamlMatchToken token, out string sharedName)
     {
-        return TryGetKnownItemSharedName(token, out string knownSharedName) &&
-               ItemIdentityTokenMatches(GetSharedName(item), knownSharedName);
-    }
-
-    private static bool TryGetKnownItemSharedName(string token, out string sharedName)
-    {
-        if (ItemNameTokens.TryGetValue(CleanPrefabName(token), out sharedName))
+        if (ItemNameTokens.TryGetValue(token.Clean, out sharedName))
         {
             return true;
         }
 
-        string normalized = NormalizeResourceToken(token);
+        string normalized = token.OnceNormalized;
         if (!string.IsNullOrWhiteSpace(normalized) &&
             ItemNameTokens.TryGetValue(normalized, out sharedName))
         {
@@ -159,27 +245,6 @@ public sealed partial class InventorySlotsPlugin
 
         sharedName = "";
         return false;
-    }
-
-    private static bool ItemIdentityTokenMatches(string identity, string token)
-    {
-        string cleanIdentity = CleanPrefabName(identity);
-        string cleanToken = CleanPrefabName(token);
-        if (string.IsNullOrWhiteSpace(cleanIdentity) || string.IsNullOrWhiteSpace(cleanToken))
-        {
-            return false;
-        }
-
-        if (string.Equals(cleanIdentity, cleanToken, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        string normalizedIdentity = NormalizeResourceToken(cleanIdentity);
-        string normalizedToken = NormalizeResourceToken(cleanToken);
-        return !string.IsNullOrWhiteSpace(normalizedIdentity) &&
-               !string.IsNullOrWhiteSpace(normalizedToken) &&
-               string.Equals(normalizedIdentity, normalizedToken, StringComparison.OrdinalIgnoreCase);
     }
 
 }

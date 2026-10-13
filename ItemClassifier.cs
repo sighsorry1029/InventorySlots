@@ -107,7 +107,7 @@ public sealed partial class InventorySlotsPlugin
     private static bool ItemMatchesBuiltInPredefinedGroup(ItemData item, string groupId)
     {
         string id = NormalizeGroupId(groupId);
-        if (item?.m_shared == null || string.IsNullOrWhiteSpace(id))
+        if (item?.m_shared == null || string.IsNullOrWhiteSpace(id) || !BuiltInGroupMatchers.ContainsKey(id))
         {
             return false;
         }

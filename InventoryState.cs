@@ -173,6 +173,7 @@ public sealed partial class InventorySlotsPlugin
         public readonly HashSet<string> FermenterOutputTokens = new(StringComparer.OrdinalIgnoreCase);
         public readonly HashSet<string> FermenterFoodInputTokens = new(StringComparer.OrdinalIgnoreCase);
         public readonly Dictionary<string, string> ItemNameTokens = new(StringComparer.OrdinalIgnoreCase);
+        public readonly Dictionary<string, YamlMatchToken> YamlMatchTokens = new(StringComparer.Ordinal);
         public Dictionary<string, int> RestockTargetStackLimits = new(StringComparer.OrdinalIgnoreCase);
         public int SlotDefinitionVersion;
         public int InventoryLimitVersion;

@@ -2,6 +2,7 @@ using InventorySlots;
 using InventoryPersistence;
 
 TestRunner.Run(
+    ("YAML matching and equipment unlock preserve live rules with bounded repeated work", YamlMatchingTests.Run),
     ("Quick HUD On/Off and empty contexts preserve visibility policy", QuickSlotHudTests.PersistentModes),
     ("Quick HUD whole-panel use holds then fades and restarts", QuickSlotHudTests.WholePanelTiming),
     ("Quick HUD per-slot timers remain independent without packing cells", QuickSlotHudTests.IndependentSlots),

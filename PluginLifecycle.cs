@@ -190,6 +190,7 @@ public sealed partial class InventorySlotsPlugin
         ShutdownContainerPreview();
         LocalizationManager.Localizer.OnLocalizationComplete -= HandleLocalizationComplete;
         StopYamlWatcher();
+        InventoryDefinitions.YamlMatchTokens.Clear();
         Config.Save();
     }
 

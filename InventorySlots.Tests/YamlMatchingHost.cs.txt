@@ -1,0 +1,189 @@
+// Real YAML matcher, classifier entry and unlock methods; metadata-only game
+// boundaries. Counters prove avoided work without timing-dependent assertions.
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
+using ItemData = ItemDrop.ItemData;
+
+public sealed class ItemDrop
+{
+    public ItemData m_itemData = null!;
+    public sealed class ItemData
+    {
+        public GameObject? m_dropPrefab;
+        public SharedData m_shared = new();
+        public string Kind = "";
+        public sealed class SharedData { public string m_name = ""; }
+    }
+}
+namespace UnityEngine
+{
+    public sealed class GameObject
+    {
+        public string name = "";
+        public ItemDrop Drop = new();
+        public T GetComponent<T>() where T : class => (Drop as T)!;
+    }
+}
+public sealed class ObjectDB
+{
+    public static ObjectDB instance = new();
+    public List<GameObject> m_items = new();
+}
+public sealed class Inventory { public List<ItemData> m_inventory = new(); }
+public sealed class Player
+{
+    public string Id = "player";
+    public HashSet<string> m_knownMaterial = new();
+    public ItemData? Equipped;
+}
+namespace InventorySlots
+{
+    public sealed partial class InventorySlotsPlugin
+    {
+        private enum SlotKind { BuiltIn, CustomEquipment, Quick }
+        private sealed class SlotDefinition
+        {
+            public string Id = "crown";
+            public SlotKind Kind = SlotKind.CustomEquipment;
+            public Func<ItemData, bool> Predicate = _ => false;
+            public int Calls;
+            public bool Accepts(ItemData item) { Calls++; return Predicate(item); }
+        }
+        private static class InventoryDefinitions
+        {
+            public static readonly Dictionary<string, YamlMatchToken> YamlMatchTokens = new(StringComparer.Ordinal);
+            public static readonly Dictionary<string, bool> EquipmentSlotUnlockCache = new(StringComparer.Ordinal);
+            public static string EquipmentSlotUnlockCacheSignature = "";
+            public static int SlotDefinitionVersion;
+            public static int CachedObjectDbItemCount = -1;
+        }
+        private sealed class ItemClassification { public Dictionary<string, bool> BuiltInGroupMatches = new(); }
+        private static readonly Dictionary<string, Func<ItemData, bool>> BuiltInGroupMatchers = new()
+        {
+            ["armor"] = item => item.Kind == "armor", ["helmet"] = item => item.Kind == "helmet"
+        };
+        private static readonly Dictionary<string, string> ItemNameTokens = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, List<string>> PredefinedGroupDefinitions = new(StringComparer.OrdinalIgnoreCase);
+        private static int Normalizations, Classifications, Checks;
+        private static bool Progression = true;
+        private static ItemClassification GetItemClassification(ItemData item) { Classifications++; return new(); }
+        private static string CleanPrefabName(string s) => InventorySlotsConfigCore.CleanPrefabName(s);
+        private static string StripLocalizationToken(string s) => InventorySlotsConfigCore.StripLocalizationToken(s);
+        private static string NormalizeResourceToken(string? s) { Normalizations++; return InventorySlotsConfigCore.NormalizeResourceToken(s); }
+        private static string NormalizeGroupId(string? s) => InventorySlotsConfigCore.NormalizeGroupId(s);
+        private static bool TryNormalizeGroupSectionId(string? s, out string id) => ItemGroupRegistry.TryNormalizeSectionId(s, out id);
+        private static string GetItemPrefabName(ItemData item) => CleanPrefabName(item.m_dropPrefab?.name ?? "");
+        private static string GetSharedName(ItemData item) => item.m_shared.m_name ?? "";
+        private static bool IsUnityNull(object? value) => value == null;
+        private static bool IsEquipmentSlotProgressionEnabled() => Progression;
+        private static string GetPlayerId(Player player) => player.Id;
+        private static ItemData? GetBuiltInEquipmentSlotItem(Player player, SlotDefinition slot) => slot.Id == "helmet" ? player.Equipped : null;
+        private static void InvalidateVisibleCustomPanelSlots() { }
+        /* METHODS */
+
+        private static ItemData Item(string? prefab, string name, string kind = "")
+        {
+            var item = new ItemData { m_shared = new() { m_name = name }, Kind = kind };
+            if (prefab != null) item.m_dropPrefab = new() { name = prefab, Drop = new() { m_itemData = item } };
+            return item;
+        }
+        private static void Require(bool value, string message)
+        {
+            Checks++;
+            if (!value) throw new Exception(message);
+        }
+        private static bool Match(ItemData? item, params string[] tokens) => ItemMatchesSlotItems(item, tokens);
+        private static void Reset()
+        {
+            ItemNameTokens.Clear(); PredefinedGroupDefinitions.Clear(); InventoryDefinitions.YamlMatchTokens.Clear();
+            InventoryDefinitions.EquipmentSlotUnlockCache.Clear(); InventoryDefinitions.EquipmentSlotUnlockCacheSignature = "";
+            InventoryDefinitions.CachedObjectDbItemCount = -1; ObjectDB.instance = new();
+            Normalizations = Classifications = 0; Progression = true;
+        }
+        public static void Check()
+        {
+            Reset();
+            var crown = Item("HelmetCircletBronze_TW(Clone)", "$item_bronze_circlet", "helmet");
+            Require(Match(crown, "helmetcircletbronze_tw"), "case insensitive prefab");
+            Require(Match(crown, "Helmet Circlet-Bronze.TW"), "normalized punctuation");
+            Require(Match(crown, "$ITEM_bronze_circlet") && Match(crown, "bronze circlet"), "shared/localization identity");
+            Require(Match(Item(null, "$item_circlet"), "circlet"), "prefab absent");
+            Require(!Match(null, "all") && !Match(new ItemData { m_shared = null! }, "all"), "missing item/shared");
+            Require(!Match(crown, "", " ", null!), "empty tokens");
+            Require(Match(Item("!!!", ""), "!!!") && !Match(Item("!!!", ""), "???"), "punctuation only exact identity");
+            Require(Match(Item("Sword(Clone)", ""), "Sword") && !Match(Item("Sword(clone)", ""), "Sword"), "literal Clone casing");
+            Require(Match(Item("Sword", ""), "Sword(Clone)") && !Match(Item("Sword", ""), "Sword(clone)"), "raw token cache casing");
+            Require(Match(Item("Sword(Cl(Clone)one)", ""), "Sword"), "nested prefab Clone cleaning");
+            Require(Match(Item("Sword", ""), "Sword(Cl(Clone)one)"), "nested token Clone cleaning");
+            Require(Match(Item("A", "$unrelated"), "A(Cl(Cl(Clone)one)one)"), "nested token normalization depth");
+            Require(!Match(Item("A(Cl(Cl(Clone)one)one)", "$unrelated"), "Aclone"), "nested prefab normalization depth");
+            Require(!Match(crown, "LateAlias"), "alias initially absent");
+            ItemNameTokens["LateAlias"] = "$item_bronze_circlet";
+            Require(Match(crown, "LateAlias"), "late alias registration");
+            ItemNameTokens["LateAlias"] = "$item_different";
+            Require(!Match(crown, "LateAlias"), "alias replacement remains live");
+            ItemNameTokens["otheralias"] = "$item_bronze_circlet";
+            Require(Match(crown, "Other-Alias"), "normalized alias lookup");
+            crown.m_shared.m_name = "$item_changed";
+            Require(!Match(crown, "bronze_circlet") && Match(crown, "changed"), "mutable shared identity");
+            crown.m_shared.m_name = "$item_bronze_circlet";
+            Require(Match(crown, "helmet") && !Match(crown, "Equipment"), "live built-in categories");
+            crown.Kind = "armor";
+            Require(Match(crown, "Equipment") && !Match(crown, "helmet"), "category change not cached in syntax");
+            Require(Match(Item("helmet", ""), "helmet"), "exact identity takes precedence over group");
+            PredefinedGroupDefinitions["crowns"] = new() { "HelmetCircletBronze_TW" };
+            Require(Match(crown, "Crowns"), "custom group member");
+            PredefinedGroupDefinitions["crowns"] = new() { "Wood" };
+            Require(!Match(crown, "Crowns"), "group reload without stale expansion");
+            PredefinedGroupDefinitions["crowns"] = new() { "HelmetCircletBronze_TW" };
+            InventoryDefinitions.YamlMatchTokens.Clear();
+            Require(Match(crown, "Crowns"), "restored group definitions after cache clear");
+            PredefinedGroupDefinitions["nested"] = new() { "Crowns" };
+            Require(!Match(crown, "nested") && Match(Item("Crowns", ""), "nested"), "group members must remain exact, not recursive");
+            PredefinedGroupDefinitions["equipment"] = new() { "Wood" };
+            Require(Match(crown, "Equipment") && !Match(crown, "equipment"), "section names remain case sensitive");
+            Classifications = 0;
+            Require(!ItemMatchesBuiltInPredefinedGroup(crown, "UnknownPrefab") && Classifications == 0, "unknown group must not build classifier key");
+            var names = Enumerable.Range(0, 30).Select(i => "HelmetCirclet_" + i + "_TW").ToArray();
+            var wood = Item("Wood", "$item_wood");
+            Match(wood, names); Normalizations = Classifications = 0;
+            Require(!Match(wood, names) && Normalizations <= 3 && Classifications == 0, "whole-list normalization/unknown-group work bound");
+
+            Reset();
+            var player = new Player(); var inventory = new Inventory();
+            var accepted = Item("Crown", "$item_crown"); var unrelated = Item("Wood", "$item_wood");
+            ObjectDB.instance.m_items.Add(accepted.m_dropPrefab!); ObjectDB.instance.m_items.Add(unrelated.m_dropPrefab!);
+            var slot = new SlotDefinition { Predicate = item => Match(item, "Crown") };
+            player.m_knownMaterial.Add("$item_wood");
+            Require(!IsEquipmentSlotUnlocked(player, inventory, slot) && slot.Calls == 1, "unknown custom prefab must skip predicate");
+            inventory.m_inventory.Add(accepted);
+            Require(IsEquipmentSlotUnlocked(player, inventory, slot), "cached false must allow carried item");
+            inventory.m_inventory.Clear();
+            Require(!IsEquipmentSlotUnlocked(player, inventory, slot), "carried unlock must not become permanent knowledge");
+            var helmet = new SlotDefinition { Id = "helmet", Kind = SlotKind.BuiltIn, Predicate = slot.Predicate };
+            Require(!IsEquipmentSlotUnlocked(player, inventory, helmet), "unknown unequipped built-in slot");
+            player.Equipped = accepted;
+            Require(IsEquipmentSlotUnlocked(player, inventory, helmet), "cached false must allow built-in equipped item");
+            player.Equipped = null;
+            player.m_knownMaterial.Add("$item_crown");
+            Require(IsEquipmentSlotUnlocked(player, inventory, slot), "new discovery invalidates cached false");
+            slot.Calls = 0; inventory.m_inventory.Add(unrelated);
+            Require(IsEquipmentSlotUnlocked(player, inventory, slot) && slot.Calls == 0, "known cached true skips carried search");
+            player.m_knownMaterial.Remove("$item_crown"); player.m_knownMaterial.Add("$item_other");
+            Require(!IsEquipmentSlotUnlocked(player, inventory, slot), "same-count knowledge reset invalidates true");
+            player.m_knownMaterial.Add("$item_crown");
+            Require(IsEquipmentSlotUnlocked(player, inventory, slot), "knowledge restored");
+            slot.Predicate = _ => false; InventoryDefinitions.SlotDefinitionVersion++;
+            Require(!IsEquipmentSlotUnlocked(player, inventory, slot), "slot definition reload invalidates true");
+            Progression = false; slot.Calls = 0;
+            Require(IsEquipmentSlotUnlocked(player, inventory, slot) && slot.Calls == 0, "progression Off bypasses predicates");
+            Progression = true; slot.Kind = SlotKind.Quick;
+            Require(IsEquipmentSlotUnlocked(player, inventory, slot) && slot.Calls == 0, "quick slot remains outside equipment progression");
+            slot.Kind = SlotKind.CustomEquipment;
+            Require(IsEquipmentSlotUnlocked(null, inventory, slot), "no-player boundary");
+            Console.WriteLine($"  YAML matching/unlock: {Checks} behavioral and work-count checks passed.");
+        }
+    }
+}

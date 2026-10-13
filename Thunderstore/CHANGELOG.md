@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.4
+
+- Reduced repeated matching work and temporary allocations for YAML custom slots, especially those with long allowed-item lists. Matching reuses prepared rule tokens and normalizes each item's identity only as needed within a query; unknown group names no longer trigger unnecessary item classification.
+- Reduced equipment-slot unlock work by reusing valid known-unlocked results before scanning carried equipment, and checking known items before evaluating custom-slot rules.
+- Preserved item aliases, group matching, live YAML updates, carried/equipped-item unlocks, knowledge resets, and optional mod compatibility rules. Prepared tokens are cached in memory and cleared when definitions or item-name mappings are rebuilt.
+
 ## 1.6.3
 
 - Added client-only **Quick Slot HUD Mode** in **3 - Client UI**: `Off`, `AllOnUse` (default), `UsedSlotOnUse`, and `On`. Quick-slot keyboard/controller shortcuts and right-clicking a visible HUD slot trigger the automatic modes when the slot contains an accepted item, including use attempts during cooldown.
