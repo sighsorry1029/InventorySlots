@@ -1,0 +1,1002 @@
+From 18ab553ffa6f3a1c5a2f1ad21305045106838819 Mon Sep 17 00:00:00 2001
+From: blizz <sighsorry1029@gmail.com>
+Date: Sat, 17 Oct 2026 21:48:00 +0900
+Subject: [PATCH 1/2] Release InventorySlots 1.6.5 with Path of Valheiman
+ compatibility
+
+
+diff --git a/ContainerSort.cs b/ContainerSort.cs
+index d28f61866e8c845f674e9dda8a8290ed2dbdb7e8..d5c00f9a9b9d39c12039b9466eb9d57fc0397042 100644
+--- a/ContainerSort.cs
++++ b/ContainerSort.cs
+@@ -210,7 +210,7 @@ public sealed partial class InventorySlotsPlugin
+         _pendingSortStartedAt = -1f;
+     }
+ 
+-    private static void SortPlayerInventory(Player? player)
++    private static void SortPlayerInventory(Player? player, bool preserveEquipped = false)
+     {
+         if (player == null || player.m_isLoading)
+         {
+@@ -224,10 +224,15 @@ public sealed partial class InventorySlotsPlugin
+         }
+ 
+         List<Vector2i> allowedSlots = GetPlayerActionSlots(player, inventory, includeHotbar: false, blockFavorites: true);
++        if (preserveEquipped)
++        {
++            foreach (ItemData item in inventory.m_inventory)
++                if (item.m_equipped) allowedSlots.Remove(item.m_gridPos);
++        }
+         HashSet<Vector2i> allowedSet = new(allowedSlots);
+         InventoryGui.instance.SetupDragItem(null, null, 0);
+         bool ShouldSort(ItemData item) => item?.m_shared != null && allowedSet.Contains(item.m_gridPos) && !IsFavoriteProtected(player, inventory, item);
+-        List<ItemData> targets = inventory.m_inventory.Where(item => item?.m_shared != null &&
++        List<ItemData> targets = inventory.m_inventory.Where(item => item?.m_shared != null && (!preserveEquipped || !item.m_equipped) &&
+             InventoryActionCellPolicyCore.CanFavoriteSlot(GetInventoryCellKind(player, inventory, item.m_gridPos)) &&
+             IsFavoriteProtected(player, inventory, item)).ToList();
+         bool filled = FillFavoriteStacks(inventory, targets, inventory.m_inventory.Where(ShouldSort).ToList());
+diff --git a/InventoryHints.cs b/InventoryHints.cs
+index db6e42f5ac3c9afa0898c8ce4ee2f91de16597a5..fe611210ac11743dbee6d2ad3f9fb45aa95d94c3 100644
+--- a/InventoryHints.cs
++++ b/InventoryHints.cs
+@@ -867,6 +867,7 @@ public sealed partial class InventorySlotsPlugin
+ 
+     private static bool CanInteractWithFeatureGuideToggle()
+     {
++        if (IsPathOfValheimanTreeOpen()) return false;
+         RectTransform? root = TooltipUi.FeatureGuideHudHint;
+         RectTransform? toggle = TooltipUi.FeatureGuideToggle;
+         if (root == null ||
+diff --git a/InventoryHoverTooltipScroll.cs b/InventoryHoverTooltipScroll.cs
+index 010106dc8f6a59623f17234c6865aebac24498bd..bd34261df9fb4f480132371e337100f36b90f3d0 100644
+--- a/InventoryHoverTooltipScroll.cs
++++ b/InventoryHoverTooltipScroll.cs
+@@ -309,6 +309,10 @@ public sealed partial class InventorySlotsPlugin
+ 
+     internal static void OnVanillaTooltipHidden()
+     {
++        // PoV may suppress HideTooltip while Alt-pinned. Preserve its live card/handlers.
++        if (UITooltip.m_current == null || UITooltip.m_tooltip == null ||
++            UITooltip.m_current != _pathOfValheimanTooltipSource)
++            ClearPathOfValheimanTooltipState();
+         _inventoryContainerHoverTooltipSource = null;
+         _inventorySlotsOwnedHoverTooltipSource = null;
+         HideInventoryContainerCustomTooltip();
+@@ -380,6 +384,7 @@ public sealed partial class InventorySlotsPlugin
+ 
+     private static void UpdateInventoryContainerHoverTooltip(UITooltip tooltip, bool resetScroll, bool handleWheel)
+     {
++        if (tooltip != null && TryYieldToPathOfValheimanTooltip(tooltip)) return;
+         if (tooltip == null ||
+             !IsInventoryContainerTooltipSource(tooltip) ||
+             ShouldUseInventorySlotsOwnedHoverTooltip(tooltip))
+diff --git a/InventoryPatchHandlers.cs b/InventoryPatchHandlers.cs
+index 78f3b52eaef7d0a6504d47822fad4174463ede71..b9f622af688a0201d4b89e829de25f4558566291 100644
+--- a/InventoryPatchHandlers.cs
++++ b/InventoryPatchHandlers.cs
+@@ -74,6 +74,7 @@ public sealed partial class InventorySlotsPlugin
+         }
+ 
+         NativeRowCache.Remove(player);
++        PathOfValheimanRowCache.Remove(player);
+         Inventory inventory = ((Humanoid)player).GetInventory();
+         EnsureInventoryHeightForLoad(inventory);
+         return BeginInventoryLoadPreservation(inventory);
+@@ -187,6 +188,7 @@ public sealed partial class InventorySlotsPlugin
+ 
+     internal static void OnPlayerLoaded(Player player)
+     {
++        PathOfValheimanRowCache.Remove(player);
+         RefreshNativeInventoryRows(player);
+         InvalidateInventoryPlacementCaches();
+         InvalidateCustomEquipmentProjectionCache();
+diff --git a/InventorySlotLayout.cs b/InventorySlotLayout.cs
+index 7d31096179f2d32db5126e967f3c91a1c473570d..8e46afb5e9f9d692d811029745345f889c33f8b5 100644
+--- a/InventorySlotLayout.cs
++++ b/InventorySlotLayout.cs
+@@ -221,7 +221,8 @@ public sealed partial class InventorySlotsPlugin
+ 
+     private static int GetUsableRegularRows(Player player)
+     {
+-        return InventorySlotSafetyCore.GetCombinedRegularRows(GetNativeInventoryRows(player), CalculateUnlockedRows(player));
++        int rows = InventorySlotSafetyCore.GetCombinedRegularRows(GetNativeInventoryRows(player), CalculateUnlockedRows(player));
++        return GetPathOfValheimanRegularRows(player, rows);
+     }
+ 
+     private static int CalculateUnlockedRows(Player player)
+diff --git a/InventorySlots.Tests/InventorySlots.Tests.csproj b/InventorySlots.Tests/InventorySlots.Tests.csproj
+index eac557c6fafbf78dee05772ec4f08d34e0f0ab52..ba9af27ad990e6002a6b09975b7d60ac21189532 100644
+--- a/InventorySlots.Tests/InventorySlots.Tests.csproj
++++ b/InventorySlots.Tests/InventorySlots.Tests.csproj
+@@ -26,6 +26,7 @@
+     <Compile Include="..\InventoryActions\MultiUserChestRequestGate.cs" Link="InventoryActions\MultiUserChestRequestGate.cs" />
+     <Compile Include="..\InventoryPlacementPolicyCore.cs" Link="InventoryPlacementPolicyCore.cs" />
+     <Compile Include="..\InventorySlotSafetyCore.cs" Link="InventorySlotSafetyCore.cs" />
++    <Compile Include="..\PathOfValheimanRows.cs" Link="PathOfValheimanRows.cs" />
+     <Compile Include="..\InventorySlotsYamlModels.cs" Link="InventorySlotsYamlModels.cs" />
+     <Compile Include="..\Shared\Persistence\LinkCompatibleFileWriter.cs" Link="LinkCompatibleFileWriter.cs" />
+     <Compile Include="..\ItemGroupRegistry.cs" Link="ItemGroupRegistry.cs" />
+diff --git a/InventorySlots.Tests/PathOfValheimanAdapterTests.cs b/InventorySlots.Tests/PathOfValheimanAdapterTests.cs
+new file mode 100644
+index 0000000000000000000000000000000000000000..c19a14e7c50a4b8e81a93df4cc5dca71869d6057
+--- /dev/null
++++ b/InventorySlots.Tests/PathOfValheimanAdapterTests.cs
+@@ -0,0 +1,32 @@
++using System.Reflection;
++using Microsoft.CodeAnalysis;
++using Microsoft.CodeAnalysis.CSharp;
++using Microsoft.CodeAnalysis.CSharp.Syntax;
++
++internal static class PathOfValheimanAdapterTests
++{
++    public static void Run()
++    {
++        var root = new DirectoryInfo(AppContext.BaseDirectory);
++        while (root != null && !File.Exists(Path.Combine(root.FullName, "PathOfValheimanCompat.cs"))) root = root.Parent;
++        if (root == null) throw new DirectoryNotFoundException("InventorySlots checkout");
++        string Read(string file) => File.ReadAllText(Path.Combine(root.FullName, file));
++        string Methods(string file, params string[] names) => string.Join("\n", CSharpSyntaxTree.ParseText(Read(file)).GetRoot()
++            .DescendantNodes().OfType<MethodDeclarationSyntax>().Where(m => names.Contains(m.Identifier.ValueText)).Select(m => m.ToFullString()));
++        string fields = string.Join("\n", CSharpSyntaxTree.ParseText(Read("PathOfValheimanCompat.cs")).GetRoot()
++            .DescendantNodes().OfType<FieldDeclarationSyntax>().Where(f => f.Declaration.Variables.Any(v =>
++                v.Identifier.ValueText.Contains("Tooltip") || v.Identifier.ValueText == "_pathOfValheimanTreeOpen")).Select(f => f.ToFullString()));
++        string host = Read("InventorySlots.Tests/PathOfValheimanHost.cs.txt").Replace("/* PRODUCTION */", fields +
++            Methods("PathOfValheimanCompat.cs", "TryYieldToPathOfValheimanTooltip", "HasPathOfValheimanTooltipBody",
++                "ClearPathOfValheimanTooltipState", "FilterPathOfValheimanMovableItems", "SortPathOfValheimanInventory", "IsPathOfValheimanTreeOpen") +
++            Methods("InventoryHoverTooltipScroll.cs", "OnVanillaTooltipHidden") + Methods("ContainerSort.cs", "SortPlayerInventory"));
++        var refs = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator).Select(p => MetadataReference.CreateFromFile(p));
++        var compilation = CSharpCompilation.Create("PoVAdapterBehavior", new[] { CSharpSyntaxTree.ParseText(host) }, refs,
++            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
++        using var stream = new MemoryStream();
++        var result = compilation.Emit(stream);
++        if (!result.Success) throw new Exception(string.Join("\n", result.Diagnostics));
++        try { Assembly.Load(stream.ToArray()).GetType("InventorySlots.InventorySlotsPlugin")!.GetMethod("Check")!.Invoke(null, null); }
++        catch (TargetInvocationException error) { throw error.InnerException!; }
++    }
++}
+diff --git a/InventorySlots.Tests/PathOfValheimanHost.cs.txt b/InventorySlots.Tests/PathOfValheimanHost.cs.txt
+new file mode 100644
+index 0000000000000000000000000000000000000000..72a844e354c697b0d469fa8f3ab06b842aaab1cb
+--- /dev/null
++++ b/InventorySlots.Tests/PathOfValheimanHost.cs.txt
+@@ -0,0 +1,106 @@
++using System;
++using System.Collections.Generic;
++using System.Linq;
++using System.Runtime.CompilerServices;
++using ItemData = InventorySlots.ItemDrop.ItemData;
++namespace InventorySlots;
++public class Transform {
++    public Transform? Parent;
++    public bool IsChildOf(Transform parent) => Parent == parent;
++}
++public class GameObject { public bool activeSelf = true; public Transform transform = new(); }
++public class UITooltip {
++    public static UITooltip? m_current;
++    public static GameObject? m_tooltip;
++    public bool IsItem = true;
++}
++public class ItemDrop { public class ItemData {
++    public object? m_shared = new(); public bool m_equipped; public bool Favorite; public Vector2i m_gridPos;
++} }
++public record struct Vector2i(int x, int y);
++public enum InventoryCellKind { Hotbar, RegularUnlocked, RegularLocked, Quick, Equipment }
++public class Inventory {
++    public List<ItemData> m_inventory = new();
++    public List<ItemData> GetAllItems() => m_inventory;
++    public bool ContainsItem(ItemData item) => m_inventory.Contains(item);
++    public void Changed() { }
++}
++public class Humanoid { public Inventory Inventory = new(); public Inventory GetInventory() => Inventory; }
++public class Player : Humanoid { public static Player? m_localPlayer; public bool m_isLoading; }
++public class InventoryGui {
++    public static InventoryGui? instance = new();
++    public void SetupDragItem(object? a, object? b, int c) { }
++}
++public static class InventoryActionCellPolicyCore { public static bool CanFavoriteSlot(InventoryCellKind k) => true; }
++public static class Log { public static void LogWarning(string s) { } }
++public sealed partial class InventorySlotsPlugin {
++/* PRODUCTION */
++private static UITooltip? _inventoryContainerHoverTooltipSource, _inventorySlotsOwnedHoverTooltipSource;
++private static int hidden, restored, refreshes;
++private static bool IsUnityNull(object? o) => o == null;
++private static bool ContainerAreaPlayerLoading(Player p) => p.m_isLoading;
++private static bool IsInventoryContainerTooltipSource(UITooltip t) => t.IsItem;
++private static void HideInventoryContainerCustomTooltip() => hidden++;
++private static void ForceHideInventorySimpleNameTooltip() { }
++private static void RestoreVanillaTooltipVisual(GameObject? o) => restored++;
++private static void PruneInventoryHoverTooltipSources() { }
++private static InventoryCellKind GetInventoryCellKind(Player p, Inventory inv, Vector2i pos) =>
++    pos.y == 0 ? InventoryCellKind.Hotbar : pos.y < 4 ? InventoryCellKind.RegularUnlocked : pos.y < 9 ? InventoryCellKind.RegularLocked : pos.y == 9 ? InventoryCellKind.Quick : InventoryCellKind.Equipment;
++private static bool IsFavoriteProtected(Player p, Inventory inv, ItemData item) => item.Favorite;
++private static List<Vector2i> GetPlayerActionSlots(Player p, Inventory inv, bool includeHotbar, bool blockFavorites) =>
++    Enumerable.Range(0, 8).Select(x => new Vector2i(x, 1)).Where(cell => !inv.m_inventory.Any(i => i.m_gridPos == cell && i.Favorite)).ToList();
++private static List<Vector2i> destinations = new();
++private static List<ItemData> sources = new();
++private static bool FillFavoriteStacks(Inventory inv, List<ItemData> targets, List<ItemData> source) {
++    if (source.Any(i => i.m_equipped)) throw new Exception("equipped item consumed as favorite source"); return false;
++}
++private static int SortInventoryInternal(Inventory inv, List<Vector2i> cells, Func<ItemData,bool> predicate) {
++    destinations = cells; sources = inv.m_inventory.Where(predicate).ToList(); return 0;
++}
++private static void Verify(bool value, string label) { if (!value) throw new Exception(label); }
++public static void Check() {
++    var player = Player.m_localPlayer = new Player();
++    var normal = new ItemData { m_gridPos = new(1,1) };
++    var equipped = new ItemData { m_gridPos = new(2,1), m_equipped = true };
++    var favorite = new ItemData { m_gridPos = new(3,1), Favorite = true };
++    var items = player.Inventory.m_inventory;
++    items.AddRange(new[] { normal, equipped, favorite, new ItemData {m_gridPos = new(0,0)}, new ItemData {m_gridPos = new(0,4)}, new ItemData {m_gridPos = new(0,9)}, new ItemData {m_gridPos = new(0,10)} });
++    var movable = new List<ItemData>(items) { new ItemData {m_gridPos = new(7,1)} };
++    FilterPathOfValheimanMovableItems(player, movable);
++    Verify(movable.SequenceEqual(new[] { normal }), "movable retains only present, unprotected regular items");
++    Verify(!SortPathOfValheimanInventory(player), "PoV direct sort suppressed");
++    Verify(!sources.Contains(equipped) && !destinations.Contains(equipped.m_gridPos), "equipped source AND destination preserved");
++    Verify(!sources.Contains(favorite) && !destinations.Contains(favorite.m_gridPos), "favorite source AND destination preserved");
++    Verify(sources.SequenceEqual(new[] { normal }), "sort excludes tail, hotbar and locked cells");
++    InventoryGui.instance = null; sources.Clear();
++    Verify(!SortPathOfValheimanInventory(player) && sources.Count == 0, "missing GUI does not invoke unsafe sort");
++
++    var tooltip = UITooltip.m_current = new UITooltip();
++    var root = UITooltip.m_tooltip = new GameObject { activeSelf = false }; // Native hover delay.
++    var body = new GameObject(); body.transform.Parent = root.transform;
++    Verify(!TryYieldToPathOfValheimanTooltip(tooltip), "PoV absent retains Slots tooltip");
++    bool wanted = true;
++    _pathOfValheimanTooltipWanted = () => wanted;
++    _pathOfValheimanTooltipOwners = new(); _pathOfValheimanTooltipOwners.Add(tooltip, normal);
++    _pathOfValheimanCurrentTooltip = () => UITooltip.m_current!;
++    _pathOfValheimanTooltipRoot = () => UITooltip.m_tooltip!;
++    _pathOfValheimanTooltipBody = () => body;
++    _pathOfValheimanRefreshTooltip = () => refreshes++;
++    Verify(TryYieldToPathOfValheimanTooltip(tooltip) && refreshes == 0, "existing PoV card owns even delayed native root without rebuild");
++    OnVanillaTooltipHidden(); // PoV suppressed original Hide while Alt held.
++    Verify(TryYieldToPathOfValheimanTooltip(tooltip) && refreshes == 0, "Alt pinned Hide cancellation preserves handlers");
++    wanted = false; Verify(!TryYieldToPathOfValheimanTooltip(tooltip), "live Off returns Slots ownership");
++    wanted = true; Verify(TryYieldToPathOfValheimanTooltip(tooltip) && refreshes == 1, "live On refreshes once");
++    TryYieldToPathOfValheimanTooltip(tooltip); Verify(refreshes == 1, "steady hover does not rebuild");
++    tooltip.IsItem = false; Verify(!TryYieldToPathOfValheimanTooltip(tooltip), "noninventory source not claimed");
++    tooltip.IsItem = true; body.transform.Parent = new Transform();
++    Verify(!TryYieldToPathOfValheimanTooltip(tooltip), "failed/misparented PoV rendering keeps text fallback");
++    _pathOfValheimanTooltipWanted = () => throw new Exception("external callback");
++    Verify(!TryYieldToPathOfValheimanTooltip(tooltip), "callback error keeps fallback");
++    UITooltip.m_current = null; UITooltip.m_tooltip = null; OnVanillaTooltipHidden();
++    Verify(_pathOfValheimanTooltipSource == null, "real hide clears references");
++    _pathOfValheimanTreeOpen = () => true; Verify(IsPathOfValheimanTreeOpen(), "open tree gates guide");
++    _pathOfValheimanTreeOpen = () => throw new Exception("tree getter");
++    Verify(!IsPathOfValheimanTreeOpen() && _pathOfValheimanTreeOpen == null, "failed external tree getter disabled once");
++}
++}
+diff --git a/InventorySlots.Tests/PathOfValheimanTests.cs b/InventorySlots.Tests/PathOfValheimanTests.cs
+new file mode 100644
+index 0000000000000000000000000000000000000000..36aaa4f7dc90b48308d4723f3d85e661b828e7c6
+--- /dev/null
++++ b/InventorySlots.Tests/PathOfValheimanTests.cs
+@@ -0,0 +1,49 @@
++using InventorySlots;
++
++internal static class PathOfValheimanTests
++{
++    public static void RowLimits()
++    {
++        var rows = new PathOfValheimanRows();
++        rows.Load(null);
++        Assert.Equal(4, rows.TotalRows(4, 9));
++        rows.Update(3, 4, -1);
++        Assert.Equal(7, rows.TotalRows(4, 9));
++        Assert.Equal(9, rows.TotalRows(InventorySlotSafetyCore.GetCombinedRegularRows(4, 3), 9));
++        Assert.Equal(9, rows.TotalRows(InventorySlotSafetyCore.GetCombinedRegularRows(6, 3), 9));
++        rows.Update(1, 4, -1);
++        Assert.Equal(5, rows.TotalRows(4, 9));
++        Assert.Equal(9, rows.TotalRows(9, 9));
++    }
++
++    public static void RowRemoval()
++    {
++        var rows = new PathOfValheimanRows();
++        rows.Load("3");
++        rows.Update(0, 4, 6); // Last bonus row still contains an item.
++        Assert.Equal(7, rows.TotalRows(4, 9));
++        rows.Update(0, 4, 4);
++        Assert.Equal(5, rows.TotalRows(4, 9));
++        rows.Update(0, 4, -1);
++        Assert.Equal(4, rows.TotalRows(4, 9));
++        rows.Update(2, 4, -1);
++        Assert.Equal(6, rows.TotalRows(4, 9));
++    }
++
++    public static void SavedRows()
++    {
++        foreach (var (saved, expected) in new (string?, int)[] { (null, 4), ("", 4), ("bad", 4), ("-1", 4), ("2", 6), ("99", 7) })
++        {
++            var rows = new PathOfValheimanRows();
++            rows.Load(saved);
++            Assert.True(rows.Loaded, "saved state is resolved once per player/load");
++            Assert.Equal(expected, rows.TotalRows(4, 9));
++        }
++        var first = new PathOfValheimanRows();
++        var second = new PathOfValheimanRows();
++        first.Load("3");
++        second.Load("0");
++        Assert.Equal(7, first.TotalRows(4, 9));
++        Assert.Equal(4, second.TotalRows(4, 9));
++    }
++}
+diff --git a/InventorySlots.Tests/Program.cs b/InventorySlots.Tests/Program.cs
+index 5d2aeafed18127b0b357c72ac562a8a71d57bd11..b6c23db18d1a84085907c14cf4c4f17f4127d845 100644
+--- a/InventorySlots.Tests/Program.cs
++++ b/InventorySlots.Tests/Program.cs
+@@ -2,6 +2,10 @@ using InventorySlots;
+ using InventoryPersistence;
+ 
+ TestRunner.Run(
++    ("PoV adapters preserve protected sort cells and tooltip ownership transitions", PathOfValheimanAdapterTests.Run),
++    ("PoV bonus rows add independently and preserve the special-slot boundary", PathOfValheimanTests.RowLimits),
++    ("PoV bonus removal retains occupied rows until emptied", PathOfValheimanTests.RowRemoval),
++    ("PoV saved bonuses validate input and remain player-specific", PathOfValheimanTests.SavedRows),
+     ("YAML matching and equipment unlock preserve live rules with bounded repeated work", YamlMatchingTests.Run),
+     ("Quick HUD On/Off and empty contexts preserve visibility policy", QuickSlotHudTests.PersistentModes),
+     ("Quick HUD whole-panel use holds then fades and restarts", QuickSlotHudTests.WholePanelTiming),
+diff --git a/PathOfValheimanCompat.cs b/PathOfValheimanCompat.cs
+new file mode 100644
+index 0000000000000000000000000000000000000000..828d4de49a4255e2e576f2672816ef731f5f44bf
+--- /dev/null
++++ b/PathOfValheimanCompat.cs
+@@ -0,0 +1,324 @@
++using System;
++using System.Collections.Generic;
++using System.Linq.Expressions;
++using System.Reflection;
++using System.Runtime.CompilerServices;
++using BepInEx.Bootstrap;
++using HarmonyLib;
++using UnityEngine;
++using ItemData = ItemDrop.ItemData;
++
++namespace InventorySlots;
++
++public sealed partial class InventorySlotsPlugin
++{
++    private const string PathOfValheimanGuid = "treextr.pathofvalheiman";
++    private static readonly List<Harmony> PathOfValheimanPatches = new();
++    private static readonly ConditionalWeakTable<Player, PathOfValheimanRows> PathOfValheimanRowCache = new();
++    private static bool _pathOfValheimanRowsEnabled;
++    private static Func<Player, object?>? _pathOfValheimanProgress;
++    private static Func<object, int>? _pathOfValheimanReadRows;
++    private static Func<IEnumerable<string>>? _pathOfValheimanMetadataKeys;
++    private static bool _pathOfValheimanMetadataRegistered;
++    private static bool _pathOfValheimanRowsWarning;
++    private static Func<bool>? _pathOfValheimanTreeOpen;
++    private static Func<bool>? _pathOfValheimanTooltipWanted;
++    private static ConditionalWeakTable<UITooltip, ItemData>? _pathOfValheimanTooltipOwners;
++    private static Func<GameObject>? _pathOfValheimanTooltipBody;
++    private static Func<UITooltip>? _pathOfValheimanCurrentTooltip;
++    private static Func<GameObject>? _pathOfValheimanTooltipRoot;
++    private static Action? _pathOfValheimanRefreshTooltip;
++    private static UITooltip? _pathOfValheimanTooltipSource;
++    private static GameObject? _pathOfValheimanNativeTooltip;
++    private static ItemData? _pathOfValheimanTooltipItem;
++    private static bool _pathOfValheimanTooltipWarning;
++    private static bool _pathOfValheimanTooltipWasDisabled;
++
++    private static void InitializePathOfValheimanCompatibility()
++    {
++        if (!Chainloader.PluginInfos.TryGetValue(PathOfValheimanGuid, out var plugin) || plugin.Instance == null)
++            return;
++
++        Assembly assembly = plugin.Instance.GetType().Assembly;
++        // Each capability is validated as a unit. No hard dependency or version-number gate.
++        InstallPathOfValheimanCapability("metadata", harmony =>
++        {
++            Type type = assembly.GetType("PassiveTree.InventorySlotsCompat", throwOnError: true)!;
++            MethodInfo run = RequirePathOfValheimanMethod(type, "Run", typeof(void));
++            MethodInfo keys = RequirePathOfValheimanMethod(type, "OurKeys", typeof(IEnumerable<string>));
++            _pathOfValheimanMetadataKeys = (Func<IEnumerable<string>>)Delegate.CreateDelegate(typeof(Func<IEnumerable<string>>), keys);
++            harmony.Patch(run, prefix: new HarmonyMethod(typeof(InventorySlotsPlugin), nameof(RegisterPathOfValheimanMetadata)));
++        });
++
++        if (IsDedicatedServer) return;
++
++        InstallPathOfValheimanCapability("rows", harmony =>
++        {
++            Type trade = assembly.GetType("PassiveTree.TradeMechanics", true)!;
++            Type progress = assembly.GetType("PassiveTree.Progress", true)!;
++            Type stats = assembly.GetType("PassiveTree.StatSet", true)!;
++            MethodInfo tick = RequirePathOfValheimanMethod(trade, "TickRows", typeof(void), typeof(Player));
++            MethodInfo peek = RequirePathOfValheimanMethod(progress, "Peek", progress, typeof(Player));
++            MethodInfo rows = RequirePathOfValheimanMethod(trade, "Rows", typeof(int), stats);
++            FieldInfo statsField = AccessTools.Field(progress, "Stats");
++            if (statsField == null || statsField.IsStatic || statsField.FieldType != stats)
++                throw new MissingFieldException(progress.FullName, "Stats");
++            MethodInfo panel = RequirePathOfValheimanMethod(assembly.GetType("PassiveTree.InventoryRowsPanel+Gui_Update", true)!,
++                "Postfix", typeof(void), typeof(InventoryGui));
++            _pathOfValheimanProgress = (Func<Player, object?>)Delegate.CreateDelegate(typeof(Func<Player, object?>), peek);
++            ParameterExpression value = Expression.Parameter(typeof(object));
++            _pathOfValheimanReadRows = Expression.Lambda<Func<object, int>>(
++                Expression.Call(rows, Expression.Field(Expression.Convert(value, progress), statsField)), value).Compile();
++            harmony.Patch(tick, prefix: new HarmonyMethod(typeof(InventorySlotsPlugin), nameof(UpdatePathOfValheimanRows)));
++            harmony.Patch(panel, prefix: new HarmonyMethod(typeof(InventorySlotsPlugin), nameof(SkipPathOfValheimanRowsPanel)));
++            _pathOfValheimanRowsEnabled = true;
++        });
++
++        InstallPathOfValheimanCapability("tidy-pack", harmony =>
++        {
++            Type type = assembly.GetType("PassiveTree.QuickStack", true)!;
++            MethodInfo sort = RequirePathOfValheimanMethod(type, "Sort", typeof(void), typeof(Player));
++            MethodInfo movable = RequirePathOfValheimanMethod(type, "Movable", typeof(List<ItemData>), typeof(Player));
++            harmony.Patch(sort, prefix: new HarmonyMethod(typeof(InventorySlotsPlugin), nameof(SortPathOfValheimanInventory)));
++            harmony.Patch(movable, postfix: new HarmonyMethod(typeof(InventorySlotsPlugin), nameof(FilterPathOfValheimanMovableItems)));
++        });
++
++        InstallPathOfValheimanCapability("tooltip", _ =>
++        {
++            Type type = assembly.GetType("PassiveTree.UI.ItemTooltip", true)!;
++            var wanted = (Func<bool>)Delegate.CreateDelegate(typeof(Func<bool>), RequirePathOfValheimanMethod(type, "get_Wanted", typeof(bool)));
++            var refresh = (Action)Delegate.CreateDelegate(typeof(Action), RequirePathOfValheimanMethod(type, "RefreshCurrent", typeof(void)));
++            var body = PathOfValheimanStaticField<GameObject>(type, "sheetGo");
++            var current = PathOfValheimanStaticField<UITooltip>(typeof(UITooltip), "m_current");
++            var root = PathOfValheimanStaticField<GameObject>(typeof(UITooltip), "m_tooltip");
++            var owners = PathOfValheimanStaticField<ConditionalWeakTable<UITooltip, ItemData>>(type, "owners")();
++            if (owners == null) throw new MissingFieldException(type.FullName, "owners");
++            _pathOfValheimanTooltipOwners = owners;
++            _pathOfValheimanCurrentTooltip = current;
++            _pathOfValheimanTooltipRoot = root;
++            _pathOfValheimanTooltipBody = body;
++            _pathOfValheimanRefreshTooltip = refresh;
++            _pathOfValheimanTooltipWanted = wanted;
++        });
++
++        InstallPathOfValheimanCapability("tree-input", _ =>
++        {
++            _pathOfValheimanTreeOpen = (Func<bool>)Delegate.CreateDelegate(typeof(Func<bool>),
++                RequirePathOfValheimanMethod(assembly.GetType("PassiveTree.UI.TreeWindow", true)!, "get_IsOpen", typeof(bool)));
++        });
++    }
++
++    private static MethodInfo RequirePathOfValheimanMethod(Type type, string name, Type result, params Type[] args)
++    {
++        MethodInfo method = AccessTools.DeclaredMethod(type, name, args);
++        if (method == null || !method.IsStatic || method.ReturnType != result || method.ContainsGenericParameters)
++            throw new MissingMethodException(type.FullName, name);
++        return method;
++    }
++
++    private static Func<T> PathOfValheimanStaticField<T>(Type type, string name)
++    {
++        FieldInfo field = AccessTools.DeclaredField(type, name);
++        if (field == null || !field.IsStatic || field.FieldType != typeof(T))
++            throw new MissingFieldException(type.FullName, name);
++        return Expression.Lambda<Func<T>>(Expression.Field(null, field)).Compile();
++    }
++
++    private static void InstallPathOfValheimanCapability(string name, Action<Harmony> install)
++    {
++        var harmony = new Harmony(ModGUID + ".pov." + name);
++        try
++        {
++            install(harmony);
++            PathOfValheimanPatches.Add(harmony);
++            Log.LogInfo($"Path of Valheiman compatibility enabled: {name}.");
++        }
++        catch (Exception error)
++        {
++            harmony.UnpatchSelf();
++            Log.LogWarning($"Path of Valheiman compatibility unavailable ({name}): {error.Message}");
++        }
++    }
++
++    private static bool RegisterPathOfValheimanMetadata()
++    {
++        if (!_pathOfValheimanMetadataRegistered)
++        {
++            // Keep PoV's declared-key discovery, but never discard differences in item potency,
++            // duration or provenance. Other mods' registrations retain first-wins semantics.
++            foreach (string key in _pathOfValheimanMetadataKeys!())
++            {
++                if (key != null && key.StartsWith("pt.", StringComparison.Ordinal))
++                    StackMetadataPolicy.Register(key, static (destination, _) => destination,
++                        static (destination, source) => string.Equals(destination, source, StringComparison.Ordinal));
++            }
++            _pathOfValheimanMetadataRegistered = true;
++        }
++        return false;
++    }
++
++    private static int GetPathOfValheimanRegularRows(Player player, int baseRows)
++    {
++        if (!_pathOfValheimanRowsEnabled) return baseRows;
++        PathOfValheimanRows state = PathOfValheimanRowCache.GetValue(player, static _ => new PathOfValheimanRows());
++        if (!state.Loaded)
++        {
++            player.m_customData.TryGetValue(PathOfValheimanRows.SaveKey, out string stored);
++            state.Load(stored);
++        }
++        return state.TotalRows(baseRows, GetFixedRegularRows());
++    }
++
++    private static bool UpdatePathOfValheimanRows(Player __0)
++    {
++        // Never let PoV use the physical height: it includes our equipment/quick-slot tail.
++        Player player = __0;
++        if (IsUnityNull(player) || player != Player.m_localPlayer || ContainerAreaPlayerLoading(player)) return false;
++        try
++        {
++            object? progress = _pathOfValheimanProgress!(player); // Peek does not construct/load Progress.
++            if (progress == null) return false;
++            int previous = GetUsableRegularRows(player);
++            PathOfValheimanRows state = PathOfValheimanRowCache.GetValue(player, static _ => new PathOfValheimanRows());
++            int desired = PathOfValheimanRows.ClampBonus(_pathOfValheimanReadRows!(progress));
++            int baseRows = InventorySlotSafetyCore.GetCombinedRegularRows(GetNativeInventoryRows(player), CalculateUnlockedRows(player));
++            int highestOccupiedRow = -1;
++            foreach (ItemData item in player.GetInventory().GetAllItems())
++            {
++                int row = item.m_gridPos.y;
++                if (row >= baseRows && row < previous) highestOccupiedRow = Math.Max(highestOccupiedRow, row);
++            }
++            state.Update(desired, baseRows, highestOccupiedRow);
++            if (desired > 0) player.m_customData[PathOfValheimanRows.SaveKey] = desired.ToString(System.Globalization.CultureInfo.InvariantCulture);
++            else player.m_customData.Remove(PathOfValheimanRows.SaveKey);
++            if (previous != GetUsableRegularRows(player))
++            {
++                InvalidateInventoryPlacementCaches();
++                RevealRegularRowsAfterKnownItem(player, previous);
++                RequestInventoryStateEnsure(player, InventoryStateEnsureReason.InventoryChanged, InventoryStateAuditLevel.HeightOnly);
++            }
++        }
++        catch (Exception error)
++        {
++            if (!_pathOfValheimanRowsWarning)
++            {
++                _pathOfValheimanRowsWarning = true;
++                Log.LogWarning($"Path of Valheiman row refresh failed; retaining current rows: {error.Message}");
++            }
++        }
++        return false;
++    }
++
++    private static bool SkipPathOfValheimanRowsPanel() => false;
++
++    private static bool SortPathOfValheimanInventory(Player __0)
++    {
++        if (__0 != null && __0 == Player.m_localPlayer && !ContainerAreaPlayerLoading(__0) && InventoryGui.instance != null)
++            SortPlayerInventory(__0, preserveEquipped: true);
++        return false;
++    }
++
++    private static void FilterPathOfValheimanMovableItems(Player __0, List<ItemData> __result)
++    {
++        if (__result == null || __0 == null || __0 != Player.m_localPlayer) return;
++        Inventory inventory = __0.GetInventory();
++        for (int i = __result.Count - 1; i >= 0; i--)
++        {
++            ItemData item = __result[i];
++            if (item == null || item.m_equipped || !inventory.ContainsItem(item) ||
++                GetInventoryCellKind(__0, inventory, item.m_gridPos) != InventoryCellKind.RegularUnlocked ||
++                IsFavoriteProtected(__0, inventory, item))
++                __result.RemoveAt(i);
++        }
++    }
++
++    private static bool TryYieldToPathOfValheimanTooltip(UITooltip tooltip)
++    {
++        if (_pathOfValheimanTooltipWanted == null) return false;
++        try
++        {
++            if (!_pathOfValheimanTooltipWanted())
++            {
++                ClearPathOfValheimanTooltipState();
++                _pathOfValheimanTooltipWasDisabled = true;
++                return false;
++            }
++            if (!IsInventoryContainerTooltipSource(tooltip) || _pathOfValheimanCurrentTooltip!() != tooltip || _pathOfValheimanTooltipRoot!() == null ||
++                !_pathOfValheimanTooltipOwners!.TryGetValue(tooltip, out ItemData item) || item?.m_shared == null)
++            {
++                ClearPathOfValheimanTooltipState();
++                return false;
++            }
++            if (_pathOfValheimanTooltipSource != tooltip || _pathOfValheimanNativeTooltip != _pathOfValheimanTooltipRoot!() ||
++                !ReferenceEquals(_pathOfValheimanTooltipItem, item))
++            {
++                _pathOfValheimanTooltipSource = tooltip;
++                _pathOfValheimanNativeTooltip = _pathOfValheimanTooltipRoot!();
++                _pathOfValheimanTooltipItem = item;
++                // Do not rebuild an existing PoV card: its Alt-pinned links own event handlers.
++                // Refresh once for a live Off->On switch or a card not yet produced by PoV.
++                if (_pathOfValheimanTooltipWasDisabled || !HasPathOfValheimanTooltipBody())
++                    _pathOfValheimanRefreshTooltip!();
++                _pathOfValheimanTooltipWasDisabled = false;
++            }
++            if (!HasPathOfValheimanTooltipBody()) return false;
++            _inventoryContainerHoverTooltipSource = null;
++            HideInventoryContainerCustomTooltip();
++            ForceHideInventorySimpleNameTooltip();
++            RestoreVanillaTooltipVisual(_pathOfValheimanTooltipRoot!());
++            return true;
++        }
++        catch (Exception error)
++        {
++            if (!_pathOfValheimanTooltipWarning)
++            {
++                _pathOfValheimanTooltipWarning = true;
++                Log.LogWarning($"Path of Valheiman tooltip unavailable; using InventorySlots text: {error.Message}");
++            }
++            return false;
++        }
++    }
++
++    private static bool HasPathOfValheimanTooltipBody()
++    {
++        GameObject body = _pathOfValheimanTooltipBody!();
++        // The native root is inactive during its hover delay; don't flash our plain tooltip first.
++        return body != null && body.activeSelf && body.transform.IsChildOf(_pathOfValheimanTooltipRoot!().transform);
++    }
++
++    private static bool IsPathOfValheimanTreeOpen()
++    {
++        try { return _pathOfValheimanTreeOpen?.Invoke() == true; }
++        catch (Exception error)
++        {
++            _pathOfValheimanTreeOpen = null;
++            Log.LogWarning($"Path of Valheiman tree input check unavailable: {error.Message}");
++            return false;
++        }
++    }
++
++    private static void ClearPathOfValheimanTooltipState()
++    {
++        _pathOfValheimanTooltipSource = null;
++        _pathOfValheimanNativeTooltip = null;
++        _pathOfValheimanTooltipItem = null;
++        _pathOfValheimanTooltipWasDisabled = false;
++    }
++
++    private static void ShutdownPathOfValheimanCompatibility()
++    {
++        foreach (Harmony harmony in PathOfValheimanPatches) harmony.UnpatchSelf();
++        PathOfValheimanPatches.Clear();
++        _pathOfValheimanRowsEnabled = false;
++        _pathOfValheimanProgress = null;
++        _pathOfValheimanReadRows = null;
++        _pathOfValheimanTreeOpen = null;
++        _pathOfValheimanTooltipWanted = null;
++        _pathOfValheimanTooltipOwners = null;
++        _pathOfValheimanTooltipBody = null;
++        _pathOfValheimanCurrentTooltip = null;
++        _pathOfValheimanTooltipRoot = null;
++        _pathOfValheimanRefreshTooltip = null;
++        ClearPathOfValheimanTooltipState();
++    }
++}
+diff --git a/PathOfValheimanRows.cs b/PathOfValheimanRows.cs
+new file mode 100644
+index 0000000000000000000000000000000000000000..d56d53c01c8ebcf71f91257347514a213748ee1d
+--- /dev/null
++++ b/PathOfValheimanRows.cs
+@@ -0,0 +1,28 @@
++using System;
++
++namespace InventorySlots;
++
++// Player-owned bonus, independent of the physical inventory's special-slot storage tail.
++internal sealed class PathOfValheimanRows
++{
++    internal const string SaveKey = "pt.invrows";
++    internal bool Loaded { get; private set; }
++    private int retained;
++
++    internal static int ClampBonus(int rows) => Math.Max(0, Math.Min(3, rows));
++
++    internal void Load(string? stored)
++    {
++        retained = int.TryParse(stored, out int rows) ? ClampBonus(rows) : 0;
++        Loaded = true;
++    }
++
++    internal int TotalRows(int baseRows, int limit) => Math.Min(limit, baseRows + retained);
++
++    internal void Update(int desired, int baseRows, int highestOccupiedBonusRow)
++    {
++        // Caller considers only currently usable regular rows, never equipment or quick slots.
++        retained = Math.Max(ClampBonus(desired), ClampBonus(highestOccupiedBonusRow - baseRows + 1));
++        Loaded = true;
++    }
++}
+diff --git a/Plugin.cs b/Plugin.cs
+index 7016f57f44283a7d4d34ab6418d2a7b7b3fbb728..bba2dca67056c56daec66b57679f40d6305406ae 100644
+--- a/Plugin.cs
++++ b/Plugin.cs
+@@ -38,6 +38,7 @@ namespace InventorySlots;
+ [BepInDependency(VeiledRecipesGuid, BepInDependency.DependencyFlags.SoftDependency)]
+ [BepInDependency(CircletExtendedGuid, BepInDependency.DependencyFlags.SoftDependency)]
+ [BepInDependency(HipLanternGuid, BepInDependency.DependencyFlags.SoftDependency)]
++[BepInDependency(PathOfValheimanGuid, BepInDependency.DependencyFlags.SoftDependency)]
+ public sealed partial class InventorySlotsPlugin : BaseUnityPlugin
+ {
+     private const int BaseRows = ClientStateCore.DefaultLastExpandableRows;
+diff --git a/PluginLifecycle.cs b/PluginLifecycle.cs
+index 6d696be37633adac86069c06ef4766f66eabc539..a146a97b84040a3b00f6e1e44eea9eff30b9a159 100644
+--- a/PluginLifecycle.cs
++++ b/PluginLifecycle.cs
+@@ -24,6 +24,7 @@ public sealed partial class InventorySlotsPlugin
+             InitializeEpicLootCompatibility();
+             InitializeEpicLootStacking();
+             InitializeYamlSync();
++            InitializePathOfValheimanCompatibility();
+ 
+             _harmony.PatchAll();
+             ApplyMyLittleUICraftingCompatibility();
+@@ -182,6 +183,7 @@ public sealed partial class InventorySlotsPlugin
+         DestroyRestockModeIcons();
+         ShutdownEpicLootCompatibility();
+         ShutdownMagicSupremacyCompatibility();
++        ShutdownPathOfValheimanCompatibility();
+         _epicLootStackingApi = null;
+         CancelContainerAreaTransfer();
+         SharedContainerLocalViewers.Clear();
+diff --git a/PluginMetadata.cs b/PluginMetadata.cs
+index 66082f560df2e157ad99a88e41ad942f25a541ec..5cd7069f3739f1c30e2ef2607cd93f7513fba9b3 100644
+--- a/PluginMetadata.cs
++++ b/PluginMetadata.cs
+@@ -3,7 +3,7 @@ namespace InventorySlots;
+ public sealed partial class InventorySlotsPlugin
+ {
+     internal const string ModName = "InventorySlots";
+-    internal const string ModVersion = "1.6.4";
++    internal const string ModVersion = "1.6.5";
+     internal const string Author = "sighsorry";
+     internal const string ModGUID = $"{Author}.{ModName}";
+ }
+diff --git a/Thunderstore/CHANGELOG.md b/Thunderstore/CHANGELOG.md
+index 711460372f619b600f1312c51ec40233ae77452c..e884ccfd8a9bdd50b6dc4f53be658ec6c8252ce6 100644
+--- a/Thunderstore/CHANGELOG.md
++++ b/Thunderstore/CHANGELOG.md
+@@ -1,5 +1,13 @@
+ # Changelog
+ 
++## 1.6.5
++
++- Added optional Path of Valheiman compatibility. Each adapter activates only when PoV is loaded and its required methods and fields are available, without an exact version-number restriction. PoV 5.0.4 is the reviewed implementation.
++- Integrated Big Bag bonus rows with native pockets and InventorySlots progression within the existing nine-row limit. Equipment and quick-slot storage coordinates stay fixed, PoV's conflicting panel resizing is suppressed, and occupied bonus rows remain available until emptied after the bonus is removed.
++- Routed Tidy Pack sorting through InventorySlots while preserving equipped items, favorites, hotbar, locked cells and special slots. Its Quick Stack candidate list also respects InventorySlots protection; existing chest access, ownership and transfer checks remain in place.
++- Prevented PoV-marked stacks with different potency, duration or crafting provenance from merging. Identical declared metadata still supports automatic stacking; missing or differing values remain separate.
++- Let PoV's enabled item-tooltip layout display its inventory/chest hover cards, preserving the native hover delay and Alt interactions. InventorySlots' pinned tooltips and chat shares continue using ordinary item-tooltip text. The feature guide no longer raises its click target above the open PoV tree; Quick Slot HUD visibility and fade settings are unchanged.
++
+ ## 1.6.4
+ 
+ - Reduced repeated matching work and temporary allocations for YAML custom slots, especially those with long allowed-item lists. Matching reuses prepared rule tokens and normalizes each item's identity only as needed within a query; unknown group names no longer trigger unnecessary item classification.
+diff --git a/Thunderstore/manifest.json b/Thunderstore/manifest.json
+index 555e6ed1f4c7d5061b79c6fec47eb28413de056f..fa832dd12eb2290c07e00990afe4bcb083b703d0 100644
+--- a/Thunderstore/manifest.json
++++ b/Thunderstore/manifest.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "InventorySlots",
+-  "version_number": "1.6.4",
++  "version_number": "1.6.5",
+   "website_url": "https://discord.gg/jkcJCq2sK5",
+   "description": "Equipment/quick slots, multicraft, progressive rows, keep-on-death, favorites, scrollable tooltips, crafting grid/list/search/sort, container stack/restock/sort, item comparison and controller support. Compatible with EpicLoot and Jewelcrafting.",
+   "dependencies": [
+diff --git a/build/PathOfValheimanSmoke/PathOfValheimanSmoke.csproj b/build/PathOfValheimanSmoke/PathOfValheimanSmoke.csproj
+new file mode 100644
+index 0000000000000000000000000000000000000000..742f257007c772fd3176c2988016570b46ed73f7
+--- /dev/null
++++ b/build/PathOfValheimanSmoke/PathOfValheimanSmoke.csproj
+@@ -0,0 +1,12 @@
++<Project Sdk="Microsoft.NET.Sdk">
++  <Import Project="../../environment.props" />
++  <PropertyGroup>
++    <OutputType>Exe</OutputType>
++    <TargetFramework>net48</TargetFramework>
++    <LangVersion>latest</LangVersion>
++    <Nullable>enable</Nullable>
++  </PropertyGroup>
++  <ItemGroup>
++    <Reference Include="0Harmony"><HintPath>$(BepInExPath)/core/0Harmony.dll</HintPath><Private>false</Private></Reference>
++  </ItemGroup>
++</Project>
+diff --git a/build/PathOfValheimanSmoke/Program.cs b/build/PathOfValheimanSmoke/Program.cs
+new file mode 100644
+index 0000000000000000000000000000000000000000..4d59ee9de6694e211e4fc71c1b428b1894d985c3
+--- /dev/null
++++ b/build/PathOfValheimanSmoke/Program.cs
+@@ -0,0 +1,138 @@
++using System;
++using System.Collections.Generic;
++using System.IO;
++using System.Linq;
++using System.Reflection;
++using System.Runtime.CompilerServices;
++using System.Runtime.Serialization;
++using HarmonyLib;
++
++internal static class Program
++{
++    private const BindingFlags Static = BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public;
++    private static int checks;
++
++    private static int Main(string[] args)
++    {
++        if (args.Length != 4 && (args.Length != 5 || args[4] != "--engine-hooks"))
++            throw new ArgumentException("<final Slots DLL> <original Managed> <BepInEx core> <original PoV DLL> [--engine-hooks]");
++        if (Type.GetType("Mono.Runtime") == null || IntPtr.Size != 8) throw new InvalidOperationException("Use original game x64 Mono.");
++        string[] roots = { args[1], args[2], Path.GetDirectoryName(args[0])!, Path.GetDirectoryName(args[3])! };
++        AppDomain.CurrentDomain.AssemblyResolve += (_, request) =>
++        {
++            string filename = new AssemblyName(request.Name).Name + ".dll";
++            foreach (string root in roots)
++                if (File.Exists(Path.Combine(root, filename))) return Assembly.LoadFrom(Path.Combine(root, filename));
++            return null;
++        };
++        try { return Run(args, roots); }
++        catch (Exception error) { System.Console.Error.WriteLine(error); return 1; }
++    }
++
++    [MethodImpl(MethodImplOptions.NoInlining)]
++    private static int Run(string[] args, string[] roots)
++    {
++        Assembly bep = Assembly.LoadFrom(Path.Combine(args[2], "BepInEx.dll"));
++        string isolated = Path.Combine(Path.GetTempPath(), "InventorySlots-PoV-smoke-" + Guid.NewGuid());
++        bep.GetType("BepInEx.Paths", true)!.GetMethod("SetExecutablePath", Static)!
++            .Invoke(null, new object[] { Path.Combine(isolated, "valheim.exe"), Path.Combine(isolated, "BepInEx"), args[1], roots });
++        Type threading = bep.GetType("BepInEx.ThreadingHelper", true)!;
++        object queue = FormatterServices.GetUninitializedObject(threading);
++        threading.GetField("_invokeLock", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(queue, new object());
++        threading.GetField("<Instance>k__BackingField", Static)!.SetValue(null, queue);
++        Assembly mod = Assembly.LoadFrom(args[0]);
++        Type plugin = mod.GetType("InventorySlots.InventorySlotsPlugin", true)!;
++        Type policy = mod.GetType("InventorySlots.StackMetadataPolicy", true)!;
++        object? Call(string method, params object?[] values) => policy.GetMethod(method, Static)!.Invoke(null, values);
++        var a = new Dictionary<string, string> { ["pt.potionPower"] = "1.1" };
++        var b = new Dictionary<string, string> { ["pt.potionPower"] = "1.5" };
++        Check(!(bool)Call("CanParticipateInAutomaticStacking", a)!, "PoV absent: no metadata registration");
++        Check((int)plugin.GetMethod("GetPathOfValheimanRegularRows", Static)!.Invoke(null, new object?[] { null, 7 })! == 7,
++            "PoV absent: original row count unchanged without touching a player");
++
++        Assembly pov = Assembly.LoadFrom(args[3]);
++        Type compat = pov.GetType("PassiveTree.InventorySlotsCompat", true)!;
++        MethodInfo original = compat.GetMethod("Run", Static)!;
++        MethodInfo keys = compat.GetMethod("OurKeys", Static)!;
++        var getKeys = (Func<IEnumerable<string>>)Delegate.CreateDelegate(typeof(Func<IEnumerable<string>>), keys);
++        plugin.GetField("_pathOfValheimanMetadataKeys", Static)!.SetValue(null, getKeys);
++        var harmony = new Harmony("InventorySlots.tests.pov");
++        harmony.Patch(original, prefix: new HarmonyMethod(plugin.GetMethod("RegisterPathOfValheimanMetadata", Static)!));
++        original.Invoke(null, null);
++        Check((bool)Call("CanParticipateInAutomaticStacking", a)!, "actual PoV-declared marks participate after patched Run");
++        foreach (string key in new[] { "pt.potionPower", "pt.food", "pt.fooddur", "pt.work.made.id" })
++        {
++            a = new Dictionary<string, string> { [key] = "1.1" };
++            b = new Dictionary<string, string> { [key] = "1.1" };
++            Check((bool)Call("AreCompatible", a, b)!, key + " equal values");
++            b[key] = "1.5";
++            Check(!(bool)Call("AreCompatible", a, b)! && !(bool)Call("AreCompatible", b, a)!, key + " differing values rejected both ways");
++            Check(!(bool)Call("AreCompatible", a, new Dictionary<string, string>())!, key + " absent value stays distinct");
++            a[key] = b[key] = "";
++            Call("MergeInto", a, b);
++            Check(a[key] == "" && b[key] == "", key + " empty values and partial source preserved");
++        }
++        Check(!(bool)Call("CanParticipateInAutomaticStacking", new Dictionary<string, string> { ["pt.future.test"] = "x" })!, "undeclared future metadata stays conservative");
++        Check(!(bool)Call("CanParticipateInAutomaticStacking", new Dictionary<string, string> { ["another.mod"] = "x" })!, "other mod metadata stays conservative");
++        original.Invoke(null, null);
++        Check(!(bool)Call("AreCompatible", new Dictionary<string, string> { ["pt.potionPower"] = "1.1" },
++            new Dictionary<string, string> { ["pt.potionPower"] = "1.5" })!, "repeat PoV registration cannot relax identity");
++
++        // Validate all external targets against original assemblies without starting Unity UI.
++        Assembly game = Assembly.LoadFrom(Path.Combine(args[1], "assembly_valheim.dll"));
++        Type player = game.GetType("Player", true)!;
++        Type gui = game.GetType("InventoryGui", true)!;
++        Type item = game.GetType("ItemDrop+ItemData", true)!;
++        MethodInfo require = plugin.GetMethod("RequirePathOfValheimanMethod", Static)!;
++        MethodInfo Require(string type, string name, Type result, params Type[] parameters) =>
++            (MethodInfo)require.Invoke(null, new object[] { pov.GetType(type, true)!, name, result, parameters })!;
++        var tick = Require("PassiveTree.TradeMechanics", "TickRows", typeof(void), player);
++        Require("PassiveTree.TradeMechanics", "Rows", typeof(int), pov.GetType("PassiveTree.StatSet", true)!);
++        Require("PassiveTree.Progress", "Peek", pov.GetType("PassiveTree.Progress", true)!, player);
++        var panel = Require("PassiveTree.InventoryRowsPanel+Gui_Update", "Postfix", typeof(void), gui);
++        var sort = Require("PassiveTree.QuickStack", "Sort", typeof(void), player);
++        var movable = Require("PassiveTree.QuickStack", "Movable", typeof(List<>).MakeGenericType(item), player);
++        Require("PassiveTree.UI.ItemTooltip", "get_Wanted", typeof(bool));
++        Require("PassiveTree.UI.ItemTooltip", "RefreshCurrent", typeof(void));
++        Require("PassiveTree.UI.TreeWindow", "get_IsOpen", typeof(bool));
++        Check(true, "external method contracts match original PoV DLL");
++        // These wrappers JIT Player methods whose static initialization needs Unity's native
++        // Animator icalls. Keep the optional probe explicit; standalone Mono cannot supply them.
++        if (args.Length == 5)
++        {
++            foreach (var pair in new[] { (tick, "UpdatePathOfValheimanRows"), (panel, "SkipPathOfValheimanRowsPanel"), (sort, "SortPathOfValheimanInventory") })
++            {
++                harmony.Patch(pair.Item1, prefix: new HarmonyMethod(plugin.GetMethod(pair.Item2, Static)!));
++                Check(Harmony.GetPatchInfo(pair.Item1).Owners.Contains(harmony.Id), "installed actual Harmony prefix " + pair.Item1.Name);
++            }
++            harmony.Patch(movable, postfix: new HarmonyMethod(plugin.GetMethod("FilterPathOfValheimanMovableItems", Static)!));
++            Check(Harmony.GetPatchInfo(movable).Owners.Contains(harmony.Id), "installed actual Movable postfix");
++            panel.Invoke(null, new object?[] { null });
++            Check(true, "patched PoV panel callback skips original Unity layout access");
++        }
++        else System.Console.WriteLine("NOT RUN engine-dependent row/sort/UI hooks (require Unity); signatures only.");
++
++        // New private game-member reads use explicit cached accessors, not publicized visibility.
++        Assembly guiutils = Assembly.LoadFrom(Path.Combine(args[1], "assembly_guiutils.dll"));
++        Type tooltip = guiutils.GetType("UITooltip", true)!;
++        MethodInfo fieldReader = plugin.GetMethod("PathOfValheimanStaticField", Static)!;
++        foreach (string fieldName in new[] { "m_current", "m_tooltip" })
++        {
++            FieldInfo field = tooltip.GetField(fieldName, Static)!;
++            Check(field.IsPrivate, fieldName + " is private in original game");
++            var reader = (Delegate)fieldReader.MakeGenericMethod(field.FieldType).Invoke(null, new object[] { tooltip, fieldName })!;
++            Check(reader.DynamicInvoke() == null, "compiled accessor reads original " + fieldName);
++        }
++        harmony.UnpatchSelf();
++        Check(Harmony.GetPatchInfo(original)?.Owners.Contains(harmony.Id) != true, "hooks cleanly unpatch");
++        System.Console.WriteLine($"PASS {checks} original-DLL Mono checks; no game/UI execution.");
++        return 0;
++    }
++
++    private static void Check(bool condition, string message)
++    {
++        if (!condition) throw new InvalidOperationException(message);
++        checks++;
++        System.Console.WriteLine("PASS " + message);
++    }
++}
+diff --git a/build/PathOfValheimanSmoke/README.md b/build/PathOfValheimanSmoke/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..e502fcc7d00ed9c1967445e6ad3ec23c03cf7b9e
+--- /dev/null
++++ b/build/PathOfValheimanSmoke/README.md
+@@ -0,0 +1,23 @@
++# Path of Valheiman compatibility checks
++
++Build the plugin with `dotnet build InventorySlots.csproj -c Debug -p:DeployToGame=true` and run `dotnet run --project InventorySlots.Tests/InventorySlots.Tests.csproj -c Debug` from the repository root. The suite includes production row-state logic and production adapter methods compiled with boundary doubles for sorting and tooltip ownership; those doubles do not verify Unity rendering or Harmony patch installation.
++
++Build this executable with `dotnet build build/PathOfValheimanSmoke/PathOfValheimanSmoke.csproj -c Debug`. Run it through the repository's x64 Mono host (source: `InventoryActions/build/CompatibilitySmoke/MonoHost.cpp`; build procedure: adjacent `Run-MonoSmoke.ps1`). Example for the existing local host:
++
++```powershell
++$game = 'C:\Program Files (x86)\Steam\steamapps\common\Valheim'
++$pov = 'C:\Users\blizz\AppData\Roaming\com.kesomannen.gale\valheim\profiles\asdfzcxv\BepInEx\plugins\treextr-PathOfValheiman\PathOfValheiman\PathOfValheiman.dll'
++& .\InventoryActions\build\CompatibilitySmoke\obj\MonoHost-x64\MonoHost.exe `
++    "$game\MonoBleedingEdge\EmbedRuntime\mono-2.0-bdwgc.dll" `
++    "$game\valheim_Data\Managed" "$game\MonoBleedingEdge\etc" `
++    "$PWD\build\PathOfValheimanSmoke\bin\Debug\net48\PathOfValheimanSmoke.exe" `
++    "$PWD\bin\Debug\InventorySlots.dll" "$game\valheim_Data\Managed" "$game\BepInEx\core" $pov
++```
++
++The probe isolates BepInEx configuration paths in a new temporary directory. It loads original game/PoV assemblies, patches and invokes the actual private PoV metadata-registration method with the final plugin's prefix, checks preserved/different/absent metadata and first-run/repeated registration, validates other external method signatures, and executes explicit readers for the game's original private tooltip fields. It does not publicize or modify input DLLs.
++
++2026-10-17: **28 checks passed**, exit 0, against Valheim client **1.0.20** (25909357) and supplied PoV **5.0.4**, SHA-256 `36E45B65B44667AD596446CAC2AE989041669948C11710B05185E4FE16697DB4`.
++
++The optional `--engine-hooks` probe attempts the additional row/sort/panel hooks. It was attempted and exited 1 because patch compilation initializes `Player` → `ZSyncAnimation` → Unity's native `Animator.StringToHash_Injected`, unavailable in standalone Mono. This is **not** a passed runtime hook check or evidence of mismatched installed game libraries. Do not replace/publicize game DLLs or stub native game methods to hide that limitation. The default run explicitly reports these hooks as not executed.
++
++Still requiring actual game verification: Big Bag gains/respec, occupied-row removal, save/reconnect, Tidy Pack with equipped/favorite/quick-slot items, multiplayer chest contention, hover delay, Alt-pinned keyword/socket interaction, live tooltip layout On/Off, Mouse3 pins/chat text, tree opening/closing, and dedicated-server startup. No game/client/server session was launched for these checks.
+diff --git a/docs/user/compatibility.md b/docs/user/compatibility.md
+index 2e379eb889f3c9d67ef0e5fc9bbfe60dc8aab4cd..126c50183a89b3c53edf8e6f2e8a3b5567669812 100644
+--- a/docs/user/compatibility.md
++++ b/docs/user/compatibility.md
+@@ -51,6 +51,7 @@ InventorySlots cannot be combined with other slot owners declared incompatible:
+ | AdventureBackpacks / Smoothbrain Backpacks | Backpack slots and equipped-backpack synchronization. |
+ | RustyBags | Bag/quiver slots and equipped-state synchronization. |
+ | Magic Supremacy | MagicBelt slot with native Tome equipment and saved-state synchronization. |
++| Path of Valheiman | Conditional Big Bag row adapter, protected Tidy Pack sorting, exact item-mark stacking, and native PoV item hover cards. See the limits below. |
+ | BetterArchery | Conservative handling of its quiver/reserved cells. |
+ | AzuCraftyBoxes | Shows nearby material counts/colors through its optional API. AzuCraftyBoxes remains responsible for consumption. |
+ | Recycle N Reclaim | Grid/List support for the Reclaim tab. |
+@@ -61,6 +62,18 @@ InventorySlots cannot be combined with other slot owners declared incompatible:
+ 
+ Keep generated compatibility slot IDs unchanged when editing YAML. Optional integrations use the relevant installed mod's supported interfaces; this list does not mean every feature of every mod shares the same layout.
+ 
++### Path of Valheiman
++
++The adapter activates only when `treextr.pathofvalheiman` is loaded. It checks each required method/field signature independently; it does not require an exact version number. The reviewed DLL is **PoV 5.0.4**. Restart the game after installing this update: already-registered stack policies are not replaced during hot loading.
++
++- **Big Bag:** PoV's 0–3 bonus rows are added after native pockets and InventorySlots progression, within the existing **nine regular-row maximum**. Equipment and quick-slot storage coordinates do not move. PoV's separate physical-height/panel resizing is suppressed. Removing the bonus retains occupied bonus rows until emptied. Its existing `pt.invrows` key still stores the desired bonus, not the physical storage height.
++- **Tidy Pack:** its direct Sort uses InventorySlots sorting and keeps equipped items, favorites, hotbar, locked cells and special slots out of the movable cells. Its Quick Stack candidate list receives the same additional protection. Existing chest access, ownership and RPC paths remain in place; this does not add a new transfer protocol or change PoV's mastery requirement.
++- **Item marks:** PoV's own declared `pt.*` keys participate in automatic stacking only when their raw values match. Different potency, duration or crafting provenance stays separate, including a key present on only one stack. Undeclared keys and other mods' unregistered metadata remain conservative. Public stack-policy registration remains first-wins.
++- **Hover tooltips:** when PoV's **Item tooltip layout** is enabled and it produces a card for an inventory/chest item, that card takes precedence. Disabling it returns to InventorySlots' hover display. PoV's native hover delay and Alt interaction are retained. InventorySlots Mouse3 pins and chat snapshots continue using ordinary item-tooltip text; they do not export all of PoV's graphical widgets or detail-only information.
++- **Tree window:** the guide's click target does not raise itself above the open PoV tree. Quick Slot HUD visibility modes and their default fade behavior are unchanged.
++
++UI/row/sort adapters are not installed on a dedicated server. A missing capability logs a warning and leaves that capability unchanged. These scoped fixes do not establish full compatibility for every PoV mastery, including Full Harness or death-retention interactions. Actual UI use, respec/reconnect and multiplayer transfers still need in-game verification.
++
+ Magic Supremacy's native `tome` definition supplies the accepted items automatically, including its Frostcaller and Lightcaller tomes. Keep InventorySlots' existing `magicsupremacy.belt` YAML ID; the default `MagicBelt` display name can be changed. An empty `items` list is sufficient for native tomes. In Magic Supremacy 3.1.3, `ArmorWindcallerUtility_DO` is not a native tome. You can still explicitly add it to the YAML `items` list as an InventorySlots custom item, without registering it in Magic Supremacy's native Tome state. `applyArmor` remains independent of item acceptance.
+ 
+ - Keep the `magicsupremacy.belt` entry to equip native Tomes in MagicBelt. Tomes cannot be placed in Utility while this entry exists, even if listed in `utility.items`.
+-- 
+2.51.0.windows.1
+

@@ -42,7 +42,7 @@ Both mods have optional **EpicLoot** support for compatible crafting-material, F
 
 InventoryActions includes this stacking support directly. If **EpicLootAdventureTools 0.8.4** is installed, InventoryActions retires only its overlapping stacking patches and leaves the adventure tracker active. Other AdventureTools versions are not automatically modified. EpicLoot's public item-data API is required for this optional integration; a missing or failing API does not permit unchecked merging.
 
-InventorySlots cannot be combined with other slot owners declared incompatible: **AzuExtendedPlayerInventory, ExtraSlots, ExtraSlotsCustomSlots, Equipment and Quick Slots, ComfyQuickSlots**, or **Quick Stack Store**. InventoryActions is also an alternative, not an add-on to InventorySlots.
+InventorySlots cannot be combined with other slot owners declared incompatible: **AzuExtendedPlayerInventory, ExtraSlots, ExtraSlotsCustomSlots, Equipment and Quick Slots, ComfyQuickSlots, Path of Valheiman**, or **Quick Stack Store**. InventoryActions is also an alternative, not an add-on to InventorySlots.
 
 | Optional mod | InventorySlots behavior |
 | --- | --- |
@@ -51,7 +51,6 @@ InventorySlots cannot be combined with other slot owners declared incompatible: 
 | AdventureBackpacks / Smoothbrain Backpacks | Backpack slots and equipped-backpack synchronization. |
 | RustyBags | Bag/quiver slots and equipped-state synchronization. |
 | Magic Supremacy | MagicBelt slot with native Tome equipment and saved-state synchronization. |
-| Path of Valheiman | Big Bag rows, protected Tidy Pack sorting, exact item-mark stacking, native hover cards, and crafting UI integration. See the limits below. |
 | BetterArchery | Conservative handling of its quiver/reserved cells. |
 | AzuCraftyBoxes | Shows nearby material counts/colors through its optional API. AzuCraftyBoxes remains responsible for consumption. |
 | Recycle N Reclaim | Grid/List support for the Reclaim tab. |
@@ -64,18 +63,21 @@ Keep generated compatibility slot IDs unchanged when editing YAML. Optional inte
 
 ### Path of Valheiman
 
-The adapter activates only when `treextr.pathofvalheiman` is loaded. It checks each required method/field signature independently; it does not require an exact version number. The reviewed DLL is **PoV 5.0.4**. Restart the game after installing this update: already-registered stack policies are not replaced during hot loading.
+**Path of Valheiman (`treextr.pathofvalheiman`) is incompatible with InventorySlots.** BepInEx refuses to load InventorySlots when both plugins are present. This applies to every PoV version and to clients and servers, including when PoV's **Equipment system** is Off.
 
-- **Big Bag:** PoV's 0–3 bonus rows are added after native pockets and InventorySlots progression, within the existing **nine regular-row maximum**. Equipment and quick-slot storage coordinates do not move. PoV's separate physical-height/panel resizing is suppressed. Removing the bonus retains occupied bonus rows until emptied. Its existing `pt.invrows` key still stores the desired bonus, not the physical storage height.
-- **Tidy Pack:** its direct Sort uses InventorySlots sorting and keeps equipped items, favorites, hotbar, locked cells and special slots out of the movable cells. Its Quick Stack candidate list receives the same additional protection. Existing chest access, ownership and RPC paths remain in place; this does not add a new transfer protocol or change PoV's mastery requirement.
-- **Item marks:** PoV's own declared `pt.*` keys participate in automatic stacking only when their raw values match. Different potency, duration or crafting provenance stays separate, including a key present on only one stack. Undeclared keys and other mods' unregistered metadata remain conservative. Public stack-policy registration remains first-wins.
-- **Hover tooltips:** when PoV's **Item tooltip layout** is enabled and it produces a card for an inventory/chest item, that card takes precedence. Disabling it returns to InventorySlots' hover display. PoV's native hover delay and Alt interaction are retained. InventorySlots Mouse3 pins and chat snapshots continue using ordinary item-tooltip text; they do not export all of PoV's graphical widgets or detail-only information.
-- **Tree window:** the guide's click target does not raise itself above the open PoV tree. Quick Slot HUD visibility modes and their default fade behavior are unchanged.
-- **Salvage / Disenchant:** PoV's tabs use InventorySlots' List/Grid, search and item tooltips. Each entry keeps the actual inventory item; previews show its current quality and PoV's returned materials, including the socketed-sigil destruction warning. PoV still determines which items qualify, node/station requirements and the actual removal/return operation. These actions do not use the ordinary crafting quantity queue or recipe favorites. InventorySlots' upgrade protection runs after PoV's destructive action, while remaining active for ordinary upgrades.
-- **Crafting layout:** InventorySlots keeps its own category/filter and quantity controls, suppressing PoV's duplicate categories and queue display only while it owns the crafting panel. The PoV tab is placed after the other active tabs and before VNEI; VNEI retains its own screen. PoV's **Box radius** button is placed below the action button on the Craft/Upgrade view, retaining its existing callback and node requirement.
-- **Nearby materials:** displayed counts use PoV's chest access rules and the displayed recipe's mastery, including hovered/pinned recipes. Inventory and optional-provider totals are not added together; the larger available total is shown. Material consumption remains with the existing game/mod crafting hooks.
+PoV 5.0.5 adds its own equipment storage rows and item positioning. Both mods managing the same inventory can conflict. In that reviewed build, turning Equipment system off still attaches and later releases equipment rows during character loading, so Off is not a supported workaround.
 
-UI/row/sort adapters are not installed on a dedicated server. A missing capability logs a warning and leaves that capability unchanged. These scoped fixes do not establish full compatibility for every PoV mastery, including Full Harness or death-retention interactions. Actual UI use, respec/reconnect and multiplayer transfers still need in-game verification.
+The former Big Bag, Tidy Pack, metadata, tooltip and crafting adapters have been removed. Their source changes, tests and historical validation notes are preserved in the [compatibility archive](../../archives/compatibility/path-of-valheiman/README.md). The archive is reference material and is not compiled or packaged.
+
+There is no automatic conversion between the two equipment systems. Before switching away from InventorySlots, use the previous supported setup to move items out of its special slots into ordinary backpack cells, save, and keep a character backup. Do not use the loader refusal as an item-conversion step.
+
+**InventoryActions 1.1.15:** includes a client-side PoV adapter, checked against the supplied PoV **5.0.5** DLL. It reads PoV's live backpack boundary and protects its equipment, food, arrow, tool and wallet rows in InventoryActions-managed sorting, transfers, restock and trash; buttons use the visible backpack height. Equipped items awaiting PoV's initial placement are also protected. Turning Equipment system Off does not expose its rows until PoV finishes releasing them. Take All and Ctrl-move paths delegated to native or external container handlers remain subject to those providers' placement rules; this adapter does not replace every native or MultiUserChest UI transfer.
+
+PoV's own Tidy Pack sort and nearby quick stack respect InventoryActions favorites, including empty favorite slots during sorting. PoV retains its node requirements, sort order, range and access rules. With external **MultiUserChest**, use InventoryActions' chest quick-stack shortcut: PoV's native nearby quick stack is disabled because it uses a different transfer protocol.
+
+The adapter checks method contracts rather than an exact version number. If those contracts no longer match, InventoryActions blocks player inventory actions and logs a warning instead of treating unknown storage rows as backpack space. This is not a public PoV API guarantee. PoV keeps responsibility for its equipment, crafting UI, weight, save/death handling and multiplayer behavior. No PoV DLL is bundled. The isolated checks do not replace in-game UI, delayed network response, death/reconnect or multiplayer verification.
+
+### Magic Supremacy
 
 Magic Supremacy's native `tome` definition supplies the accepted items automatically, including its Frostcaller and Lightcaller tomes. Keep InventorySlots' existing `magicsupremacy.belt` YAML ID; the default `MagicBelt` display name can be changed. An empty `items` list is sufficient for native tomes. In Magic Supremacy 3.1.3, `ArmorWindcallerUtility_DO` is not a native tome. You can still explicitly add it to the YAML `items` list as an InventorySlots custom item, without registering it in Magic Supremacy's native Tome state. `applyArmor` remains independent of item acceptance.
 

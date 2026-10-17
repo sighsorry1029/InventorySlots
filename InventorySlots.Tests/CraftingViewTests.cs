@@ -19,8 +19,7 @@ internal static class CraftingViewTests
         {
             CraftingTabAdapterKind.Vanilla,
             CraftingTabAdapterKind.JewelcraftingSocket,
-            CraftingTabAdapterKind.RecycleNReclaim,
-            CraftingTabAdapterKind.PathOfValheimanSalvage
+            CraftingTabAdapterKind.RecycleNReclaim
         };
         foreach (CraftingTabAdapterKind tab in Enum.GetValues<CraftingTabAdapterKind>())
         {

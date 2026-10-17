@@ -1,0 +1,2 @@
+# Preserve the archived patches byte-for-byte, including original line endings.
+*.patch -text

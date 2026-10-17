@@ -24,6 +24,7 @@ namespace InventorySlots;
 [BepInIncompatibility("randyknapp.mods.equipmentandquickslots")]
 [BepInIncompatibility("com.bruce.valheim.comfyquickslots")]
 [BepInIncompatibility("goldenrevolver.quick_stack_store")]
+[BepInIncompatibility("treextr.pathofvalheiman")]
 [BepInDependency("Azumatt.AzuCraftyBoxes", BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency("org.bepinex.plugins.jewelcrafting", BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency("vapok.mods.adventurebackpacks", BepInDependency.DependencyFlags.SoftDependency)]
@@ -38,7 +39,6 @@ namespace InventorySlots;
 [BepInDependency(VeiledRecipesGuid, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency(CircletExtendedGuid, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency(HipLanternGuid, BepInDependency.DependencyFlags.SoftDependency)]
-[BepInDependency(PathOfValheimanGuid, BepInDependency.DependencyFlags.SoftDependency)]
 public sealed partial class InventorySlotsPlugin : BaseUnityPlugin
 {
     private const int BaseRows = ClientStateCore.DefaultLastExpandableRows;

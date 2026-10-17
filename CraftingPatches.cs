@@ -12,7 +12,6 @@ internal static class InventoryGuiCraftingViewDestroyPatch
     {
         InventorySlotsPlugin.CancelInventoryClosingLayout(__instance);
         InventorySlotsPlugin.DestroyCraftingListViewUi(__instance);
-        InventorySlotsPlugin.ClearPathOfValheimanCraftingUi(__instance);
     }
 }
 
@@ -45,7 +44,7 @@ internal static class InventoryGuiJewelcraftingPrimaryTabPreflightPatch
 
 [HarmonyPatch(typeof(InventoryGui), "UpdateCraftingPanel")]
 [HarmonyPriority(Priority.Last)]
-[HarmonyAfter(new[] { "com.maxsch.valheim.vnei", "org.bepinex.plugins.jewelcrafting", "Azumatt.Recycle_N_Reclaim", "treextr.pathofvalheiman" })]
+[HarmonyAfter(new[] { "com.maxsch.valheim.vnei", "org.bepinex.plugins.jewelcrafting", "Azumatt.Recycle_N_Reclaim" })]
 internal static class InventoryGuiCraftingPanelRedesignPatch
 {
     private static void Postfix(InventoryGui __instance)
@@ -56,7 +55,7 @@ internal static class InventoryGuiCraftingPanelRedesignPatch
 
 [HarmonyPatch(typeof(InventoryGui), "UpdateRecipe")]
 [HarmonyPriority(Priority.Last)]
-[HarmonyAfter(new[] { "org.bepinex.plugins.jewelcrafting", "Azumatt.Recycle_N_Reclaim", "treextr.pathofvalheiman" })]
+[HarmonyAfter(new[] { "org.bepinex.plugins.jewelcrafting", "Azumatt.Recycle_N_Reclaim" })]
 internal static class InventoryGuiCraftingRecipeRedesignPatch
 {
     // The last native tick after Hide re-enables vanilla details/buttons. Keep
@@ -150,7 +149,6 @@ internal static class InventoryGuiCraftingQueueCancelPatch
 [HarmonyBefore(new[] { "org.bepinex.plugins.jewelcrafting" })]
 internal static class InventoryGuiUpgradeFavoriteCraftingPatch
 {
-    [HarmonyAfter("treextr.pathofvalheiman")]
     private static bool Prefix(InventoryGui __instance, out bool __state)
     {
         __state = false;
@@ -195,7 +193,6 @@ internal static class InventoryGuiUpgradeFavoriteCraftingPatch
 internal static class InventoryGuiEquipmentSlotUpgradeSafetyPatch
 {
     [HarmonyPriority(Priority.First)]
-    [HarmonyAfter("treextr.pathofvalheiman")]
     [HarmonyBefore(new[] { "org.bepinex.plugins.jewelcrafting", "Azumatt.Recycle_N_Reclaim", "sighsorry.FineDining" })]
     private static bool Prefix(
         InventoryGui __instance,

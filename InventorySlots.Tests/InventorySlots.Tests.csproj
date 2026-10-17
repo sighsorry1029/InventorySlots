@@ -26,7 +26,6 @@
     <Compile Include="..\InventoryActions\MultiUserChestRequestGate.cs" Link="InventoryActions\MultiUserChestRequestGate.cs" />
     <Compile Include="..\InventoryPlacementPolicyCore.cs" Link="InventoryPlacementPolicyCore.cs" />
     <Compile Include="..\InventorySlotSafetyCore.cs" Link="InventorySlotSafetyCore.cs" />
-    <Compile Include="..\PathOfValheimanRows.cs" Link="PathOfValheimanRows.cs" />
     <Compile Include="..\InventorySlotsYamlModels.cs" Link="InventorySlotsYamlModels.cs" />
     <Compile Include="..\Shared\Persistence\LinkCompatibleFileWriter.cs" Link="LinkCompatibleFileWriter.cs" />
     <Compile Include="..\ItemGroupRegistry.cs" Link="ItemGroupRegistry.cs" />

@@ -7,7 +7,6 @@ public sealed partial class InventorySlotsPlugin
     private static void PrepareCraftingTabAdapterPreflight(InventoryGui gui)
     {
         EnsureJewelcraftingCraftingPanelVisible(gui);
-        LayoutPathOfValheimanCraftingTab(gui);
     }
 
     private static CraftingTabAdapterState GetCraftingTabAdapterState(InventoryGui? gui)
@@ -19,11 +18,6 @@ public sealed partial class InventorySlotsPlugin
             !gui.m_crafting.gameObject.activeInHierarchy)
         {
             return new CraftingTabAdapterState(CraftingTabAdapterKind.None);
-        }
-
-        if (IsPathOfValheimanSalvageTab(gui))
-        {
-            return new CraftingTabAdapterState(CraftingTabAdapterKind.PathOfValheimanSalvage);
         }
 
         if (IsJewelcraftingCraftingRedesignTab(gui))
@@ -85,13 +79,6 @@ public sealed partial class InventorySlotsPlugin
         // Bottom controls prepare the selected action's status before List details
         // render on both the full update and fast path. Clear it for empty/new tabs.
         _craftingListStatusText = "";
-        if (!adapter.IsPathOfValheimanSalvage) HidePathOfValheimanReturns();
-        LayoutPathOfValheimanRadiusButton(gui, grid);
-        if (adapter.IsPathOfValheimanSalvage)
-        {
-            LayoutPathOfValheimanSalvageControls(gui, grid);
-            return;
-        }
         if (adapter.UsesRecycleNReclaimBottomControls)
         {
             LayoutRecycleNReclaimBottomControls(gui, grid);
@@ -124,7 +111,6 @@ public sealed partial class InventorySlotsPlugin
         return adapter.Kind switch
         {
             CraftingTabAdapterKind.JewelcraftingSocket => pair.ItemData != null,
-            CraftingTabAdapterKind.PathOfValheimanSalvage => pair.ItemData != null && RecipeMatchesCraftingSearch(pair),
             CraftingTabAdapterKind.RecycleNReclaim => ShouldIncludeRecycleNReclaimRecipeInView(pair),
             CraftingTabAdapterKind.Vanilla => RecipeMatchesSelectedCraftingGroup(pair) && RecipeMatchesCraftingSearch(pair),
             _ => false
@@ -133,7 +119,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static int CompareCraftingRecipeViewEntriesForAdapter(CraftingTabAdapterState adapter, CraftingRecipeViewEntry a, CraftingRecipeViewEntry b)
     {
-        if (adapter.IsRecycleNReclaim || adapter.IsPathOfValheimanSalvage)
+        if (adapter.IsRecycleNReclaim)
         {
             return CompareRecycleNReclaimRecipeViewEntries(a, b);
         }
@@ -195,7 +181,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         CraftingTabAdapterState adapter = GetCraftingTabAdapterState(InventoryGui.instance);
-        if ((adapter.IsRecycleNReclaim || adapter.IsPathOfValheimanSalvage) && pair.ItemData != null)
+        if (adapter.IsRecycleNReclaim && pair.ItemData != null)
         {
             return GetRecycleNReclaimRecipeDisplayName(pair);
         }
@@ -224,10 +210,6 @@ public sealed partial class InventorySlotsPlugin
         if (pair.ItemData != null)
         {
             CraftingTabAdapterState adapter = GetCraftingTabAdapterState(InventoryGui.instance);
-            if (adapter.IsPathOfValheimanSalvage)
-            {
-                return GetPathOfValheimanSalvageTooltip(pair);
-            }
             if (adapter.IsRecycleNReclaim)
             {
                 return GetRecycleNReclaimRecipeTooltip(pair);

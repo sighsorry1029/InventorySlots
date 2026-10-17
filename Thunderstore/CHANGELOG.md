@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.7
+
+- Declared Path of Valheiman incompatible with InventorySlots. BepInEx prevents InventorySlots from loading alongside PoV, including when PoV's Equipment system is Off, because both mods manage the same inventory storage rows.
+- Removed the former PoV-specific row, Tidy Pack, metadata, tooltip and crafting adapters. Preserved their source changes and historical checks in the repository's compatibility archive; they are not included in the mod package.
+- Documented switching to InventoryActions for PoV users. No automatic slot or save conversion is performed: move items out of InventorySlots special slots and save in the previous working setup before switching.
+
 ## 1.6.6
 
 - Integrated Path of Valheiman's Salvage and Disenchant tabs with InventorySlots' List/Grid, search and item tooltips. Each entry keeps the actual inventory item and shows its current quality, returned materials and socketed-sigil destruction warning. PoV retains its node/station requirements, item eligibility and removal/return logic.

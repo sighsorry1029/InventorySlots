@@ -210,13 +210,6 @@ public sealed partial class InventorySlotsPlugin
         int worldLevel = Game.m_worldLevel;
         int recipeAmount = recipe != null ? recipe.m_amount : 1;
         CraftingTabAdapterKind adapterKind = GetCraftingTabAdapterState(InventoryGui.instance).Kind;
-        if (adapterKind == CraftingTabAdapterKind.PathOfValheimanSalvage && item != null)
-        {
-            // Preview cache expires independently of the recipe list (node tuning,
-            // sockets and station changes can change the returns without a new item).
-            try { return $"pov:{pairKey.RecipeId}:{pairKey.ItemKey}:{GetCraftingTooltipItemSignature(item)}:{GetPathOfValheimanPreview(pair).Summary}"; }
-            catch (Exception error) { WarnPathOfValheimanCrafting(error); return ""; }
-        }
         string itemRequiresSkillLevelSignature = GetItemRequiresSkillLevelCraftingTooltipSignature(pair);
         string veiledRecipeSignature = GetVeiledRecipeDisplaySignature(pair);
         if (item == null)
@@ -625,7 +618,6 @@ public sealed partial class InventorySlotsPlugin
 
     private static string GetCraftingTooltipRecipeRowSignature(InventoryGui.RecipeDataPair pair)
     {
-        if (IsPathOfValheimanSalvageTab(InventoryGui.instance)) return GetCraftingHoverTooltipContentKey(pair);
         Recipe? recipe = pair.Recipe;
         int quality = pair.ItemData == null ? 1 : pair.ItemData.m_quality + 1;
         bool veiledMasked = IsVeiledRecipeMasked(pair);
@@ -652,7 +644,7 @@ public sealed partial class InventorySlotsPlugin
                     continue;
                 }
 
-                int available = GetAvailableCraftingRequirementAmount(requirement, recipe);
+                int available = GetAvailableCraftingRequirementAmount(requirement);
                 bool requirementKnown = !veiledMasked || IsVeiledRecipeRequirementKnown(requirement);
                 builder
                     .Append('|')
@@ -778,12 +770,6 @@ public sealed partial class InventorySlotsPlugin
         row.localRotation = Quaternion.identity;
         row.gameObject.SetActive(true);
 
-        if (IsPathOfValheimanSalvageTab(InventoryGui.instance) && pair.ItemData != null)
-        {
-            ConfigurePathOfValheimanReturnRow(row, pair, slotSize, gap, enableSlotTooltips);
-            return;
-        }
-
         Recipe? recipe = pair.Recipe;
         int quality = pair.ItemData == null ? 1 : pair.ItemData.m_quality + 1;
         bool veiledMasked = IsVeiledRecipeMasked(pair);
@@ -800,7 +786,7 @@ public sealed partial class InventorySlotsPlugin
             }
 
             int required = requirement.GetAmount(quality);
-            int available = GetAvailableCraftingRequirementAmount(requirement, recipe);
+            int available = GetAvailableCraftingRequirementAmount(requirement);
             bool requirementKnown = !veiledMasked || IsVeiledRecipeRequirementKnown(requirement);
             string requirementName = requirementKnown ? GetRequirementDisplayName(requirement) : GetVeiledRecipeUnknownNameText();
             ConfigureCraftingTooltipRecipeSlot(

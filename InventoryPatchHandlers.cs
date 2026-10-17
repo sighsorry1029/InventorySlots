@@ -74,7 +74,6 @@ public sealed partial class InventorySlotsPlugin
         }
 
         NativeRowCache.Remove(player);
-        PathOfValheimanRowCache.Remove(player);
         Inventory inventory = ((Humanoid)player).GetInventory();
         EnsureInventoryHeightForLoad(inventory);
         return BeginInventoryLoadPreservation(inventory);
@@ -188,7 +187,6 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void OnPlayerLoaded(Player player)
     {
-        PathOfValheimanRowCache.Remove(player);
         RefreshNativeInventoryRows(player);
         InvalidateInventoryPlacementCaches();
         InvalidateCustomEquipmentProjectionCache();

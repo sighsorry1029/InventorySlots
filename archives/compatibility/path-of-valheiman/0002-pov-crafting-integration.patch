@@ -1,0 +1,1192 @@
+From ef82d63bea4324c2d5999d15ca73e37fd4ec5d6f Mon Sep 17 00:00:00 2001
+From: blizz <sighsorry1029@gmail.com>
+Date: Sat, 17 Oct 2026 22:49:58 +0900
+Subject: [PATCH 2/2] Release InventorySlots 1.6.6 with PoV crafting
+ integration
+
+
+diff --git a/CraftingFavorites.cs b/CraftingFavorites.cs
+index e3be86c116584813772ff19d44ac610c7a382e74..23c8f9604aabdd15779933b37f995bc0c23edc83 100644
+--- a/CraftingFavorites.cs
++++ b/CraftingFavorites.cs
+@@ -10,7 +10,7 @@ public sealed partial class InventorySlotsPlugin
+ {
+     private static bool TryToggleCraftingRecipeFavorite(int originalIndex)
+     {
+-        if (IsRecycleNReclaimReclaimTabActive(InventoryGui.instance))
++        if (IsRecycleNReclaimReclaimTabActive(InventoryGui.instance) || IsPathOfValheimanSalvageTab(InventoryGui.instance))
+         {
+             return false;
+         }
+@@ -94,7 +94,7 @@ public sealed partial class InventorySlotsPlugin
+ 
+     private static bool IsFavoriteCraftingRecipe(InventoryGui.RecipeDataPair pair)
+     {
+-        if (IsRecycleNReclaimReclaimTabActive(InventoryGui.instance))
++        if (IsRecycleNReclaimReclaimTabActive(InventoryGui.instance) || IsPathOfValheimanSalvageTab(InventoryGui.instance))
+         {
+             return false;
+         }
+diff --git a/CraftingGridInteraction.cs b/CraftingGridInteraction.cs
+index 7801c82ded81c3e4af9d6c85ce0a35d7281fa19b..d400858fcf96124e51b4fb1db086edda8e298f55 100644
+--- a/CraftingGridInteraction.cs
++++ b/CraftingGridInteraction.cs
+@@ -469,6 +469,10 @@ public sealed partial class InventorySlotsPlugin
+         }
+ 
+         string recycleNReclaimAmount = GetRecycleNReclaimRecipeCellAmountText(gui, pair);
++        if (IsPathOfValheimanSalvageTab(gui) && pair.ItemData != null)
++        {
++            return pair.ItemData.m_stack > 1 ? pair.ItemData.m_stack.ToString() : "";
++        }
+         if (!string.IsNullOrEmpty(recycleNReclaimAmount))
+         {
+             return recycleNReclaimAmount;
+diff --git a/CraftingPatches.cs b/CraftingPatches.cs
+index a7e014198b93357e3f076dc3c9c1f4c417bd7a16..5a0d643d035260194237c1824b3ba71c045cc467 100644
+--- a/CraftingPatches.cs
++++ b/CraftingPatches.cs
+@@ -12,6 +12,7 @@ internal static class InventoryGuiCraftingViewDestroyPatch
+     {
+         InventorySlotsPlugin.CancelInventoryClosingLayout(__instance);
+         InventorySlotsPlugin.DestroyCraftingListViewUi(__instance);
++        InventorySlotsPlugin.ClearPathOfValheimanCraftingUi(__instance);
+     }
+ }
+ 
+@@ -44,7 +45,7 @@ internal static class InventoryGuiJewelcraftingPrimaryTabPreflightPatch
+ 
+ [HarmonyPatch(typeof(InventoryGui), "UpdateCraftingPanel")]
+ [HarmonyPriority(Priority.Last)]
+-[HarmonyAfter(new[] { "com.maxsch.valheim.vnei", "org.bepinex.plugins.jewelcrafting", "Azumatt.Recycle_N_Reclaim" })]
++[HarmonyAfter(new[] { "com.maxsch.valheim.vnei", "org.bepinex.plugins.jewelcrafting", "Azumatt.Recycle_N_Reclaim", "treextr.pathofvalheiman" })]
+ internal static class InventoryGuiCraftingPanelRedesignPatch
+ {
+     private static void Postfix(InventoryGui __instance)
+@@ -55,7 +56,7 @@ internal static class InventoryGuiCraftingPanelRedesignPatch
+ 
+ [HarmonyPatch(typeof(InventoryGui), "UpdateRecipe")]
+ [HarmonyPriority(Priority.Last)]
+-[HarmonyAfter(new[] { "org.bepinex.plugins.jewelcrafting", "Azumatt.Recycle_N_Reclaim" })]
++[HarmonyAfter(new[] { "org.bepinex.plugins.jewelcrafting", "Azumatt.Recycle_N_Reclaim", "treextr.pathofvalheiman" })]
+ internal static class InventoryGuiCraftingRecipeRedesignPatch
+ {
+     // The last native tick after Hide re-enables vanilla details/buttons. Keep
+@@ -149,6 +150,7 @@ internal static class InventoryGuiCraftingQueueCancelPatch
+ [HarmonyBefore(new[] { "org.bepinex.plugins.jewelcrafting" })]
+ internal static class InventoryGuiUpgradeFavoriteCraftingPatch
+ {
++    [HarmonyAfter("treextr.pathofvalheiman")]
+     private static bool Prefix(InventoryGui __instance, out bool __state)
+     {
+         __state = false;
+@@ -193,6 +195,7 @@ internal static class InventoryGuiUpgradeFavoriteCraftingPatch
+ internal static class InventoryGuiEquipmentSlotUpgradeSafetyPatch
+ {
+     [HarmonyPriority(Priority.First)]
++    [HarmonyAfter("treextr.pathofvalheiman")]
+     [HarmonyBefore(new[] { "org.bepinex.plugins.jewelcrafting", "Azumatt.Recycle_N_Reclaim", "sighsorry.FineDining" })]
+     private static bool Prefix(
+         InventoryGui __instance,
+diff --git a/CraftingRecipeView.cs b/CraftingRecipeView.cs
+index 2fecb83588e770138510e8f5dc27beb07a80aedf..8eaee136b7e4b43e15991eb94202620b24c5d563 100644
+--- a/CraftingRecipeView.cs
++++ b/CraftingRecipeView.cs
+@@ -25,6 +25,7 @@ public sealed partial class InventorySlotsPlugin
+         }
+ 
+         TryRefreshSelectedJewelcraftingSocketRecipePair(gui);
++        ClearPathOfValheimanCraftingPreviews();
+         string signature = GetCraftingRecipeListChangeSignature(gui);
+         if (!CraftingController.TryStoreRecipeListChangeSignature(signature))
+         {
+diff --git a/CraftingRedesign.cs b/CraftingRedesign.cs
+index 98ccbf0723ac74060c977f1fe8709964e2de0aad..a70d4db1f868c906c8d22fe3b32efb83e73af72c 100644
+--- a/CraftingRedesign.cs
++++ b/CraftingRedesign.cs
+@@ -38,6 +38,8 @@ public sealed partial class InventorySlotsPlugin
+         UpdateCraftingViewMode(adapter, shouldShowRedesign);
+         if (!shouldShowRedesign)
+         {
++            HidePathOfValheimanReturns();
++            RestorePathOfValheimanRadiusButton(gui);
+             UpdateCraftingTabAdapterSuppression(gui, shouldSuppress: false, adapter);
+             if (_craftingRedesignApplied)
+             {
+diff --git a/CraftingRequirementStrip.cs b/CraftingRequirementStrip.cs
+index 74e99da4c55a809df6297683a52e8cd17f97998d..38b9733979dfd7288cfc7abe2f786fda9699783a 100644
+--- a/CraftingRequirementStrip.cs
++++ b/CraftingRequirementStrip.cs
+@@ -210,7 +210,7 @@ public sealed partial class InventorySlotsPlugin
+             {
+                 TMP_Text text = marker.AmountText;
+                 int required = Mathf.Max(0, requirement.GetAmount(quality) * Mathf.Max(1, craftMultiplier));
+-                int available = requirementKnown ? GetAvailableCraftingRequirementAmount(requirement) : 0;
++                int available = requirementKnown ? GetAvailableCraftingRequirementAmount(requirement, gui.m_selectedRecipe.Recipe) : 0;
+                 bool noCost = HasNoCraftCost();
+                 bool availableEnough = requirementKnown && (noCost || available >= required);
+                 string label = requirementKnown ? FormatCompactRequirementAmount(available, required) : GetVeiledRecipeUnknownRequirementText();
+@@ -423,7 +423,7 @@ public sealed partial class InventorySlotsPlugin
+         }
+     }
+ 
+-    private static int GetAvailableCraftingRequirementAmount(Requirement requirement)
++    private static int GetAvailableCraftingRequirementAmount(Requirement requirement, Recipe? recipe)
+     {
+         Player? player = Player.m_localPlayer;
+         if (player == null || requirement.m_resItem == null || requirement.m_resItem.m_itemData?.m_shared == null)
+@@ -442,7 +442,7 @@ public sealed partial class InventorySlotsPlugin
+         if (CraftingRequirements.AvailabilityCache.TryGetValue(cacheKey, out CraftingRequirementAvailabilityCacheEntry cached) &&
+             cached.ExpiresAt >= now)
+         {
+-            return cached.Amount;
++            return GetPathOfValheimanCraftingStock(player, sharedName, recipe, cached.Amount);
+         }
+ 
+         Inventory inventory = player.GetInventory();
+@@ -451,7 +451,7 @@ public sealed partial class InventorySlotsPlugin
+         CraftingRequirements.AvailabilityCache[cacheKey] = new CraftingRequirementAvailabilityCacheEntry(
+             amount,
+             now + CraftingRequirementAvailabilityCacheSeconds);
+-        return amount;
++        return GetPathOfValheimanCraftingStock(player, sharedName, recipe, amount);
+     }
+ 
+     private static string GetCraftingRequirementAvailabilityCacheKey(Player player, Requirement requirement, string sharedName)
+diff --git a/CraftingTabAdapter.cs b/CraftingTabAdapter.cs
+index 9af7501236a7cf92791944b22dd6c28380af6015..f6b3916e671de83f94eec176a255a4c1f87a486d 100644
+--- a/CraftingTabAdapter.cs
++++ b/CraftingTabAdapter.cs
+@@ -7,6 +7,7 @@ public sealed partial class InventorySlotsPlugin
+     private static void PrepareCraftingTabAdapterPreflight(InventoryGui gui)
+     {
+         EnsureJewelcraftingCraftingPanelVisible(gui);
++        LayoutPathOfValheimanCraftingTab(gui);
+     }
+ 
+     private static CraftingTabAdapterState GetCraftingTabAdapterState(InventoryGui? gui)
+@@ -20,6 +21,11 @@ public sealed partial class InventorySlotsPlugin
+             return new CraftingTabAdapterState(CraftingTabAdapterKind.None);
+         }
+ 
++        if (IsPathOfValheimanSalvageTab(gui))
++        {
++            return new CraftingTabAdapterState(CraftingTabAdapterKind.PathOfValheimanSalvage);
++        }
++
+         if (IsJewelcraftingCraftingRedesignTab(gui))
+         {
+             return new CraftingTabAdapterState(CraftingTabAdapterKind.JewelcraftingSocket);
+@@ -79,6 +85,13 @@ public sealed partial class InventorySlotsPlugin
+         // Bottom controls prepare the selected action's status before List details
+         // render on both the full update and fast path. Clear it for empty/new tabs.
+         _craftingListStatusText = "";
++        if (!adapter.IsPathOfValheimanSalvage) HidePathOfValheimanReturns();
++        LayoutPathOfValheimanRadiusButton(gui, grid);
++        if (adapter.IsPathOfValheimanSalvage)
++        {
++            LayoutPathOfValheimanSalvageControls(gui, grid);
++            return;
++        }
+         if (adapter.UsesRecycleNReclaimBottomControls)
+         {
+             LayoutRecycleNReclaimBottomControls(gui, grid);
+@@ -111,6 +124,7 @@ public sealed partial class InventorySlotsPlugin
+         return adapter.Kind switch
+         {
+             CraftingTabAdapterKind.JewelcraftingSocket => pair.ItemData != null,
++            CraftingTabAdapterKind.PathOfValheimanSalvage => pair.ItemData != null && RecipeMatchesCraftingSearch(pair),
+             CraftingTabAdapterKind.RecycleNReclaim => ShouldIncludeRecycleNReclaimRecipeInView(pair),
+             CraftingTabAdapterKind.Vanilla => RecipeMatchesSelectedCraftingGroup(pair) && RecipeMatchesCraftingSearch(pair),
+             _ => false
+@@ -119,7 +133,7 @@ public sealed partial class InventorySlotsPlugin
+ 
+     private static int CompareCraftingRecipeViewEntriesForAdapter(CraftingTabAdapterState adapter, CraftingRecipeViewEntry a, CraftingRecipeViewEntry b)
+     {
+-        if (adapter.IsRecycleNReclaim)
++        if (adapter.IsRecycleNReclaim || adapter.IsPathOfValheimanSalvage)
+         {
+             return CompareRecycleNReclaimRecipeViewEntries(a, b);
+         }
+@@ -181,7 +195,7 @@ public sealed partial class InventorySlotsPlugin
+         }
+ 
+         CraftingTabAdapterState adapter = GetCraftingTabAdapterState(InventoryGui.instance);
+-        if (adapter.IsRecycleNReclaim && pair.ItemData != null)
++        if ((adapter.IsRecycleNReclaim || adapter.IsPathOfValheimanSalvage) && pair.ItemData != null)
+         {
+             return GetRecycleNReclaimRecipeDisplayName(pair);
+         }
+@@ -210,6 +224,10 @@ public sealed partial class InventorySlotsPlugin
+         if (pair.ItemData != null)
+         {
+             CraftingTabAdapterState adapter = GetCraftingTabAdapterState(InventoryGui.instance);
++            if (adapter.IsPathOfValheimanSalvage)
++            {
++                return GetPathOfValheimanSalvageTooltip(pair);
++            }
+             if (adapter.IsRecycleNReclaim)
+             {
+                 return GetRecycleNReclaimRecipeTooltip(pair);
+diff --git a/CraftingTabAdapterModels.cs b/CraftingTabAdapterModels.cs
+index 02357bc50bd7e2d5b8fba8d12d6a8b335c632b0c..dba2583b349298caafdb93721a11a2644af50655 100644
+--- a/CraftingTabAdapterModels.cs
++++ b/CraftingTabAdapterModels.cs
+@@ -6,7 +6,8 @@ internal enum CraftingTabAdapterKind
+     Vanilla,
+     JewelcraftingSocket,
+     RecycleNReclaim,
+-    Foreign
++    Foreign,
++    PathOfValheimanSalvage
+ }
+ 
+ internal readonly struct CraftingTabAdapterState
+@@ -17,10 +18,11 @@ internal readonly struct CraftingTabAdapterState
+     }
+ 
+     public CraftingTabAdapterKind Kind { get; }
+-    public bool IsRedesign => Kind is CraftingTabAdapterKind.Vanilla or CraftingTabAdapterKind.JewelcraftingSocket or CraftingTabAdapterKind.RecycleNReclaim;
++    public bool IsRedesign => Kind is CraftingTabAdapterKind.Vanilla or CraftingTabAdapterKind.JewelcraftingSocket or CraftingTabAdapterKind.RecycleNReclaim or CraftingTabAdapterKind.PathOfValheimanSalvage;
++    public bool IsPathOfValheimanSalvage => Kind == CraftingTabAdapterKind.PathOfValheimanSalvage;
+     public bool IsForeign => Kind == CraftingTabAdapterKind.Foreign;
+     public bool IsJewelcraftingSocket => Kind == CraftingTabAdapterKind.JewelcraftingSocket;
+     public bool IsRecycleNReclaim => Kind == CraftingTabAdapterKind.RecycleNReclaim;
+-    public bool UsesDefaultGroupRail => Kind != CraftingTabAdapterKind.RecycleNReclaim;
++    public bool UsesDefaultGroupRail => Kind != CraftingTabAdapterKind.RecycleNReclaim && !IsPathOfValheimanSalvage;
+     public bool UsesRecycleNReclaimBottomControls => Kind == CraftingTabAdapterKind.RecycleNReclaim;
+ }
+diff --git a/CraftingTooltipRecipeRows.cs b/CraftingTooltipRecipeRows.cs
+index f5c8fdd292ce103849e6ef1126d8f3fd4c120495..ccdc5aef7cd6a545d664e6a3ed8a6bf9d17bc7e3 100644
+--- a/CraftingTooltipRecipeRows.cs
++++ b/CraftingTooltipRecipeRows.cs
+@@ -210,6 +210,13 @@ public sealed partial class InventorySlotsPlugin
+         int worldLevel = Game.m_worldLevel;
+         int recipeAmount = recipe != null ? recipe.m_amount : 1;
+         CraftingTabAdapterKind adapterKind = GetCraftingTabAdapterState(InventoryGui.instance).Kind;
++        if (adapterKind == CraftingTabAdapterKind.PathOfValheimanSalvage && item != null)
++        {
++            // Preview cache expires independently of the recipe list (node tuning,
++            // sockets and station changes can change the returns without a new item).
++            try { return $"pov:{pairKey.RecipeId}:{pairKey.ItemKey}:{GetCraftingTooltipItemSignature(item)}:{GetPathOfValheimanPreview(pair).Summary}"; }
++            catch (Exception error) { WarnPathOfValheimanCrafting(error); return ""; }
++        }
+         string itemRequiresSkillLevelSignature = GetItemRequiresSkillLevelCraftingTooltipSignature(pair);
+         string veiledRecipeSignature = GetVeiledRecipeDisplaySignature(pair);
+         if (item == null)
+@@ -618,6 +625,7 @@ public sealed partial class InventorySlotsPlugin
+ 
+     private static string GetCraftingTooltipRecipeRowSignature(InventoryGui.RecipeDataPair pair)
+     {
++        if (IsPathOfValheimanSalvageTab(InventoryGui.instance)) return GetCraftingHoverTooltipContentKey(pair);
+         Recipe? recipe = pair.Recipe;
+         int quality = pair.ItemData == null ? 1 : pair.ItemData.m_quality + 1;
+         bool veiledMasked = IsVeiledRecipeMasked(pair);
+@@ -644,7 +652,7 @@ public sealed partial class InventorySlotsPlugin
+                     continue;
+                 }
+ 
+-                int available = GetAvailableCraftingRequirementAmount(requirement);
++                int available = GetAvailableCraftingRequirementAmount(requirement, recipe);
+                 bool requirementKnown = !veiledMasked || IsVeiledRecipeRequirementKnown(requirement);
+                 builder
+                     .Append('|')
+@@ -770,6 +778,12 @@ public sealed partial class InventorySlotsPlugin
+         row.localRotation = Quaternion.identity;
+         row.gameObject.SetActive(true);
+ 
++        if (IsPathOfValheimanSalvageTab(InventoryGui.instance) && pair.ItemData != null)
++        {
++            ConfigurePathOfValheimanReturnRow(row, pair, slotSize, gap, enableSlotTooltips);
++            return;
++        }
++
+         Recipe? recipe = pair.Recipe;
+         int quality = pair.ItemData == null ? 1 : pair.ItemData.m_quality + 1;
+         bool veiledMasked = IsVeiledRecipeMasked(pair);
+@@ -786,7 +800,7 @@ public sealed partial class InventorySlotsPlugin
+             }
+ 
+             int required = requirement.GetAmount(quality);
+-            int available = GetAvailableCraftingRequirementAmount(requirement);
++            int available = GetAvailableCraftingRequirementAmount(requirement, recipe);
+             bool requirementKnown = !veiledMasked || IsVeiledRecipeRequirementKnown(requirement);
+             string requirementName = requirementKnown ? GetRequirementDisplayName(requirement) : GetVeiledRecipeUnknownNameText();
+             ConfigureCraftingTooltipRecipeSlot(
+diff --git a/InventorySlots.Tests/CraftingViewTests.cs b/InventorySlots.Tests/CraftingViewTests.cs
+index 814af05749609324987cd8d5f23adc336fa41c02..a10b2d566d7d141d041e3cc4577cf91a30d415e5 100644
+--- a/InventorySlots.Tests/CraftingViewTests.cs
++++ b/InventorySlots.Tests/CraftingViewTests.cs
+@@ -19,7 +19,8 @@ internal static class CraftingViewTests
+         {
+             CraftingTabAdapterKind.Vanilla,
+             CraftingTabAdapterKind.JewelcraftingSocket,
+-            CraftingTabAdapterKind.RecycleNReclaim
++            CraftingTabAdapterKind.RecycleNReclaim,
++            CraftingTabAdapterKind.PathOfValheimanSalvage
+         };
+         foreach (CraftingTabAdapterKind tab in Enum.GetValues<CraftingTabAdapterKind>())
+         {
+diff --git a/InventorySlots.Tests/PathOfValheimanCraftingHost.cs.txt b/InventorySlots.Tests/PathOfValheimanCraftingHost.cs.txt
+new file mode 100644
+index 0000000000000000000000000000000000000000..bfc717253a081ebfd63869943e9f787734c6926e
+--- /dev/null
++++ b/InventorySlots.Tests/PathOfValheimanCraftingHost.cs.txt
+@@ -0,0 +1,127 @@
++using System;
++using System.Collections.Generic;
++using System.Linq;
++using System.Text;
++using ItemData = InventorySlots.ItemDrop.ItemData;
++namespace InventorySlots;
++// Boundary doubles only: the adapter methods/fields above are extracted from production.
++public class Transform { public Transform? parent; }
++public class GameObject {
++    public bool activeInHierarchy = true;
++    public ItemDrop? Item;
++    public T? GetComponent<T>() where T : class => Item as T;
++}
++public class Button { public bool interactable = true; public GameObject gameObject = new(); public Transform transform = new(); }
++public class RectTransform { }
++public class RectTransformSnapshot { }
++public class ItemDrop {
++    public ItemData m_itemData = new();
++    public class ItemData { public Shared m_shared = new(); }
++    public class Shared { public string m_name = "Wood"; }
++}
++public class Container { }
++public class Recipe { public bool m_requireOnlyOneIngredient; }
++public class Player { public static Player m_localPlayer = new(); }
++public class InventoryGui {
++    public static InventoryGui? instance;
++    public Button m_tabCraft = new();
++    public bool PrimarySelected;
++    public struct RecipeDataPair { public ItemData ItemData; public Recipe Recipe; }
++}
++public static class Time { public static float unscaledTime; }
++public class Localization {
++    public static Localization instance = new();
++    public string Localize(string text) => text;
++}
++public class ObjectDB {
++    public static ObjectDB instance = new();
++    public Dictionary<string, GameObject> Items = new();
++    public GameObject? GetItemPrefab(string name) => Items.TryGetValue(name, out var item) ? item : null;
++}
++public sealed partial class InventorySlotsPlugin {
++/* PRODUCTION */
++private static int _uiLocalizationVersion;
++private static int warnings;
++private static bool ownsUi;
++private static bool vneiOpen;
++private static bool IsCraftingPrimaryTabSelected(InventoryGui gui) => gui.PrimarySelected;
++private static bool IsVneiCraftingTabActive(InventoryGui gui) => vneiOpen;
++private static bool ShouldShowCraftingPanelRedesign(InventoryGui? gui) => ownsUi;
++private static void WarnPathOfValheimanCrafting(Exception error) => warnings++;
++private static void Verify(bool value, string label) { if (!value) throw new Exception(label); }
++public static void Check() {
++    var gui = InventoryGui.instance = new InventoryGui();
++    var parent = gui.m_tabCraft.transform.parent = new Transform();
++    var tab = new Button { interactable = false }; tab.transform.parent = parent;
++    Verify(!IsPathOfValheimanSalvageTab(gui), "PoV absent cannot claim the tab");
++    bool salvaging = true;
++    _povSalvaging = () => salvaging; _povSalvageTab = () => tab;
++    Verify(IsPathOfValheimanSalvageTab(gui), "active native PoV selection recognized");
++    vneiOpen = true;
++    Verify(!IsPathOfValheimanSalvageTab(gui), "VNEI owns its panel despite stale PoV selection");
++    vneiOpen = false;
++    gui.PrimarySelected = true;
++    Verify(!IsPathOfValheimanSalvageTab(gui), "stale PoV state cannot override Craft/Upgrade");
++    gui.PrimarySelected = false; tab.gameObject.activeInHierarchy = false;
++    Verify(!IsPathOfValheimanSalvageTab(gui), "hidden PoV tab not selected");
++    tab.gameObject.activeInHierarchy = true; tab.transform.parent = new Transform();
++    Verify(!IsPathOfValheimanSalvageTab(gui), "old GUI tab not adopted");
++    tab.transform.parent = parent;
++    Verify(!IsPathOfValheimanSalvageTab(new InventoryGui()), "old GUI callback ignored");
++    _povSalvaging = () => throw new Exception("PoV callback");
++    Verify(!IsPathOfValheimanSalvageTab(gui) && warnings == 1, "bad callback falls back");
++    _povSalvaging = () => salvaging;
++    ownsUi = false; bool categories = true; SuppressPathOfValheimanCraftCategories(ref categories);
++    Verify(categories && SkipPathOfValheimanQueueDisplay(gui), "unowned UI keeps PoV layout");
++    ownsUi = true; SuppressPathOfValheimanCraftCategories(ref categories);
++    Verify(!categories && !SkipPathOfValheimanQueueDisplay(gui), "Slots layout avoids duplicate queue and categories");
++
++    var enabledRecipe = new Recipe(); var disabledRecipe = new Recipe();
++    var chests = new List<Container> { new Container() }; int countCalls = 0;
++    Verify(GetPathOfValheimanCraftingStock(Player.m_localPlayer, "Wood", enabledRecipe, 8) == 8, "absent PoV keeps existing count");
++    _povChestsFor = recipe => recipe == enabledRecipe;
++    _povChests = player => chests;
++    _povCountEverywhere = (player, name, found) => {
++        Verify(found == chests && name == "Wood", "PoV filtered chest list and shared name passed intact"); countCalls++; return 20;
++    };
++    Verify(GetPathOfValheimanCraftingStock(Player.m_localPlayer, "Wood", disabledRecipe, 8) == 8 && countCalls == 0,
++        "displayed recipe's mastery gates count, independent of selected recipe");
++    Verify(GetPathOfValheimanCraftingStock(Player.m_localPlayer, "Wood", enabledRecipe, 8) == 20,
++        "total includes inventory once, not 8+20");
++    Verify(GetPathOfValheimanCraftingStock(Player.m_localPlayer, "Wood", enabledRecipe, 25) == 25,
++        "larger optional provider total preserved");
++    enabledRecipe.m_requireOnlyOneIngredient = true;
++    Verify(GetPathOfValheimanCraftingStock(Player.m_localPlayer, "Wood", enabledRecipe, 8) == 8 && countCalls == 2,
++        "one-ingredient recipes retain PoV's native exclusion");
++    enabledRecipe.m_requireOnlyOneIngredient = false;
++    _povCountEverywhere = (_, _, _) => throw new Exception("chests");
++    Verify(GetPathOfValheimanCraftingStock(Player.m_localPlayer, "Wood", enabledRecipe, 8) == 8, "provider failure keeps existing count");
++
++    var first = new ItemData(); var second = new ItemData(); var wood = new ItemDrop();
++    var pair = new InventoryGui.RecipeDataPair { ItemData = first, Recipe = enabledRecipe };
++    bool rune = false; int previews = 0;
++    _povRunecarver = _ => rune;
++    _povText = (_, fallback) => fallback;
++    _povSalvageReturns = (item, recipe) => { previews++; return new() { (wood, item == first ? 7 : 11) }; };
++    var original = GetPathOfValheimanPreview(pair);
++    Verify(original.Returns.Single().Count == 7 && original.Summary.Contains("Wood x7"), "actual item return values displayed");
++    Verify(ReferenceEquals(original, GetPathOfValheimanPreview(pair)) && previews == 1, "steady hover reuses preview");
++    pair.ItemData = second;
++    Verify(GetPathOfValheimanPreview(pair).Returns.Single().Count == 11 && previews == 2, "same recipe retains distinct item identity");
++    pair.ItemData = first; pair.Recipe = disabledRecipe;
++    GetPathOfValheimanPreview(pair); Verify(previews == 3, "recipe replacement invalidates preview");
++    _uiLocalizationVersion++; GetPathOfValheimanPreview(pair); Verify(previews == 4, "language change invalidates preview");
++    Time.unscaledTime = 0.3f; GetPathOfValheimanPreview(pair); Verify(previews == 5, "node/return tuning refreshed on bounded timer");
++    ObjectDB.instance.Items["PT_AzuriteDust"] = new GameObject { Item = wood };
++    _povDisenchantReturns = (ItemData item, out int a, out int d) => { a = 3; d = 0; };
++    _povSocketContents = _ => new[] { "gem", "", "gem2" };
++    rune = true;
++    var disenchant = GetPathOfValheimanPreview(pair);
++    Verify(disenchant.Disenchant && disenchant.Returns.Single().Count == 3 && disenchant.Summary.Contains("cannot be recovered (2)"),
++        "station switch immediately changes returns and preserves socket-loss warning");
++    rune = false;
++    for (int i = 0; i < 130; i++) { pair.ItemData = new ItemData(); GetPathOfValheimanPreview(pair); }
++    Verify(PoVCraftingPreviews.Count <= 128, "preview cache remains bounded");
++    ClearPathOfValheimanCraftingPreviews(); Verify(PoVCraftingPreviews.Count == 0, "list invalidation clears item references");
++}
++}
+diff --git a/InventorySlots.Tests/PathOfValheimanCraftingTests.cs b/InventorySlots.Tests/PathOfValheimanCraftingTests.cs
+new file mode 100644
+index 0000000000000000000000000000000000000000..0bb5d044f00712aef7522a767385d645a848bd95
+--- /dev/null
++++ b/InventorySlots.Tests/PathOfValheimanCraftingTests.cs
+@@ -0,0 +1,30 @@
++using System.Reflection;
++using Microsoft.CodeAnalysis;
++using Microsoft.CodeAnalysis.CSharp;
++using Microsoft.CodeAnalysis.CSharp.Syntax;
++
++internal static class PathOfValheimanCraftingTests
++{
++    public static void Run()
++    {
++        var root = new DirectoryInfo(AppContext.BaseDirectory);
++        while (root != null && !File.Exists(Path.Combine(root.FullName, "PathOfValheimanCraftingCompat.cs"))) root = root.Parent;
++        if (root == null) throw new DirectoryNotFoundException("InventorySlots checkout");
++        var source = CSharpSyntaxTree.ParseText(File.ReadAllText(Path.Combine(root.FullName, "PathOfValheimanCraftingCompat.cs"))).GetRoot();
++        string[] methods = { "IsPathOfValheimanSalvageTab", "GetPathOfValheimanCraftingStock", "GetPathOfValheimanPreview",
++            "ClearPathOfValheimanCraftingPreviews", "SuppressPathOfValheimanCraftCategories", "SkipPathOfValheimanQueueDisplay" };
++        var plugin = source.DescendantNodes().OfType<ClassDeclarationSyntax>().First(c => c.Identifier.ValueText == "InventorySlotsPlugin");
++        string production = string.Join("\n", plugin.Members.Where(m => m is FieldDeclarationSyntax or DelegateDeclarationSyntax or ClassDeclarationSyntax ||
++            m is MethodDeclarationSyntax method && methods.Contains(method.Identifier.ValueText)).Select(m => m.ToFullString()));
++        string host = File.ReadAllText(Path.Combine(root.FullName, "InventorySlots.Tests/PathOfValheimanCraftingHost.cs.txt"))
++            .Replace("/* PRODUCTION */", production);
++        var refs = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator).Select(p => MetadataReference.CreateFromFile(p));
++        var compilation = CSharpCompilation.Create("PoVCraftingBehavior", new[] { CSharpSyntaxTree.ParseText(host) }, refs,
++            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
++        using var stream = new MemoryStream();
++        var result = compilation.Emit(stream);
++        if (!result.Success) throw new Exception(string.Join("\n", result.Diagnostics));
++        try { Assembly.Load(stream.ToArray()).GetType("InventorySlots.InventorySlotsPlugin")!.GetMethod("Check")!.Invoke(null, null); }
++        catch (TargetInvocationException error) { throw error.InnerException!; }
++    }
++}
+diff --git a/InventorySlots.Tests/Program.cs b/InventorySlots.Tests/Program.cs
+index b6c23db18d1a84085907c14cf4c4f17f4127d845..70bd055f20f704c3138279bae138f81ae13acdf4 100644
+--- a/InventorySlots.Tests/Program.cs
++++ b/InventorySlots.Tests/Program.cs
+@@ -2,6 +2,7 @@ using InventorySlots;
+ using InventoryPersistence;
+ 
+ TestRunner.Run(
++    ("PoV crafting preserves native selection, item returns and recipe-specific chest counts", PathOfValheimanCraftingTests.Run),
+     ("PoV adapters preserve protected sort cells and tooltip ownership transitions", PathOfValheimanAdapterTests.Run),
+     ("PoV bonus rows add independently and preserve the special-slot boundary", PathOfValheimanTests.RowLimits),
+     ("PoV bonus removal retains occupied rows until emptied", PathOfValheimanTests.RowRemoval),
+diff --git a/PathOfValheimanCompat.cs b/PathOfValheimanCompat.cs
+index 828d4de49a4255e2e576f2672816ef731f5f44bf..0751b6735ac4b11d2b33ac00a6358e0d97f1604e 100644
+--- a/PathOfValheimanCompat.cs
++++ b/PathOfValheimanCompat.cs
+@@ -52,6 +52,8 @@ public sealed partial class InventorySlotsPlugin
+ 
+         if (IsDedicatedServer) return;
+ 
++        InitializePathOfValheimanCrafting(assembly);
++
+         InstallPathOfValheimanCapability("rows", harmony =>
+         {
+             Type trade = assembly.GetType("PassiveTree.TradeMechanics", true)!;
+@@ -309,6 +311,7 @@ public sealed partial class InventorySlotsPlugin
+     {
+         foreach (Harmony harmony in PathOfValheimanPatches) harmony.UnpatchSelf();
+         PathOfValheimanPatches.Clear();
++        ShutdownPathOfValheimanCrafting();
+         _pathOfValheimanRowsEnabled = false;
+         _pathOfValheimanProgress = null;
+         _pathOfValheimanReadRows = null;
+diff --git a/PathOfValheimanCraftingCompat.cs b/PathOfValheimanCraftingCompat.cs
+new file mode 100644
+index 0000000000000000000000000000000000000000..91aa5704363c15b3f5be53bb9598f924cc88b779
+--- /dev/null
++++ b/PathOfValheimanCraftingCompat.cs
+@@ -0,0 +1,367 @@
++using System;
++using System.Collections.Generic;
++using System.Reflection;
++using System.Text;
++using HarmonyLib;
++using TMPro;
++using UnityEngine;
++using UnityEngine.UI;
++using ItemData = ItemDrop.ItemData;
++
++namespace InventorySlots;
++
++public sealed partial class InventorySlotsPlugin
++{
++    private delegate void PoVDisenchantReturns(ItemData item, out int azurite, out int divine);
++    private static Func<bool>? _povSalvaging;
++    private static Func<Button>? _povSalvageTab;
++    private static Func<Player, bool>? _povRunecarver;
++    private static Func<ItemData, Recipe, List<(ItemDrop, int)>>? _povSalvageReturns;
++    private static PoVDisenchantReturns? _povDisenchantReturns;
++    private static Func<ItemData, string[]>? _povSocketContents;
++    private static Func<string, string, string>? _povText;
++    private static Func<Button>? _povRadiusButton;
++    private static Func<bool>? _povRadiusTaken;
++    private static Func<Recipe, bool>? _povChestsFor;
++    private static Func<Player, List<Container>>? _povChests;
++    private static Func<Player, string, List<Container>, int>? _povCountEverywhere;
++    private static bool _povCraftingWarning;
++    private static RectTransform? _povReturnsRow;
++    private static InventoryGui? _povCraftingGui;
++    private static RectTransformSnapshot? _povRadiusOriginal;
++    private static RectTransformSnapshot? _povTabOriginal;
++    private static readonly Dictionary<ItemData, PoVCraftingPreview> PoVCraftingPreviews = new();
++
++    private sealed class PoVCraftingPreview
++    {
++        internal Recipe Recipe = null!;
++        internal bool Disenchant;
++        internal float Expires;
++        internal int LocalizationVersion;
++        internal string Summary = "";
++        internal readonly List<(ItemDrop Item, int Count)> Returns = new();
++    }
++
++    private static void InitializePathOfValheimanCrafting(Assembly assembly)
++    {
++        InstallPathOfValheimanCapability("crafting-tabs", _ => BindPathOfValheimanCrafting(assembly));
++        InstallPathOfValheimanCapability("crafting-layout", harmony =>
++        {
++            // Both category rendering and PoV's queue depend on this setting getter.
++            // Suppress only while our adapter owns the panel; never rewrite PoV's config.
++            MethodInfo enabled = RequirePathOfValheimanMethod(assembly.GetType("PassiveTree.UI.CraftCategories", true)!, "get_On", typeof(bool));
++            harmony.Patch(enabled, postfix: new HarmonyMethod(typeof(InventorySlotsPlugin), nameof(SuppressPathOfValheimanCraftCategories)));
++            MethodInfo queue = RequirePathOfValheimanMethod(assembly.GetType("PassiveTree.UI.CraftQueue+Gui_Update", true)!,
++                "Postfix", typeof(void), typeof(InventoryGui), typeof(Player));
++            harmony.Patch(queue, prefix: new HarmonyMethod(typeof(InventorySlotsPlugin), nameof(SkipPathOfValheimanQueueDisplay)));
++        });
++        InstallPathOfValheimanCapability("crafting-chests", _ => BindPathOfValheimanCraftingChests(assembly));
++    }
++
++    private static void BindPathOfValheimanCraftingChests(Assembly assembly)
++    {
++        Type conveniences = assembly.GetType("PassiveTree.Conveniences", true)!;
++        var allowed = (Func<Recipe, bool>)Delegate.CreateDelegate(typeof(Func<Recipe, bool>),
++            RequirePathOfValheimanMethod(assembly.GetType("PassiveTree.CraftAttributes", true)!, "ChestsFor", typeof(bool), typeof(Recipe)));
++        var chests = (Func<Player, List<Container>>)Delegate.CreateDelegate(typeof(Func<Player, List<Container>>),
++            RequirePathOfValheimanMethod(conveniences, "Chests", typeof(List<Container>), typeof(Player)));
++        var stock = (Func<Player, string, List<Container>, int>)Delegate.CreateDelegate(typeof(Func<Player, string, List<Container>, int>),
++            RequirePathOfValheimanMethod(conveniences, "CountEverywhere", typeof(int), typeof(Player), typeof(string), typeof(List<Container>)));
++        var button = PathOfValheimanStaticField<Button>(assembly.GetType("PassiveTree.ChestRadiusButton", true)!, "button");
++        var taken = (Func<bool>)Delegate.CreateDelegate(typeof(Func<bool>),
++            RequirePathOfValheimanMethod(assembly.GetType("PassiveTree.ChestRadius", true)!, "get_Taken", typeof(bool)));
++        _povChestsFor = allowed;
++        _povChests = chests;
++        _povCountEverywhere = stock;
++        _povRadiusButton = button;
++        _povRadiusTaken = taken;
++    }
++
++    // Bind as one unit so an unsupported PoV build cannot leave a half-working tab.
++    private static void BindPathOfValheimanCrafting(Assembly assembly)
++    {
++        Type salvage = assembly.GetType("PassiveTree.CraftSalvage", true)!;
++        var active = (Func<bool>)Delegate.CreateDelegate(typeof(Func<bool>), RequirePathOfValheimanMethod(salvage, "get_Salvaging", typeof(bool)));
++        var tab = PathOfValheimanStaticField<Button>(salvage, "tab");
++        var runecarver = (Func<Player, bool>)Delegate.CreateDelegate(typeof(Func<Player, bool>), RequirePathOfValheimanMethod(salvage, "Runecarver", typeof(bool), typeof(Player)));
++        var returns = (Func<ItemData, Recipe, List<(ItemDrop, int)>>)Delegate.CreateDelegate(typeof(Func<ItemData, Recipe, List<(ItemDrop, int)>>),
++            RequirePathOfValheimanMethod(salvage, "Returns", typeof(List<(ItemDrop, int)>), typeof(ItemData), typeof(Recipe)));
++        var disenchant = (PoVDisenchantReturns)Delegate.CreateDelegate(typeof(PoVDisenchantReturns),
++            RequirePathOfValheimanMethod(assembly.GetType("PassiveTree.Loot.Disenchant", true)!, "Returns", typeof(void), typeof(ItemData), typeof(int).MakeByRefType(), typeof(int).MakeByRefType()));
++        var contents = (Func<ItemData, string[]>)Delegate.CreateDelegate(typeof(Func<ItemData, string[]>),
++            RequirePathOfValheimanMethod(assembly.GetType("PassiveTree.Loot.ItemSockets", true)!, "Contents", typeof(string[]), typeof(ItemData)));
++        var text = (Func<string, string, string>)Delegate.CreateDelegate(typeof(Func<string, string, string>),
++            RequirePathOfValheimanMethod(assembly.GetType("PassiveTree.L", true)!, "Id", typeof(string), typeof(string), typeof(string)));
++        _povSalvageTab = tab;
++        _povRunecarver = runecarver;
++        _povSalvageReturns = returns;
++        _povDisenchantReturns = disenchant;
++        _povSocketContents = contents;
++        _povText = text;
++        _povSalvaging = active;
++    }
++
++    private static bool IsPathOfValheimanSalvageTab(InventoryGui? gui)
++    {
++        if (_povSalvaging == null || gui == null || gui != InventoryGui.instance ||
++            IsCraftingPrimaryTabSelected(gui)) return false;
++        try
++        {
++            Button? tab = _povSalvageTab!();
++            return _povSalvaging() && tab != null && tab.gameObject.activeInHierarchy && !tab.interactable &&
++                   tab.transform.parent == gui.m_tabCraft.transform.parent && !IsVneiCraftingTabActive(gui);
++        }
++        catch (Exception error) { WarnPathOfValheimanCrafting(error); return false; }
++    }
++
++    private static void SuppressPathOfValheimanCraftCategories(ref bool __result)
++    {
++        if (__result && ShouldShowCraftingPanelRedesign(InventoryGui.instance)) __result = false;
++    }
++
++    private static bool SkipPathOfValheimanQueueDisplay(InventoryGui __0) => !ShouldShowCraftingPanelRedesign(__0);
++
++    private static void WarnPathOfValheimanCrafting(Exception error)
++    {
++        if (_povCraftingWarning) return;
++        _povCraftingWarning = true;
++        Log.LogWarning($"Path of Valheiman crafting display failed: {error.Message}");
++    }
++
++    private static int GetPathOfValheimanCraftingStock(Player player, string name, Recipe? recipe, int otherTotal)
++    {
++        if (_povCountEverywhere == null || recipe == null || recipe.m_requireOnlyOneIngredient) return otherTotal;
++        try
++        {
++            // Use the displayed recipe, not StockOf's current selection: hover and
++            // pinned recipes can have a different mastery. Keep PoV's access/cache.
++            return _povChestsFor!(recipe)
++                ? Math.Max(otherTotal, _povCountEverywhere(player, name, _povChests!(player)))
++                : otherTotal;
++        }
++        catch (Exception error) { WarnPathOfValheimanCrafting(error); return otherTotal; }
++    }
++
++    private static PoVCraftingPreview GetPathOfValheimanPreview(InventoryGui.RecipeDataPair pair)
++    {
++        ItemData item = pair.ItemData;
++        bool disenchant = _povRunecarver!(Player.m_localPlayer);
++        if (PoVCraftingPreviews.TryGetValue(item, out PoVCraftingPreview cached) &&
++            cached.Recipe == pair.Recipe && cached.Disenchant == disenchant &&
++            cached.LocalizationVersion == _uiLocalizationVersion && Time.unscaledTime < cached.Expires) return cached;
++
++        var preview = new PoVCraftingPreview
++        {
++            Recipe = pair.Recipe, Disenchant = disenchant,
++            Expires = Time.unscaledTime + 0.25f, LocalizationVersion = _uiLocalizationVersion
++        };
++        var summary = new StringBuilder(_povText!(disenchant ? "ui.disenchant.returns" : "ui.salvage.returns",
++            disenchant ? "Disenchanting returns:" : "Salvaging returns:"));
++        if (disenchant)
++        {
++            _povDisenchantReturns!(item, out int azurite, out int divine);
++            AddDust("PT_AzuriteDust", azurite);
++            AddDust("PT_DivineAzuriteDust", divine);
++            int sockets = 0;
++            foreach (string socket in _povSocketContents!(item)) if (!string.IsNullOrEmpty(socket)) sockets++;
++            if (sockets > 0) summary.Append('\n').Append(string.Format(_povText!("ui.disenchant.sigils",
++                "Socketed sigils are destroyed and cannot be recovered ({0})"), sockets));
++        }
++        else
++        {
++            foreach (var entry in _povSalvageReturns!(item, pair.Recipe)) AddReturn(entry.Item1, entry.Item2);
++        }
++        preview.Summary = Localization.instance.Localize(summary.ToString());
++        if (PoVCraftingPreviews.Count >= 128) PoVCraftingPreviews.Clear();
++        PoVCraftingPreviews[item] = preview;
++        return preview;
++
++        void AddDust(string prefab, int count)
++        {
++            if (count <= 0) return;
++            ItemDrop? drop = ObjectDB.instance?.GetItemPrefab(prefab)?.GetComponent<ItemDrop>();
++            if (drop != null) AddReturn(drop, count);
++            else summary.Append("\n  ").Append(prefab).Append(" x").Append(count);
++        }
++        void AddReturn(ItemDrop drop, int count)
++        {
++            if (drop == null || count <= 0) return;
++            preview.Returns.Add((drop, count));
++            summary.Append("\n  ").Append(drop.m_itemData.m_shared.m_name).Append(" x").Append(count);
++        }
++    }
++
++    private static string GetPathOfValheimanSalvageTooltip(InventoryGui.RecipeDataPair pair)
++    {
++        string body = GetLocalizedStaticItemTooltip(pair.ItemData, Math.Max(1, pair.ItemData.m_quality), crafting: false, Math.Max(1, pair.ItemData.m_stack));
++        try { return GetPathOfValheimanPreview(pair).Summary + "\n\n" + body; }
++        catch (Exception error) { WarnPathOfValheimanCrafting(error); return body; }
++    }
++
++    private static void ConfigurePathOfValheimanReturnRow(RectTransform row, InventoryGui.RecipeDataPair pair,
++        float slotSize, float gap, bool tooltips)
++    {
++        PoVCraftingPreview? preview = null;
++        try { preview = GetPathOfValheimanPreview(pair); }
++        catch (Exception error) { WarnPathOfValheimanCrafting(error); }
++        for (int i = 0; i < CraftingTooltipRecipeSlotCount; i++)
++        {
++            RectTransform cell = EnsureCraftingTooltipRecipeSlot(row, i);
++            cell.anchoredPosition = new Vector2(i * (slotSize + gap), 0f);
++            var entry = preview != null && i < preview.Returns.Count ? preview.Returns[i] : default;
++            ConfigureCraftingTooltipRecipeSlot(row, i, entry.Item?.m_itemData.GetIcon(),
++                entry.Count > 0 ? entry.Count.ToString() : "", true, slotSize,
++                entry.Item != null ? Localization.instance.Localize(entry.Item.m_itemData.m_shared.m_name) : "", tooltips);
++        }
++    }
++
++    private static void LayoutPathOfValheimanSalvageControls(InventoryGui gui, RectTransform grid)
++    {
++        _povCraftingGui = gui;
++        HideRecycleNReclaimHud();
++        HideCraftingSocketWarning();
++        HideCraftingVanillaRequirementSlots(gui);
++        HideOwnedCraftingRequirementSlots();
++        if (_craftingCountInputRect != null) _craftingCountInputRect.gameObject.SetActive(false);
++        if (_craftingUpgradeProgressionRect != null) _craftingUpgradeProgressionRect.gameObject.SetActive(false);
++        if (gui.m_minStationLevelIcon != null) gui.m_minStationLevelIcon.gameObject.SetActive(false);
++        if (gui.m_minStationLevelText != null) gui.m_minStationLevelText.gameObject.SetActive(false);
++        HideCraftingRequiredStationLevelTooltip();
++        if (gui.m_itemCraftType != null) gui.m_itemCraftType.gameObject.SetActive(false);
++        bool selected = gui.m_selectedRecipe.ItemData != null &&
++                        FindCraftingRecipeViewIndex(GetSelectedCraftingRecipeIndexSafe(gui)) >= 0;
++        Vector2 size = new(CraftingRecipeGridCellSize + CraftingRecipeGridCellSpace, 42f);
++        Vector2 position = GetCraftingGridCenteredPosition(grid, 0, CraftingBottomControlRow, size, 2) +
++                           CraftingBottomControlsFixedOffset + CraftingCraftButtonFixedOffset;
++        if (gui.m_craftButton != null)
++        {
++            SetTopLeftRectLayout(gui.m_crafting, (RectTransform)gui.m_craftButton.transform, position, size);
++            gui.m_craftButton.gameObject.SetActive(selected && gui.m_craftTimer < 0f);
++            // PoV's UpdateRecipe owns the label and interactable state.
++            SetActionButtonTextAutoSize(gui.m_craftButton);
++        }
++        if (gui.m_craftProgressPanel is RectTransform progress)
++        {
++            SetTopLeftRectLayout(gui.m_crafting, progress, position, size);
++            gui.m_craftProgressBar?.SetWidth(size.x);
++        }
++        if (_povReturnsRow == null || _povReturnsRow.parent != grid)
++            _povReturnsRow = EnsureCraftingTooltipRecipeRow(grid);
++        RectTransform row = _povReturnsRow;
++        row.gameObject.SetActive(selected);
++        if (selected)
++        {
++            SetTopLeftRectLayout(row, new Vector2(2 * CraftingRecipeGridCellSpace, -CraftingBottomControlRow * CraftingRecipeGridCellSpace) +
++                CraftingBottomControlsFixedOffset, new Vector2(5 * 60f, 54f));
++            ConfigurePathOfValheimanReturnRow(row, gui.m_selectedRecipe, 54f, 6f, true);
++        }
++    }
++
++    private static void LayoutPathOfValheimanRadiusButton(InventoryGui gui, RectTransform grid)
++    {
++        if (_povRadiusButton == null) return;
++        try
++        {
++            Button? button = _povRadiusButton();
++            if (button == null || gui != InventoryGui.instance || !button.transform.IsChildOf(gui.m_crafting)) return;
++            _povCraftingGui = gui;
++            RectTransform rect = (RectTransform)button.transform;
++            if (_povRadiusOriginal == null || _povRadiusOriginal.Rect != rect)
++                _povRadiusOriginal = new RectTransformSnapshot(rect);
++            // Reactivate explicitly after respec; PoV's Watch cannot update an inactive GO.
++            button.gameObject.SetActive(_povRadiusTaken!() && GetCraftingTabAdapterState(gui).Kind == CraftingTabAdapterKind.Vanilla);
++            // Below the action button, before the full-width warning row.
++            SetTopLeftRectLayout(gui.m_crafting, rect,
++                GetCraftingGridCellPosition(grid, 0, CraftingBottomControlRow) + CraftingBottomControlsFixedOffset +
++                new Vector2(2f, -50f), new Vector2(170f, 22f));
++        }
++        catch (Exception error) { WarnPathOfValheimanCrafting(error); }
++    }
++
++    private static void LayoutPathOfValheimanCraftingTab(InventoryGui gui)
++    {
++        if (_povSalvageTab == null || gui != InventoryGui.instance || gui.m_tabCraft == null) return;
++        try
++        {
++            Button? tab = _povSalvageTab();
++            if (tab == null || !tab.gameObject.activeInHierarchy || tab.transform is not RectTransform rect ||
++                rect.parent != gui.m_tabCraft.transform.parent) return;
++            _povCraftingGui = gui;
++            if (_povTabOriginal == null || _povTabOriginal.Rect != rect) _povTabOriginal = new RectTransformSnapshot(rect);
++            Transform parent = rect.parent;
++            Transform? vnei = null;
++            float right = float.NegativeInfinity;
++            for (int i = 0; i < parent.childCount; i++)
++            {
++                Transform child = parent.GetChild(i);
++                if (child == rect || child is not RectTransform other || !child.gameObject.activeInHierarchy ||
++                    child.GetComponent<Button>() == null) continue;
++                if (IsVneiUiTransform(child, parent)) { vnei = child; continue; }
++                right = Mathf.Max(right, parent.InverseTransformPoint(other.TransformPoint(new Vector3(other.rect.xMax, 0f))).x);
++            }
++            if (!float.IsNegativeInfinity(right))
++            {
++                float left = parent.InverseTransformPoint(rect.TransformPoint(new Vector3(rect.rect.xMin, 0f))).x;
++                if (Mathf.Abs(right + 4f - left) > 0.1f)
++                    rect.localPosition += new Vector3(right + 4f - left, 0f);
++            }
++            // VNEI positions itself after its preceding active sibling. PoV only
++            // moves its own tab, preserving other mods' callbacks and tab state.
++            if (vnei != null)
++            {
++                int index = vnei.GetSiblingIndex();
++                int target = rect.GetSiblingIndex() < index ? index - 1 : index;
++                if (rect.GetSiblingIndex() != target) rect.SetSiblingIndex(target);
++            }
++        }
++        catch (Exception error) { WarnPathOfValheimanCrafting(error); }
++    }
++
++    private static void ClearPathOfValheimanCraftingPreviews() => PoVCraftingPreviews.Clear();
++
++    private static void HidePathOfValheimanReturns()
++    {
++        if (_povReturnsRow != null && _povReturnsRow.gameObject.activeSelf) _povReturnsRow.gameObject.SetActive(false);
++    }
++
++    private static void RestorePathOfValheimanRadiusButton(InventoryGui? gui)
++    {
++        if (gui != null && gui != _povCraftingGui) return;
++        if (_povRadiusOriginal?.Rect != null)
++        {
++            try { _povRadiusOriginal.Rect.gameObject.SetActive(_povRadiusTaken!()); }
++            catch (Exception error) { WarnPathOfValheimanCrafting(error); }
++        }
++        _povRadiusOriginal?.Restore();
++        _povRadiusOriginal = null;
++    }
++
++    internal static void ClearPathOfValheimanCraftingUi(InventoryGui? gui = null)
++    {
++        if (gui != null && gui != _povCraftingGui) return;
++        ClearPathOfValheimanCraftingPreviews();
++        RestorePathOfValheimanRadiusButton(gui);
++        _povTabOriginal?.Restore();
++        _povTabOriginal = null;
++        if (_povReturnsRow != null) UnityEngine.Object.Destroy(_povReturnsRow.gameObject);
++        _povReturnsRow = null;
++        _povCraftingGui = null;
++    }
++
++    private static void ShutdownPathOfValheimanCrafting()
++    {
++        ClearPathOfValheimanCraftingUi();
++        _povSalvaging = null;
++        _povSalvageTab = null;
++        _povRunecarver = null;
++        _povSalvageReturns = null;
++        _povDisenchantReturns = null;
++        _povSocketContents = null;
++        _povText = null;
++        _povRadiusButton = null;
++        _povRadiusTaken = null;
++        _povChestsFor = null;
++        _povChests = null;
++        _povCountEverywhere = null;
++    }
++}
+diff --git a/PinnedTooltipPanels.cs b/PinnedTooltipPanels.cs
+index 53c4bbd033332ad1d58914376b37ac7a3a4e531f..5cc311a65743810507a63e769ce225688f25b3ee 100644
+--- a/PinnedTooltipPanels.cs
++++ b/PinnedTooltipPanels.cs
+@@ -239,6 +239,8 @@ public sealed partial class InventorySlotsPlugin
+             }
+ 
+             text.text = nextText;
++            if (IsPathOfValheimanSalvageTab(gui))
++                ConfigureCraftingTooltipRecipeRow(panel, pair, new Vector2(18f, 18f), slotSize: 54f, gap: 8f);
+             PinnedTooltipPanelUiCache? cache = panel.GetComponent<PinnedTooltipPanelUiCache>();
+             float bottomReserved = cache != null &&
+                                    !IsUnityNull(cache) &&
+diff --git a/PluginMetadata.cs b/PluginMetadata.cs
+index 5cd7069f3739f1c30e2ef2607cd93f7513fba9b3..76125902aa4589c6bf9bec2a597de6c3933b0300 100644
+--- a/PluginMetadata.cs
++++ b/PluginMetadata.cs
+@@ -3,7 +3,7 @@ namespace InventorySlots;
+ public sealed partial class InventorySlotsPlugin
+ {
+     internal const string ModName = "InventorySlots";
+-    internal const string ModVersion = "1.6.5";
++    internal const string ModVersion = "1.6.6";
+     internal const string Author = "sighsorry";
+     internal const string ModGUID = $"{Author}.{ModName}";
+ }
+diff --git a/Thunderstore/CHANGELOG.md b/Thunderstore/CHANGELOG.md
+index e884ccfd8a9bdd50b6dc4f53be658ec6c8252ce6..795114549831383fc87d284acc04cc77b345c26c 100644
+--- a/Thunderstore/CHANGELOG.md
++++ b/Thunderstore/CHANGELOG.md
+@@ -1,5 +1,13 @@
+ # Changelog
+ 
++## 1.6.6
++
++- Integrated Path of Valheiman's Salvage and Disenchant tabs with InventorySlots' List/Grid, search and item tooltips. Each entry keeps the actual inventory item and shows its current quality, returned materials and socketed-sigil destruction warning. PoV retains its node/station requirements, item eligibility and removal/return logic.
++- Placed PoV's Box radius button below the crafting action and reflected nearby material counts using PoV's chest access rules and the displayed recipe's mastery. Hovered and pinned recipes use their own material context; overlapping inventory/provider totals are not added together.
++- Suppressed PoV's duplicate crafting categories and queue display while InventorySlots owns the panel. The existing InventorySlots crafting layout and ordinary crafting quantity controls remain available.
++- Prevented PoV's Salvage tab from overlapping VNEI or taking over its screen after a tab switch. Restored the Box radius button's layout and visibility when handing the panel back.
++- Ordered upgrade protection after PoV's destructive action so it does not capture a consumed item for restoration, while retaining the existing safeguards for ordinary upgrades. The integration activates only when PoV and the required member signatures are available.
++
+ ## 1.6.5
+ 
+ - Added optional Path of Valheiman compatibility. Each adapter activates only when PoV is loaded and its required methods and fields are available, without an exact version-number restriction. PoV 5.0.4 is the reviewed implementation.
+diff --git a/Thunderstore/manifest.json b/Thunderstore/manifest.json
+index fa832dd12eb2290c07e00990afe4bcb083b703d0..9a4c41b7363a72c6e3fad3afe839c8e0ea430e24 100644
+--- a/Thunderstore/manifest.json
++++ b/Thunderstore/manifest.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "InventorySlots",
+-  "version_number": "1.6.5",
++  "version_number": "1.6.6",
+   "website_url": "https://discord.gg/jkcJCq2sK5",
+   "description": "Equipment/quick slots, multicraft, progressive rows, keep-on-death, favorites, scrollable tooltips, crafting grid/list/search/sort, container stack/restock/sort, item comparison and controller support. Compatible with EpicLoot and Jewelcrafting.",
+   "dependencies": [
+diff --git a/build/PathOfValheimanSmoke/CraftingOrderProbe.cs b/build/PathOfValheimanSmoke/CraftingOrderProbe.cs
+new file mode 100644
+index 0000000000000000000000000000000000000000..20b8de630f33db0077aa00f4fc38a1d0c31968bd
+--- /dev/null
++++ b/build/PathOfValheimanSmoke/CraftingOrderProbe.cs
+@@ -0,0 +1,138 @@
++using System;
++using System.Collections.Generic;
++using System.Linq;
++using System.Reflection;
++using System.Runtime.CompilerServices;
++using HarmonyLib;
++
++// Real HarmonyX, annotations from the final mod/original PoV DLLs, instrumented
++// bodies: verifies ordering/state/exception semantics, not game item transactions.
++internal static class CraftingOrderProbe
++{
++    private const BindingFlags Methods = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
++    private static readonly List<string> Trace = new List<string>();
++    private static string mode = "";
++    private static bool safetyCaptured, favoriteCaptured, finishedWithSnapshot;
++    private static readonly Exception Failure = new InvalidOperationException("simulated PoV failure");
++
++    private sealed class Craft
++    {
++        public object? Item = new object();
++        public bool InventoryHasItem = true;
++        public bool OriginalRan;
++        [MethodImpl(MethodImplOptions.NoInlining)]
++        public void DoCrafting() { Trace.Add("original"); OriginalRan = true; }
++    }
++
++    private static class Pov
++    {
++        public static bool Prefix(Craft __instance)
++        {
++            Trace.Add("pov");
++            if (mode.StartsWith("upgrade")) return true;
++            if (mode == "throw-before") throw Failure;
++            if (mode != "salvage-rejected") __instance.InventoryHasItem = false;
++            if (mode == "throw-after") throw Failure;
++            __instance.Item = null;
++            return false;
++        }
++    }
++
++    private static class Safety
++    {
++        public static bool Prefix(Craft __instance, out object? __state)
++        {
++            Trace.Add("safety");
++            __state = __instance.Item;
++            safetyCaptured = __state != null;
++            return mode != "upgrade-veto";
++        }
++        public static Exception? Finalizer(object? __state, Exception? __exception)
++        {
++            Trace.Add("safety-finalizer");
++            finishedWithSnapshot = __state != null;
++            return __exception;
++        }
++    }
++
++    private static class Favorite
++    {
++        public static bool Prefix(Craft __instance, out bool __state)
++        {
++            Trace.Add("favorite");
++            __state = true;
++            favoriteCaptured = __instance.Item != null;
++            return true;
++        }
++        public static void Postfix(bool __state) { Trace.Add(__state ? "favorite-post" : "favorite-post-empty"); }
++        public static Exception? Finalizer(bool __state, Exception? __exception)
++        {
++            Trace.Add(__state ? "favorite-finalizer" : "favorite-finalizer-empty");
++            return __exception;
++        }
++    }
++
++    private static HarmonyMethod Redirect(Type sourceType, string name, Type probeType)
++    {
++        MethodInfo source = sourceType.GetMethod(name, Methods)!;
++        HarmonyMethod container = HarmonyMethodExtensions.GetMergedFromType(sourceType);
++        if (!container.methodType.HasValue) container.methodType = MethodType.Normal;
++        HarmonyMethod method = HarmonyMethodExtensions.GetMergedFromMethod(source);
++        HarmonyMethod merged = HarmonyMethodExtensions.Merge(container, method);
++        merged.method = probeType.GetMethod(name, Methods)!;
++        return merged;
++    }
++
++    public static void Run(Assembly slots, Assembly pov, Action<bool, string> check)
++    {
++        Type safety = slots.GetType("InventorySlots.InventoryGuiEquipmentSlotUpgradeSafetyPatch", true)!;
++        Type favorite = slots.GetType("InventorySlots.InventoryGuiUpgradeFavoriteCraftingPatch", true)!;
++        Type native = pov.GetType("PassiveTree.CraftSalvage+Gui_Do", true)!;
++        var safetyPrefix = Redirect(safety, "Prefix", typeof(Safety));
++        var favoritePrefix = Redirect(favorite, "Prefix", typeof(Favorite));
++        var favoritePostfix = Redirect(favorite, "Postfix", typeof(Favorite));
++        check(safetyPrefix.after.Contains("treextr.pathofvalheiman") && favoritePrefix.after.Contains("treextr.pathofvalheiman") &&
++              !(favoritePostfix.after ?? Array.Empty<string>()).Contains("treextr.pathofvalheiman"),
++            "PoV dependency applies to safety/favorite prefixes only");
++        System.Console.WriteLine($"Effective prefix priorities: safety={safetyPrefix.priority}, favorite={favoritePrefix.priority}");
++        MethodInfo target = typeof(Craft).GetMethod(nameof(Craft.DoCrafting))!;
++        foreach (int registration in new[] { 0, 1, 2 })
++        {
++            var s = new Harmony("sighsorry.InventorySlots");
++            var p = new Harmony("treextr.pathofvalheiman");
++            void Slots() {
++                s.Patch(target, prefix: safetyPrefix, finalizer: Redirect(safety, "Finalizer", typeof(Safety)));
++                s.Patch(target, prefix: favoritePrefix, postfix: favoritePostfix, finalizer: Redirect(favorite, "Finalizer", typeof(Favorite)));
++            }
++            void PoV() => p.Patch(target, prefix: Redirect(native, "Prefix", typeof(Pov)));
++            try
++            {
++                if (registration == 0) { Slots(); PoV(); }
++                else if (registration == 1) { PoV(); Slots(); }
++                else Slots(); // Optional dependency absent.
++                foreach (string scenario in registration == 2 ? new[] { "upgrade", "upgrade-veto" } :
++                    new[] { "salvage", "salvage-rejected", "throw-before", "throw-after", "upgrade", "upgrade-veto" })
++                {
++                    mode = scenario; Trace.Clear(); safetyCaptured = favoriteCaptured = finishedWithSnapshot = false;
++                    var craft = new Craft(); Exception? error = null;
++                    try { craft.DoCrafting(); } catch (Exception e) { error = e; }
++                    if (scenario.StartsWith("throw"))
++                        check(ReferenceEquals(error, Failure) && !craft.OriginalRan && !safetyCaptured && !favoriteCaptured &&
++                              !finishedWithSnapshot && !Trace.Contains("safety") && !Trace.Contains("favorite") &&
++                              craft.InventoryHasItem == (scenario == "throw-before"),
++                            $"registration {registration}: {scenario}, no late protection snapshot or swallowed exception");
++                    else if (scenario.StartsWith("salvage"))
++                        check(error == null && !craft.OriginalRan && !safetyCaptured && !favoriteCaptured && !finishedWithSnapshot &&
++                              Trace[0] == "pov" && Trace.Contains("safety") && Trace.Contains("favorite") &&
++                              craft.InventoryHasItem == (scenario == "salvage-rejected"),
++                            $"registration {registration}: {scenario}, false still runs prefixes with cleared item");
++                    else
++                        check(error == null && safetyCaptured && favoriteCaptured && finishedWithSnapshot &&
++                              craft.OriginalRan == (scenario == "upgrade") && (registration == 2 || Trace[0] == "pov"),
++                            $"registration {registration}: {scenario}, normal protection and veto retained");
++                }
++            }
++            finally { s.UnpatchSelf(); p.UnpatchSelf(); }
++        }
++    }
++}
+diff --git a/build/PathOfValheimanSmoke/Program.cs b/build/PathOfValheimanSmoke/Program.cs
+index 4d59ee9de6694e211e4fc71c1b428b1894d985c3..83f5c97fbc865fc740b526f7a4ac98a56301b70e 100644
+--- a/build/PathOfValheimanSmoke/Program.cs
++++ b/build/PathOfValheimanSmoke/Program.cs
+@@ -96,6 +96,25 @@ internal static class Program
+         Require("PassiveTree.UI.ItemTooltip", "RefreshCurrent", typeof(void));
+         Require("PassiveTree.UI.TreeWindow", "get_IsOpen", typeof(bool));
+         Check(true, "external method contracts match original PoV DLL");
++        // Bind production cached accessors against unmodified PoV metadata. Do not
++        // invoke Player/Unity-dependent returns or chest enumeration outside Unity.
++        plugin.GetMethod("BindPathOfValheimanCrafting", Static)!.Invoke(null, new object[] { pov });
++        plugin.GetMethod("BindPathOfValheimanCraftingChests", Static)!.Invoke(null, new object[] { pov });
++        foreach (string fieldName in new[] { "_povSalvaging", "_povSalvageTab", "_povRunecarver", "_povSalvageReturns",
++            "_povDisenchantReturns", "_povSocketContents", "_povText", "_povRadiusButton", "_povRadiusTaken",
++            "_povChestsFor", "_povChests", "_povCountEverywhere" })
++            Check(plugin.GetField(fieldName, Static)!.GetValue(null) is Delegate, "bound production accessor " + fieldName);
++        Check(!(bool)((Delegate)plugin.GetField("_povSalvaging", Static)!.GetValue(null)!).DynamicInvoke()!, "original internal Salvaging getter callable");
++        foreach (string fieldName in new[] { "_povSalvageTab", "_povRadiusButton" })
++            Check(((Delegate)plugin.GetField(fieldName, Static)!.GetValue(null)!).DynamicInvoke() == null, "original private UI field readable: " + fieldName);
++        Check(pov.GetType("PassiveTree.CraftSalvage", true)!.GetMethod("Returns", Static)!.IsPrivate &&
++              pov.GetType("PassiveTree.Conveniences", true)!.GetMethod("Chests", Static)!.IsPrivate &&
++              pov.GetType("PassiveTree.Conveniences", true)!.GetMethod("CountEverywhere", Static)!.IsPrivate,
++            "original return/chest access remains private, bound explicitly");
++        Require("PassiveTree.UI.CraftCategories", "get_On", typeof(bool));
++        Require("PassiveTree.UI.CraftQueue+Gui_Update", "Postfix", typeof(void), gui, player);
++        Check(true, "category and queue display hooks match original signatures");
++        CraftingOrderProbe.Run(mod, pov, Check);
+         // These wrappers JIT Player methods whose static initialization needs Unity's native
+         // Animator icalls. Keep the optional probe explicit; standalone Mono cannot supply them.
+         if (args.Length == 5)
+diff --git a/build/PathOfValheimanSmoke/README.md b/build/PathOfValheimanSmoke/README.md
+index e502fcc7d00ed9c1967445e6ad3ec23c03cf7b9e..6fb82d778991dd907208d5fe0e7f90b80531ebbd 100644
+--- a/build/PathOfValheimanSmoke/README.md
++++ b/build/PathOfValheimanSmoke/README.md
+@@ -1,12 +1,12 @@
+ # Path of Valheiman compatibility checks
+ 
+-Build the plugin with `dotnet build InventorySlots.csproj -c Debug -p:DeployToGame=true` and run `dotnet run --project InventorySlots.Tests/InventorySlots.Tests.csproj -c Debug` from the repository root. The suite includes production row-state logic and production adapter methods compiled with boundary doubles for sorting and tooltip ownership; those doubles do not verify Unity rendering or Harmony patch installation.
++Build the plugin with `dotnet build InventorySlots.csproj -c Debug -p:DeployToGame=true` and run `dotnet run --project InventorySlots.Tests/InventorySlots.Tests.csproj -c Debug` from the repository root. The suite includes production row-state logic and production adapter methods compiled with boundary doubles for sorting, tooltip ownership, salvage-tab transitions, item-specific return previews, cache invalidation and recipe-specific chest counts. Those doubles do not verify Unity rendering or Harmony patch installation. The expanded suite passed **194 tests**.
+ 
+ Build this executable with `dotnet build build/PathOfValheimanSmoke/PathOfValheimanSmoke.csproj -c Debug`. Run it through the repository's x64 Mono host (source: `InventoryActions/build/CompatibilitySmoke/MonoHost.cpp`; build procedure: adjacent `Run-MonoSmoke.ps1`). Example for the existing local host:
+ 
+ ```powershell
+ $game = 'C:\Program Files (x86)\Steam\steamapps\common\Valheim'
+-$pov = 'C:\Users\blizz\AppData\Roaming\com.kesomannen.gale\valheim\profiles\asdfzcxv\BepInEx\plugins\treextr-PathOfValheiman\PathOfValheiman\PathOfValheiman.dll'
++$pov = 'C:\Users\blizz\AppData\Roaming\com.kesomannen.gale\cache\treextr-PathOfValheiman\5.0.4\BepInEx\plugins\treextr-PathOfValheiman\PathOfValheiman\PathOfValheiman.dll'
+ & .\InventoryActions\build\CompatibilitySmoke\obj\MonoHost-x64\MonoHost.exe `
+     "$game\MonoBleedingEdge\EmbedRuntime\mono-2.0-bdwgc.dll" `
+     "$game\valheim_Data\Managed" "$game\MonoBleedingEdge\etc" `
+@@ -16,8 +16,10 @@ $pov = 'C:\Users\blizz\AppData\Roaming\com.kesomannen.gale\valheim\profiles\asdf
+ 
+ The probe isolates BepInEx configuration paths in a new temporary directory. It loads original game/PoV assemblies, patches and invokes the actual private PoV metadata-registration method with the final plugin's prefix, checks preserved/different/absent metadata and first-run/repeated registration, validates other external method signatures, and executes explicit readers for the game's original private tooltip fields. It does not publicize or modify input DLLs.
+ 
+-2026-10-17: **28 checks passed**, exit 0, against Valheim client **1.0.20** (25909357) and supplied PoV **5.0.4**, SHA-256 `36E45B65B44667AD596446CAC2AE989041669948C11710B05185E4FE16697DB4`.
++The crafting extension binds the production delegates to original private/public PoV members and invokes the safe static selection/field readers. Return calculation and chest enumeration need Unity and are not invoked. `CraftingOrderProbe` uses real HarmonyX with attributes merged from the final Slots and original PoV patches, but instrumented bodies on a dummy target. It checks both registration orders, PoV's absence, false-return continuation, failures before/after simulated removal, normal upgrades and vetoes. This verifies patch ordering and state/exception propagation, not actual inventory transactions. Only the safety/favorite prefixes acquire the PoV ordering constraint; favorite restoration keeps its existing postfix annotations.
++
++2026-10-17: **60 Mono checks passed**, exit 0, against Valheim client **1.0.20** (25909357) and supplied PoV **5.0.4**, SHA-256 `36E45B65B44667AD596446CAC2AE989041669948C11710B05185E4FE16697DB4`. Of these, 15 checks cover the instrumented Harmony ordering probe. The final plugin's static compatibility check passed **1,150 references, 163 Harmony targets and 52 reflected contracts**, with **0 failures** and **10 existing manual-review items**.
+ 
+ The optional `--engine-hooks` probe attempts the additional row/sort/panel hooks. It was attempted and exited 1 because patch compilation initializes `Player` → `ZSyncAnimation` → Unity's native `Animator.StringToHash_Injected`, unavailable in standalone Mono. This is **not** a passed runtime hook check or evidence of mismatched installed game libraries. Do not replace/publicize game DLLs or stub native game methods to hide that limitation. The default run explicitly reports these hooks as not executed.
+ 
+-Still requiring actual game verification: Big Bag gains/respec, occupied-row removal, save/reconnect, Tidy Pack with equipped/favorite/quick-slot items, multiplayer chest contention, hover delay, Alt-pinned keyword/socket interaction, live tooltip layout On/Off, Mouse3 pins/chat text, tree opening/closing, and dedicated-server startup. No game/client/server session was launched for these checks.
++Still requiring actual game verification: Big Bag gains/respec, occupied-row removal, save/reconnect, Tidy Pack with equipped/favorite/quick-slot items, multiplayer chest contention, hover delay, Alt-pinned keyword/socket interaction, live tooltip layout On/Off, Mouse3 pins/chat text, tree opening/closing, and dedicated-server startup. For crafting, exercise Salvage/Disenchant in List and Grid, items sharing a recipe but having different quality/socket data, actual returned materials, full-inventory behavior, ordinary equipment-slot upgrades, VNEI/tab transitions, node respec, Box radius and chest access/counts. No game/client/server session was launched for these checks.
+diff --git a/docs/user/compatibility.md b/docs/user/compatibility.md
+index 126c50183a89b3c53edf8e6f2e8a3b5567669812..9b3d99df881a755a43618abe53e5d83b94e08a94 100644
+--- a/docs/user/compatibility.md
++++ b/docs/user/compatibility.md
+@@ -51,7 +51,7 @@ InventorySlots cannot be combined with other slot owners declared incompatible:
+ | AdventureBackpacks / Smoothbrain Backpacks | Backpack slots and equipped-backpack synchronization. |
+ | RustyBags | Bag/quiver slots and equipped-state synchronization. |
+ | Magic Supremacy | MagicBelt slot with native Tome equipment and saved-state synchronization. |
+-| Path of Valheiman | Conditional Big Bag row adapter, protected Tidy Pack sorting, exact item-mark stacking, and native PoV item hover cards. See the limits below. |
++| Path of Valheiman | Big Bag rows, protected Tidy Pack sorting, exact item-mark stacking, native hover cards, and crafting UI integration. See the limits below. |
+ | BetterArchery | Conservative handling of its quiver/reserved cells. |
+ | AzuCraftyBoxes | Shows nearby material counts/colors through its optional API. AzuCraftyBoxes remains responsible for consumption. |
+ | Recycle N Reclaim | Grid/List support for the Reclaim tab. |
+@@ -71,6 +71,9 @@ The adapter activates only when `treextr.pathofvalheiman` is loaded. It checks e
+ - **Item marks:** PoV's own declared `pt.*` keys participate in automatic stacking only when their raw values match. Different potency, duration or crafting provenance stays separate, including a key present on only one stack. Undeclared keys and other mods' unregistered metadata remain conservative. Public stack-policy registration remains first-wins.
+ - **Hover tooltips:** when PoV's **Item tooltip layout** is enabled and it produces a card for an inventory/chest item, that card takes precedence. Disabling it returns to InventorySlots' hover display. PoV's native hover delay and Alt interaction are retained. InventorySlots Mouse3 pins and chat snapshots continue using ordinary item-tooltip text; they do not export all of PoV's graphical widgets or detail-only information.
+ - **Tree window:** the guide's click target does not raise itself above the open PoV tree. Quick Slot HUD visibility modes and their default fade behavior are unchanged.
++- **Salvage / Disenchant:** PoV's tabs use InventorySlots' List/Grid, search and item tooltips. Each entry keeps the actual inventory item; previews show its current quality and PoV's returned materials, including the socketed-sigil destruction warning. PoV still determines which items qualify, node/station requirements and the actual removal/return operation. These actions do not use the ordinary crafting quantity queue or recipe favorites. InventorySlots' upgrade protection runs after PoV's destructive action, while remaining active for ordinary upgrades.
++- **Crafting layout:** InventorySlots keeps its own category/filter and quantity controls, suppressing PoV's duplicate categories and queue display only while it owns the crafting panel. The PoV tab is placed after the other active tabs and before VNEI; VNEI retains its own screen. PoV's **Box radius** button is placed below the action button on the Craft/Upgrade view, retaining its existing callback and node requirement.
++- **Nearby materials:** displayed counts use PoV's chest access rules and the displayed recipe's mastery, including hovered/pinned recipes. Inventory and optional-provider totals are not added together; the larger available total is shown. Material consumption remains with the existing game/mod crafting hooks.
+ 
+ UI/row/sort adapters are not installed on a dedicated server. A missing capability logs a warning and leaves that capability unchanged. These scoped fixes do not establish full compatibility for every PoV mastery, including Full Harness or death-retention interactions. Actual UI use, respec/reconnect and multiplayer transfers still need in-game verification.
+ 
+-- 
+2.51.0.windows.1
+

@@ -210,7 +210,7 @@ public sealed partial class InventorySlotsPlugin
             {
                 TMP_Text text = marker.AmountText;
                 int required = Mathf.Max(0, requirement.GetAmount(quality) * Mathf.Max(1, craftMultiplier));
-                int available = requirementKnown ? GetAvailableCraftingRequirementAmount(requirement, gui.m_selectedRecipe.Recipe) : 0;
+                int available = requirementKnown ? GetAvailableCraftingRequirementAmount(requirement) : 0;
                 bool noCost = HasNoCraftCost();
                 bool availableEnough = requirementKnown && (noCost || available >= required);
                 string label = requirementKnown ? FormatCompactRequirementAmount(available, required) : GetVeiledRecipeUnknownRequirementText();
@@ -423,7 +423,7 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
-    private static int GetAvailableCraftingRequirementAmount(Requirement requirement, Recipe? recipe)
+    private static int GetAvailableCraftingRequirementAmount(Requirement requirement)
     {
         Player? player = Player.m_localPlayer;
         if (player == null || requirement.m_resItem == null || requirement.m_resItem.m_itemData?.m_shared == null)
@@ -442,7 +442,7 @@ public sealed partial class InventorySlotsPlugin
         if (CraftingRequirements.AvailabilityCache.TryGetValue(cacheKey, out CraftingRequirementAvailabilityCacheEntry cached) &&
             cached.ExpiresAt >= now)
         {
-            return GetPathOfValheimanCraftingStock(player, sharedName, recipe, cached.Amount);
+            return cached.Amount;
         }
 
         Inventory inventory = player.GetInventory();
@@ -451,7 +451,7 @@ public sealed partial class InventorySlotsPlugin
         CraftingRequirements.AvailabilityCache[cacheKey] = new CraftingRequirementAvailabilityCacheEntry(
             amount,
             now + CraftingRequirementAvailabilityCacheSeconds);
-        return GetPathOfValheimanCraftingStock(player, sharedName, recipe, amount);
+        return amount;
     }
 
     private static string GetCraftingRequirementAvailabilityCacheKey(Player player, Requirement requirement, string sharedName)

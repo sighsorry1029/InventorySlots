@@ -309,10 +309,6 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void OnVanillaTooltipHidden()
     {
-        // PoV may suppress HideTooltip while Alt-pinned. Preserve its live card/handlers.
-        if (UITooltip.m_current == null || UITooltip.m_tooltip == null ||
-            UITooltip.m_current != _pathOfValheimanTooltipSource)
-            ClearPathOfValheimanTooltipState();
         _inventoryContainerHoverTooltipSource = null;
         _inventorySlotsOwnedHoverTooltipSource = null;
         HideInventoryContainerCustomTooltip();
@@ -384,7 +380,6 @@ public sealed partial class InventorySlotsPlugin
 
     private static void UpdateInventoryContainerHoverTooltip(UITooltip tooltip, bool resetScroll, bool handleWheel)
     {
-        if (tooltip != null && TryYieldToPathOfValheimanTooltip(tooltip)) return;
         if (tooltip == null ||
             !IsInventoryContainerTooltipSource(tooltip) ||
             ShouldUseInventorySlotsOwnedHoverTooltip(tooltip))

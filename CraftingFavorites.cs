@@ -10,7 +10,7 @@ public sealed partial class InventorySlotsPlugin
 {
     private static bool TryToggleCraftingRecipeFavorite(int originalIndex)
     {
-        if (IsRecycleNReclaimReclaimTabActive(InventoryGui.instance) || IsPathOfValheimanSalvageTab(InventoryGui.instance))
+        if (IsRecycleNReclaimReclaimTabActive(InventoryGui.instance))
         {
             return false;
         }
@@ -94,7 +94,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool IsFavoriteCraftingRecipe(InventoryGui.RecipeDataPair pair)
     {
-        if (IsRecycleNReclaimReclaimTabActive(InventoryGui.instance) || IsPathOfValheimanSalvageTab(InventoryGui.instance))
+        if (IsRecycleNReclaimReclaimTabActive(InventoryGui.instance))
         {
             return false;
         }

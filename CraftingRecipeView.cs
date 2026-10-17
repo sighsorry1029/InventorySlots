@@ -25,7 +25,6 @@ public sealed partial class InventorySlotsPlugin
         }
 
         TryRefreshSelectedJewelcraftingSocketRecipePair(gui);
-        ClearPathOfValheimanCraftingPreviews();
         string signature = GetCraftingRecipeListChangeSignature(gui);
         if (!CraftingController.TryStoreRecipeListChangeSignature(signature))
         {
