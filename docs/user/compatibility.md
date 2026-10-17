@@ -51,7 +51,7 @@ InventorySlots cannot be combined with other slot owners declared incompatible: 
 | AdventureBackpacks / Smoothbrain Backpacks | Backpack slots and equipped-backpack synchronization. |
 | RustyBags | Bag/quiver slots and equipped-state synchronization. |
 | Magic Supremacy | MagicBelt slot with native Tome equipment and saved-state synchronization. |
-| Path of Valheiman | Conditional Big Bag row adapter, protected Tidy Pack sorting, exact item-mark stacking, and native PoV item hover cards. See the limits below. |
+| Path of Valheiman | Big Bag rows, protected Tidy Pack sorting, exact item-mark stacking, native hover cards, and crafting UI integration. See the limits below. |
 | BetterArchery | Conservative handling of its quiver/reserved cells. |
 | AzuCraftyBoxes | Shows nearby material counts/colors through its optional API. AzuCraftyBoxes remains responsible for consumption. |
 | Recycle N Reclaim | Grid/List support for the Reclaim tab. |
@@ -71,6 +71,9 @@ The adapter activates only when `treextr.pathofvalheiman` is loaded. It checks e
 - **Item marks:** PoV's own declared `pt.*` keys participate in automatic stacking only when their raw values match. Different potency, duration or crafting provenance stays separate, including a key present on only one stack. Undeclared keys and other mods' unregistered metadata remain conservative. Public stack-policy registration remains first-wins.
 - **Hover tooltips:** when PoV's **Item tooltip layout** is enabled and it produces a card for an inventory/chest item, that card takes precedence. Disabling it returns to InventorySlots' hover display. PoV's native hover delay and Alt interaction are retained. InventorySlots Mouse3 pins and chat snapshots continue using ordinary item-tooltip text; they do not export all of PoV's graphical widgets or detail-only information.
 - **Tree window:** the guide's click target does not raise itself above the open PoV tree. Quick Slot HUD visibility modes and their default fade behavior are unchanged.
+- **Salvage / Disenchant:** PoV's tabs use InventorySlots' List/Grid, search and item tooltips. Each entry keeps the actual inventory item; previews show its current quality and PoV's returned materials, including the socketed-sigil destruction warning. PoV still determines which items qualify, node/station requirements and the actual removal/return operation. These actions do not use the ordinary crafting quantity queue or recipe favorites. InventorySlots' upgrade protection runs after PoV's destructive action, while remaining active for ordinary upgrades.
+- **Crafting layout:** InventorySlots keeps its own category/filter and quantity controls, suppressing PoV's duplicate categories and queue display only while it owns the crafting panel. The PoV tab is placed after the other active tabs and before VNEI; VNEI retains its own screen. PoV's **Box radius** button is placed below the action button on the Craft/Upgrade view, retaining its existing callback and node requirement.
+- **Nearby materials:** displayed counts use PoV's chest access rules and the displayed recipe's mastery, including hovered/pinned recipes. Inventory and optional-provider totals are not added together; the larger available total is shown. Material consumption remains with the existing game/mod crafting hooks.
 
 UI/row/sort adapters are not installed on a dedicated server. A missing capability logs a warning and leaves that capability unchanged. These scoped fixes do not establish full compatibility for every PoV mastery, including Full Harness or death-retention interactions. Actual UI use, respec/reconnect and multiplayer transfers still need in-game verification.
 

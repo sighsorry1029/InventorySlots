@@ -96,6 +96,25 @@ internal static class Program
         Require("PassiveTree.UI.ItemTooltip", "RefreshCurrent", typeof(void));
         Require("PassiveTree.UI.TreeWindow", "get_IsOpen", typeof(bool));
         Check(true, "external method contracts match original PoV DLL");
+        // Bind production cached accessors against unmodified PoV metadata. Do not
+        // invoke Player/Unity-dependent returns or chest enumeration outside Unity.
+        plugin.GetMethod("BindPathOfValheimanCrafting", Static)!.Invoke(null, new object[] { pov });
+        plugin.GetMethod("BindPathOfValheimanCraftingChests", Static)!.Invoke(null, new object[] { pov });
+        foreach (string fieldName in new[] { "_povSalvaging", "_povSalvageTab", "_povRunecarver", "_povSalvageReturns",
+            "_povDisenchantReturns", "_povSocketContents", "_povText", "_povRadiusButton", "_povRadiusTaken",
+            "_povChestsFor", "_povChests", "_povCountEverywhere" })
+            Check(plugin.GetField(fieldName, Static)!.GetValue(null) is Delegate, "bound production accessor " + fieldName);
+        Check(!(bool)((Delegate)plugin.GetField("_povSalvaging", Static)!.GetValue(null)!).DynamicInvoke()!, "original internal Salvaging getter callable");
+        foreach (string fieldName in new[] { "_povSalvageTab", "_povRadiusButton" })
+            Check(((Delegate)plugin.GetField(fieldName, Static)!.GetValue(null)!).DynamicInvoke() == null, "original private UI field readable: " + fieldName);
+        Check(pov.GetType("PassiveTree.CraftSalvage", true)!.GetMethod("Returns", Static)!.IsPrivate &&
+              pov.GetType("PassiveTree.Conveniences", true)!.GetMethod("Chests", Static)!.IsPrivate &&
+              pov.GetType("PassiveTree.Conveniences", true)!.GetMethod("CountEverywhere", Static)!.IsPrivate,
+            "original return/chest access remains private, bound explicitly");
+        Require("PassiveTree.UI.CraftCategories", "get_On", typeof(bool));
+        Require("PassiveTree.UI.CraftQueue+Gui_Update", "Postfix", typeof(void), gui, player);
+        Check(true, "category and queue display hooks match original signatures");
+        CraftingOrderProbe.Run(mod, pov, Check);
         // These wrappers JIT Player methods whose static initialization needs Unity's native
         // Animator icalls. Keep the optional probe explicit; standalone Mono cannot supply them.
         if (args.Length == 5)

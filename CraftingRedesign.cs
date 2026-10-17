@@ -38,6 +38,8 @@ public sealed partial class InventorySlotsPlugin
         UpdateCraftingViewMode(adapter, shouldShowRedesign);
         if (!shouldShowRedesign)
         {
+            HidePathOfValheimanReturns();
+            RestorePathOfValheimanRadiusButton(gui);
             UpdateCraftingTabAdapterSuppression(gui, shouldSuppress: false, adapter);
             if (_craftingRedesignApplied)
             {

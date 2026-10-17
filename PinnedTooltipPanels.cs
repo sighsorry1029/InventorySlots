@@ -239,6 +239,8 @@ public sealed partial class InventorySlotsPlugin
             }
 
             text.text = nextText;
+            if (IsPathOfValheimanSalvageTab(gui))
+                ConfigureCraftingTooltipRecipeRow(panel, pair, new Vector2(18f, 18f), slotSize: 54f, gap: 8f);
             PinnedTooltipPanelUiCache? cache = panel.GetComponent<PinnedTooltipPanelUiCache>();
             float bottomReserved = cache != null &&
                                    !IsUnityNull(cache) &&

@@ -52,6 +52,8 @@ public sealed partial class InventorySlotsPlugin
 
         if (IsDedicatedServer) return;
 
+        InitializePathOfValheimanCrafting(assembly);
+
         InstallPathOfValheimanCapability("rows", harmony =>
         {
             Type trade = assembly.GetType("PassiveTree.TradeMechanics", true)!;
@@ -309,6 +311,7 @@ public sealed partial class InventorySlotsPlugin
     {
         foreach (Harmony harmony in PathOfValheimanPatches) harmony.UnpatchSelf();
         PathOfValheimanPatches.Clear();
+        ShutdownPathOfValheimanCrafting();
         _pathOfValheimanRowsEnabled = false;
         _pathOfValheimanProgress = null;
         _pathOfValheimanReadRows = null;

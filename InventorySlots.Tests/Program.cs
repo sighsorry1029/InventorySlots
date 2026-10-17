@@ -2,6 +2,7 @@ using InventorySlots;
 using InventoryPersistence;
 
 TestRunner.Run(
+    ("PoV crafting preserves native selection, item returns and recipe-specific chest counts", PathOfValheimanCraftingTests.Run),
     ("PoV adapters preserve protected sort cells and tooltip ownership transitions", PathOfValheimanAdapterTests.Run),
     ("PoV bonus rows add independently and preserve the special-slot boundary", PathOfValheimanTests.RowLimits),
     ("PoV bonus removal retains occupied rows until emptied", PathOfValheimanTests.RowRemoval),

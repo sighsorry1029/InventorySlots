@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.6
+
+- Integrated Path of Valheiman's Salvage and Disenchant tabs with InventorySlots' List/Grid, search and item tooltips. Each entry keeps the actual inventory item and shows its current quality, returned materials and socketed-sigil destruction warning. PoV retains its node/station requirements, item eligibility and removal/return logic.
+- Placed PoV's Box radius button below the crafting action and reflected nearby material counts using PoV's chest access rules and the displayed recipe's mastery. Hovered and pinned recipes use their own material context; overlapping inventory/provider totals are not added together.
+- Suppressed PoV's duplicate crafting categories and queue display while InventorySlots owns the panel. The existing InventorySlots crafting layout and ordinary crafting quantity controls remain available.
+- Prevented PoV's Salvage tab from overlapping VNEI or taking over its screen after a tab switch. Restored the Box radius button's layout and visibility when handing the panel back.
+- Ordered upgrade protection after PoV's destructive action so it does not capture a consumed item for restoration, while retaining the existing safeguards for ordinary upgrades. The integration activates only when PoV and the required member signatures are available.
+
 ## 1.6.5
 
 - Added optional Path of Valheiman compatibility. Each adapter activates only when PoV is loaded and its required methods and fields are available, without an exact version-number restriction. PoV 5.0.4 is the reviewed implementation.
