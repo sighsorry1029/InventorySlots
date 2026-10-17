@@ -24,6 +24,7 @@ public sealed partial class InventorySlotsPlugin
             InitializeEpicLootCompatibility();
             InitializeEpicLootStacking();
             InitializeYamlSync();
+            InitializePathOfValheimanCompatibility();
 
             _harmony.PatchAll();
             ApplyMyLittleUICraftingCompatibility();
@@ -182,6 +183,7 @@ public sealed partial class InventorySlotsPlugin
         DestroyRestockModeIcons();
         ShutdownEpicLootCompatibility();
         ShutdownMagicSupremacyCompatibility();
+        ShutdownPathOfValheimanCompatibility();
         _epicLootStackingApi = null;
         CancelContainerAreaTransfer();
         SharedContainerLocalViewers.Clear();

@@ -38,6 +38,7 @@ namespace InventorySlots;
 [BepInDependency(VeiledRecipesGuid, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency(CircletExtendedGuid, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency(HipLanternGuid, BepInDependency.DependencyFlags.SoftDependency)]
+[BepInDependency(PathOfValheimanGuid, BepInDependency.DependencyFlags.SoftDependency)]
 public sealed partial class InventorySlotsPlugin : BaseUnityPlugin
 {
     private const int BaseRows = ClientStateCore.DefaultLastExpandableRows;

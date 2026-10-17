@@ -51,6 +51,7 @@ InventorySlots cannot be combined with other slot owners declared incompatible: 
 | AdventureBackpacks / Smoothbrain Backpacks | Backpack slots and equipped-backpack synchronization. |
 | RustyBags | Bag/quiver slots and equipped-state synchronization. |
 | Magic Supremacy | MagicBelt slot with native Tome equipment and saved-state synchronization. |
+| Path of Valheiman | Conditional Big Bag row adapter, protected Tidy Pack sorting, exact item-mark stacking, and native PoV item hover cards. See the limits below. |
 | BetterArchery | Conservative handling of its quiver/reserved cells. |
 | AzuCraftyBoxes | Shows nearby material counts/colors through its optional API. AzuCraftyBoxes remains responsible for consumption. |
 | Recycle N Reclaim | Grid/List support for the Reclaim tab. |
@@ -60,6 +61,18 @@ InventorySlots cannot be combined with other slot owners declared incompatible: 
 | ServerCharacters / ServerManager | In multiplayer, leaves character recovery to that mod and skips InventorySlots' extra-slot backup save/restore. Single-player backup behavior is unchanged. |
 
 Keep generated compatibility slot IDs unchanged when editing YAML. Optional integrations use the relevant installed mod's supported interfaces; this list does not mean every feature of every mod shares the same layout.
+
+### Path of Valheiman
+
+The adapter activates only when `treextr.pathofvalheiman` is loaded. It checks each required method/field signature independently; it does not require an exact version number. The reviewed DLL is **PoV 5.0.4**. Restart the game after installing this update: already-registered stack policies are not replaced during hot loading.
+
+- **Big Bag:** PoV's 0–3 bonus rows are added after native pockets and InventorySlots progression, within the existing **nine regular-row maximum**. Equipment and quick-slot storage coordinates do not move. PoV's separate physical-height/panel resizing is suppressed. Removing the bonus retains occupied bonus rows until emptied. Its existing `pt.invrows` key still stores the desired bonus, not the physical storage height.
+- **Tidy Pack:** its direct Sort uses InventorySlots sorting and keeps equipped items, favorites, hotbar, locked cells and special slots out of the movable cells. Its Quick Stack candidate list receives the same additional protection. Existing chest access, ownership and RPC paths remain in place; this does not add a new transfer protocol or change PoV's mastery requirement.
+- **Item marks:** PoV's own declared `pt.*` keys participate in automatic stacking only when their raw values match. Different potency, duration or crafting provenance stays separate, including a key present on only one stack. Undeclared keys and other mods' unregistered metadata remain conservative. Public stack-policy registration remains first-wins.
+- **Hover tooltips:** when PoV's **Item tooltip layout** is enabled and it produces a card for an inventory/chest item, that card takes precedence. Disabling it returns to InventorySlots' hover display. PoV's native hover delay and Alt interaction are retained. InventorySlots Mouse3 pins and chat snapshots continue using ordinary item-tooltip text; they do not export all of PoV's graphical widgets or detail-only information.
+- **Tree window:** the guide's click target does not raise itself above the open PoV tree. Quick Slot HUD visibility modes and their default fade behavior are unchanged.
+
+UI/row/sort adapters are not installed on a dedicated server. A missing capability logs a warning and leaves that capability unchanged. These scoped fixes do not establish full compatibility for every PoV mastery, including Full Harness or death-retention interactions. Actual UI use, respec/reconnect and multiplayer transfers still need in-game verification.
 
 Magic Supremacy's native `tome` definition supplies the accepted items automatically, including its Frostcaller and Lightcaller tomes. Keep InventorySlots' existing `magicsupremacy.belt` YAML ID; the default `MagicBelt` display name can be changed. An empty `items` list is sufficient for native tomes. In Magic Supremacy 3.1.3, `ArmorWindcallerUtility_DO` is not a native tome. You can still explicitly add it to the YAML `items` list as an InventorySlots custom item, without registering it in Magic Supremacy's native Tome state. `applyArmor` remains independent of item acceptance.
 

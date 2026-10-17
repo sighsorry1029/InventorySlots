@@ -221,7 +221,8 @@ public sealed partial class InventorySlotsPlugin
 
     private static int GetUsableRegularRows(Player player)
     {
-        return InventorySlotSafetyCore.GetCombinedRegularRows(GetNativeInventoryRows(player), CalculateUnlockedRows(player));
+        int rows = InventorySlotSafetyCore.GetCombinedRegularRows(GetNativeInventoryRows(player), CalculateUnlockedRows(player));
+        return GetPathOfValheimanRegularRows(player, rows);
     }
 
     private static int CalculateUnlockedRows(Player player)

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.5
+
+- Added optional Path of Valheiman compatibility. Each adapter activates only when PoV is loaded and its required methods and fields are available, without an exact version-number restriction. PoV 5.0.4 is the reviewed implementation.
+- Integrated Big Bag bonus rows with native pockets and InventorySlots progression within the existing nine-row limit. Equipment and quick-slot storage coordinates stay fixed, PoV's conflicting panel resizing is suppressed, and occupied bonus rows remain available until emptied after the bonus is removed.
+- Routed Tidy Pack sorting through InventorySlots while preserving equipped items, favorites, hotbar, locked cells and special slots. Its Quick Stack candidate list also respects InventorySlots protection; existing chest access, ownership and transfer checks remain in place.
+- Prevented PoV-marked stacks with different potency, duration or crafting provenance from merging. Identical declared metadata still supports automatic stacking; missing or differing values remain separate.
+- Let PoV's enabled item-tooltip layout display its inventory/chest hover cards, preserving the native hover delay and Alt interactions. InventorySlots' pinned tooltips and chat shares continue using ordinary item-tooltip text. The feature guide no longer raises its click target above the open PoV tree; Quick Slot HUD visibility and fade settings are unchanged.
+
 ## 1.6.4
 
 - Reduced repeated matching work and temporary allocations for YAML custom slots, especially those with long allowed-item lists. Matching reuses prepared rule tokens and normalizes each item's identity only as needed within a query; unknown group names no longer trigger unnecessary item classification.

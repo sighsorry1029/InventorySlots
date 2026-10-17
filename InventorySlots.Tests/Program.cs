@@ -2,6 +2,10 @@ using InventorySlots;
 using InventoryPersistence;
 
 TestRunner.Run(
+    ("PoV adapters preserve protected sort cells and tooltip ownership transitions", PathOfValheimanAdapterTests.Run),
+    ("PoV bonus rows add independently and preserve the special-slot boundary", PathOfValheimanTests.RowLimits),
+    ("PoV bonus removal retains occupied rows until emptied", PathOfValheimanTests.RowRemoval),
+    ("PoV saved bonuses validate input and remain player-specific", PathOfValheimanTests.SavedRows),
     ("YAML matching and equipment unlock preserve live rules with bounded repeated work", YamlMatchingTests.Run),
     ("Quick HUD On/Off and empty contexts preserve visibility policy", QuickSlotHudTests.PersistentModes),
     ("Quick HUD whole-panel use holds then fades and restarts", QuickSlotHudTests.WholePanelTiming),
