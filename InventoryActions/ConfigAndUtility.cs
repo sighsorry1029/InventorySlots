@@ -318,7 +318,7 @@ public sealed partial class InventoryActionsPlugin
 
     private static bool CanTrashCell(Inventory inventory, Vector2i pos)
     {
-        return IsRegularPlayerCell(inventory, pos);
+        return IsRegularPlayerCell(inventory, pos) && !IsPathOfValheimanProtectedCell(inventory, pos);
     }
 
     private static bool IsSupportedPlayerCell(Inventory inventory, Vector2i pos)
@@ -333,11 +333,13 @@ public sealed partial class InventoryActionsPlugin
 
     private static bool IsRegularActionItem(Inventory inventory, ItemData item)
     {
-        return item?.m_shared != null && IsRegularPlayerCell(inventory, item.m_gridPos);
+        return item?.m_shared != null && IsRegularPlayerCell(inventory, item.m_gridPos) &&
+               !IsPathOfValheimanProtectedCell(inventory, item.m_gridPos);
     }
 
     private static int GetRegularPlayerRowsOrInventoryHeight(Inventory? inventory)
     {
+        if (_povPresent && TryGetPathOfValheimanRows(inventory, out int povRows)) return povRows;
         int rows = Mathf.Max(1, inventory != null ? inventory.GetHeight() : VanillaPlayerRows);
         System.Func<int>? getVisibleRows = _equipmentAndQuickSlotsVisibleRows;
         if (getVisibleRows != null)

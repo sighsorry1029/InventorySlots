@@ -37,6 +37,8 @@ Choose a target quantity for each item and whether to restore its remembered emp
 
 ## Start here
 
+**Path of Valheiman:** InventoryActions-managed actions protect PoV equipment and storage cells and use the ordinary backpack. PoV's own sort and quick stack also respect favorites. The adapter was checked against PoV 5.0.5 and uses method-contract checks, not an exact-version lock. With MultiUserChest, use InventoryActions' chest quick stack instead of PoV's nearby quick stack. Native/external UI transfers retain their providers' placement rules. See [compatibility details and validation limits](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/compatibility.md#path-of-valheiman).
+
 These are the default keyboard and mouse controls. In-game hints follow your configured bindings.
 
 | To… | Do this |

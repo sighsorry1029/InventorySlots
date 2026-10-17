@@ -36,7 +36,36 @@ test, calls `mono_jit_cleanup`, and returns the managed exit code unchanged.
 Build failures and native failures remain failures. A PASS line alone is not
 sufficient: check the process exit code as well.
 
-## Why the old standalone process failed
+## Path of Valheiman adapter checks
+
+After building/deploying InventoryActions Debug, run:
+
+```powershell
+./InventoryActions/build/CompatibilitySmoke/Run-MonoSmoke.ps1 -Mode pov -PovDll '<original PathOfValheiman.dll>'
+```
+
+On 2026-10-18, the original PoV 5.0.5 DLL (SHA-256
+`FEE675080C260958D16831A611B6658B434E8D587492FFF3F2383AB97E471B6C`)
+and the original Valheim 1.0.20 client assemblies/runtime passed 36 isolated
+checks with process exit 0 and normal Mono cleanup. They cover the internal
+PoV method bindings, live/delayed-release boundaries, protected source and
+destination cells, original PoV Sort execution, empty favorites and HarmonyX
+rejected/accepted/duplicate response state. The existing game access modifiers
+are preserved; the mod has no compile-time PoV reference.
+
+This mode supplies inert animation-hash/object-offset internal calls, managed
+object identity and a test character ID, and skips localization resource loading.
+It uses uninitialized managed Player/Container sentinels, never native Unity
+objects. The RPC body is an observer, so its checks establish wrapper state and
+prefix ordering, **not** sender validation, network transfers or multiplayer safety.
+Completed PoV replies are fenced until another permitted native request (or a
+network stop). Vanilla's RPC has no request ID: an old reply arriving after a new
+request cannot be distinguished by this fence alone.
+No game files are modified by these stubs. Actual UI, node/key input, equipment
+settlement, BigBag changes, full inventories, host/remote chests, delayed responses,
+MUC combinations and save/death/reconnect still require game testing.
+
+## Why the old standalone process failed (historical)
 
 On 2026-10-11, the previous Unity Editor 6000.0.61f1 `bin/mono.exe` was found to
 be **x86**, despite the installed Editor and game being x64. The process printed

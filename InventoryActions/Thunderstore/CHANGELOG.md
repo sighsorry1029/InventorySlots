@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.15
+
+- Added optional Path of Valheiman compatibility, checked against PoV 5.0.5. InventoryActions-managed actions and button placement follow PoV's live backpack boundary while protecting its equipment, food, arrow, tool and wallet cells, including the delayed release after switching Equipment system Off. UI transfers delegated to native or external container handlers retain their providers' placement rules.
+- Made PoV's Tidy Pack sort and nearby quick stack respect InventoryActions favorite slots. Protected equipped items awaiting PoV placement and kept automatic transfers out of its reserved storage cells.
+- Coordinated PoV's native quick-stack response hooks with InventoryActions transfer handling. With MultiUserChest installed, PoV's nearby quick stack is disabled; use InventoryActions' chest quick-stack shortcut instead.
+- The adapter checks required method contracts rather than an exact PoV version. Unsupported contracts block InventoryActions player actions with a warning. Isolated checks passed; actual game and multiplayer behavior still require verification.
+
 ## 1.1.14
 
 - Quick Stack now moves non-stackable materials, including mead bases, into free cells in chests that already contain the same item, including supported MultiUserChest requests. Non-stackable equipment remains excluded; favorite, protected-slot, access, and metadata checks still apply. Restock behavior is unchanged.

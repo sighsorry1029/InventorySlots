@@ -4,9 +4,10 @@ param(
     [string]$ModDll,
     [ValidateSet('basic', 'muc-session', 'muc-restock', 'muc-api', 'ui-layout',
         'restock-reserve', 'button-modes', 'favorite-fill', 'material-access',
-        'empty-favorite', 'epicloot-overlap')]
+        'empty-favorite', 'epicloot-overlap', 'pov')]
     [string]$Mode = 'muc-session',
-    [string]$MucDll
+    [string]$MucDll,
+    [string]$PovDll
 )
 
 $ErrorActionPreference = 'Stop'
@@ -29,6 +30,10 @@ if ($Mode -in @('muc-restock', 'muc-api')) {
     if (!$MucDll) { throw "-$Mode requires -MucDll pointing to the original MultiUserChest.dll." }
     $MucDll = (Resolve-Path -LiteralPath $MucDll).ProviderPath
 } elseif ($MucDll) { throw '-MucDll applies only to muc-restock or muc-api.' }
+if ($Mode -eq 'pov') {
+    if (!$PovDll) { throw '-Mode pov requires -PovDll pointing to the original PathOfValheiman.dll.' }
+    $PovDll = (Resolve-Path -LiteralPath $PovDll).ProviderPath
+} elseif ($PovDll) { throw '-PovDll applies only to pov.' }
 
 # Build only the test executable. Build/deploy the final mod separately.
 & dotnet build (Join-Path $PSScriptRoot 'CompatibilitySmoke.csproj') -c Debug `
@@ -77,6 +82,7 @@ $test = Join-Path $PSScriptRoot 'bin/Debug/net48/CompatibilitySmoke.exe'
 $testArgs = @($ModDll, $managed, $core)
 if ($Mode -ne 'basic') { $testArgs += "--$Mode" }
 if ($MucDll) { $testArgs += $MucDll }
+if ($PovDll) { $testArgs += $PovDll }
 Write-Host "Testing $ModDll using original Valheim x64 Mono ($Mode)."
 & (Join-Path $output 'MonoHost.exe') $runtime $managed $etc $test @testArgs
 $testExit = $LASTEXITCODE

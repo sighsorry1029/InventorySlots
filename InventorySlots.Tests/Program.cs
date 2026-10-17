@@ -2918,7 +2918,7 @@ internal static class Tests
             CountSourceOccurrences(policy, "return IsSupportedPlayerCell(inventory, pos);") == 1,
             "favorites and favorite restock must share one supported vanilla-cell predicate");
         Assert.True(
-            policy.Contains("return IsRegularPlayerCell(inventory, pos);", StringComparison.Ordinal) &&
+            policy.Contains("return IsRegularPlayerCell(inventory, pos)", StringComparison.Ordinal) &&
             policy.Contains("IsSupportedPlayerCell(inventory, pos) && pos.y > 0", StringComparison.Ordinal),
             "trash and regular container actions must exclude the hotbar");
         Assert.True(

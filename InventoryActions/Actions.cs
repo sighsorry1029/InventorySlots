@@ -35,6 +35,9 @@ public sealed partial class InventoryActionsPlugin
     internal static bool TryHandleContainerStackAll(Container container)
     {
         if (NativeContainerHandoff.IsRequestBlocked(container)) return true;
+        // PoV has already selected this chest with its own range/access checks.
+        // Do not turn each native request into another InventoryActions area operation.
+        if (_povQuickStackDepth > 0) return false;
         Player? player = Player.m_localPlayer;
         // Alt+Use can reach vanilla StackAll while held. Keep it reserved for
         // favorite restock even before a remote container grants ownership.
@@ -142,6 +145,9 @@ public sealed partial class InventoryActionsPlugin
 
         Player? player = Player.m_localPlayer;
         Container? container = gui.m_currentContainer;
+        // Consume moves from PoV-managed cells before delegating to any container
+        // protocol, and before the normal Ctrl-move path can unequip the item.
+        if (IsPathOfValheimanProtectedCell(grid.GetInventory(), item.m_gridPos)) return true;
         if (player == null ||
             player.IsTeleporting() ||
             container == null ||
@@ -432,6 +438,7 @@ public sealed partial class InventoryActionsPlugin
     {
         if (item?.m_shared == null ||
             !CanFavoriteCell(inventory, item.m_gridPos) ||
+            IsPathOfValheimanProtectedCell(inventory, item.m_gridPos) ||
             !IsFavoriteSlot(player, inventory, item.m_gridPos) ||
             !CanUseContainerActionStacking(item))
         {
@@ -630,6 +637,7 @@ public sealed partial class InventoryActionsPlugin
         InventoryGui.instance?.SetupDragItem(null, null, 0);
         bool ShouldSort(ItemData item) => item?.m_shared != null && allowedSet.Contains(item.m_gridPos) && !IsFavoriteProtected(player, inventory, item);
         List<ItemData> targets = inventory.m_inventory.Where(item => item?.m_shared != null &&
+            !IsPathOfValheimanProtectedCell(inventory, item.m_gridPos) &&
             IsFavoriteProtected(player, inventory, item)).ToList();
         bool filled = FillFavoriteStacks(inventory, targets, inventory.m_inventory.Where(ShouldSort).ToList());
         SortInventoryInternal(inventory, allowedSlots, ShouldSort);
@@ -772,7 +780,7 @@ public sealed partial class InventoryActionsPlugin
             for (int x = 0; x < inventory.GetWidth(); x++)
             {
                 Vector2i pos = new(x, y);
-                if (IsFavoriteSlot(player, inventory, pos))
+                if (IsFavoriteSlot(player, inventory, pos) || IsPathOfValheimanProtectedCell(inventory, pos))
                 {
                     continue;
                 }
@@ -1405,7 +1413,8 @@ public sealed partial class InventoryActionsPlugin
         ItemData source,
         HashSet<Vector2i>? allowedSlots = null)
     {
-        if (sourceInventory == null || targetInventory == null || source?.m_shared == null || !sourceInventory.m_inventory.Contains(source))
+        if (sourceInventory == null || targetInventory == null || source?.m_shared == null || !sourceInventory.m_inventory.Contains(source) ||
+            IsPathOfValheimanProtectedCell(sourceInventory, source.m_gridPos))
         {
             return 0;
         }
@@ -1416,6 +1425,7 @@ public sealed partial class InventoryActionsPlugin
             List<ItemData> stackTargets = targetInventory.m_inventory
                 .Where(target =>
                     (allowedSlots == null || allowedSlots.Contains(target.m_gridPos)) &&
+                    !IsPathOfValheimanProtectedCell(targetInventory, target.m_gridPos) &&
                     CanStackIntoTargetForTopFirstMove(target, source))
                 .OrderBy(target => target.m_gridPos.y)
                 .ThenBy(target => target.m_gridPos.x)
@@ -1476,12 +1486,15 @@ public sealed partial class InventoryActionsPlugin
 
     private static bool CanMoveItemToInventoryTopFirst(Inventory sourceInventory, Inventory targetInventory, ItemData source)
     {
-        if (sourceInventory == null || targetInventory == null || source?.m_shared == null || !sourceInventory.m_inventory.Contains(source))
+        if (sourceInventory == null || targetInventory == null || source?.m_shared == null || !sourceInventory.m_inventory.Contains(source) ||
+            IsPathOfValheimanProtectedCell(sourceInventory, source.m_gridPos))
         {
             return false;
         }
 
-        if (CanStackForTopFirstMove(source) && targetInventory.m_inventory.Any(target => CanStackIntoTargetForTopFirstMove(target, source)))
+        if (CanStackForTopFirstMove(source) && targetInventory.m_inventory.Any(target =>
+                target != null && !IsPathOfValheimanProtectedCell(targetInventory, target.m_gridPos) &&
+                CanStackIntoTargetForTopFirstMove(target, source)))
         {
             return true;
         }
@@ -1493,11 +1506,13 @@ public sealed partial class InventoryActionsPlugin
     {
         int width = Math.Max(1, inventory.GetWidth());
         int height = Math.Max(0, inventory.GetHeight());
+        if (_povPresent && TryGetPathOfValheimanRows(inventory, out int povRows)) height = povRows;
         for (int y = 0; y < height; y++)
         {
             for (int x = 0; x < width; x++)
             {
-                yield return new Vector2i(x, y);
+                Vector2i cell = new(x, y);
+                if (!IsPathOfValheimanProtectedCell(inventory, cell)) yield return cell;
             }
         }
     }

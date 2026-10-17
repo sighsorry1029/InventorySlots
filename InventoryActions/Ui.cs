@@ -249,6 +249,10 @@ public sealed partial class InventoryActionsPlugin
         int rows = Mathf.Max(1, playerGrid.m_inventory != null ? playerGrid.m_inventory.GetHeight() : VanillaPlayerRows);
         bool isLocalPlayerInventory = Player.m_localPlayer != null &&
                                       playerGrid.m_inventory == GetPlayerInventory(Player.m_localPlayer);
+        if (isLocalPlayerInventory && TryGetPathOfValheimanRows(playerGrid.m_inventory, out int povRows))
+        {
+            return povRows > 0 ? povRows : rows;
+        }
         if (isLocalPlayerInventory && _equipmentAndQuickSlotsVisibleRows != null)
         {
             return GetRegularPlayerRowsOrInventoryHeight(playerGrid.m_inventory);
