@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.16
+
+- Updated Path of Valheiman compatibility to use its public API for backpack boundaries, reserved cells and equipment state, checked against PoV 5.0.8 and 5.0.9. Required API 1.x capabilities and native safety hooks are verified without an exact mod-version lock.
+- Paused player inventory actions during loading and while an external PoV storage provider is registered or suspended, preventing unknown reserved cells from being treated as ordinary backpack space. Live boundary changes and delayed release after Equipment system is turned Off remain protected.
+- Retained favorite protection for PoV sorting/quick stack, native response handling and MultiUserChest safeguards. Expanded isolated checks for API rejection, unavailable storage, empty favorites and response ordering; actual game and multiplayer behavior still require verification.
+
 ## 1.1.15
 
 - Added optional Path of Valheiman compatibility, checked against PoV 5.0.5. InventoryActions-managed actions and button placement follow PoV's live backpack boundary while protecting its equipment, food, arrow, tool and wallet cells, including the delayed release after switching Equipment system Off. UI transfers delegated to native or external container handlers retain their providers' placement rules.

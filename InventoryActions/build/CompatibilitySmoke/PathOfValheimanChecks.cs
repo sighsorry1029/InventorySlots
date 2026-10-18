@@ -13,6 +13,19 @@ internal static class PathOfValheimanChecks
 {
     private static bool PlayerId(ref string __result) { __result = "pov-smoke"; return false; }
     private static bool MucPresent(ref bool __result) { __result = true; return false; }
+    private static string? storageProvider;
+    private static bool storageSuspended;
+    private static bool unsupportedApi;
+    private static bool ApiVersionCheck(ref bool __result)
+    {
+        if (!unsupportedApi) return true;
+        __result = false;
+        return false;
+    }
+    // Exercise API-reported external states without compiling against PoV or
+    // registering a real provider/claiming this process has a loaded character.
+    private static bool StorageProvider(ref string? __result) { __result = storageProvider; return false; }
+    private static bool StorageSuspended(ref bool __result) { __result = storageSuspended; return false; }
     private static IEnumerable<CodeInstruction> NoLocalization()
     {
         yield return new CodeInstruction(System.Reflection.Emit.OpCodes.Ldnull);
@@ -65,6 +78,7 @@ internal static class PathOfValheimanChecks
         Type moduleType = pov.GetType("PassiveTree.Gear.Module", true)!;
         Type quick = pov.GetType("PassiveTree.QuickStack", true)!;
         var owner = rowsType.GetField("inventory", statics)!;
+        var start = rowsType.GetField("start", statics)!;
         var config = new ConfigFile(Path.Combine(Path.GetTempPath(), "pov-smoke-" + Guid.NewGuid() + ".cfg"), false) { SaveOnConfigSet = false };
         var enabled = config.Bind("test", "equipment", true, "");
         moduleType.GetField("Enabled", statics)!.SetValue(null, enabled);
@@ -75,7 +89,7 @@ internal static class PathOfValheimanChecks
             ++checks;
             System.Console.WriteLine("PASS " + name);
         }
-        Inventory bag = new Inventory("bag", null, 8, 8);
+        Inventory bag = new Inventory("bag", null, 8, 10); // Four backpack + six PoV storage rows in 5.0.8.
         Inventory chest = new Inventory("chest", null, 8, 8);
         // Only managed data is used. These sentinels have no native Unity objects;
         // no transform, component lookup, Player constructor or world logic is invoked.
@@ -95,23 +109,71 @@ internal static class PathOfValheimanChecks
             Type responseHooks = quick.GetNestedType("Response", BindingFlags.NonPublic)!;
             povHarmony.Patch(response, prefix: new HarmonyMethod(responseHooks.GetMethod("Prefix", statics)),
                 finalizer: new HarmonyMethod(responseHooks.GetMethod("Finalizer", statics)));
+            Type storageApi = pov.GetType("Valheiman.Api.Storage", true)!;
+            harmony.Patch(AccessTools.PropertyGetter(storageApi, "ProviderId"),
+                prefix: new HarmonyMethod(typeof(PathOfValheimanChecks), nameof(StorageProvider)));
+            harmony.Patch(AccessTools.PropertyGetter(storageApi, "Suspended"),
+                prefix: new HarmonyMethod(typeof(PathOfValheimanChecks), nameof(StorageSuspended)));
+            Type api = pov.GetType("Valheiman.Api.Pov", true)!;
+            // Report an unsupported major through the real public method wrapper.
+            // Do not mutate its readonly ApiVersion field: Mono may inline it.
+            harmony.Patch(AccessTools.Method(api, "AtLeast"),
+                prefix: new HarmonyMethod(typeof(PathOfValheimanChecks), nameof(ApiVersionCheck)));
+            string[] features = (string[])api.GetField("Features")!.GetValue(null)!;
+            int storageFeature = Array.IndexOf(features, "storage");
+            bool RejectsApi()
+            {
+                try { Call("BindPathOfValheimanCompatibility", pov, harmony); return false; }
+                catch (TargetInvocationException error) { return error.InnerException is InvalidOperationException; }
+            }
+            try
+            {
+                unsupportedApi = true;
+                Check(RejectsApi(), "different public API major is rejected before installing hooks");
+                unsupportedApi = false;
+                features[storageFeature] = "test.missing-storage";
+                Check(RejectsApi(), "missing public storage capability is rejected before installing hooks");
+                Check(Harmony.GetPatchInfo(quick.GetMethod("Sort", statics))?.Owners.Contains(harmony.Id) != true &&
+                      Harmony.GetPatchInfo(response)!.Owners.Contains(povHarmony.Id),
+                    "rejected API leaves PoV action and response hooks untouched");
+            }
+            finally
+            {
+                unsupportedApi = false;
+                features[storageFeature] = "storage";
+            }
             Call("BindPathOfValheimanCompatibility", pov, harmony);
             Check(!rowsType.IsPublic, "original PoV equipment type remains internal");
+            foreach (string name in new[] { "_povBackpackRows", "_povIsCellPosition", "_povEquipmentEnabled", "_povStorageProvider", "_povStorageSuspended" })
+            {
+                MethodInfo bound = ((Delegate)plugin.GetField(name, statics)!.GetValue(null)!).Method;
+                Check(bound.IsPublic && bound.DeclaringType!.IsVisible && bound.DeclaringType.Namespace == "Valheiman.Api",
+                    name + " binds the original public API");
+            }
             foreach (string method in new[] { "Sort", "Run", "Movable", "ForeignCell" })
                 Check(Harmony.GetPatchInfo(quick.GetMethod(method, statics))!.Owners.Contains(harmony.Id), "actual PoV " + method + " accepts compatibility hook");
 
             owner.SetValue(null, bag);
+            start.SetValue(null, 4);
             int Rows(Inventory inventory) => (int)Call("GetRegularPlayerRowsOrInventoryHeight", inventory)!;
             List<Vector2i> Cells(Inventory inventory) => ((IEnumerable<Vector2i>)Call("GetInventorySlotsTopFirst", inventory)!).ToList();
             Check(Rows(bag) == 4 && Rows(chest) == 8, "PoV owns only the player boundary; chest capacity is unchanged");
-            Check(Cells(bag).Count == 32 && Cells(chest).Count == 64, "top-first destinations exclude all four hidden rows");
+            Check(Cells(bag).Count == 32 && Cells(chest).Count == 64, "top-first destinations exclude all six hidden rows");
             Check(!(bool)Call("CanFavoriteCell", bag, new Vector2i(0, 4))! &&
                   !(bool)Call("CanTrashCell", bag, new Vector2i(0, 4))!, "hidden cells cannot be favorited or trashed");
             enabled.Value = false;
             Check(Rows(bag) == 4, "Equipment Off still protects rows awaiting delayed release");
-            AccessTools.Field(typeof(Inventory), "m_height").SetValue(bag, 10);
+            AccessTools.Field(typeof(Inventory), "m_height").SetValue(bag, 12);
+            Check(Rows(bag) == 4, "physical height alone does not move PoV's owned boundary");
+            start.SetValue(null, 6);
             Check(Rows(bag) == 6 && Cells(bag).Count == 48, "live BigBag height changes update destinations without stale caching");
-            AccessTools.Field(typeof(Inventory), "m_height").SetValue(bag, 8);
+            AccessTools.Field(typeof(Inventory), "m_height").SetValue(bag, 10);
+            start.SetValue(null, 4);
+            AccessTools.Field(typeof(Player), "m_isLoading").SetValue(player, true);
+            Check(Rows(bag) == 0 && Cells(bag).Count == 0 && Rows(chest) == 8 && !(bool)Call("PovSortStarting", player)!,
+                "character loading blocks native and IA player actions even while rows are owned");
+            AccessTools.Field(typeof(Player), "m_isLoading").SetValue(player, false);
+            Check(Rows(bag) == 4, "loaded owned inventory resumes without a cached loading state");
 
             ItemDrop.ItemData Item(int x, int y, bool equipped = false) => new ItemDrop.ItemData
             {
@@ -163,10 +225,24 @@ internal static class PathOfValheimanChecks
                 "Ctrl-move cannot merge into hidden partial stacks or occupy hidden empty cells");
 
             owner.SetValue(null, null);
-            Check(Rows(bag) == 8, "released inventory with Equipment Off returns to ordinary actions");
+            AccessTools.Field(typeof(Inventory), "m_height").SetValue(bag, 4);
+            Check(Rows(bag) == 4, "released inventory with Equipment Off returns to ordinary actions");
+            storageProvider = "test.external";
+            Check(Rows(bag) == 0 && Cells(bag).Count == 0 && Rows(chest) == 8 && !(bool)Call("PovSortStarting", player)!,
+                "external provider cannot expose empty reserved cells even with Equipment Off");
             enabled.Value = true;
+            Check(Rows(bag) == 0, "registered external provider is not assumed ready with Equipment On");
+            storageProvider = null;
+            storageSuspended = true;
+            Check(Rows(bag) == 0 && !(bool)Call("PovSortStarting", player)!, "suspended storage blocks actions independently of provider ID");
+            storageSuspended = false;
             Check(Rows(bag) == 0 && Rows(chest) == 8, "enabled equipment awaiting Attach blocks only player actions");
             object?[] scope = { player, false };
+            Check(!(bool)Method("PovQuickStackStarting").Invoke(null, scope)! && !(bool)scope[1]!,
+                "native PoV quick stack cannot start before storage is ready");
+            owner.SetValue(null, bag);
+            AccessTools.Field(typeof(Inventory), "m_height").SetValue(bag, 10);
+            Check(Rows(bag) == 4 && (bool)Call("PovSortStarting", player)!, "native storage resumes after attach without reinitializing the adapter");
             Check((bool)Method("PovQuickStackStarting").Invoke(null, scope)! && (bool)scope[1]!, "PoV native request scope begins");
             Check((int)plugin.GetField("_povQuickStackDepth", statics)!.GetValue(null)! == 1, "scope marks only synchronous PoV dispatch");
             Call("PovQuickStackFinished", true);
@@ -222,11 +298,25 @@ internal static class PathOfValheimanChecks
             response.Invoke(box, new object[] { 1L, true });
             Check(responseBodyCalls == 3, "network stop releases response fences from the old session");
             owner.SetValue(null, bag);
-            Write("_povVisibleRows", new Func<Inventory, int>(_ => throw new InvalidOperationException("probe failure")));
+            var backpack = (Func<Player, int>)plugin.GetField("_povBackpackRows", statics)!.GetValue(null)!;
+            foreach (int invalid in new[] { 0, bag.GetHeight(), bag.GetHeight() + 1 })
+            {
+                Write("_povBackpackRows", new Func<Player, int>(_ => invalid));
+                Check(Rows(bag) == 0 && Cells(bag).Count == 0, "invalid public backpack boundary fails closed: " + invalid);
+                Write("_povUnavailable", false); // Only fault injection resets this; production requires restart.
+            }
+            Write("_povBackpackRows", backpack);
+            var isCell = (Func<Player, Vector2i, bool>)plugin.GetField("_povIsCellPosition", statics)!.GetValue(null)!;
+            Write("_povIsCellPosition", new Func<Player, Vector2i, bool>((_, __) => throw new InvalidOperationException("cell probe failure")));
+            Check((bool)Call("IsPathOfValheimanProtectedCell", bag, new Vector2i(0, 0))! && Rows(bag) == 0,
+                "cell API failure protects the current cell and blocks subsequent player actions");
+            Write("_povIsCellPosition", isCell);
+            Write("_povUnavailable", false);
+            Write("_povBackpackRows", new Func<Player, int>(_ => throw new InvalidOperationException("probe failure")));
             Check(Rows(bag) == 0 && Cells(bag).Count == 0 && Rows(chest) == 8, "lookup failure blocks player actions without blocking chest cells");
             Check(!(bool)Call("PovSortStarting", player)!, "native PoV sort also stops after integration failure");
             Write("_povPresent", false);
-            Check(Rows(bag) == 8 && Cells(bag).Count == 64, "PoV absent leaves existing inventory behavior unchanged");
+            Check(Rows(bag) == 10 && Cells(bag).Count == 80, "PoV absent leaves existing inventory behavior unchanged");
         }
         finally
         {

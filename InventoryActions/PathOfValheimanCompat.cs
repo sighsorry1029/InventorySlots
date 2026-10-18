@@ -13,9 +13,13 @@ public sealed partial class InventoryActionsPlugin
     private static bool _povPresent;
     private static bool _povUnavailable;
     private static bool _povMucWarning;
+    private static bool _povStorageWarning;
     private static Func<Inventory, bool>? _povOwnsInventory;
-    private static Func<Inventory, int>? _povVisibleRows;
+    private static Func<Player, int>? _povBackpackRows;
+    private static Func<Player, Vector2i, bool>? _povIsCellPosition;
     private static Func<bool>? _povEquipmentEnabled;
+    private static Func<string?>? _povStorageProvider;
+    private static Func<bool>? _povStorageSuspended;
     private static int _povQuickStackDepth;
     private delegate void PovStackResponseStart(Container container, bool granted, out bool state);
     private static PovStackResponseStart? _povStackResponseStart;
@@ -35,8 +39,9 @@ public sealed partial class InventoryActionsPlugin
         catch (Exception error) { DisablePathOfValheimanActions(error); }
     }
 
-    // These are methods on internal PoV types, not a public integration API.
-    // Bind the exact signatures once, without a compile-time PoV dependency or version pin.
+    // Bind public API queries once without a compile-time PoV dependency or version pin.
+    // Native ownership and action guards still need internal hooks: API 1.0.0 does
+    // not expose storage readiness, action filters, or the native RPC lifecycle.
     private static void BindPathOfValheimanCompatibility(Assembly assembly, Harmony harmony)
     {
         const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
@@ -47,10 +52,28 @@ public sealed partial class InventoryActionsPlugin
                 throw new MissingMethodException(type, name);
             return method;
         }
+        MethodInfo RequireApi(string type, string name, Type result, params Type[] parameters)
+        {
+            MethodInfo method = Require("Valheiman.Api." + type, name, result, parameters);
+            if (!method.IsPublic || method.DeclaringType?.IsVisible != true)
+                throw new MissingMethodException("Valheiman.Api." + type, name);
+            return method;
+        }
+
+        var atLeast = (Func<int, int, bool>)Delegate.CreateDelegate(typeof(Func<int, int, bool>),
+            RequireApi("Pov", "AtLeast", typeof(bool), typeof(int), typeof(int)));
+        var has = (Func<string, bool>)Delegate.CreateDelegate(typeof(Func<string, bool>),
+            RequireApi("Pov", "Has", typeof(bool), typeof(string)));
+        // AtLeast requires the same API major, allowing additive 1.x updates.
+        if (!atLeast(1, 0) || !has("equipment.cells") || !has("storage"))
+            throw new InvalidOperationException("PoV API 1.x with equipment.cells and storage is required");
 
         MethodInfo owns = Require("PassiveTree.Gear.EquipRows", "Owns", typeof(bool), typeof(Inventory));
-        MethodInfo visible = Require("PassiveTree.Gear.EquipRows", "Visible", typeof(int), typeof(Inventory));
-        MethodInfo enabled = Require("PassiveTree.Gear.Module", "get_On", typeof(bool));
+        MethodInfo backpack = RequireApi("Equipment", "BackpackRows", typeof(int), typeof(Player));
+        MethodInfo isCell = RequireApi("Equipment", "IsCellPosition", typeof(bool), typeof(Player), typeof(Vector2i));
+        MethodInfo enabled = RequireApi("Equipment", "get_On", typeof(bool));
+        MethodInfo provider = RequireApi("Storage", "get_ProviderId", typeof(string));
+        MethodInfo suspended = RequireApi("Storage", "get_Suspended", typeof(bool));
         MethodInfo movable = Require("PassiveTree.QuickStack", "Movable", typeof(List<ItemDrop.ItemData>), typeof(Player));
         MethodInfo cell = Require("PassiveTree.QuickStack", "ForeignCell", typeof(bool), typeof(Vector2i));
         MethodInfo sort = Require("PassiveTree.QuickStack", "Sort", typeof(void), typeof(Player));
@@ -62,8 +85,11 @@ public sealed partial class InventoryActionsPlugin
         if (patches == null || !HasPovPatch(patches.Prefixes, responseStart) || !HasPovPatch(patches.Finalizers, responseFinish))
             throw new InvalidOperationException("PoV native stack-response hooks do not match the supported contract");
         _povOwnsInventory = (Func<Inventory, bool>)Delegate.CreateDelegate(typeof(Func<Inventory, bool>), owns);
-        _povVisibleRows = (Func<Inventory, int>)Delegate.CreateDelegate(typeof(Func<Inventory, int>), visible);
+        _povBackpackRows = (Func<Player, int>)Delegate.CreateDelegate(typeof(Func<Player, int>), backpack);
+        _povIsCellPosition = (Func<Player, Vector2i, bool>)Delegate.CreateDelegate(typeof(Func<Player, Vector2i, bool>), isCell);
         _povEquipmentEnabled = (Func<bool>)Delegate.CreateDelegate(typeof(Func<bool>), enabled);
+        _povStorageProvider = (Func<string?>)Delegate.CreateDelegate(typeof(Func<string?>), provider);
+        _povStorageSuspended = (Func<bool>)Delegate.CreateDelegate(typeof(Func<bool>), suspended);
         _povStackResponseStart = (PovStackResponseStart)Delegate.CreateDelegate(typeof(PovStackResponseStart), responseStart);
         _povStackResponseFinish = (Action<bool>)Delegate.CreateDelegate(typeof(Action<bool>), responseFinish);
         _povPresent = true;
@@ -136,36 +162,51 @@ public sealed partial class InventoryActionsPlugin
     {
         rows = 0;
         if (!_povPresent || inventory == null) return false;
+        Player? player = Player.m_localPlayer;
+        if (!IsPlayerInventory(player, inventory)) return false;
+        if (_povUnavailable || player!.m_isLoading) return true;
         try
         {
+            // ProviderId includes a registered provider before activation. Neither
+            // it nor IsCellPosition identifies empty reserved external cells, so
+            // do not infer readiness/capacity from a non-null ID or physical height.
+            if (_povStorageSuspended!() || _povStorageProvider!() != null)
+            {
+                if (!_povStorageWarning)
+                    Log.LogWarning("PoV external storage is registered or suspended; player inventory actions are blocked because its empty reserved cells cannot be verified.");
+                _povStorageWarning = true;
+                return true;
+            }
             // Owns remains true during PoV's delayed release after Equipment system
             // is turned off. Its live boundary, not the option alone, owns those cells.
-            if (!_povUnavailable && _povOwnsInventory!(inventory))
+            if (_povOwnsInventory!(inventory))
             {
-                rows = _povVisibleRows!(inventory);
+                rows = _povBackpackRows!(player);
                 if (rows < 1 || rows >= inventory.GetHeight())
                     throw new InvalidOperationException("Invalid visible inventory boundary");
                 return true;
             }
-            if (!IsPlayerInventory(Player.m_localPlayer, inventory)) return false;
-            if (!_povUnavailable && !_povEquipmentEnabled!()) return false;
+            if (!_povEquipmentEnabled!()) return false;
         }
         catch (Exception error) { DisablePathOfValheimanActions(error); }
         // Unknown API or enabled equipment awaiting Attach: no automatic destinations.
         // Chests keep their full capacity even if the optional integration fails.
         rows = 0;
-        return IsPlayerInventory(Player.m_localPlayer, inventory);
+        return true;
     }
 
     private static bool IsPathOfValheimanProtectedCell(Inventory inventory, Vector2i cell)
     {
-        return _povPresent && TryGetPathOfValheimanRows(inventory, out int rows) &&
-               (cell.y < 0 || cell.y >= rows || inventory.GetItemAt(cell.x, cell.y)?.m_equipped == true);
+        if (!_povPresent || !TryGetPathOfValheimanRows(inventory, out int rows)) return false;
+        if (cell.y < 0 || cell.y >= rows || inventory.GetItemAt(cell.x, cell.y)?.m_equipped == true) return true;
+        try { return _povIsCellPosition!(Player.m_localPlayer, cell); }
+        catch (Exception error) { DisablePathOfValheimanActions(error); return true; }
     }
 
     private static bool PovSortStarting(Player __0)
     {
-        return !_povUnavailable && __0 != null && __0 == Player.m_localPlayer && !__0.m_isLoading;
+        return !_povUnavailable && __0 != null && __0 == Player.m_localPlayer && !__0.m_isLoading &&
+               (!TryGetPathOfValheimanRows(GetPlayerInventory(__0), out int rows) || rows > 0);
     }
 
     private static void PovFilterMovableItems(Player __0, List<ItemDrop.ItemData> __result)

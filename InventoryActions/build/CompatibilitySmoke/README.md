@@ -44,19 +44,45 @@ After building/deploying InventoryActions Debug, run:
 ./InventoryActions/build/CompatibilitySmoke/Run-MonoSmoke.ps1 -Mode pov -PovDll '<original PathOfValheiman.dll>'
 ```
 
-On 2026-10-18, the original PoV 5.0.5 DLL (SHA-256
-`FEE675080C260958D16831A611B6658B434E8D587492FFF3F2383AB97E471B6C`)
-and the original Valheim 1.0.20 client assemblies/runtime passed 36 isolated
-checks with process exit 0 and normal Mono cleanup. They cover the internal
-PoV method bindings, live/delayed-release boundaries, protected source and
-destination cells, original PoV Sort execution, empty favorites and HarmonyX
-rejected/accepted/duplicate response state. The existing game access modifiers
-are preserved; the mod has no compile-time PoV reference.
+On 2026-10-18, the original PoV 5.0.8 DLL (SHA-256
+`3E4AFE1A7DCF52612B93DCA2A2C70A27C3CD0DF19BF852D87F6365F81BA7E3DA`)
+and the original Valheim 1.0.20 client assemblies/runtime passed 56 isolated
+checks with process exit 0 and normal Mono cleanup. They cover original public
+API delegate bindings, API major/capability rejection before hook installation,
+retained native hooks, loading/delayed-release boundaries,
+protected source and destination cells, original PoV Sort execution, empty
+favorites and HarmonyX rejected/accepted/duplicate response state. Invalid row
+values and query exceptions fail closed. API-reported external-provider and
+suspended states block actions, then clear without a stale cached boundary.
+The existing game access modifiers are preserved; the mod has no compile-time
+PoV reference.
+
+Release **1.1.16** was also checked against original PoV **5.0.9** (SHA-256
+`6D01948786BF2E1527D6801670E4D14ADBEC89E5E3809F1D8F8840E56C7D8165`)
+on 2026-10-18: **56 checks**, process exit 0 and normal Mono cleanup.
+The final merged Release DLL SHA-256 is
+`0BBA7F848C2FD4270FEA3E2420B64BA0CE356EC0A593552A0F118A44F2A2E81F`.
+Use `-ModDll InventoryActions/bin/Release/InventoryActions.dll` to select it.
+Release contract inspection reported 665 references, 51 Harmony targets and
+seven reflected contracts, with zero failures and two manual targets. Debug
+deployment and packaged Release DLL hashes matched their respective build outputs;
+package metadata, changelog, README and translations were verified.
+
+The fixture sets the real 5.0.8/5.0.9 `EquipRows.start` boundary and six hidden rows.
+Increasing physical height alone must not increase allowed backpack capacity;
+changing PoV's actual boundary does. The previous 5.0.5 fixture assumed four
+hidden rows and failed this boundary assertion against 5.0.8 before the update.
+That baseline assertion failure exited 1 with normal Mono cleanup, distinct from
+the historical native shutdown failure described below.
 
 This mode supplies inert animation-hash/object-offset internal calls, managed
 object identity and a test character ID, and skips localization resource loading.
 It uses uninitialized managed Player/Container sentinels, never native Unity
-objects. The RPC body is an observer, so its checks establish wrapper state and
+objects. Public Storage getters are stubbed to report registered/suspended
+provider states; this does not validate a real external provider or its item
+storage. The public `AtLeast` wrapper can report an unsupported major, and the
+in-memory feature list temporarily omits storage to test capability rejection.
+The RPC body is an observer, so its checks establish wrapper state and
 prefix ordering, **not** sender validation, network transfers or multiplayer safety.
 Completed PoV replies are fenced until another permitted native request (or a
 network stop). Vanilla's RPC has no request ID: an old reply arriving after a new
@@ -64,6 +90,14 @@ request cannot be distinguished by this fence alone.
 No game files are modified by these stubs. Actual UI, node/key input, equipment
 settlement, BigBag changes, full inventories, host/remote chests, delayed responses,
 MUC combinations and save/death/reconnect still require game testing.
+
+The unchanged `muc-restock` mode also passed 22 checks with exit 0 during this
+update, without PoV loaded. The generic `basic` mode remains unable to initialize
+Player without Unity's `Animator.StringToHash_Injected` internal call: it exited
+1 with normal cleanup against both the pre-change 1.1.15 Release DLL and the
+updated Debug DLL. This is a limitation of that standalone mode, not a passed
+regression check or the old Mono shutdown crash. The PoV mode supplies its
+explicit inert engine stubs as described above.
 
 ## Why the old standalone process failed (historical)
 
