@@ -121,6 +121,8 @@ public sealed partial class InventorySlotsPlugin
         }
 
         Vector3 origin = GetGridOrigin(playerGrid);
+        List<SlotDefinition> quickPanelSlots = GetQuickPanelSlots(player);
+        UpdatePathOfValheimanPanelSlots(player, inventory, quickPanelSlots.Count);
         float displayedRows = viewportRows;
         playerGrid.m_gridRoot.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, displayedRows * playerGrid.m_elementSpace);
         if (UpdateInventoryPanelDragging() && TryUpdateDraggedInventoryPanelPositionOnly(playerGrid, origin, width))
@@ -130,14 +132,12 @@ public sealed partial class InventorySlotsPlugin
         }
 
         List<SlotDefinition> customPanelSlots = GetCustomPanelSlots(player, inventory);
-        List<SlotDefinition> quickPanelSlots = GetQuickPanelSlots(player);
-        List<SlotDefinition> povPanelSlots = GetPathOfValheimanPanelSlots(player, inventory);
 
         UpdatePlayerInventoryPanelBackground(viewportRows);
         UpdateContainerPanelPosition(viewportRows, playerGrid.m_elementSpace);
         RectTransform? customPanel = customPanelSlots.Count > 0 ? EnsureSlotPanel(playerGrid, CustomSlotPanelName, InventoryPanels.CustomSlotPanels) : DisableSlotPanel(playerGrid, CustomSlotPanelName, InventoryPanels.CustomSlotPanels);
-        RectTransform? quickPanel = quickPanelSlots.Count > 0 ? EnsureSlotPanel(playerGrid, QuickSlotPanelName, InventoryPanels.QuickSlotPanels) : DisableSlotPanel(playerGrid, QuickSlotPanelName, InventoryPanels.QuickSlotPanels);
-        RectTransform? povPanel = povPanelSlots.Count > 0 ? EnsureSlotPanel(playerGrid, PovStoragePanelName, PovStoragePanels) : DisableSlotPanel(playerGrid, PovStoragePanelName, PovStoragePanels);
+        bool hasQuickPanel = quickPanelSlots.Count + PovVisibleActions.Count > 0;
+        RectTransform? quickPanel = hasQuickPanel ? EnsureSlotPanel(playerGrid, QuickSlotPanelName, InventoryPanels.QuickSlotPanels) : DisableSlotPanel(playerGrid, QuickSlotPanelName, InventoryPanels.QuickSlotPanels);
         for (int i = 0; i < playerGrid.m_elements.Count; i++)
         {
             InventoryElement element = playerGrid.m_elements[i];
@@ -177,10 +177,11 @@ public sealed partial class InventorySlotsPlugin
                 }
 
                 SlotDefinition slot = SlotDefinitions[slotIndex];
-                bool quickSlot = slot.Kind == SlotKind.Quick;
-                bool povStorage = slot.PovCell != null && quickSlot;
-                RectTransform? targetPanel = povStorage ? povPanel : quickSlot ? quickPanel : customPanel;
-                List<SlotDefinition> visibleSlots = povStorage ? povPanelSlots : quickSlot ? quickPanelSlots : customPanelSlots;
+                bool equipmentPanelSlot = IsEquipmentPanelSlot(slot);
+                bool povQuickSlot = slot.PovCell != null && !equipmentPanelSlot;
+                RectTransform? targetPanel = equipmentPanelSlot ? customPanel : quickPanel;
+                List<SlotDefinition> visibleSlots = equipmentPanelSlot ? customPanelSlots :
+                    povQuickSlot ? PovVisibleActions : quickPanelSlots;
                 int visibleIndex = visibleSlots.IndexOf(slot);
                 if (targetPanel == null || visibleIndex < 0)
                 {
@@ -199,9 +200,9 @@ public sealed partial class InventorySlotsPlugin
                 }
                 elementRect.localScale = Vector3.one;
                 elementRect.localRotation = Quaternion.identity;
-                elementRect.localPosition = povStorage
-                    ? new Vector3(visibleIndex % PovStorageColumns * playerGrid.m_elementSpace, -(visibleIndex / PovStorageColumns) * playerGrid.m_elementSpace, 0)
-                    : quickSlot ? GetQuickSlotPanelElementPosition(visibleIndex, playerGrid.m_elementSpace) : GetCustomSlotPanelElementPosition(visibleIndex, playerGrid.m_elementSpace);
+                elementRect.localPosition = equipmentPanelSlot ? GetCustomSlotPanelElementPosition(visibleIndex, playerGrid.m_elementSpace) :
+                    povQuickSlot ? GetPathOfValheimanActionPosition(visibleIndex, playerGrid.m_elementSpace) :
+                    GetQuickSlotPanelElementPosition(visibleIndex, playerGrid.m_elementSpace);
                 element.gameObject.SetActive(true);
                 if (!element.m_used && element.m_tooltip != null)
                 {
@@ -210,7 +211,8 @@ public sealed partial class InventorySlotsPlugin
                 }
 
                 bool equipmentSlotOccupied = UpdateEquipmentSlotElementState(element, player, inventory, slot, new Vector2i(x, y));
-                UpdateSlotBindingLabel(element, slot, !quickSlot && equipmentSlotOccupied);
+                if (equipmentPanelSlot && slot.Kind == SlotKind.Quick) equipmentSlotOccupied = IsOccupiedSlot(inventory, slot);
+                UpdateSlotBindingLabel(element, slot, equipmentPanelSlot && equipmentSlotOccupied);
                 UpdateFavoriteBorder(element, player, inventory, new Vector2i(x, y));
                 UpdateInventoryPinnedTooltipBorder(playerGrid, element, new Vector2i(x, y));
             }
@@ -259,17 +261,10 @@ public sealed partial class InventorySlotsPlugin
                 sidePanelBasePosition +
                 (Vector3)InventoryPanels.QuickSlotsPanelRuntimeOffset;
             PositionQuickSlotPanel(playerGrid, quickPanel, quickPanelTargetPosition, playerGrid.m_elementSpace);
-            int quickRows = GetQuickPanelRows(quickPanelSlots.Count);
-            UpdateVanillaPanelBackground(quickPanel, QuickSlotPanelColumns * playerGrid.m_elementSpace, quickRows * playerGrid.m_elementSpace);
-            quickPanel.gameObject.SetActive(quickPanelSlots.Count > 0);
+            UpdateVanillaPanelBackground(quickPanel, _povQuickColumns * playerGrid.m_elementSpace, _povQuickContentRows * playerGrid.m_elementSpace);
+            quickPanel.gameObject.SetActive(true);
         }
 
-        if (povPanel != null)
-        {
-            povPanel.localPosition = origin + new Vector3((width + Mathf.Max(3, GetCustomPanelColumns(customPanelSlots.Count)) + 1.5f) * playerGrid.m_elementSpace, 0, 0);
-            UpdateVanillaPanelBackground(povPanel, PovStorageColumns * playerGrid.m_elementSpace,
-                Mathf.CeilToInt(povPanelSlots.Count / (float)PovStorageColumns) * playerGrid.m_elementSpace);
-        }
         UpdateInventorySideHints(playerGrid, origin, playerGrid.m_elementSpace, totalRegularRows);
         UpdateInventoryActionPanels(playerGrid, player, origin, viewportRows);
         EnsureInventoryPinnedTooltipHandlers(InventoryGui.instance?.m_playerGrid);

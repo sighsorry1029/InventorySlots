@@ -97,17 +97,6 @@ public sealed partial class InventorySlotsPlugin
         out Vector2i pos)
     {
         HashSet<Vector2i> occupied = BuildOccupiedCellSet(inventory);
-        if (_pov != null && incoming != null)
-        {
-            // PoV's native income hooks require native rows. With our provider,
-            // route new coins/keys through the ordinary validated insertion path.
-            foreach (SlotDefinition slot in PovSlots.Values)
-            {
-                if (!IsPathOfValheimanAutomaticStorage(slot) || !CanUseSpecialSlot(player, inventory, incoming, slot) ||
-                    !TryGetSlotGridPos(inventory, slot, out pos) || occupied.Contains(pos)) continue;
-                return true;
-            }
-        }
         bool found = InventoryPlacementPolicyCore.TrySelectAutomaticPlacementCell(
             inventory.GetWidth(),
             GetUsableRegularRows(player),

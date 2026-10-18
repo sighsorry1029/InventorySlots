@@ -8,6 +8,7 @@
     <GameRoot Condition="'$(GameRoot)' == ''">C:/Program Files (x86)/Steam/steamapps/common/Valheim</GameRoot>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../SharedSmoke/PoVTrashChecks.cs" Link="PoVTrashChecks.cs" />
     <Reference Include="0Harmony"><HintPath>$(GameRoot)/BepInEx/core/0Harmony.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="BepInEx"><HintPath>$(GameRoot)/BepInEx/core/BepInEx.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="assembly_valheim"><HintPath>$(GameRoot)/valheim_Data/Managed/assembly_valheim.dll</HintPath><Private>false</Private></Reference>

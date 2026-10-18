@@ -284,7 +284,7 @@ public sealed partial class InventorySlotsPlugin
                 InventoryPanels.QuickSlotPanelOutroStartPositions[key] = startPosition;
             }
 
-            float elementSpace = panel.sizeDelta.x > 1f ? panel.sizeDelta.x / QuickSlotPanelColumns : 70f;
+            float elementSpace = panel.sizeDelta.x > 1f ? panel.sizeDelta.x / _povQuickColumns : 70f;
             float yOffset = Mathf.Lerp(0f, -GetQuickSlotPanelOffscreenDistance(panel, elementSpace), t);
             panel.localPosition = startPosition + new Vector3(0f, yOffset, 0f);
             panel.gameObject.SetActive(true);

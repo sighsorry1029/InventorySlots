@@ -25,6 +25,8 @@ public sealed partial class InventorySlotsPlugin
     private static float _povNextPoll;
     private static bool _povNotificationActive;
     private static bool _povWasEnabled;
+    private static bool _povCoinsWeightless;
+    private static Inventory? _povCoinWeightInventory;
     private static ItemData? _povLastQuiver;
 
     private bool InitializePathOfValheimanStorage()
@@ -49,7 +51,6 @@ public sealed partial class InventorySlotsPlugin
         catch (Exception error)
         {
             _pov?.Unregister();
-            _pov?.RestoreCaches();
             _pov = null;
             PovStoragePatches.UnpatchSelf();
             PovStoragePatches.Patch(AccessTools.Method(typeof(Game), "SpawnPlayer"),
@@ -84,7 +85,7 @@ public sealed partial class InventorySlotsPlugin
         }
         foreach (string cell in _pov.StorageCells)
         {
-            if (PovSlots.ContainsKey(cell)) continue;
+            if (PovSlots.ContainsKey(cell) || IsUnsupportedPathOfValheimanCell(cell)) continue;
             string role = cell;
             var slot = new SlotDefinition("pov." + role, PovCellLabel(role), SlotKind.Quick,
                 item => item != null && _pov.Accepts(role, item), povCell: role);
@@ -118,9 +119,17 @@ public sealed partial class InventorySlotsPlugin
         !player.m_isLoading && !PovLoading.Contains(player) && !PovLoadFailed.Contains(player) &&
         _pov.ProviderId() == ModGUID && !_pov.Suspended() && _povMutationDepth == 0;
 
-    private static bool IsPathOfValheimanAutomaticStorage(SlotDefinition slot) =>
-        slot.PovCell != null && (slot.PovCell.StartsWith("purse.", StringComparison.Ordinal) ||
-                                slot.PovCell.StartsWith("key.", StringComparison.Ordinal));
+    private static bool IsUnsupportedPathOfValheimanCell(string cell) =>
+        cell.StartsWith("tool.", StringComparison.Ordinal) || cell.StartsWith("key.", StringComparison.Ordinal) ||
+        cell.StartsWith("purse.", StringComparison.Ordinal);
+
+    private static bool AllowPathOfValheimanCell(Player __0, int __1, ref bool __result)
+    {
+        if (_pov == null || __0 != Player.m_localPlayer || _pov.ProviderId() != ModGUID ||
+            !(__1 >= 16 && __1 <= 31 || __1 >= 35 && __1 <= 42)) return true;
+        __result = false;
+        return false;
+    }
 
     // Closed/suspended cells reject insertion but must not trap their existing item.
     private static bool CanWithdrawPathOfValheimanQuiver(Player player, Inventory inventory, ItemData item, SlotDefinition slot) =>
@@ -129,8 +138,37 @@ public sealed partial class InventorySlotsPlugin
         inventory == player.GetInventory() && ContainsExactItemReference(inventory, item) &&
         TryGetSlotGridPos(inventory, slot, out Vector2i pos) && item.m_gridPos == pos && inventory.GetItemAt(pos.x, pos.y) == item;
 
-    private static bool ShouldApplyPathOfValheimanPurseWeight() =>
-        _pov == null || _pov.ProviderId() != ModGUID || _pov.Enabled();
+    private static bool HasPathOfValheimanCoinBenefits(Player player) =>
+        _pov != null && player != null && player == Player.m_localPlayer &&
+        _pov.ProviderId() == ModGUID && !_pov.Suspended();
+
+    private static bool IsPathOfValheimanCoin(ItemData item) =>
+        item?.m_shared != null && _pov != null && _pov.Accepts("purse.0", item);
+
+    private static bool KeepPathOfValheimanCoinsOnDeath(Player player) =>
+        HasPathOfValheimanCoinBenefits(player) && _pov!.KeptOnDeath(player, "purse.0");
+
+    private static void ApplyPathOfValheimanCoinWeight(Inventory __instance, ref float ___m_totalWeight)
+    {
+        Player player = Player.m_localPlayer;
+        if (!HasPathOfValheimanCoinBenefits(player) || player.GetInventory() != __instance ||
+            !_pov!.Weightless(player, "purse.0")) return;
+        foreach (ItemData item in __instance.GetAllItems())
+            if (IsPathOfValheimanCoin(item)) ___m_totalWeight -= item.GetWeight();
+        ___m_totalWeight = Mathf.Max(0, ___m_totalWeight);
+    }
+
+    private static void RefreshPathOfValheimanCoinWeight(Player player)
+    {
+        Inventory inventory = player.GetInventory();
+        bool weightless = HasPathOfValheimanCoinBenefits(player) && _pov!.Weightless(player, "purse.0");
+        if (_povCoinWeightInventory == inventory && _povCoinsWeightless == weightless) return;
+        _povCoinWeightInventory = inventory;
+        _povCoinsWeightless = weightless;
+        // No purse cell exists in the unlock stamp. Recalculate on node changes
+        // even when none of the ordinary inventory items moved.
+        inventory.Changed();
+    }
 
     private static ItemData? ReadPathOfValheimanItem(Player player, string cell)
     {
@@ -274,6 +312,7 @@ public sealed partial class InventorySlotsPlugin
     private static void BeginPathOfValheimanLoad(Player player)
     {
         if (_pov == null) return;
+        _povCoinWeightInventory = null;
         PovLoadFailed.Remove(player);
         _povTrinketsReadyPlayer = null;
         PovLoading.Add(player);
@@ -305,8 +344,8 @@ public sealed partial class InventorySlotsPlugin
                 if (!int.TryParse(raw, out int rows) || rows < BaseRows || rows > GetFixedRegularRows() || inventory.GetWidth() != InventoryWidth)
                     throw new InvalidOperationException("Invalid original PoV row boundary");
                 foreach (var cell in _pov.Cells)
-                    if (PovSlots.TryGetValue(cell.Id, out SlotDefinition? slot))
-                        oldSlots[new Vector2i(cell.Ordinal % InventoryWidth, rows + cell.Ordinal / InventoryWidth)] = slot.Id;
+                    oldSlots[new Vector2i(cell.Ordinal % InventoryWidth, rows + cell.Ordinal / InventoryWidth)] =
+                        PovSlots.TryGetValue(cell.Id, out SlotDefinition? slot) ? slot.Id : "pov." + cell.Id;
             }
             if (oldSlots.Count > 0) ReprojectPathOfValheimanLayout(inventory, oldSlots);
             // Clear old custom-equipment identity for the two roles now owned by PoV.
@@ -418,12 +457,11 @@ public sealed partial class InventorySlotsPlugin
             RebuildSlotDefinitions();
             CompletePathOfValheimanLoad(player);
             InvalidateCustomEquipmentProjectionCache();
-            // An occupied purse can stay at the same coordinates while Off.
-            // Recalculate its weight even when no item was physically moved.
             NotifyPathOfValheimanCommit(player.GetInventory());
             RequestLocalInventoryState(InventoryStateEnsureReason.EquipmentChanged, InventoryStateAuditLevel.FullIntegrity);
         }
         int stamp = _pov.ExtraRows();
+        RefreshPathOfValheimanCoinWeight(player);
         foreach (var pair in PovSlots) unchecked { stamp = stamp * 31 + (_pov.Open(player, pair.Key) ? 1 : 0); }
         if (stamp == _povUnlockStamp) return;
         _povUnlockStamp = stamp;

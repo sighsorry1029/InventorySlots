@@ -22,6 +22,9 @@ internal sealed class PathOfValheimanStorageBridge
     internal readonly Func<string> ProviderId;
     internal readonly Func<Player, string, bool> Open;
     internal readonly Func<string, ItemData, bool> Accepts;
+    internal readonly Func<string, string> KeyLabel;
+    internal readonly Func<Player, string, bool> KeptOnDeath;
+    internal readonly Func<Player, string, bool> Weightless;
     internal readonly Func<int> ExtraRows;
     internal readonly Func<Player, string, ItemData> Equipped;
     internal readonly Func<Player, string, ItemData, bool> Equip;
@@ -33,8 +36,6 @@ internal sealed class PathOfValheimanStorageBridge
     internal bool HasExtraTrinkets { get; private set; }
     private readonly Dictionary<string, Func<Player, ItemData>> _trinketReads = new(StringComparer.Ordinal);
     internal IReadOnlyList<string> StorageCells { get; private set; } = Array.Empty<string>();
-    private readonly List<(object Cell, MethodInfo Setter, bool Worn)> _changedWorn = new();
-    private readonly List<string> _addedPurse = new();
     private readonly MethodInfo _register;
     private readonly MethodInfo _unregister;
     private readonly Type _providerInterface;
@@ -55,6 +56,9 @@ internal sealed class PathOfValheimanStorageBridge
         ProviderId = Bind<Func<string>>("Valheiman.Api.Storage", "get_ProviderId");
         Open = Bind<Func<Player, string, bool>>("Valheiman.Api.Equipment", "IsOpen");
         Accepts = Bind<Func<string, ItemData, bool>>("Valheiman.Api.Equipment", "Accepts");
+        KeyLabel = Bind<Func<string, string>>("Valheiman.Api.Equipment", "KeyLabel");
+        KeptOnDeath = Bind<Func<Player, string, bool>>("Valheiman.Api.Storage", "KeptOnDeath");
+        Weightless = Bind<Func<Player, string, bool>>("Valheiman.Api.Storage", "Weightless");
         Equipped = Bind<Func<Player, string, ItemData>>("Valheiman.Api.Equipment", "ItemIn");
         Equip = Bind<Func<Player, string, ItemData, bool>>("Valheiman.Api.Equipment", "Put");
         Unequip = Bind<Action<Player, string>>("Valheiman.Api.Equipment", "TakeOut");
@@ -74,39 +78,24 @@ internal sealed class PathOfValheimanStorageBridge
             Require("PassiveTree.Gear.State", "Item", typeof(ItemData), typeof(Player), slotType), player, quiver), player).Compile();
         _removeQuiverWhenDisabled = Expression.Lambda<Action<Player>>(Expression.Call(
             Require("PassiveTree.Gear.State", "Clear", typeof(void), typeof(Player), slotType), player, quiver), player).Compile();
-        MethodInfo isStorage = Require("PassiveTree.Gear.State", "IsStorage", typeof(bool), slotType);
         // Check the enum rather than interpreting arbitrary future enum ordinals.
         for (int i = 0; i < 8; i++)
-            if (Convert.ToInt32(Enum.Parse(slotType, "Wallet" + i)) != 24 + i)
-                throw new NotSupportedException("PoV wallet slot contract changed");
-        bool missingPurse = !(bool)isStorage.Invoke(null, new[] { Enum.ToObject(slotType, 24) });
-        // Materialize both lazy caches before changing their classification source.
-        // Otherwise cold initialization records the patched state as its rollback state.
+            if (Convert.ToInt32(Enum.Parse(slotType, "Wallet" + i)) != 24 + i ||
+                Convert.ToInt32(Enum.Parse(slotType, "Tool" + i)) != 16 + i ||
+                Convert.ToInt32(Enum.Parse(slotType, "Key" + i)) != 35 + i)
+                throw new NotSupportedException("PoV storage slot ordinals changed");
+        harmony.Patch(Require("PassiveTree.Gear.State", "Enabled", typeof(bool), typeof(Player), slotType),
+            prefix: new HarmonyMethod(typeof(InventorySlotsPlugin), "AllowPathOfValheimanCell"));
         var equipmentCells = (IEnumerable)assembly.GetType("Valheiman.Api.Equipment")!.GetProperty("Cells")!.GetValue(null);
         StorageCells = Bind<Func<IReadOnlyList<string>>>("Valheiman.Api.Storage", "get_Cells")();
-        if (missingPurse)
-            harmony.Patch(isStorage, postfix: new HarmonyMethod(typeof(PathOfValheimanStorageBridge), nameof(IncludeWallet)));
 
         Type cellInfo = assembly.GetType("Valheiman.Api.CellInfo", true)!;
         PropertyInfo id = cellInfo.GetProperty("Id")!;
         FieldInfo ordinal = AccessTools.DeclaredField(cellInfo, "Slot");
-        MethodInfo wornSetter = cellInfo.GetProperty("Worn")!.GetSetMethod(true)!;
         foreach (object cell in equipmentCells)
         {
             string key = (string)id.GetValue(cell);
             Cells.Add((key, Convert.ToInt32(ordinal.GetValue(cell))));
-            if (missingPurse && key.StartsWith("purse.", StringComparison.Ordinal))
-            {
-                _changedWorn.Add((cell, wornSetter, (bool)cellInfo.GetProperty("Worn")!.GetValue(cell)));
-                wornSetter.Invoke(cell, new object[] { false });
-            }
-        }
-        if (missingPurse)
-        {
-            // Preserve the cached list identity: other consumers may already hold it.
-            if (!(StorageCells is IList<string> list) || list.IsReadOnly)
-                throw new NotSupportedException("PoV storage cell cache is not mutable");
-            for (int i = 0; i < 8; i++) if (!list.Contains("purse." + i)) { _addedPurse.Add("purse." + i); list.Add("purse." + i); }
         }
         // 5.0.9 advertises API 1.1.0 but AtLeast(1, 1) still returns false.
         // Detect the actual cells, including their native saved coordinates.
@@ -126,13 +115,13 @@ internal sealed class PathOfValheimanStorageBridge
             harmony.Patch(Require("PassiveTree.Trinkets+Spawn", "Postfix", typeof(void), typeof(Player)),
                 postfix: new HarmonyMethod(typeof(InventorySlotsPlugin), "OnPathOfValheimanTrinketsSpawned"));
         }
-        if (StorageCells.Count != 36 || Cells.Count != (HasExtraTrinkets ? 46 : 43))
+        if (StorageCells.Count(c => !c.StartsWith("purse.", StringComparison.Ordinal)) != 28 || Cells.Count != (HasExtraTrinkets ? 46 : 43))
             throw new NotSupportedException("Unrecognized PoV equipment layout");
 
-        // Native Off releases purse coordinates. A provider keeps occupied closed
-        // cells available for safe withdrawal, so their weight must count again.
-        harmony.Patch(Require("PassiveTree.Gear.Wallet+Weight", "Postfix", typeof(void), typeof(Inventory)),
-            prefix: new HarmonyMethod(typeof(InventorySlotsPlugin), "ShouldApplyPathOfValheimanPurseWeight"));
+        // Coins stay in ordinary backpack cells. Public API queries retain PoV's
+        // node/option policy; field injection respects the original private field.
+        harmony.Patch(AccessTools.DeclaredMethod(typeof(Inventory), "UpdateTotalWeight", Type.EmptyTypes),
+            postfix: new HarmonyMethod(typeof(InventorySlotsPlugin), "ApplyPathOfValheimanCoinWeight"));
 
         foreach (var target in new[] {
             Require("PassiveTree.Gear.State", "Assign", typeof(bool), typeof(Player), slotType, typeof(ItemData)),
@@ -171,8 +160,6 @@ internal sealed class PathOfValheimanStorageBridge
             invoke.GetParameters().Select(p => p.ParameterType).ToArray()));
     }
 
-    private static void IncludeWallet(int __0, ref bool __result) => __result |= __0 >= 24 && __0 <= 31;
-
     internal void Register(Func<Player, string, ItemData?> read, Func<Player, string, ItemData, bool> put,
         Func<Player, string, bool> take)
     {
@@ -185,14 +172,6 @@ internal sealed class PathOfValheimanStorageBridge
     {
         if (_provider != null) _unregister.Invoke(null, new[] { _provider });
         _provider = null;
-    }
-
-    internal void RestoreCaches()
-    {
-        foreach (var entry in _changedWorn) entry.Setter.Invoke(entry.Cell, new object[] { entry.Worn });
-        if (StorageCells is IList<string> cells) foreach (string id in _addedPurse) cells.Remove(id);
-        _changedWorn.Clear();
-        _addedPurse.Clear();
     }
 
     internal static object CreateProvider(Type contract, Delegate read, Delegate put, Delegate take)

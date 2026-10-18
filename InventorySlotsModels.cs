@@ -45,7 +45,7 @@ internal sealed class SlotDefinition
     public SlotKind Kind { get; }
     public int QuickSlotIndex { get; }
     // PoV storage uses the same non-equipment placement semantics as quick slots,
-    // but has its own unlock rules, panel and PoV-owned input bindings.
+    // but has its own unlock rules and PoV-owned input bindings.
     public string? PovCell { get; }
     public bool ApplyArmor { get; set; }
 

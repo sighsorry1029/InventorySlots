@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.9
+
+- Integrated Path of Valheiman's Utility, Wisplight and Wishbone cells into the equipment panel, and its food, potion and arrow cells into an adjacent section of the quick-slot panel. PoV retains its unlocks, item restrictions, effects and key bindings; the existing InventorySlots quick slots and HUD keep their controls.
+- Sized the quick-slot panel to its visible cells instead of reserving empty columns. PoV cells wrap after three columns, and occupied cells remain accessible for withdrawal after they become locked.
+- Hid the empty PoV Quiver cell when no compatible quiver is available, while keeping equipped or stored quivers accessible.
+- Removed PoV Tool, Key and Purse cells from the InventorySlots layout. Coins remain in ordinary inventory cells; PoV's Magic Purse node grants weight exemption and keep-on-death through its public API without adding slots or rows. Node and Equipment system changes refresh these benefits, independently of InventorySlots' YAML death-keep rules.
+- Disabled PoV's Delete button and deletion mode while InventorySlots is active, leaving InventorySlots' own trash controls available. Expanded isolated checks for panel layout, coin policies, item restoration and deletion-mode cleanup; actual game and multiplayer verification is still required.
+
 ## 1.6.8
 
 - Restored optional Path of Valheiman compatibility through its public storage and equipment API, checked against PoV 5.0.8 and 5.0.9. InventorySlots owns the inventory cells and panels while PoV keeps its node unlocks, equipment rules and effects; Equipment system can remain On.

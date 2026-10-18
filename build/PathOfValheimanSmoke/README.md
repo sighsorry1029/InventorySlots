@@ -15,17 +15,20 @@ Run both modes, supplying the original PoV DLL and the directory containing its 
 ./build/PathOfValheimanSmoke/Run-MonoSmoke.ps1 -PovDll '<original PathOfValheiman.dll>' -OptionalDependencyDirectory '<directory containing Jotunn.dll>' -Mode warm
 ```
 
-The runner builds its test executable and the repository's existing `InventoryActions/build/CompatibilitySmoke/MonoHost.cpp` with the Visual Studio C++ x64 tools. Logs and input hashes go under ignored `obj/MonoHost-x64`. Cold mode lets the bridge create the API caches; warm mode initializes them first. Both test cache restoration after unregistration/unpatching. The reference omission assertions describe PoV 5.0.8/5.0.9; a later PoV fix requires reviewing those expectations, not blindly updating them.
+The runner builds its test executable and the repository's existing `InventoryActions/build/CompatibilitySmoke/MonoHost.cpp` with the Visual Studio C++ x64 tools. Logs and input hashes go under ignored `obj/MonoHost-x64`. Cold mode lets the bridge create the API caches; warm mode initializes them first. Both check that the bridge preserves the original classifications and cached object identities. The reference omission assertions describe PoV 5.0.8/5.0.9; a later PoV fix requires reviewing those expectations, not blindly updating them.
 
 ## Coverage and limits
 
 - Optional dependency loading: final InventorySlots types enumerate before loading PoV, without a mandatory PoV assembly reference.
 - Real reflection/delegate bindings, dynamic public storage-provider interface, guarded Harmony installation and the native HUD transpiler.
-- Original eight-purse-cell omission, 43/46 cell descriptors and 36 storage cells, cached `Worn` correction, cold/warm rollback and forwarding of the exact player/item references.
-- Actual provider registration, accepted/rejected placement, occupied destinations, full backpack rejection, closed-cell withdrawal, suspended/loading guards and coin placement in an unlocked purse.
+- Original eight-purse-cell omission, 43/46 cell descriptors and 28 storage cells, unchanged cached `Worn` values, cold/warm cache identity and forwarding of the exact player/item references.
+- Actual provider registration, accepted/rejected placement, occupied destinations, full backpack rejection, closed-cell withdrawal and suspended/loading guards.
 - Native and provider save-coordinate conversion, same-reference conservation, missing-slot recovery, no-space rejection before mutation, failed-load protection and subsequent-load recovery.
 - Public quiver registration callbacks: successful insertion/removal, UI right-click with a full/free backpack, Off-state cleanup through the checked native fallback, and exceptions after partial callback effects.
-- Purse weight while On/Off, public affix/rarity bindings, repeated affix values, and the current salvage-return signature.
+- No Tool/Key/Purse definitions, disabled native roles, equipment/quick bank grouping without changing physical coordinates, and hidden/available/carried quiver visibility.
+- Ordinary-inventory coin weight/death benefits through separate public policies: locked/unlocked/Off, container and remote exclusion, live weight recalculation, overlap with YAML, YAML Off, repeated restoration and a full backpack with a no-op death body. Native PoV's weight postfix also runs to check for double subtraction.
+- Shared Delete UI guard: original Build/Enter/Press and original InventoryGui postfix call site, cleanup request, and selective patch teardown. Cursor and exit effects are managed fixture substitutes; no cursor rendering is tested.
+- Public affix/rarity bindings, repeated affix values, and the current salvage-return signature.
 - Extra trinket ID mapping and native ordinals 45/46/47, original spawn restoration, full-backpack promotion/node reset, dynamic hand seats, closed/Off withdrawal, queued equipment completion, synchronous external removal, and upgrade result/rollback restoration without evicting peers.
 
 The 5.0.9 trinket fixtures run the original public API, `State.Assign`, `Trinkets.Worn/Refresh`, spawn and equipment Harmony patches together with InventorySlots routing. Progression getters, world-effect refresh and vanilla Humanoid equipment bodies are managed stand-ins; this checks compatibility ordering and item ownership, not actual equipment effects or animation timing.
@@ -51,6 +54,40 @@ During the earlier 5.0.8 work, one incremental Debug build hit a native Cecil PD
 The final merged Release DLL (`12CFD43B622845316B0CB58122927B864F6F81BA7D40A3DF7B3F4A88361D6794`) passed the same **169 cold / 171 warm** checks with the original PoV 5.0.9 and Valheim inputs above. Both process exits were 0 and Mono cleanup completed. Run with `-ModDll bin/Release/InventorySlots.dll` to select this configuration.
 
 The unit runner passed **189 tests**. Release contract inspection reported 1,151 references, 163 Harmony targets and 52 reflected contracts, with zero failures and ten manual targets. Debug/Release builds had zero warnings/errors. The Debug deployment hash matched, and Thunderstore/Nexus package DLLs matched the final Release DLL. Package versions, changelog, README and translations were checked. These are isolated/static checks; the game checks below remain outstanding.
+
+## Panel and coin-benefit update — 2026-10-19
+
+Debug InventorySlots **1.6.8** (`39C94381A9F5F5D74BF822F81185C51326E47AD0744D25607B82846089EB3CC9`)
+passed **262 cold / 264 warm** checks against original PoV 5.0.9 and **227 cold**
+checks against the original 5.0.8 input above. All process exits were 0 and Mono
+cleanup completed. These replace the prior purse-cell expectations: no purse
+capacity/classification-cache mutation is performed. Ordinary Coins use public
+weight/death policies, including recalculation after a same-inventory reload or
+inventory replacement. The unit runner passed **189 tests**. Contract inspection
+resolved 1,152 references, 163 declared Harmony targets and 52 reflected contracts
+with zero failures; ten dynamic targets remain manual. The new weight postfix
+was executed against the original private Inventory field through Harmony
+injection in the Mono checks. Debug built with zero warnings/errors and its
+deployment hash matched. No version increment or release package was made.
+
+The same-day compact-width follow-up passed **274 cold checks** against PoV
+5.0.9 (Debug SHA-256 `F1A10837636C6297D73612CF88AB52A12A8E8B98F1A39D85D7988646C85658BB`).
+It checks partially filled banks, three-column wrapping, an absent bank,
+closed occupied cells and shrinkage after withdrawal. A three-slot generic
+bank plus one PoV slot uses four columns instead of six. Debug built without
+warnings/errors, Mono exited 0, and the deployed DLL hash matched. These layout
+checks inspect coordinates/dimensions; rendered UI still requires a game check.
+
+## Release 1.6.9 verification — 2026-10-19
+
+The final merged Release DLL (`4B1CE1F21FF3F001792C855D62D5A5A90EBAB6752B8DA37A5666A7858F901A25`)
+passed **274 cold / 276 warm** checks against the original PoV 5.0.9 input above.
+Both processes exited 0 and completed Mono cleanup. The unit runner passed
+**189 tests**; static contracts reported zero failures (1,152 references,
+163 Harmony targets, 52 reflected contracts; ten manual targets remain).
+Debug and Release built without warnings/errors. Debug deployment hashes matched;
+Thunderstore/Nexus DLL hashes matched Release. Plugin/assembly/manifest versions,
+merged dependencies, package entries and packaged changelog were verified.
 
 ## Game checks still required
 

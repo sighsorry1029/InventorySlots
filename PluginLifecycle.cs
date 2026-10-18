@@ -168,10 +168,11 @@ public sealed partial class InventorySlotsPlugin
     private void OnDestroy()
     {
         _pov?.Unregister();
-        _pov?.RestoreCaches();
         PovStoragePatches.UnpatchSelf();
         _pov = null;
         _povLastQuiver = null;
+        _povCoinsWeightless = false;
+        _povCoinWeightInventory = null;
         _povTrinketsReadyPlayer = null;
         PovSlots.Clear();
         PovLoading.Clear();

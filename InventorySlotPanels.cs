@@ -286,7 +286,8 @@ public sealed partial class InventorySlotsPlugin
             }
         }
 
-        string text = slot == null || hideEquipmentSlotName ? "" : slot.PovCell != null ? slot.Name : slot.Kind == SlotKind.Quick ? GetQuickSlotBindingText(slot) : slot.Name;
+        bool quickStyle = slot != null && !IsEquipmentPanelSlot(slot);
+        string text = slot == null || hideEquipmentSlotName ? "" : slot.PovCell != null ? GetPathOfValheimanSlotBindingText(slot) : slot.Kind == SlotKind.Quick ? GetQuickSlotBindingText(slot) : slot.Name;
         string signature = $"{slot?.Id ?? ""}|{slot?.Kind.ToString() ?? ""}|{hideEquipmentSlotName}|{text}";
         if (cache != null && string.Equals(cache.BindingSignature, signature, StringComparison.Ordinal))
         {
@@ -306,11 +307,11 @@ public sealed partial class InventorySlotsPlugin
         }
 
         binding.enableAutoSizing = true;
-        binding.fontSizeMin = slot?.Kind == SlotKind.Quick ? 12f : 7f;
-        binding.fontSizeMax = slot?.Kind == SlotKind.Quick ? 16f : 12f;
+        binding.fontSizeMin = quickStyle ? 12f : 7f;
+        binding.fontSizeMax = quickStyle ? 16f : 12f;
         binding.textWrappingMode = TextWrappingModes.NoWrap;
         binding.overflowMode = TextOverflowModes.Ellipsis;
-        binding.alignment = slot?.Kind == SlotKind.Quick ? TextAlignmentOptions.TopLeft : TextAlignmentOptions.Center;
+        binding.alignment = quickStyle ? TextAlignmentOptions.TopLeft : TextAlignmentOptions.Center;
         binding.color = new Color(0.68f, 0.88f, 1f, 1f);
         binding.text = text;
         binding.enabled = !string.IsNullOrWhiteSpace(text);

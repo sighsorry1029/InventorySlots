@@ -127,6 +127,7 @@
     </ItemGroup>
     <ItemGroup>
         <Compile Include="*.cs"/>
+        <Compile Include="Shared/Compatibility/*.cs" Link="Compatibility/%(Filename)%(Extension)"/>
         <Compile Include="Shared/ItemRules/*.cs" Link="ItemRules/%(Filename)%(Extension)"/>
         <Compile Include="Shared/Persistence/*.cs" Link="Persistence/%(Filename)%(Extension)"/>
         <Compile Include="Shared/Sorting/*.cs" Link="Sorting/%(Filename)%(Extension)"/>

@@ -33,7 +33,6 @@ public sealed partial class InventorySlotsPlugin
     private static MethodInfo? _povCellHudHideMethod;
     private static Action? _povToolHudHide;
     private static Action? _povCellHudHide;
-    private static Action<Player>? _povToolHudTick;
     private static Action<Player>? _povCellHudTick;
     private static Func<string>? _povEquipmentHost;
 
@@ -47,7 +46,6 @@ public sealed partial class InventorySlotsPlugin
             _povCellHudHideMethod = RequirePathOfValheimanMethod(cells, "Hide", typeof(void));
             _povToolHudHide = (Action)Delegate.CreateDelegate(typeof(Action), _povToolHudHideMethod);
             _povCellHudHide = (Action)Delegate.CreateDelegate(typeof(Action), _povCellHudHideMethod);
-            _povToolHudTick = (Action<Player>)Delegate.CreateDelegate(typeof(Action<Player>), RequirePathOfValheimanMethod(tools, "Tick", typeof(void), typeof(Player)));
             _povCellHudTick = (Action<Player>)Delegate.CreateDelegate(typeof(Action<Player>), RequirePathOfValheimanMethod(cells, "Tick", typeof(void), typeof(Player)));
             _povEquipmentHost = _pov!.Bind<Func<string>>("Valheiman.Api.Equipment", "get_HostedBy");
             MethodInfo target = AccessTools.DeclaredMethod(assembly.GetType("PassiveTree.Gear.Module", true), "LateUpdate");
@@ -73,8 +71,8 @@ public sealed partial class InventorySlotsPlugin
     private static bool KeepPathOfValheimanHud() => _pov?.Enabled() == true && _povEquipmentHost?.Invoke() == ModGUID;
     private static void UpdatePathOfValheimanToolHud()
     {
-        if (KeepPathOfValheimanHud()) _povToolHudTick!(Player.m_localPlayer);
-        else _povToolHudHide!();
+        // Tools use ordinary InventorySlots quick slots; PoV has no tool bank.
+        _povToolHudHide!();
     }
     private static void UpdatePathOfValheimanCellHud()
     {
@@ -85,7 +83,7 @@ public sealed partial class InventorySlotsPlugin
     {
         _povToolHudHideMethod = _povCellHudHideMethod = null;
         _povToolHudHide = _povCellHudHide = null;
-        _povToolHudTick = _povCellHudTick = null;
+        _povCellHudTick = null;
         _povEquipmentHost = null;
     }
 
@@ -93,6 +91,7 @@ public sealed partial class InventorySlotsPlugin
     {
         if (_pov == null) return;
         Assembly assembly = _pov.Assembly;
+        InstallPathOfValheimanCapability("delete-ui", _ => InventoryCompatibility.PathOfValheimanTrashMode.Install(assembly, ModGUID));
         InstallPathOfValheimanCapability("item-presentation", _ => BindPathOfValheimanItemPresentation(assembly));
         InitializePathOfValheimanNativeHud(assembly);
         InitializePathOfValheimanCrafting(assembly);
@@ -271,6 +270,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void ShutdownPathOfValheimanCompatibility()
     {
+        InventoryCompatibility.PathOfValheimanTrashMode.Dispose();
         foreach (Harmony harmony in PathOfValheimanPatches) harmony.UnpatchSelf();
         PathOfValheimanPatches.Clear();
         ShutdownPathOfValheimanCrafting();

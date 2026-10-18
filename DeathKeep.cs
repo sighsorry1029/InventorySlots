@@ -134,10 +134,13 @@ public sealed partial class InventorySlotsPlugin
     {
         sourceInventory = null;
         List<KeepOnDeathItemState> keptItems = new();
-        if (!DeathKeepRulesEnabled() || player == null || player.m_isLoading || _yamlConfig.KeepOnDeath == null || _yamlConfig.KeepOnDeath.Count == 0)
+        if (player == null || player.m_isLoading)
         {
             return keptItems;
         }
+        bool keepYaml = DeathKeepRulesEnabled() && _yamlConfig.KeepOnDeath?.Count > 0;
+        bool keepCoins = KeepPathOfValheimanCoinsOnDeath(player);
+        if (!keepYaml && !keepCoins) return keptItems;
 
         Inventory inventory = ((Humanoid)player).GetInventory();
         sourceInventory = inventory;
@@ -150,7 +153,7 @@ public sealed partial class InventorySlotsPlugin
         {
             foreach (ItemData item in inventory.m_inventory.ToArray())
             {
-                if (item?.m_shared == null || !ShouldKeepOnDeath(item))
+                if (item?.m_shared == null || !(keepYaml && ShouldKeepOnDeath(item) || keepCoins && IsPathOfValheimanCoin(item)))
                 {
                     continue;
                 }

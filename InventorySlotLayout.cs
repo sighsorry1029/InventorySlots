@@ -64,6 +64,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static List<SlotDefinition> GetCustomPanelSlots(Player? player = null, Inventory? inventory = null)
     {
+        RefreshPathOfValheimanQuiverAvailability();
         if ((_pov == null && !IsEquipmentSlotProgressionEnabled()) || player == null)
         {
             return GetCachedCustomPanelSlots();
@@ -79,9 +80,8 @@ public sealed partial class InventorySlotsPlugin
         InventoryDefinitions.VisibleCustomPanelSlotCache.Clear();
         foreach (SlotDefinition slot in GetCachedCustomPanelSlots())
         {
-            if (IsEquipmentSlotUnlocked(player, inventory, slot) ||
-                slot.PovCell != null && inventory != null && TryGetSlotGridPos(inventory, slot, out Vector2i occupiedPos) &&
-                inventory.GetItemAt(occupiedPos.x, occupiedPos.y) != null)
+            if (slot.PovCell == "quiver" ? IsPathOfValheimanQuiverVisible(player, inventory, slot) :
+                IsSpecialSlotUnlocked(player, inventory, slot) || slot.PovCell != null && IsOccupiedSlot(inventory, slot))
             {
                 InventoryDefinitions.VisibleCustomPanelSlotCache.Add(slot);
             }
@@ -169,7 +169,7 @@ public sealed partial class InventorySlotsPlugin
         for (int i = 0; i < SlotDefinitions.Count; i++)
         {
             SlotDefinition slot = SlotDefinitions[i];
-            if (slot.Kind != SlotKind.Quick)
+            if (IsEquipmentPanelSlot(slot))
             {
                 InventoryDefinitions.CustomPanelSlotCache.Add(slot);
             }

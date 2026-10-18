@@ -13,7 +13,7 @@ using HarmonyLib;
 using UnityEngine;
 using ItemData = ItemDrop.ItemData;
 
-internal static class Program
+internal static partial class Program
 {
     private const BindingFlags Statics = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
     private const BindingFlags Instances = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
@@ -112,6 +112,7 @@ internal static class Program
         Check(!mod.GetReferencedAssemblies().Any(a => a.Name == "PathOfValheiman"), "final IS has no mandatory PoV assembly reference");
         Check(mod.GetTypes().Length > 0, "final IS types enumerate before original PoV assembly loads");
         Assembly pov = Assembly.LoadFrom(args[1]);
+        PoVTrashChecks.Run(mod, pov, Check);
         Type bridgeType = mod.GetType("InventorySlots.PathOfValheimanStorageBridge", true)!;
         Type contract = pov.GetType("Valheiman.Api.IStorageProvider", true)!;
         Type equipment = pov.GetType("Valheiman.Api.Equipment", true)!;
@@ -192,7 +193,7 @@ internal static class Program
         MethodInfo late = AccessTools.DeclaredMethod(pov.GetType("PassiveTree.Gear.Module", true), "LateUpdate");
         Check(Harmony.GetPatchInfo(late)?.Owners.Contains("sighsorry.InventorySlots.pov.native-hud") == true, "guarded native HUD transpiler applies to original Module.LateUpdate");
         plugin.GetField("_pov", Statics)!.SetValue(null, null);
-        foreach (string field in new[] { "Enabled", "Suspended", "ProviderId", "Open", "Accepts", "ExtraRows", "Equipped", "Equip", "Unequip", "Changed" })
+        foreach (string field in new[] { "Enabled", "Suspended", "ProviderId", "Open", "Accepts", "KeyLabel", "KeptOnDeath", "Weightless", "ExtraRows", "Equipped", "Equip", "Unequip", "Changed" })
         {
             MethodInfo method = ((Delegate)bridgeType.GetField(field, Instances)!.GetValue(bridge)!).Method;
             Check(method.IsPublic && method.DeclaringType!.IsVisible && method.DeclaringType.Namespace == "Valheiman.Api", field + " binds original public API");
@@ -200,16 +201,16 @@ internal static class Program
         object currentEquipment = equipment.GetProperty("Cells")!.GetValue(null)!;
         object currentStorage = storage.GetProperty("Cells")!.GetValue(null)!;
         if (oldEquipment != null) Check(ReferenceEquals(oldEquipment, currentEquipment) && ReferenceEquals(oldStorage, currentStorage), "warm API cache object identities preserved");
-        Check(((IEnumerable<string>)currentStorage).Distinct().Count() == 36, "storage includes 36 unique cells");
+        Check(((IEnumerable<string>)currentStorage).Distinct().Count() == 28, "original storage cache stays unchanged at 28 unique cells");
         for (int i = 0; i < nativeCount; i++)
         {
             bool actual = (bool)isStorage.Invoke(null, new[] { Enum.ToObject(slot, i) })!;
-            Check(actual == (baseline[i] || (i >= 24 && i <= 31)), "IsStorage preserves role " + i);
+            Check(actual == baseline[i], "IsStorage preserves role " + i);
         }
         foreach (object info in (IEnumerable)currentEquipment)
         {
             Type t = info.GetType(); string id = (string)t.GetProperty("Id")!.GetValue(info)!;
-            if (id.StartsWith("purse.")) Check(!(bool)t.GetProperty("Worn")!.GetValue(info)!, id + " cached Worn corrected");
+            if (id.StartsWith("purse.")) Check((bool)t.GetProperty("Worn")!.GetValue(info)!, id + " cached Worn unchanged");
         }
         Player sentinel = (Player)FormatterServices.GetUninitializedObject(typeof(Player));
         ItemData item = new ItemData();
@@ -234,13 +235,12 @@ internal static class Program
         cells.GetMethod("Forget", Statics)!.Invoke(null, null);
         Check(!(bool)cells.GetProperty("External", Statics)!.GetValue(null)!, "Forget releases active backend");
         CheckInventoryBackend(mod, pov, plugin, bridgeType, bridge, cells, contract);
-        bridgeType.GetMethod("RestoreCaches", Instances)!.Invoke(bridge, null);
         patches.UnpatchSelf(); engine.UnpatchSelf(); new Harmony("sighsorry.InventorySlots.pov.native-hud").UnpatchSelf();
-        Check(((IEnumerable<string>)currentStorage).Count() == 28, "restore after failed initialization returns original28 storage cache");
+        Check(((IEnumerable<string>)currentStorage).Count() == 28, "unpatch leaves original 28-cell storage cache unchanged");
         foreach (object info in (IEnumerable)currentEquipment)
         {
             Type t = info.GetType(); string id = (string)t.GetProperty("Id")!.GetValue(info)!;
-            if (id.StartsWith("purse.")) Check((bool)t.GetProperty("Worn")!.GetValue(info)!, id + " cached Worn restored");
+            if (id.StartsWith("purse.")) Check((bool)t.GetProperty("Worn")!.GetValue(info)!, id + " cached Worn unchanged after unpatch");
         }
         System.Console.WriteLine("PASS " + checks + " original Mono managed bridge checks; no Unity/world/game execution; cache mode=" + args[4]);
         return 0;
@@ -260,7 +260,7 @@ internal static class Program
             object value = Activator.CreateInstance(definition, new object?[] { "pov." + role, role, Enum.Parse(kind, worn ? "BuiltIn" : "Quick"), accepts, -1, role })!;
             definitions.Add(value); mapped.Add(role, value); return value;
         }
-        Make("tool.0"); Make("purse.0");
+        Make("arrow.0"); Make("potion.0");
         plugin.GetField("_pov", Statics)!.SetValue(null, bridge);
         int fixedRows = (int)Call("GetFixedRegularRows")!;
         Type module = pov.GetType("PassiveTree.Gear.Module", true)!;
@@ -285,13 +285,13 @@ internal static class Program
         FieldInfo local = AccessTools.Field(typeof(Player), "m_localPlayer");
         List<ItemData> Items() => (List<ItemData>)AccessTools.Field(typeof(Inventory), "m_inventory").GetValue(bag);
         ItemData Item(int x, int y, int stack = 1) => new ItemData { m_gridPos = new Vector2i(x, y), m_stack = stack, m_shared = new ItemData.SharedData { m_name = "smoke-item" } };
-        ItemData tool = Item(0, 6, 7), purse = Item(0, 7, 9), regular = Item(0, 0, 3);
-        Items().AddRange(new[] { tool, purse, regular });
+        ItemData tool = Item(5, 5, 7), potion = Item(0, 8, 9), regular = Item(0, 0, 3);
+        Items().AddRange(new[] { tool, potion, regular });
         custom["valheiman.equipment.v1.rowStart"] = "4";
         custom["InventorySlots.PovLayout.v1"] = "stale.provider.layout";
         Call("CompletePathOfValheimanLoad", player);
-        Check(tool.m_gridPos == new Vector2i(0, fixedRows) && purse.m_gridPos == new Vector2i(1, fixedRows), "actual native ordinal16/24 map to own tool/purse cells");
-        Check(regular.m_gridPos == new Vector2i(0, 0) && Items().Count == 3 && ReferenceEquals(Items()[0], tool) && tool.m_stack == 7 && purse.m_stack == 9, "native map preserves ordinary coordinate, exact item identity and stack");
+        Check(tool.m_gridPos == new Vector2i(0, fixedRows) && potion.m_gridPos == new Vector2i(1, fixedRows), "actual native ordinal13/32 map to own arrow/potion cells");
+        Check(regular.m_gridPos == new Vector2i(0, 0) && Items().Count == 3 && ReferenceEquals(Items()[0], tool) && tool.m_stack == 7 && potion.m_stack == 9, "native map preserves ordinary coordinate, exact item identity and stack");
         Check(!custom.ContainsKey("valheiman.equipment.v1.rowStart") && custom.ContainsKey("InventorySlots.PovLayout.v1"), "native row key wins stale provider key and is replaced only after conversion");
         Items().Clear();
         for (int y = 0; y < fixedRows; y++) for (int x = 0; x < 8; x++) Items().Add(Item(x, y));
@@ -311,51 +311,42 @@ internal static class Program
         local.SetValue(null, player);
         try
         {
+            CheckPanelLayout(mod, pov, plugin, player, bag, config);
             object provider = bridgeType.GetField("_provider", Instances)!.GetValue(bridge)!;
             bool Put(ItemData it, string role) => (bool)contract.GetMethod("Put")!.Invoke(provider, new object[] { player, role, it })!;
             bool Take(string role) => (bool)contract.GetMethod("TakeOut")!.Invoke(provider, new object[] { player, role })!;
             Check((bool)Call("CanRouteEquipToDedicatedSlot", player, bag, tool)!, "ordinary inventory candidate is routable before load scope");
             Call("BeginPathOfValheimanLoad", player);
-            Check(!(bool)Call("CanRouteEquipToDedicatedSlot", player, bag, tool)! && !Put(tool, "tool.0") && tool.m_gridPos == new Vector2i(2, 0), "load scope blocks both equip routing and provider insertion without coordinate changes");
+            Check(!(bool)Call("CanRouteEquipToDedicatedSlot", player, bag, tool)! && !Put(tool, "arrow.0") && tool.m_gridPos == new Vector2i(2, 0), "load scope blocks both equip routing and provider insertion without coordinate changes");
             Call("EndPathOfValheimanLoad", player, null);
             Call("BeginPathOfValheimanLoad", player);
             Call("EndPathOfValheimanLoad", player, new InvalidOperationException("simulated native load failure"));
-            Check(!(bool)Call("CanRouteEquipToDedicatedSlot", player, bag, tool)! && !Put(tool, "tool.0") && tool.m_gridPos == new Vector2i(2, 0), "failed native load stays protected after finalizer clears active loading");
+            Check(!(bool)Call("CanRouteEquipToDedicatedSlot", player, bag, tool)! && !Put(tool, "arrow.0") && tool.m_gridPos == new Vector2i(2, 0), "failed native load stays protected after finalizer clears active loading");
             Call("BeginPathOfValheimanLoad", player);
             Call("EndPathOfValheimanLoad", player, null);
             Check((bool)Call("CanRouteEquipToDedicatedSlot", player, bag, tool)!, "next successful load scope releases prior failure guard");
-            Check(Put(tool, "tool.0") && tool.m_gridPos == new Vector2i(0, fixedRows), "actual provider Put relocates same inventory item to target cell");
+            Check(Put(tool, "arrow.0") && tool.m_gridPos == new Vector2i(0, fixedRows), "actual provider Put relocates same inventory item to target cell");
             Check(Items().Count == 1 && ReferenceEquals(Items()[0], tool) && tool.m_stack == 7, "provider Put makes no clone or stack change");
             ItemData other = Item(3, 0); Items().Add(other); Vector2i priorOther = other.m_gridPos;
-            Check(!Put(other, "tool.0") && other.m_gridPos == priorOther && tool.m_gridPos == new Vector2i(0, fixedRows), "occupied provider target rejects without swapping or moving either item");
+            Check(!Put(other, "arrow.0") && other.m_gridPos == priorOther && tool.m_gridPos == new Vector2i(0, fixedRows), "occupied provider target rejects without swapping or moving either item");
             ItemData foreign = Item(0, 0);
-            Check(!Put(foreign, "tool.0") && !Items().Contains(foreign), "foreign item rejected without inserting a clone");
+            Check(!Put(foreign, "arrow.0") && !Items().Contains(foreign), "foreign item rejected without inserting a clone");
             ItemData locked = Item(4, 0); Items().Add(locked);
-            Check(!Put(locked, "purse.0") && locked.m_gridPos == new Vector2i(4, 0), "locked purse rejects new insertion");
+            Check(!Put(locked, "potion.0") && locked.m_gridPos == new Vector2i(4, 0), "locked potion rejects new insertion");
             tool.m_gridPos = new Vector2i(1, fixedRows);
-            Check(Take("purse.0") && tool.m_gridPos.y < 4, "locked purse still permits safe withdrawal of existing item");
+            Check(Take("potion.0") && tool.m_gridPos.y < 4, "locked potion still permits safe withdrawal of existing item");
             Items().Clear(); for (int y = 0; y < 4; y++) for (int x = 0; x < 8; x++) Items().Add(Item(x, y));
             tool.m_gridPos = new Vector2i(1, fixedRows); Items().Add(tool);
-            Check(!Take("purse.0") && tool.m_gridPos == new Vector2i(1, fixedRows) && Items().Count == 33, "full usable backpack rejects withdrawal without loss into locked rows");
+            Check(!Take("potion.0") && tool.m_gridPos == new Vector2i(1, fixedRows) && Items().Count == 33, "full usable backpack rejects withdrawal without loss into locked rows");
             AccessTools.Field(typeof(Player), "m_isLoading").SetValue(player, true);
-            Check(!Put(tool, "tool.0") && !Take("purse.0"), "actual provider rejects all writes while player loading");
+            Check(!Put(tool, "arrow.0") && !Take("potion.0"), "actual provider rejects all writes while player loading");
             AccessTools.Field(typeof(Player), "m_isLoading").SetValue(player, false);
             Items().Clear(); Items().Add(tool); tool.m_gridPos = new Vector2i(1, fixedRows);
-            Type wallet = pov.GetType("PassiveTree.Gear.Wallet", true)!;
-            wallet.GetField("Gate", Statics)!.SetValue(null, new Func<Player, bool>(_ => true));
-            wallet.GetField("Weightless", Statics)!.SetValue(null, new Func<Player, bool>(_ => true));
-            tool.m_shared.m_weight = 2f; coinFixtureItem = tool;
             fixture.Patch(pov.GetType("PassiveTree.Gear.EquipmentApi", true)!.GetMethod("Prefab", Statics)!, prefix: new HarmonyMethod(typeof(Program), nameof(QuiverPrefab)));
-            FieldInfo totalWeight = AccessTools.Field(typeof(Inventory), "m_totalWeight");
-            MethodInfo purseWeight = pov.GetType("PassiveTree.Gear.Wallet+Weight", true)!.GetMethod("Postfix", Statics)!;
-            totalWeight.SetValue(bag, 20f); purseWeight.Invoke(null, new object[] { bag });
-            Check(Math.Abs((float)totalWeight.GetValue(bag)! - 6f) < 0.001, "original purse weight exemption remains active while equipment is On");
+            CheckCoinBenefits(pov, plugin, player, bag, enabled, config);
             enabled.Value = false;
-            totalWeight.SetValue(bag, 20f); purseWeight.Invoke(null, new object[] { bag });
-            Check(Math.Abs((float)totalWeight.GetValue(bag)! - 20f) < 0.001, "Equipment Off counts retained closed purse items at full weight");
-            wallet.GetField("Gate", Statics)!.SetValue(null, new Func<Player, bool>(_ => false));
-            Check(!Put(tool, "tool.0") && tool.m_gridPos == new Vector2i(1, fixedRows), "Equipment Off rejects insertion with existing coordinate preserved");
-            Check(Take("purse.0") && tool.m_gridPos.y < 4, "Equipment Off permits existing storage item withdrawal");
+            Check(!Put(tool, "arrow.0") && tool.m_gridPos == new Vector2i(1, fixedRows), "Equipment Off rejects insertion with existing coordinate preserved");
+            Check(Take("potion.0") && tool.m_gridPos.y < 4, "Equipment Off permits existing storage item withdrawal");
             enabled.Value = true;
             Make("quiver", true);
             quiverFixtureItem = Item(2, 0); Items().Clear(); Items().Add(quiverFixtureItem);
