@@ -89,6 +89,41 @@ Debug and Release built without warnings/errors. Debug deployment hashes matched
 Thunderstore/Nexus DLL hashes matched Release. Plugin/assembly/manifest versions,
 merged dependencies, package entries and packaged changelog were verified.
 
+## Discovery progression follow-up (2026-10-19)
+
+The Debug DLL now combines InventorySlots' discovery rows with PoV's row grant
+using the larger extra-row count. Equipment discovery is checked after PoV's
+node/option gate, including the Quick-kind utility roles. The isolated fixture
+initializes the real progression options and supplies a stable player ID in
+place of a network view. It simulates row grants through the original public
+API getter; it does not download or run a live server's tree.
+
+PoV **5.0.9** passed **302 cold / 304 warm** checks; **5.0.8** passed **266 cold**
+checks. Every process exited 0 and completed Mono cleanup. Added checks cover
+HardAntler's 4-to-5-row discovery/reveal, non-additive grants and node removal,
+the fixed nine-row boundary, undiscovered base/utility cells, carried equipment,
+discovery and Equipment On/Off, immediate panel-cache refresh on discovery-option
+changes, node-locked trinkets and closed-cell withdrawal.
+The metadata-only YAML suite additionally checks lasting discovery and cached
+discovery under a closed PoV gate. The unit runner passed **189 tests** and the
+static contract checker found **zero failures** (1,152 references, 163 Harmony
+targets, 52 reflected contracts; ten manual targets remain). Debug build and
+Steam plugin deployment succeeded with matching DLL hashes. This implementation
+checkpoint used Debug only; the subsequent Release checks are recorded below.
+
+## Release 1.6.10 verification — 2026-10-19
+
+The final merged Release DLL (`7E412F35D4C849E1E43A357BDF5CF781E57043123BDC11FA54C0AA6F7BC0AD8C`)
+passed **302 cold / 304 warm** checks against original PoV 5.0.9 and **266 cold**
+checks against original PoV 5.0.8. All processes exited 0 and completed Mono
+cleanup. The unit runner passed **189 tests**; Release contract inspection found
+zero failures (1,152 references, 163 Harmony targets, 52 reflected contracts;
+ten dynamic targets remain manual). Debug and Release built without warnings
+or errors. Debug deployment hashes matched; Thunderstore/Nexus package DLLs
+matched Release. Assembly/plugin/manifest versions, merged dependencies,
+package entries and packaged source files were verified. Actual game and
+multiplayer execution remain untested.
+
 ## Game checks still required
 
 Use backed-up test characters to exercise first login from native PoV, full inventory, death/tombstone recovery, logout/reconnect, live node reset and Equipment On/Off. Check actual registered quivers, nearby crafting/quick stack, host/dedicated-server sessions and delayed/conflicting container operations. Visually check equipment/storage/HUD layouts across UI scales, craft/salvage/disenchant/VNEI tab changes and pinned/socket/rarity tooltips. No game or multiplayer pass is claimed by these isolated results.

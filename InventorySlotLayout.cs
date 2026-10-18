@@ -223,8 +223,11 @@ public sealed partial class InventorySlotsPlugin
 
     private static int GetUsableRegularRows(Player player)
     {
-        if (_pov != null) return InventorySlotSafetyCore.GetCombinedRegularRows(GetNativeInventoryRows(player), _pov.ExtraRows());
-        return InventorySlotSafetyCore.GetCombinedRegularRows(GetNativeInventoryRows(player), CalculateUnlockedRows(player));
+        // PoV's shipped trees may grant no extra rows. Keep discovery progression
+        // active, without adding both mods' grants or moving the fixed slot tail.
+        int extraRows = CalculateUnlockedRows(player);
+        if (_pov != null) extraRows = Math.Max(extraRows, _pov.ExtraRows());
+        return InventorySlotSafetyCore.GetCombinedRegularRows(GetNativeInventoryRows(player), extraRows);
     }
 
     private static int CalculateUnlockedRows(Player player)
@@ -587,7 +590,8 @@ public sealed partial class InventorySlotsPlugin
     private static bool IsQuickSlotUnlocked(Player? player, SlotDefinition slot)
     {
         if (slot.PovCell != null) return player != null && _pov != null &&
-            !_pov.Suspended() && _pov.ProviderId() == ModGUID && _pov.Open(player, slot.PovCell);
+            !_pov.Suspended() && _pov.ProviderId() == ModGUID && _pov.Open(player, slot.PovCell) &&
+            (!IsEquipmentPanelSlot(slot) || IsEquipmentSlotDiscovered(player, player.GetInventory(), slot));
         return slot.Kind != SlotKind.Quick || player == null || slot.QuickSlotIndex >= 0 && slot.QuickSlotIndex < GetUnlockedQuickSlotCount(player);
     }
 
@@ -600,10 +604,18 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool IsEquipmentSlotUnlocked(Player? player, Inventory? inventory, SlotDefinition slot)
     {
-        if (slot.PovCell == "quiver") return player != null && _pov?.Enabled() == true && _pov.Open(player, "quiver");
-        if (IsPathOfValheimanTrinketSlot(slot)) return player != null && _pov!.Enabled() && _pov.Open(player, slot.PovCell!);
-        if (slot.PovCell != null && _pov?.Enabled() == true) return player != null && _pov.Open(player, slot.PovCell);
-        if (slot.Kind == SlotKind.Quick || !IsEquipmentSlotProgressionEnabled() || player == null)
+        if (slot.PovCell == "quiver" || IsPathOfValheimanTrinketSlot(slot) ||
+            slot.PovCell != null && _pov?.Enabled() == true)
+        {
+            if (player == null || _pov?.Enabled() != true || !_pov.Open(player, slot.PovCell!)) return false;
+        }
+        return !IsEquipmentPanelSlot(slot) || IsEquipmentSlotDiscovered(player, inventory, slot);
+    }
+
+    private static bool IsEquipmentSlotDiscovered(Player? player, Inventory? inventory, SlotDefinition slot)
+    {
+        // Discovery supplements PoV's node/option gates; it never replaces them.
+        if (!IsEquipmentSlotProgressionEnabled() || player == null)
         {
             return true;
         }
@@ -678,7 +690,7 @@ public sealed partial class InventorySlotsPlugin
     private static string GetVisibleEquipmentSlotUnlockSignature(Player player, Inventory? inventory)
     {
         int objectDbCount = ObjectDB.instance?.m_items?.Count ?? -1;
-        return $"{GetPlayerId(player)}|{InventoryDefinitions.SlotDefinitionVersion}|{objectDbCount}|{GetKnownMaterialHash(player)}|{GetAcceptedEquipmentInventoryHash(inventory)}";
+        return $"{GetPlayerId(player)}|{InventoryDefinitions.SlotDefinitionVersion}|{objectDbCount}|{GetKnownMaterialHash(player)}|{GetAcceptedEquipmentInventoryHash(inventory)}|{IsEquipmentSlotProgressionEnabled()}";
     }
 
     private static string GetEquipmentSlotUnlockCacheSignature(Player player)

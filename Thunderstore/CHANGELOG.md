@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.10
+
+- Fixed item-discovery backpack progression being bypassed when Path of Valheiman is installed. HardAntler and the other configured discoveries now unlock and reveal rows normally. If PoV also grants rows, the larger extra-row count is used without double counting; purchased rows and special-slot coordinates are preserved. The supplied PoV 5.0.8/5.0.9 default trees have no Big Bag row-unlock node.
+- Applied Enable Equipment Slot Progression to PoV equipment-panel cells, including Belt, Trinket, Wishbone, Wisplight and Utility. Accepted item discovery, possession or equipment is required while progression is On, in addition to PoV's existing node and Equipment system requirements. Food, potion and arrow capacity rules remain PoV-controlled, and occupied closed cells remain available for withdrawal.
+- Refreshed equipment-panel visibility immediately when the discovery progression option changes. Added regression checks for row discovery, combined grants, equipment gating, live settings and closed-cell withdrawal using the original PoV DLLs.
+
 ## 1.6.9
 
 - Integrated Path of Valheiman's Utility, Wisplight and Wishbone cells into the equipment panel, and its food, potion and arrow cells into an adjacent section of the quick-slot panel. PoV retains its unlocks, item restrictions, effects and key bindings; the existing InventorySlots quick slots and HUD keep their controls.

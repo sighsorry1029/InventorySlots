@@ -105,7 +105,7 @@ internal static partial class Program
             Check((bool)Call("IsPathOfValheimanQuiverVisible", player, bag, quiver)!, "carried supported quiver reveals the equipment cell");
             items.Clear();
             plugin.GetField("_povQuiverAvailable", Statics)!.SetValue(null, true);
-            Check((bool)Call("IsPathOfValheimanQuiverVisible", player, bag, quiver)!, "supported catalog quiver reveals empty cell");
+            Check(!(bool)Call("IsPathOfValheimanQuiverVisible", player, bag, quiver)!, "catalog availability alone does not discover a quiver");
         }
         finally
         {

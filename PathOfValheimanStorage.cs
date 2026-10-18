@@ -45,7 +45,7 @@ public sealed partial class InventorySlotsPlugin
             var keys = bridge.Bind<Func<IEnumerable<string>>>("PassiveTree.InventorySlotsCompat", "OurKeys");
             foreach (string key in keys())
                 StackMetadataPolicy.Register(key, (a, _) => a, (a, b) => string.Equals(a, b, StringComparison.Ordinal));
-            Log.LogInfo("PoV storage provider registered; InventorySlots owns cells, PoV owns unlocks and effects.");
+            Log.LogInfo("PoV storage provider registered; InventorySlots owns cells and discovery progression, PoV retains node requirements and effects.");
             return true;
         }
         catch (Exception error)
@@ -183,6 +183,7 @@ public sealed partial class InventorySlotsPlugin
         if (!PovCanMutate(player) || item == null || !PovSlots.TryGetValue(cell, out SlotDefinition? slot) ||
             !_pov!.Open(player, cell) || !slot.Accepts(item)) return false;
         Inventory inventory = player.GetInventory();
+        if (!IsSpecialSlotUnlocked(player, inventory, slot)) return false;
         if (!ContainsExactItemReference(inventory, item) || !TryGetSlotGridPos(inventory, slot, out Vector2i target)) return false;
         if (IsPathOfValheimanTrinketSlot(slot)) return TryEquipPathOfValheimanTrinket(player, inventory, item, slot);
         if (inventory.GetItemAt(target.x, target.y) == item && cell != "quiver") return true;

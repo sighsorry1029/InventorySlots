@@ -40,6 +40,7 @@ internal static partial class Program
         return false;
     }
     private static bool NoProgress() => false;
+    private static bool FixturePlayerId(ref long __result) { __result = 1; return false; }
     private static int ordinaryTrinkets = 3, totalTrinkets = 4;
     private static bool queueTrinket;
     private static ItemData? queuedTrinket;
@@ -100,6 +101,7 @@ internal static partial class Program
         mono_add_internal_call("UnityEngine.Animator::StringToHash_Injected", Marshal.GetFunctionPointerForDelegate(HashStub));
         mono_add_internal_call("UnityEngine.Object::GetOffsetOfInstanceIDInCPlusPlusObject", Marshal.GetFunctionPointerForDelegate(OffsetStub));
         mono_add_internal_call("UnityEngine.Time::get_time", Marshal.GetFunctionPointerForDelegate(TimeStub));
+        mono_add_internal_call("UnityEngine.Time::get_unscaledTime", Marshal.GetFunctionPointerForDelegate(TimeStub));
         mono_add_internal_call("UnityEngine.Time::get_frameCount", Marshal.GetFunctionPointerForDelegate(OffsetStub));
         var engine = new Harmony("smoke.pov.storage.engine-services");
         engine.Patch(AccessTools.Method(typeof(UnityEngine.Object), "CompareBaseObjects"),
@@ -265,6 +267,7 @@ internal static partial class Program
         int fixedRows = (int)Call("GetFixedRegularRows")!;
         Type module = pov.GetType("PassiveTree.Gear.Module", true)!;
         var config = new ConfigFile(Path.Combine(Path.GetTempPath(), "pov-storage-test-" + Guid.NewGuid() + ".cfg"), false) { SaveOnConfigSet = false };
+        InitializeProgressionConfig(plugin, config);
         var enabled = config.Bind("test", "equipment", true, "");
         module.GetField("Enabled", Statics)!.SetValue(null, enabled);
         // No world/character lifecycle runs here. Return no allocated stat tree,
@@ -272,12 +275,17 @@ internal static partial class Program
         var fixture = new Harmony("smoke.pov.storage.no-world-progress");
         fixture.Patch(AccessTools.PropertyGetter(pov.GetType("PassiveTree.Progress", true), "Current"),
             prefix: new HarmonyMethod(typeof(Program), nameof(NoProgress)));
+        // The uninitialized player has no network view; only its stable identity
+        // is supplied here, while the real discovery/cache methods still run.
+        fixture.Patch(AccessTools.Method(typeof(Player), "GetPlayerID"),
+            prefix: new HarmonyMethod(typeof(Program), nameof(FixturePlayerId)));
         // Model a not-yet-allocated Magic Purse through PoV's actual public gate.
         pov.GetType("PassiveTree.Gear.Wallet", true)!.GetField("Gate", Statics)!.SetValue(null, new Func<Player, bool>(_ => false));
         Player player = (Player)FormatterServices.GetUninitializedObject(typeof(Player));
         Inventory bag = new Inventory("Inventory", null, 8, fixedRows + 6);
         AccessTools.Field(typeof(Humanoid), "m_inventory").SetValue(player, bag);
         AccessTools.Field(typeof(Player), "m_uniques").SetValue(player, new HashSet<string>());
+        AccessTools.Field(typeof(Player), "m_knownMaterial").SetValue(player, new HashSet<string>());
         var custom = new Dictionary<string, string>();
         AccessTools.Field(typeof(Player), "m_customData").SetValue(player, custom);
         FieldInfo queue = AccessTools.Field(typeof(Player), "m_actionQueue");
@@ -311,6 +319,7 @@ internal static partial class Program
         local.SetValue(null, player);
         try
         {
+            CheckProgression(mod, pov, plugin, player, bag, enabled);
             CheckPanelLayout(mod, pov, plugin, player, bag, config);
             object provider = bridgeType.GetField("_provider", Instances)!.GetValue(bridge)!;
             bool Put(ItemData it, string role) => (bool)contract.GetMethod("Put")!.Invoke(provider, new object[] { player, role, it })!;

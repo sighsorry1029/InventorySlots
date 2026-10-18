@@ -208,6 +208,21 @@ namespace InventorySlots
             Require(!IsEquipmentSlotUnlocked(player, inventory, slot), "PoV Off never opens an empty extra trinket cell");
             slot.PovCell = "helmet";
             Require(IsEquipmentSlotUnlocked(player, inventory, slot), "PoV Off restores ordinary built-in equipment rules");
+            Reset(); _pov = new PovFixture { On = true, Unlocked = true };
+            player = new Player(); inventory = new Inventory();
+            ObjectDB.instance.m_items.Add(accepted.m_dropPrefab!);
+            foreach (string role in new[] { "cape", "belt", "trinket", "utility", "utility.wisp", "utility.wishbone", "quiver", "trinket.1" })
+            {
+                slot = new SlotDefinition { Id = role, PovCell = role,
+                    Kind = role.StartsWith("utility") ? SlotKind.Quick : SlotKind.BuiltIn,
+                    Predicate = item => item == accepted };
+                player.m_knownMaterial.Clear(); _pov.Unlocked = true;
+                Require(!IsEquipmentSlotUnlocked(player, inventory, slot), "PoV open role still needs discovery: " + role);
+                player.m_knownMaterial.Add("$item_crown");
+                Require(IsEquipmentSlotUnlocked(player, inventory, slot), "discovery opens empty PoV role: " + role);
+                _pov.Unlocked = false;
+                Require(!IsEquipmentSlotUnlocked(player, inventory, slot), "cached discovery cannot bypass PoV node lock: " + role);
+            }
             _pov = null;
             Console.WriteLine($"  YAML matching/unlock: {Checks} behavioral and work-count checks passed.");
         }
