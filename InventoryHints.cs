@@ -867,6 +867,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool CanInteractWithFeatureGuideToggle()
     {
+        if (IsPathOfValheimanTreeOpen()) return false;
         RectTransform? root = TooltipUi.FeatureGuideHudHint;
         RectTransform? toggle = TooltipUi.FeatureGuideToggle;
         if (root == null ||

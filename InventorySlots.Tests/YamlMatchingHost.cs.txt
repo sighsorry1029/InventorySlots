@@ -46,11 +46,24 @@ namespace InventorySlots
         private sealed class SlotDefinition
         {
             public string Id = "crown";
+            public string? PovCell;
             public SlotKind Kind = SlotKind.CustomEquipment;
             public Func<ItemData, bool> Predicate = _ => false;
             public int Calls;
             public bool Accepts(ItemData item) { Calls++; return Predicate(item); }
         }
+        private sealed class PovFixture
+        {
+            public bool On;
+            public bool Unlocked;
+            public bool Enabled() => On;
+            public bool Open(Player player, string cell) => Unlocked;
+        }
+        private static PovFixture? _pov;
+        // The original-DLL Mono suite covers trinket ownership; this fixture
+        // exercises only equipment unlock policy.
+        private static bool IsPathOfValheimanTrinketSlot(SlotDefinition slot) =>
+            _pov != null && (slot.PovCell == "trinket" || slot.PovCell?.StartsWith("trinket.") == true);
         private static class InventoryDefinitions
         {
             public static readonly Dictionary<string, YamlMatchToken> YamlMatchTokens = new(StringComparer.Ordinal);
@@ -183,6 +196,19 @@ namespace InventorySlots
             Require(IsEquipmentSlotUnlocked(player, inventory, slot) && slot.Calls == 0, "quick slot remains outside equipment progression");
             slot.Kind = SlotKind.CustomEquipment;
             Require(IsEquipmentSlotUnlocked(null, inventory, slot), "no-player boundary");
+            _pov = new PovFixture { On = true, Unlocked = false };
+            slot.PovCell = "quiver";
+            Progression = false;
+            Require(!IsEquipmentSlotUnlocked(player, inventory, slot), "PoV node lock overrides local progression Off");
+            _pov.Unlocked = true;
+            Require(IsEquipmentSlotUnlocked(player, inventory, slot), "PoV node unlock is live");
+            _pov.On = false;
+            Require(!IsEquipmentSlotUnlocked(player, inventory, slot), "PoV Off never opens an empty quiver cell");
+            slot.PovCell = "trinket.1";
+            Require(!IsEquipmentSlotUnlocked(player, inventory, slot), "PoV Off never opens an empty extra trinket cell");
+            slot.PovCell = "helmet";
+            Require(IsEquipmentSlotUnlocked(player, inventory, slot), "PoV Off restores ordinary built-in equipment rules");
+            _pov = null;
             Console.WriteLine($"  YAML matching/unlock: {Checks} behavioral and work-count checks passed.");
         }
     }

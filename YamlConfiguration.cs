@@ -609,6 +609,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void RebuildSlotDefinitions()
     {
+        List<SlotDefinition>? previousPovLayout = CapturePathOfValheimanLayout();
         SlotDefinitions.Clear();
 
         List<YamlSlot> yamlSlots = _yamlConfig.Slots ?? new List<YamlSlot>();
@@ -699,6 +700,9 @@ public sealed partial class InventorySlotsPlugin
             string name = $"Quick {displayIndex}";
             SlotDefinitions.Add(new SlotDefinition($"quick{displayIndex}", name, SlotKind.Quick, QuickSlotAcceptsItem, quickSlotIndex));
         }
+
+        AppendPathOfValheimanSlots();
+        RestorePathOfValheimanLayoutAfterRebuild(previousPovLayout);
 
         foreach (SlotDefinition slot in SlotDefinitions)
         {

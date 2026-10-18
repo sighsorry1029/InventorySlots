@@ -64,7 +64,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static List<SlotDefinition> GetCustomPanelSlots(Player? player = null, Inventory? inventory = null)
     {
-        if (!IsEquipmentSlotProgressionEnabled() || player == null)
+        if ((_pov == null && !IsEquipmentSlotProgressionEnabled()) || player == null)
         {
             return GetCachedCustomPanelSlots();
         }
@@ -79,7 +79,9 @@ public sealed partial class InventorySlotsPlugin
         InventoryDefinitions.VisibleCustomPanelSlotCache.Clear();
         foreach (SlotDefinition slot in GetCachedCustomPanelSlots())
         {
-            if (IsEquipmentSlotUnlocked(player, inventory, slot))
+            if (IsEquipmentSlotUnlocked(player, inventory, slot) ||
+                slot.PovCell != null && inventory != null && TryGetSlotGridPos(inventory, slot, out Vector2i occupiedPos) &&
+                inventory.GetItemAt(occupiedPos.x, occupiedPos.y) != null)
             {
                 InventoryDefinitions.VisibleCustomPanelSlotCache.Add(slot);
             }
@@ -221,6 +223,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static int GetUsableRegularRows(Player player)
     {
+        if (_pov != null) return InventorySlotSafetyCore.GetCombinedRegularRows(GetNativeInventoryRows(player), _pov.ExtraRows());
         return InventorySlotSafetyCore.GetCombinedRegularRows(GetNativeInventoryRows(player), CalculateUnlockedRows(player));
     }
 
@@ -583,6 +586,8 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool IsQuickSlotUnlocked(Player? player, SlotDefinition slot)
     {
+        if (slot.PovCell != null) return player != null && _pov != null &&
+            !_pov.Suspended() && _pov.ProviderId() == ModGUID && _pov.Open(player, slot.PovCell);
         return slot.Kind != SlotKind.Quick || player == null || slot.QuickSlotIndex >= 0 && slot.QuickSlotIndex < GetUnlockedQuickSlotCount(player);
     }
 
@@ -595,6 +600,9 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool IsEquipmentSlotUnlocked(Player? player, Inventory? inventory, SlotDefinition slot)
     {
+        if (slot.PovCell == "quiver") return player != null && _pov?.Enabled() == true && _pov.Open(player, "quiver");
+        if (IsPathOfValheimanTrinketSlot(slot)) return player != null && _pov!.Enabled() && _pov.Open(player, slot.PovCell!);
+        if (slot.PovCell != null && _pov?.Enabled() == true) return player != null && _pov.Open(player, slot.PovCell);
         if (slot.Kind == SlotKind.Quick || !IsEquipmentSlotProgressionEnabled() || player == null)
         {
             return true;

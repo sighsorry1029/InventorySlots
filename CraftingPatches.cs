@@ -12,6 +12,8 @@ internal static class InventoryGuiCraftingViewDestroyPatch
     {
         InventorySlotsPlugin.CancelInventoryClosingLayout(__instance);
         InventorySlotsPlugin.DestroyCraftingListViewUi(__instance);
+        InventorySlotsPlugin.ClearPathOfValheimanCraftingUi(__instance);
+        InventorySlotsPlugin.ClearPathOfValheimanStoragePanels();
     }
 }
 
@@ -47,6 +49,7 @@ internal static class InventoryGuiJewelcraftingPrimaryTabPreflightPatch
 [HarmonyAfter(new[] { "com.maxsch.valheim.vnei", "org.bepinex.plugins.jewelcrafting", "Azumatt.Recycle_N_Reclaim" })]
 internal static class InventoryGuiCraftingPanelRedesignPatch
 {
+    [HarmonyAfter("treextr.pathofvalheiman")]
     private static void Postfix(InventoryGui __instance)
     {
         InventorySlotsPlugin.UpdateCraftingPanelRedesign(__instance, CraftingPanelUpdateReason.StateChanged);
@@ -63,6 +66,7 @@ internal static class InventoryGuiCraftingRecipeRedesignPatch
     private static bool Prefix(InventoryGui __instance) =>
         !InventorySlotsPlugin.IsInventoryClosingLayoutPending(__instance);
 
+    [HarmonyAfter("treextr.pathofvalheiman")]
     private static void Postfix(InventoryGui __instance)
     {
         // Vanilla calls UpdateRecipe every visible frame, including idle frames.
@@ -152,6 +156,7 @@ internal static class InventoryGuiUpgradeFavoriteCraftingPatch
     private static bool Prefix(InventoryGui __instance, out bool __state)
     {
         __state = false;
+        if (InventorySlotsPlugin.IsPathOfValheimanSalvageTab(__instance)) return true;
         if (!InventorySlotsPlugin.CanCompleteCraftingAction(__instance))
         {
             return false;
@@ -199,6 +204,7 @@ internal static class InventoryGuiEquipmentSlotUpgradeSafetyPatch
         Player player,
         out EquipmentSlotUpgradeTransaction? __state)
     {
+        if (InventorySlotsPlugin.IsPathOfValheimanSalvageTab(__instance)) { __state = null; return true; }
         __state = InventorySlotsPlugin.BeginEquipmentSlotUpgradeTransaction(
             __instance,
             player,

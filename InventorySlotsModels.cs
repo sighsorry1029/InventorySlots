@@ -30,19 +30,23 @@ internal sealed class SlotDefinition
 {
     private readonly Func<ItemData?, bool> _accepts;
 
-    public SlotDefinition(string id, string name, SlotKind kind, Func<ItemData?, bool> accepts, int quickSlotIndex = -1)
+    public SlotDefinition(string id, string name, SlotKind kind, Func<ItemData?, bool> accepts, int quickSlotIndex = -1, string? povCell = null)
     {
         Id = id;
         Name = name;
         Kind = kind;
         _accepts = accepts;
         QuickSlotIndex = quickSlotIndex;
+        PovCell = povCell;
     }
 
     public string Id { get; }
     public string Name { get; }
     public SlotKind Kind { get; }
     public int QuickSlotIndex { get; }
+    // PoV storage uses the same non-equipment placement semantics as quick slots,
+    // but has its own unlock rules, panel and PoV-owned input bindings.
+    public string? PovCell { get; }
     public bool ApplyArmor { get; set; }
 
     public bool Accepts(ItemData? item) => _accepts(item);

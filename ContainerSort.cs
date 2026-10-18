@@ -210,7 +210,7 @@ public sealed partial class InventorySlotsPlugin
         _pendingSortStartedAt = -1f;
     }
 
-    private static void SortPlayerInventory(Player? player)
+    private static void SortPlayerInventory(Player? player, bool preserveEquipped = false)
     {
         if (player == null || player.m_isLoading)
         {
@@ -224,10 +224,15 @@ public sealed partial class InventorySlotsPlugin
         }
 
         List<Vector2i> allowedSlots = GetPlayerActionSlots(player, inventory, includeHotbar: false, blockFavorites: true);
+        if (preserveEquipped)
+        {
+            foreach (ItemData item in inventory.m_inventory)
+                if (item.m_equipped) allowedSlots.Remove(item.m_gridPos);
+        }
         HashSet<Vector2i> allowedSet = new(allowedSlots);
         InventoryGui.instance.SetupDragItem(null, null, 0);
         bool ShouldSort(ItemData item) => item?.m_shared != null && allowedSet.Contains(item.m_gridPos) && !IsFavoriteProtected(player, inventory, item);
-        List<ItemData> targets = inventory.m_inventory.Where(item => item?.m_shared != null &&
+        List<ItemData> targets = inventory.m_inventory.Where(item => item?.m_shared != null && (!preserveEquipped || !item.m_equipped) &&
             InventoryActionCellPolicyCore.CanFavoriteSlot(GetInventoryCellKind(player, inventory, item.m_gridPos)) &&
             IsFavoriteProtected(player, inventory, item)).ToList();
         bool filled = FillFavoriteStacks(inventory, targets, inventory.m_inventory.Where(ShouldSort).ToList());

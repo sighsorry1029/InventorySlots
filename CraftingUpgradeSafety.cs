@@ -798,10 +798,12 @@ public sealed partial class InventorySlotsPlugin
         bool resultMatchesExpected = resultExists &&
                                      MatchesExpectedEquipmentSlotUpgradeResult(transaction, candidate!);
         bool resultInOriginalCell = resultExists &&
-                                    IsEquipmentSlotUpgradeItemSoleCellOccupant(
+                                    (IsPathOfValheimanTrinketSlot(transaction.OriginalSlot)
+                                     ? IsPathOfValheimanTrinketProjected(transaction.Player, transaction.Inventory, candidate!)
+                                     : IsEquipmentSlotUpgradeItemSoleCellOccupant(
                                         transaction.Inventory,
                                         candidate!,
-                                        transaction.OriginalPosition);
+                                        transaction.OriginalPosition));
         bool resultEquipped = resultInOriginalCell &&
                               IsEquipmentSlotUpgradeResultEquipped(transaction, candidate!);
         return InventorySlotSafetyCore.SelectEquipmentUpgradeCompletionPlan(
@@ -958,6 +960,12 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
+        if (IsPathOfValheimanTrinketSlot(transaction.OriginalSlot))
+        {
+            RestorePathOfValheimanTrinket(transaction.Player, transaction.Inventory, result);
+            return;
+        }
+
         if (result.m_gridPos != transaction.OriginalPosition)
         {
             if (transaction.Inventory.GetItemAt(
@@ -1016,6 +1024,9 @@ public sealed partial class InventorySlotsPlugin
         EquipmentSlotUpgradeTransaction transaction,
         ItemData result)
     {
+        // Humanoid's snapshot has no PoV extra-trinket list. Never manufacture
+        // an equipped flag after PoV rejected/queued restoration of that role.
+        if (IsPathOfValheimanTrinketSlot(transaction.OriginalSlot)) return false;
         if (transaction.OriginalSlot.Kind != SlotKind.BuiltIn ||
             UsesCustomEquipmentState(result, transaction.OriginalSlot) ||
             !transaction.Inventory.ContainsItem(result) ||
@@ -1076,6 +1087,8 @@ public sealed partial class InventorySlotsPlugin
         EquipmentSlotUpgradeTransaction transaction,
         ItemData result)
     {
+        if (IsPathOfValheimanTrinketSlot(transaction.OriginalSlot))
+            return IsPathOfValheimanTrinketProjected(transaction.Player, transaction.Inventory, result);
         if (transaction.OriginalSlot.Kind == SlotKind.Quick)
         {
             return ReferenceEquals(
@@ -1383,6 +1396,9 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
+        if (IsPathOfValheimanTrinketSlot(transaction.OriginalSlot))
+            return RestorePathOfValheimanTrinket(transaction.Player, transaction.Inventory, original);
+
         ItemData? blocker = transaction.Inventory.GetItemAt(
             transaction.OriginalPosition.x,
             transaction.OriginalPosition.y);
@@ -1408,6 +1424,8 @@ public sealed partial class InventorySlotsPlugin
         EquipmentSlotUpgradeTransaction transaction)
     {
         ItemData original = transaction.OriginalItem;
+        if (IsPathOfValheimanTrinketSlot(transaction.OriginalSlot))
+            return IsPathOfValheimanTrinketProjected(transaction.Player, transaction.Inventory, original);
         if (!transaction.Inventory.ContainsItem(original) ||
             !IsEquipmentSlotUpgradeItemSoleCellOccupant(
                 transaction.Inventory,

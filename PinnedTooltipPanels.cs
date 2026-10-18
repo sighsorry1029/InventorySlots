@@ -12,7 +12,8 @@ public sealed partial class InventorySlotsPlugin
         None,
         InventoryContainer,
         CraftingCraft,
-        CraftingUpgrade
+        CraftingUpgrade,
+        CraftingPathOfValheimanSalvage
     }
 
     private const float PinnedTooltipScrollbarWidth = 3f;
@@ -96,6 +97,11 @@ public sealed partial class InventorySlotsPlugin
 
     private static PinnedTooltipContext GetCurrentCraftingPinnedTooltipContext(InventoryGui gui)
     {
+        if (IsPathOfValheimanSalvageTab(gui))
+        {
+            return PinnedTooltipContext.CraftingPathOfValheimanSalvage;
+        }
+
         if (IsJewelcraftingSocketTabActive(gui))
         {
             return PinnedTooltipContext.CraftingUpgrade;
@@ -239,6 +245,8 @@ public sealed partial class InventorySlotsPlugin
             }
 
             text.text = nextText;
+            if (IsPathOfValheimanSalvageTab(gui))
+                ConfigureCraftingTooltipRecipeRow(panel, pair, new Vector2(18f, 18f), slotSize: 54f, gap: 8f);
             PinnedTooltipPanelUiCache? cache = panel.GetComponent<PinnedTooltipPanelUiCache>();
             float bottomReserved = cache != null &&
                                    !IsUnityNull(cache) &&

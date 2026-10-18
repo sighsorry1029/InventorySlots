@@ -8,6 +8,7 @@ public sealed partial class InventorySlotsPlugin
     private static void ValidateAndProjectInventory(Player player, Inventory inventory)
     {
         bool changed = ReconcileCircletExtendedLegacyHelmetState(player, inventory);
+        changed |= ProjectPathOfValheimanTrinkets(player, inventory);
         changed |= ReconcileMagicSupremacyTomeAssignments(player, inventory);
         List<ItemData> items = new(inventory.m_inventory.Count);
         foreach (ItemData item in inventory.m_inventory)
@@ -41,6 +42,8 @@ public sealed partial class InventorySlotsPlugin
 
             if (TryGetSlotAtGridPos(inventory, item.m_gridPos, out SlotDefinition? slot))
             {
+                // PoV compacts its worn list; a leftover cell is not an equip request.
+                if (IsPathOfValheimanTrinketSlot(slot)) continue;
                 if (slot == null || !IsSpecialSlotUnlocked(player, inventory, slot))
                 {
                     continue;
@@ -71,6 +74,7 @@ public sealed partial class InventorySlotsPlugin
 
         foreach (SlotDefinition slot in SlotDefinitions)
         {
+            if (IsPathOfValheimanTrinketSlot(slot)) continue;
             ItemData? item = FindItemForSlotIncludingGridCandidate(player, inventory, slot);
             if (item == null)
             {

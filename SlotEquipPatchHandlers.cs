@@ -6,6 +6,7 @@ public sealed partial class InventorySlotsPlugin
 {
     internal static bool ShouldAllowHumanoidUseItem(Humanoid humanoid, Inventory inventory, ItemData item)
     {
+        if (_povMutationDepth > 0) return true;
         Player? player = Player.m_localPlayer;
         if (player == null || humanoid != (Humanoid)player)
         {
@@ -33,6 +34,9 @@ public sealed partial class InventorySlotsPlugin
 
     internal static bool TryOverrideHumanoidEquipItem(Humanoid humanoid, ItemData item, ref bool result)
     {
+        if (item == null) return false;
+        if (_pov != null && (_povMutationDepth > 0 || humanoid is Player loading && IsPathOfValheimanMutationPending(loading) ||
+                            IsPathOfValheimanTrinketItem(item) || _pov.Enabled() && _pov.Accepts("quiver", item))) return false;
         if (TryBlockJewelcraftingUtilityGemEquip(humanoid, item, ref result))
         {
             return true;
@@ -78,6 +82,7 @@ public sealed partial class InventorySlotsPlugin
     {
         try
         {
+            if (_povMutationDepth > 0) return;
             Player? player = Player.m_localPlayer;
             if (humanoid != (Humanoid)player || player == null || item == null)
             {
@@ -88,6 +93,8 @@ public sealed partial class InventorySlotsPlugin
             {
                 return;
             }
+
+            if (IsPathOfValheimanTrinketItem(item) && !HasInventorySlotsSlot(item)) return;
 
             if (CompleteSlotUnequipToInventory(player, item))
             {

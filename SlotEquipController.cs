@@ -49,6 +49,10 @@ public sealed partial class InventorySlotsPlugin
 {
     private static ItemData? FindItemForSlot(Player player, Inventory inventory, SlotDefinition slot)
     {
+        if (slot.PovCell != null && slot.Kind == SlotKind.Quick)
+            return TryGetSlotGridPos(inventory, slot, out Vector2i storedAt) ? inventory.GetItemAt(storedAt.x, storedAt.y) : null;
+        if (slot.PovCell == "quiver") return _pov?.QuiverItem(player);
+        if (IsPathOfValheimanTrinketSlot(slot)) return _pov!.TrinketItem(player, slot.PovCell!);
         if (slot.Kind == SlotKind.Quick)
         {
             if (!IsQuickSlotUnlocked(player, slot))
@@ -93,6 +97,7 @@ public sealed partial class InventorySlotsPlugin
     {
         ItemData? item = FindItemForSlot(player, inventory, slot);
         if (item != null ||
+            IsPathOfValheimanTrinketSlot(slot) ||
             InventorySafety.SuppressSlotAutoEquip ||
             slot.Kind != SlotKind.BuiltIn ||
             inventory == null)
@@ -158,6 +163,15 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool RestoreSlotEquipmentState(Player player, Inventory inventory, ItemData item, SlotDefinition slot)
     {
+        if (IsPathOfValheimanTrinketSlot(slot))
+            return !player.IsItemEquiped(item) && !player.IsEquipActionQueued(item) &&
+                   RestorePathOfValheimanTrinket(player, inventory, item);
+        // PoV alone owns quiver callbacks, visual/effect registration and teardown.
+        if (slot.PovCell == "quiver")
+        {
+            if (_pov == null || _pov.QuiverItem(player) == item || player.IsEquipActionQueued(item)) return false;
+            return TryPutPathOfValheimanItem(player, "quiver", item) && _pov.QuiverItem(player) == item;
+        }
         if (player == null || inventory == null || item == null || slot == null || slot.Kind == SlotKind.Quick)
         {
             return false;
@@ -236,6 +250,11 @@ public sealed partial class InventorySlotsPlugin
 
             return false;
         }
+
+        if (slot.PovCell == "quiver")
+            return TryPutPathOfValheimanItem(player, slot.PovCell, item);
+        if (IsPathOfValheimanTrinketSlot(slot))
+            return TryEquipPathOfValheimanTrinket(player, inventory, item, slot);
 
         if (slot.Kind == SlotKind.Quick)
         {
@@ -607,6 +626,17 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
+        if ((slot.PovCell == "quiver" || IsPathOfValheimanTrinketSlot(slot)) && _pov != null)
+        {
+            allowVanilla = false;
+            if (slot.PovCell == "quiver" && _pov.QuiverItem(player) != item && CanUseSpecialSlot(player, inventory, item, slot)) TryPutPathOfValheimanItem(player, "quiver", item);
+            else if (IsPathOfValheimanTrinketSlot(slot) && !player.IsItemEquiped(item) && CanUseSpecialSlot(player, inventory, item, slot))
+                TryEquipPathOfValheimanTrinket(player, inventory, item, slot);
+            else if (TryFindFreeRegularCell(player, inventory, out Vector2i free))
+                TryQueueSlotUnequip(player, inventory, item, slot, PendingSlotUnequipDestination.PlayerInventory, inventory, free, item.m_stack);
+            else ((Character)player).Message(MessageHud.MessageType.Center, "$msg_inventoryfull", 0, null);
+            return true;
+        }
         bool equipped = ((Humanoid)player).IsItemEquiped(item) || HasInventorySlotsSlot(item);
         if (!equipped)
         {
@@ -705,7 +735,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool CanRouteEquipToDedicatedSlot(Player player, Inventory? inventory, ItemData? item)
     {
-        if (InventorySafety.RoutingEquipToDedicatedSlot || player == null || item == null || inventory == null || player.m_isLoading)
+        if (InventorySafety.RoutingEquipToDedicatedSlot || player == null || item == null || inventory == null || player.m_isLoading || IsPathOfValheimanMutationPending(player))
         {
             return false;
         }
@@ -1022,6 +1052,24 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
+        if (IsPathOfValheimanTrinketItem(item) && !IsInventorySlotsCustomEquipped(item))
+        {
+            _povMutationDepth++;
+            // External removal is synchronous; never queue an unequip after the
+            // caller has already transferred this item to another inventory.
+            try { player.RemoveEquipAction(item); player.UnequipItem(item, true); }
+            finally { _povMutationDepth--; }
+            return;
+        }
+
+        if (_pov != null && _pov.QuiverItem(player) == item)
+        {
+            _povMutationDepth++;
+            try { _pov.RemoveQuiver(player); }
+            finally { _povMutationDepth--; }
+            return;
+        }
+
         if (((Humanoid)player).IsItemEquiped(item) && !IsInventorySlotsCustomEquipped(item))
         {
             ((Humanoid)player).UnequipItem(item, true);
@@ -1171,6 +1219,8 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool TryQueueSlotEquip(Player player, Inventory inventory, ItemData item, SlotDefinition slot)
     {
+        if (slot?.PovCell == "quiver") return TryPutPathOfValheimanItem(player, "quiver", item);
+        if (IsPathOfValheimanTrinketSlot(slot)) return TryEquipPathOfValheimanTrinket(player, inventory, item, slot!);
         if (player == null || inventory == null || item == null || slot == null || slot.Kind == SlotKind.Quick || !CanUseSpecialSlot(player, inventory, item, slot))
         {
             return false;
@@ -1260,7 +1310,9 @@ public sealed partial class InventorySlotsPlugin
         }
 
         slot = gridSlot ?? GetSlotFromItemMarker(item);
-        return slot != null && slot.Kind != SlotKind.Quick && CanUseSpecialSlot(player, inventory, item, slot);
+        return slot != null && slot.Kind != SlotKind.Quick &&
+            (CanWithdrawPathOfValheimanQuiver(player, inventory, item, slot) ||
+             CanWithdrawPathOfValheimanTrinket(player, inventory, item, slot) || CanUseSpecialSlot(player, inventory, item, slot));
     }
 
     internal static bool TryHandleSlotItemDragOut(InventoryGui gui, InventoryGrid targetGrid, Vector2i pos, InventoryGrid.Modifier mod)
@@ -1387,6 +1439,31 @@ public sealed partial class InventorySlotsPlugin
         InventorySafety.PendingSlotUnequips[item] = new PendingSlotUnequip(sourceSlot, destination, targetInventory, targetPos, amount, Time.time);
         player.RemoveEquipAction(item);
 
+        if ((sourceSlot.PovCell == "quiver" || IsPathOfValheimanTrinketSlot(sourceSlot)) && _pov != null)
+        {
+            _povMutationDepth++;
+            BeginSlotAutoEquipSuppression();
+            try
+            {
+                if (sourceSlot.PovCell == "quiver") _pov.RemoveQuiver(player);
+                else RemovePathOfValheimanTrinket(player, item);
+            }
+            catch (Exception error)
+            {
+                ClearSlotActionState(item);
+                Log.LogWarning("PoV equipment removal failed; item was not moved: " + error.GetBaseException().Message);
+                return false;
+            }
+            finally { CompleteSlotAutoEquipSuppression(); _povMutationDepth--; }
+            if (sourceSlot.PovCell == "quiver" ? _pov.QuiverItem(player) == item : player.IsItemEquiped(item))
+            {
+                if (player.IsEquipActionQueued(item)) return true;
+                ClearSlotActionState(item);
+                return false;
+            }
+            return !InventorySafety.PendingSlotUnequips.ContainsKey(item) || TryCompletePendingSlotUnequip(player, item);
+        }
+
         if (item.m_shared.m_equipDuration > 0f)
         {
             player.QueueUnequipAction(item);
@@ -1418,7 +1495,9 @@ public sealed partial class InventorySlotsPlugin
                 out SlotDefinition? currentSourceSlot) ||
             currentSourceSlot == null ||
             currentSourceSlot.Kind == SlotKind.Quick ||
-            !CanUseSpecialSlot(player, playerInventory, item, currentSourceSlot))
+            !(CanWithdrawPathOfValheimanQuiver(player, playerInventory, item, currentSourceSlot) ||
+              CanWithdrawPathOfValheimanTrinket(player, playerInventory, item, currentSourceSlot) ||
+              CanUseSpecialSlot(player, playerInventory, item, currentSourceSlot)))
         {
             InvalidateCustomEquipmentProjectionCache();
             try
@@ -1717,6 +1796,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool CanAutoAdoptGridSlot(ItemData item, SlotDefinition slot)
     {
+        if (IsPathOfValheimanTrinketSlot(slot)) return false;
         string? markedSlotId = item.m_customData.TryGetValue(SlotIdKey, out string id) ? id : null;
         return InventorySlotSafetyCore.CanAutoAdoptGridSlot(IsInventorySlotsCustomEquipped(item), markedSlotId, slot.Id);
     }

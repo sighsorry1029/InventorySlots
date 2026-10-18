@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.8
+
+- Restored optional Path of Valheiman compatibility through its public storage and equipment API, checked against PoV 5.0.8 and 5.0.9. InventorySlots owns the inventory cells and panels while PoV keeps its node unlocks, equipment rules and effects; Equipment system can remain On.
+- Added PoV storage cells and Big Bag progression to the inventory layout, including the eight Magic Purse cells omitted from PoV's storage classification. Occupied locked cells remain available for withdrawal. Saved native/provider slot positions are converted before inventory normalization; insufficient recovery space blocks conversion and saving instead of discarding items.
+- Integrated PoV 5.0.9's additional trinket roles, queued equipment actions and reconnect restoration. Removing a node or trinket reconciles the actual worn order without auto-equipping displaced items. Upgrade and rollback restoration use an empty role instead of replacing another equipped trinket.
+- Restored PoV Salvage/Disenchant tabs, return previews and nearby crafting material counts in the InventorySlots crafting panel. Added API-based affix text and rarity colors to pinned item tooltips while retaining PoV's native hover cards. PoV's own requirements, consumption and random recovery rules remain in control.
+- Preserved favorites and special cells during PoV sorting and automatic salvage selection. PoV nearby quick stack remains disabled with external MultiUserChest. The adapter validates required contracts; incompatible storage ownership blocks character spawning. Back up characters before switching storage mods and empty special cells before uninstalling either mod. Actual game and multiplayer verification is still required.
+
 ## 1.6.7
 
 - Declared Path of Valheiman incompatible with InventorySlots. BepInEx prevents InventorySlots from loading alongside PoV, including when PoV's Equipment system is Off, because both mods manage the same inventory storage rows.

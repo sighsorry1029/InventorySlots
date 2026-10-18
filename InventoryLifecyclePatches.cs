@@ -81,7 +81,7 @@ internal static class PlayerLoadPatch
 
     private static Exception? Finalizer(Player __instance, bool __state, Exception __exception)
     {
-        InventorySlotsPlugin.EndPlayerInventoryLoad(__instance, __state);
+        InventorySlotsPlugin.EndPlayerInventoryLoad(__instance, __state, __exception);
         return __exception;
     }
 }

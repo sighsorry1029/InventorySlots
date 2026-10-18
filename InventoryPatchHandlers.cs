@@ -74,6 +74,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         NativeRowCache.Remove(player);
+        BeginPathOfValheimanLoad(player);
         Inventory inventory = ((Humanoid)player).GetInventory();
         EnsureInventoryHeightForLoad(inventory);
         return BeginInventoryLoadPreservation(inventory);
@@ -86,8 +87,9 @@ public sealed partial class InventorySlotsPlugin
         return preserve && BeginInventoryLoadPreservation(inventory);
     }
 
-    internal static void EndPlayerInventoryLoad(Player player, bool active)
+    internal static void EndPlayerInventoryLoad(Player player, bool active, Exception? error = null)
     {
+        EndPathOfValheimanLoad(player, error);
         if (!active || IsUnityNull(player))
         {
             return;
@@ -187,6 +189,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void OnPlayerLoaded(Player player)
     {
+        bool convertedPovLayout = CompletePathOfValheimanLoad(player);
         RefreshNativeInventoryRows(player);
         InvalidateInventoryPlacementCaches();
         InvalidateCustomEquipmentProjectionCache();
@@ -197,7 +200,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         EnsureInventoryState(player, InventoryStateEnsureReason.PlayerLoad);
-        TryRestoreSlotBackup(player);
+        if (!convertedPovLayout) TryRestoreSlotBackup(player);
         if (player == Player.m_localPlayer)
         {
             PreserveOccupiedQuickSlotRowsDuringLoad(player, ((Humanoid)player).GetInventory());
@@ -209,6 +212,8 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void OnPlayerSaving(Player player)
     {
+        if (PovLoadFailed.Contains(player)) throw new InvalidOperationException("Refusing to save an unconverted PoV inventory");
+        SavePathOfValheimanLayout(player);
         if (player == Player.m_localPlayer && !player.m_isLoading)
         {
             PrunePendingSlotActions(player);
@@ -233,6 +238,7 @@ public sealed partial class InventorySlotsPlugin
     {
         if (player == Player.m_localPlayer && !player.m_isLoading)
         {
+            NotifyPathOfValheimanStorageChanged();
             InvalidateInventoryPlacementCaches();
             InvalidateCustomEquipmentProjectionCache();
             ClearCraftingRequirementAvailabilityCache();

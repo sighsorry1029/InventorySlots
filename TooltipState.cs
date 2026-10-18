@@ -93,7 +93,7 @@ public sealed partial class InventorySlotsPlugin
             {
                 HideInventoryPinnedTooltips();
             }
-            else if (previous == PinnedTooltipContext.CraftingCraft || previous == PinnedTooltipContext.CraftingUpgrade)
+            else if (IsCraftingContext(previous))
             {
                 HideCraftingPinnedTooltips();
             }
@@ -101,8 +101,7 @@ public sealed partial class InventorySlotsPlugin
 
         public static void SyncCraftingPinnedContext(PinnedTooltipContext current)
         {
-            if (PinnedTooltips.ActiveContext != PinnedTooltipContext.CraftingCraft &&
-                PinnedTooltips.ActiveContext != PinnedTooltipContext.CraftingUpgrade)
+            if (!IsCraftingPinnedContext())
             {
                 return;
             }
@@ -116,9 +115,11 @@ public sealed partial class InventorySlotsPlugin
             PinnedTooltips.ActiveContext = current;
         }
 
-        public static bool IsCraftingPinnedContext() =>
-            PinnedTooltips.ActiveContext == PinnedTooltipContext.CraftingCraft ||
-            PinnedTooltips.ActiveContext == PinnedTooltipContext.CraftingUpgrade;
+        public static bool IsCraftingPinnedContext() => IsCraftingContext(PinnedTooltips.ActiveContext);
+
+        private static bool IsCraftingContext(PinnedTooltipContext context) =>
+            context == PinnedTooltipContext.CraftingCraft || context == PinnedTooltipContext.CraftingUpgrade ||
+            context == PinnedTooltipContext.CraftingPathOfValheimanSalvage;
 
         public static bool IsInventoryPinnedContext() =>
             PinnedTooltips.ActiveContext == PinnedTooltipContext.InventoryContainer;

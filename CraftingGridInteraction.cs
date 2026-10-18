@@ -469,6 +469,10 @@ public sealed partial class InventorySlotsPlugin
         }
 
         string recycleNReclaimAmount = GetRecycleNReclaimRecipeCellAmountText(gui, pair);
+        if (IsPathOfValheimanSalvageTab(gui) && pair.ItemData != null)
+        {
+            return pair.ItemData.m_stack > 1 ? pair.ItemData.m_stack.ToString() : "";
+        }
         if (!string.IsNullOrEmpty(recycleNReclaimAmount))
         {
             return recycleNReclaimAmount;

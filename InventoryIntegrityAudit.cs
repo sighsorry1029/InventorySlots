@@ -23,6 +23,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void EnsureInventoryState(Player player, InventoryStateEnsureReason reason, InventoryStateAuditLevel auditLevel)
     {
+        if (IsPathOfValheimanMutationPending(player)) return;
         if (IsUnityNull(player))
         {
             return;
@@ -304,10 +305,11 @@ public sealed partial class InventorySlotsPlugin
     private static bool ProjectSlotDisplayState(Player player, Inventory inventory)
     {
         bool changed = ReconcileMagicSupremacyTomeAssignments(player, inventory);
+        changed |= ProjectPathOfValheimanTrinkets(player, inventory);
 
         foreach (SlotDefinition slot in SlotDefinitions)
         {
-            if (slot.Kind == SlotKind.Quick)
+            if (slot.Kind == SlotKind.Quick || IsPathOfValheimanTrinketSlot(slot))
             {
                 continue;
             }

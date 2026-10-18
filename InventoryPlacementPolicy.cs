@@ -97,6 +97,17 @@ public sealed partial class InventorySlotsPlugin
         out Vector2i pos)
     {
         HashSet<Vector2i> occupied = BuildOccupiedCellSet(inventory);
+        if (_pov != null && incoming != null)
+        {
+            // PoV's native income hooks require native rows. With our provider,
+            // route new coins/keys through the ordinary validated insertion path.
+            foreach (SlotDefinition slot in PovSlots.Values)
+            {
+                if (!IsPathOfValheimanAutomaticStorage(slot) || !CanUseSpecialSlot(player, inventory, incoming, slot) ||
+                    !TryGetSlotGridPos(inventory, slot, out pos) || occupied.Contains(pos)) continue;
+                return true;
+            }
+        }
         bool found = InventoryPlacementPolicyCore.TrySelectAutomaticPlacementCell(
             inventory.GetWidth(),
             GetUsableRegularRows(player),
@@ -956,7 +967,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         InventoryCellKind sourceKind = GetInventoryCellKind(player, fromInventory, item.m_gridPos);
-        if (sourceKind is not InventoryCellKind.Quick and not InventoryCellKind.RegularLocked)
+        if (sourceKind is not InventoryCellKind.Quick and not InventoryCellKind.QuickLocked and not InventoryCellKind.RegularLocked)
         {
             return false;
         }
@@ -1100,7 +1111,8 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void OnPlayerInventoryItemPlaced(Inventory inventory, ItemData item, Vector2i pos, bool result)
     {
-        if (!result || item == null || !TryGetLocalPlayerInventory(inventory, out Player? player))
+        if (!result || item == null || !TryGetLocalPlayerInventory(inventory, out Player? player) ||
+            IsPathOfValheimanMutationPending(player!))
         {
             return;
         }

@@ -16,6 +16,7 @@ public sealed partial class InventorySlotsPlugin
             BindConfigs();
             BindItemLinksConfig();
             BindItemRuleConfigs();
+            if (!InitializePathOfValheimanStorage()) return;
             EnsureDefaultYamlFiles();
             InitializeJewelcraftingSlotCompatibility();
             InitializeBackpackCompatibility();
@@ -26,6 +27,7 @@ public sealed partial class InventorySlotsPlugin
             InitializeYamlSync();
 
             _harmony.PatchAll();
+            InitializePathOfValheimanCompatibility();
             ApplyMyLittleUICraftingCompatibility();
             Config.Save();
         }
@@ -74,6 +76,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         ProcessDeferredInventoryStateEnsure(player);
+        PollPathOfValheimanStorage(player);
         HandleFeatureGuideToggleHotkey(player);
         HandleHotbarSwitch(player);
         HandleQuickSlotHotkeys(player);
@@ -164,6 +167,17 @@ public sealed partial class InventorySlotsPlugin
 
     private void OnDestroy()
     {
+        _pov?.Unregister();
+        _pov?.RestoreCaches();
+        PovStoragePatches.UnpatchSelf();
+        _pov = null;
+        _povLastQuiver = null;
+        _povTrinketsReadyPlayer = null;
+        PovSlots.Clear();
+        PovLoading.Clear();
+        PovLoadFailed.Clear();
+        ClearPathOfValheimanStoragePanels();
+        ShutdownPathOfValheimanCompatibility();
         ClearQuickSlotsHud();
         ClearInventoryClosingLayout();
         ResetItemLinks();

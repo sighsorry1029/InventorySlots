@@ -244,6 +244,7 @@ public sealed partial class InventorySlotsPlugin
         string tooltip = Localization.instance != null
             ? Localization.instance.Localize(item.GetTooltip())
             : item.GetTooltip();
-        return $"<size=28><color=#FFD36A>{displayName}</color></size>\n{tooltip}";
+        tooltip = AppendPathOfValheimanAffixes(item, tooltip);
+        return $"<size=28><color=#{PathOfValheimanItemNameColor(item)}>{displayName}</color></size>\n{tooltip}";
     }
 }

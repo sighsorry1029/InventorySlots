@@ -286,7 +286,7 @@ public sealed partial class InventorySlotsPlugin
             }
         }
 
-        string text = slot == null || hideEquipmentSlotName ? "" : slot.Kind == SlotKind.Quick ? GetQuickSlotBindingText(slot) : slot.Name;
+        string text = slot == null || hideEquipmentSlotName ? "" : slot.PovCell != null ? slot.Name : slot.Kind == SlotKind.Quick ? GetQuickSlotBindingText(slot) : slot.Name;
         string signature = $"{slot?.Id ?? ""}|{slot?.Kind.ToString() ?? ""}|{hideEquipmentSlotName}|{text}";
         if (cache != null && string.Equals(cache.BindingSignature, signature, StringComparison.Ordinal))
         {

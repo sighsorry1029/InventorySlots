@@ -193,6 +193,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool CanUseSpecialSlot(Player player, Inventory inventory, ItemData item, SlotDefinition slot)
     {
+        if ((slot.PovCell == "quiver" || IsPathOfValheimanTrinketSlot(slot)) && (_pov == null || _pov.Suspended() || _pov.ProviderId() != ModGUID)) return false;
         return IsItemCompatibleWithSpecialSlot(player, item, slot) &&
                IsSpecialSlotUnlocked(player, inventory, slot);
     }
