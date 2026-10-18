@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.17
+
+- Disabled Path of Valheiman's Delete button and deletion mode while InventoryActions is active. InventoryActions' own trash controls remain available, and PoV continues to manage its inventory and equipment slots.
+- Clear any active PoV deletion selection or confirmation when applying the compatibility patch, and release the UI patch when InventoryActions unloads. Checked the original PoV 5.0.9 methods in isolated Mono tests; actual game verification is still required.
+
 ## 1.1.16
 
 - Updated Path of Valheiman compatibility to use its public API for backpack boundaries, reserved cells and equipment state, checked against PoV 5.0.8 and 5.0.9. Required API 1.x capabilities and native safety hooks are verified without an exact mod-version lock.

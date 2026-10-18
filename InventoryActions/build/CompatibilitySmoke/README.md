@@ -38,6 +38,25 @@ sufficient: check the process exit code as well.
 
 ## Path of Valheiman adapter checks
 
+Release **1.1.17** (2026-10-19, SHA-256
+`AE2D83CC0990E580B853ECB1D011804ADDAC145EDB1855AFE9C5B3102C063B72`)
+passed **64** checks against the original PoV 5.0.9 input below, with exit 0 and
+Mono cleanup completed. Debug/Release built without warnings/errors; Debug
+deployment hashes matched. Static contracts had zero failures (665 references,
+51 Harmony targets, seven reflected contracts; two manual targets remain).
+Plugin/assembly/manifest versions, merged dependencies, package entries and
+packaged DLL/changelog hashes were verified. Actual game checks remain required.
+
+The 2026-10-19 Debug build (version unchanged at **1.1.16**, SHA-256
+`0ECFDFAB81DC2CBB9A4C0B7F3996E01D253919C11531DAF3683BF80A6898C98D`)
+passed **64** checks against the original PoV 5.0.9 input below. This includes
+the shared Delete UI guard: original Build/Enter/Press calls, cleanup request,
+the real InventoryGui postfix call site, and selective teardown. Cursor/exit
+effects use fixture substitutes; no UI rendering is claimed. Process exit was
+0 with Mono cleanup completed. Debug built with zero warnings/errors, the
+deployed DLL hash matched, and static contracts had zero failures (665
+references, 51 Harmony targets, seven reflected contracts, two manual targets).
+
 After building/deploying InventoryActions Debug, run:
 
 ```powershell

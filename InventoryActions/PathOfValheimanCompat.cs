@@ -30,6 +30,11 @@ public sealed partial class InventoryActionsPlugin
     {
         if (IsDedicatedServer || !Chainloader.PluginInfos.TryGetValue(PathOfValheimanGuid, out var plugin)) return;
         _povPresent = true;
+        if (plugin.Instance != null)
+        {
+            try { InventoryCompatibility.PathOfValheimanTrashMode.Install(plugin.Instance.GetType().Assembly, ModGUID); }
+            catch (Exception error) { Log.LogWarning("PoV Delete button compatibility unavailable: " + error.GetBaseException().Message); }
+        }
         try
         {
             if (plugin.Instance == null) throw new InvalidOperationException("PoV plugin has not initialized");
