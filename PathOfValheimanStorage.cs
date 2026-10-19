@@ -120,15 +120,25 @@ public sealed partial class InventorySlotsPlugin
         _pov.ProviderId() == ModGUID && !_pov.Suspended() && _povMutationDepth == 0;
 
     private static bool IsUnsupportedPathOfValheimanCell(string cell) =>
-        cell.StartsWith("tool.", StringComparison.Ordinal) || cell.StartsWith("key.", StringComparison.Ordinal) ||
+        cell == "utility" || cell.StartsWith("tool.", StringComparison.Ordinal) || cell.StartsWith("key.", StringComparison.Ordinal) ||
         cell.StartsWith("purse.", StringComparison.Ordinal);
 
     private static bool AllowPathOfValheimanCell(Player __0, int __1, ref bool __result)
     {
         if (_pov == null || __0 != Player.m_localPlayer || _pov.ProviderId() != ModGUID ||
-            !(__1 >= 16 && __1 <= 31 || __1 >= 35 && __1 <= 42)) return true;
+            !(__1 == 9 || __1 >= 16 && __1 <= 31 || __1 >= 35 && __1 <= 42)) return true;
         __result = false;
         return false;
+    }
+
+    private static void RejectUnsupportedPathOfValheimanUtilityEquip(Humanoid __0, ItemData __1, ref bool __2, bool __result)
+    {
+        // PoV's prefix reports success even when its provider Put was rejected.
+        // Correct the EquipItem result, while still skipping vanilla equipment
+        // so a disabled extra utility cannot replace the currently worn belt.
+        if (!__result && __2 && _pov != null && __0 == Player.m_localPlayer &&
+            _pov.ProviderId() == ModGUID && !PovSlots.ContainsKey("utility") && _pov.Accepts("utility", __1))
+            __2 = false;
     }
 
     // Closed/suspended cells reject insertion but must not trap their existing item.

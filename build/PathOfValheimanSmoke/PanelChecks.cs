@@ -21,6 +21,8 @@ internal static partial class Program
         object[] oldDefinitions = definitions.Cast<object>().ToArray();
         var oldMapped = mapped.Keys.Cast<object>().Select(key => new DictionaryEntry(key, mapped[key])).ToArray();
         ItemData[] oldItems = items.ToArray();
+        FieldInfo beltField = AccessTools.Field(typeof(Humanoid), "m_utilityItem");
+        object? oldBelt = beltField.GetValue(player);
         FieldInfo quickRows = plugin.GetField("_quickSlotRows", Statics)!;
         object? oldQuickRows = quickRows.GetValue(null);
         FieldInfo purseGate = pov.GetType("PassiveTree.Gear.Wallet", true)!.GetField("Gate", Statics)!;
@@ -51,14 +53,33 @@ internal static partial class Program
             quickRows.SetValue(null, config.Bind("test", "panel-quick-rows", 1, ""));
             Check(!definitions.Cast<object>().Any(s => Role(s)?.StartsWith("tool.") == true || Role(s)?.StartsWith("key.") == true || Role(s)?.StartsWith("purse.") == true),
                 "Tool/Key/Purse roles create no InventorySlots definitions");
+            Check(!mapped.Contains("utility") && !definitions.Cast<object>().Any(s => Id(s) == "pov.utility"),
+                "PoV does not add a separate generic Utility cell");
+            Check(Id(mapped["belt"]!) == "utility", "configured Utility cell still provides the PoV Belt role");
             Type state = pov.GetType("PassiveTree.Gear.State", true)!;
             Type nativeSlot = pov.GetType("PassiveTree.Gear.Slot", true)!;
             MethodInfo isOpen = state.GetMethod("Enabled", Statics)!;
-            foreach (string role in new[] { "Tool0", "Tool7", "Key0", "Key7", "Wallet0", "Wallet7" })
+            foreach (string role in new[] { "Utility", "Tool0", "Tool7", "Key0", "Key7", "Wallet0", "Wallet7" })
                 Check(!(bool)isOpen.Invoke(null, new[] { (object)player, Enum.Parse(nativeSlot, role) })!, "IS provider closes unsupported native role " + role);
-            foreach (string role in new[] { "utility", "utility.wisp", "utility.wishbone" })
+            foreach (string role in new[] { "utility.wisp", "utility.wishbone" })
                 Check((bool)Call("IsEquipmentPanelSlot", mapped[role])! && definition.GetProperty("Kind")!.GetValue(mapped[role])!.ToString() == "Quick",
                     role + " uses equipment visuals without changing storage/effect ownership");
+            var extraUtility = new ItemData { m_gridPos = new Vector2i(0, 0), m_stack = 2,
+                m_shared = new ItemData.SharedData { m_name = "smoke-utility", m_itemType = (ItemData.ItemType)18 } };
+            var beltItem = new ItemData { m_gridPos = new Vector2i(1, 0), m_equipped = true,
+                m_shared = new ItemData.SharedData { m_name = "smoke-belt", m_itemType = (ItemData.ItemType)18 } };
+            items.Add(extraUtility); items.Add(beltItem); beltField.SetValue(player, beltItem);
+            MethodInfo nativeEquip = pov.GetType("PassiveTree.Gear.UtilitySlots+Equip", true)!.GetMethod("Prefix", Statics)!;
+            object[] equipArgs = { player, extraUtility, false };
+            Check(!(bool)nativeEquip.Invoke(null, equipArgs)! && !(bool)equipArgs[2],
+                "native utility equip rejects the removed cell without falling through to vanilla equipment");
+            Check(!(bool)pov.GetType("Valheiman.Api.Equipment", true)!.GetMethod("Put")!.Invoke(null, new object[] { player, "utility", extraUtility })! &&
+                extraUtility.m_gridPos == new Vector2i(0, 0) && extraUtility.m_stack == 2 && !extraUtility.m_equipped &&
+                items.Count == 2 && ReferenceEquals(items[0], extraUtility) && ReferenceEquals(beltField.GetValue(player), beltItem) && beltItem.m_equipped,
+                "native/API Utility rejection preserves item identity, stack, coordinates and the worn belt");
+            equipArgs = new object[] { player, beltItem, false };
+            Check((bool)nativeEquip.Invoke(null, equipArgs)!, "belt still follows its original equipment path");
+            items.Clear(); beltField.SetValue(player, oldBelt);
             var originalCoordinates = definitions.Cast<object>().ToDictionary(Id, Position);
             Layout();
             Check(View("PovVisibleActions").Count == 1 && Role(View("PovVisibleActions")[0]!) == "arrow.0", "baseline action bank contains only unlocked arrow cell");
@@ -113,6 +134,7 @@ internal static partial class Program
             definitions.Clear(); foreach (object value in oldDefinitions) definitions.Add(value);
             mapped.Clear(); foreach (DictionaryEntry pair in oldMapped) mapped.Add(pair.Key, pair.Value);
             items.Clear(); items.AddRange(oldItems);
+            beltField.SetValue(player, oldBelt);
             purseGate.SetValue(null, oldGate); quickRows.SetValue(null, oldQuickRows);
             Call("ClearPathOfValheimanStoragePanels");
             Call("InvalidateSlotDefinitionCaches");

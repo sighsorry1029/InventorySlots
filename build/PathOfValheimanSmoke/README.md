@@ -170,6 +170,34 @@ the Debug DLL matched the Steam plugins copy. Assembly/plugin/manifest version
 against their source files, including the final Release DLL. Actual game and
 multiplayer execution remain untested.
 
+## Separate Utility cell disabled — 2026-10-19
+
+The post-release Debug DLL
+(`560C093E095931547DD321534AF6CF6D781B9408B2BE597500B36158EE9F2C9A`)
+passed **328 cold / 330 warm** checks against the original PoV 5.0.10 DLL above.
+New cases cover omission of the exact `utility` role, preservation of the configured
+Belt/Wishbone/Demister roles, native `State.Enabled` and public `Equipment.Put`
+rejection, and the original utility equip prefix reporting failure without
+replacing the belt. Saved native/provider Utility items recover by reference,
+including shifted later slots; a full recovery grid rejects the entire move plan.
+Both processes exited 0 and completed Mono cleanup. The unit runner passed 190
+tests and static contract inspection found zero failures (ten manual targets).
+Debug build had zero warnings/errors and the deployed Steam DLL hash matched.
+No new version, Release package or actual game verification was performed.
+
+## Release 1.6.12 verification — 2026-10-19
+
+The final merged Release DLL
+(`8A6392FC4D0E29EDDA93CA4201026F451754BAC72B1BBF2028C14824F180D0AF`)
+passed **328 cold / 330 warm** checks against the original PoV 5.0.10 DLL above.
+Both processes exited 0 and completed Mono cleanup. The unit runner passed 190
+tests; Release contract inspection found zero failures (1,153 references, 163
+declared Harmony targets, 52 reflected contracts and ten manual targets).
+Debug and Release builds had zero warnings/errors. The Debug deployment hash
+matched the Steam plugin copy. Assembly/plugin/manifest version 1.6.12, merged
+dependencies and every Thunderstore/Nexus ZIP entry were verified against the
+source files and final Release DLL. Actual game and multiplayer remain untested.
+
 ## Game checks still required
 
 Use backed-up test characters to exercise first login from native PoV, full inventory, death/tombstone recovery, logout/reconnect, live node reset and Equipment On/Off. Check actual registered quivers, nearby crafting/quick stack, host/dedicated-server sessions and delayed/conflicting container operations. Visually check equipment/storage/HUD layouts across UI scales, craft/salvage/disenchant/VNEI tab changes and pinned/socket/rarity tooltips. No game or multiplayer pass is claimed by these isolated results.

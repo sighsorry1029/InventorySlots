@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.12
+
+- Removed the separate generic Utility cell added by Path of Valheiman compatibility. InventorySlots' configured Utility cell continues to serve as PoV's Belt cell with PoV's belt restrictions and effects; Wishbone and Demister cells are unchanged.
+- Disabled insertion and native equipment requests for the removed Utility role. Rejected requests no longer report successful equipment, and do not move the item or replace the worn belt.
+- Verified recovery of items saved in the removed cell through the existing layout conversion, including native PoV saves and shifted InventorySlots slot positions. If recovery space is insufficient, conversion stops before changing any item coordinates. Added regression checks against the original PoV 5.0.10 DLL.
+
 ## 1.6.11
 
 - Integrated Path of Valheiman's unlocked food, potion and arrow cells into the InventorySlots quick-slot HUD beside the ordinary quick slots. Each bank wraps after three columns, and HUD positioning accounts for the combined width and height.

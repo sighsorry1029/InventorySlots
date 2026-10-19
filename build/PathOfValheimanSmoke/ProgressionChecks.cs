@@ -100,7 +100,7 @@ internal static partial class Program
                 definitions.Add(Activator.CreateInstance(definition, new object?[] { id, id, Enum.Parse(kind, "BuiltIn"), new Func<ItemData, bool>(_ => false), -1, null }));
             Call("AppendPathOfValheimanSlots"); Call("InvalidateSlotDefinitionCaches");
             var coordinates = mapped.Keys.Cast<string>().ToDictionary(k => k, k => Pos(mapped[k]!));
-            foreach (string role in new[] { "helmet", "chest", "legs", "cape", "belt", "trinket", "utility", "utility.wisp", "utility.wishbone" })
+            foreach (string role in new[] { "helmet", "chest", "legs", "cape", "belt", "trinket", "utility.wisp", "utility.wishbone" })
                 Check(!Open(mapped[role]!), "undiscovered equipment cell stays closed: " + role);
             Check(Open(mapped["arrow.0"]!) && !Open(mapped["potion.0"]!), "action cells retain PoV capacity rules, independent of discovery");
             var cape = new ItemData { m_gridPos = new Vector2i(0, 0), m_shared = new ItemData.SharedData { m_name = "$smoke_cape", m_itemType = (ItemData.ItemType)17 } };

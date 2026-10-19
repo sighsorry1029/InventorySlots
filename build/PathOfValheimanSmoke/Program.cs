@@ -294,20 +294,30 @@ internal static partial class Program
         FieldInfo local = AccessTools.Field(typeof(Player), "m_localPlayer");
         List<ItemData> Items() => (List<ItemData>)AccessTools.Field(typeof(Inventory), "m_inventory").GetValue(bag);
         ItemData Item(int x, int y, int stack = 1) => new ItemData { m_gridPos = new Vector2i(x, y), m_stack = stack, m_shared = new ItemData.SharedData { m_name = "smoke-item" } };
-        ItemData tool = Item(5, 5, 7), potion = Item(0, 8, 9), regular = Item(0, 0, 3);
-        Items().AddRange(new[] { tool, potion, regular });
+        ItemData tool = Item(5, 5, 7), potion = Item(0, 8, 9), regular = Item(0, 0, 3), utility = Item(1, 5, 2);
+        Items().AddRange(new[] { tool, potion, regular, utility });
         custom["valheiman.equipment.v1.rowStart"] = "4";
         custom["InventorySlots.PovLayout.v1"] = "stale.provider.layout";
         Call("CompletePathOfValheimanLoad", player);
         Check(tool.m_gridPos == new Vector2i(0, fixedRows) && potion.m_gridPos == new Vector2i(1, fixedRows), "actual native ordinal13/32 map to own arrow/potion cells");
-        Check(regular.m_gridPos == new Vector2i(0, 0) && Items().Count == 3 && ReferenceEquals(Items()[0], tool) && tool.m_stack == 7 && potion.m_stack == 9, "native map preserves ordinary coordinate, exact item identity and stack");
+        Check(regular.m_gridPos == new Vector2i(0, 0) && Items().Count == 4 && ReferenceEquals(Items()[0], tool) && tool.m_stack == 7 && potion.m_stack == 9, "native map preserves ordinary coordinate, exact item identity and stack");
+        Check(utility.m_gridPos == new Vector2i(1, 0) && ReferenceEquals(Items()[3], utility) && utility.m_stack == 2,
+            "removed native Utility ordinal9 recovers the exact item into ordinary storage");
         Check(!custom.ContainsKey("valheiman.equipment.v1.rowStart") && custom.ContainsKey("InventorySlots.PovLayout.v1"), "native row key wins stale provider key and is replaced only after conversion");
+        utility.m_gridPos = new Vector2i(0, fixedRows);
+        tool.m_gridPos = new Vector2i(1, fixedRows);
+        potion.m_gridPos = new Vector2i(2, fixedRows);
+        custom["InventorySlots.PovLayout.v1"] = "pov.utility\npov.arrow.0\npov.potion.0";
+        Call("CompletePathOfValheimanLoad", player);
+        Check(utility.m_gridPos == new Vector2i(1, 0) && tool.m_gridPos == new Vector2i(0, fixedRows) &&
+            potion.m_gridPos == new Vector2i(1, fixedRows) && Items().Count == 4 && ReferenceEquals(Items()[3], utility),
+            "saved provider Utility recovers without overwriting subsequent shifted slots or cloning items");
         Items().Clear();
         for (int y = 0; y < fixedRows; y++) for (int x = 0; x < 8; x++) Items().Add(Item(x, y));
         ItemData orphan = Item(0, fixedRows + 3, 5); Items().Add(orphan);
         var prior = Items().ToDictionary(it => it, it => it.m_gridPos);
         bool failed = false;
-        try { Call("ReprojectPathOfValheimanLayout", bag, new Dictionary<Vector2i, string> { { orphan.m_gridPos, "removed.slot" } }); }
+        try { Call("ReprojectPathOfValheimanLayout", bag, new Dictionary<Vector2i, string> { { orphan.m_gridPos, "pov.utility" } }); }
         catch (TargetInvocationException e) { failed = e.InnerException is InvalidOperationException; }
         Check(failed && Items().All(it => it.m_gridPos == prior[it]), "full recovery grid rejects entire layout plan before changing any item");
         Items().Clear();
@@ -325,6 +335,8 @@ internal static partial class Program
             object provider = bridgeType.GetField("_provider", Instances)!.GetValue(bridge)!;
             bool Put(ItemData it, string role) => (bool)contract.GetMethod("Put")!.Invoke(provider, new object[] { player, role, it })!;
             bool Take(string role) => (bool)contract.GetMethod("TakeOut")!.Invoke(provider, new object[] { player, role })!;
+            Check(!Put(tool, "utility") && read(player, "utility") == null && tool.m_gridPos == new Vector2i(2, 0) && Items().Count == 1,
+                "unsupported Utility provider rejects insertion without changing or hiding the item");
             Check((bool)Call("CanRouteEquipToDedicatedSlot", player, bag, tool)!, "ordinary inventory candidate is routable before load scope");
             Call("BeginPathOfValheimanLoad", player);
             Check(!(bool)Call("CanRouteEquipToDedicatedSlot", player, bag, tool)! && !Put(tool, "arrow.0") && tool.m_gridPos == new Vector2i(2, 0), "load scope blocks both equip routing and provider insertion without coordinate changes");

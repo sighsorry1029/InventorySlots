@@ -79,6 +79,8 @@ internal sealed class PathOfValheimanStorageBridge
         _removeQuiverWhenDisabled = Expression.Lambda<Action<Player>>(Expression.Call(
             Require("PassiveTree.Gear.State", "Clear", typeof(void), typeof(Player), slotType), player, quiver), player).Compile();
         // Check the enum rather than interpreting arbitrary future enum ordinals.
+        if (Convert.ToInt32(Enum.Parse(slotType, "Utility")) != 9)
+            throw new NotSupportedException("PoV utility slot ordinal changed");
         for (int i = 0; i < 8; i++)
             if (Convert.ToInt32(Enum.Parse(slotType, "Wallet" + i)) != 24 + i ||
                 Convert.ToInt32(Enum.Parse(slotType, "Tool" + i)) != 16 + i ||
@@ -86,6 +88,9 @@ internal sealed class PathOfValheimanStorageBridge
                 throw new NotSupportedException("PoV storage slot ordinals changed");
         harmony.Patch(Require("PassiveTree.Gear.State", "Enabled", typeof(bool), typeof(Player), slotType),
             prefix: new HarmonyMethod(typeof(InventorySlotsPlugin), "AllowPathOfValheimanCell"));
+        harmony.Patch(Require("PassiveTree.Gear.UtilitySlots+Equip", "Prefix", typeof(bool), typeof(Humanoid),
+                typeof(ItemData), typeof(bool).MakeByRefType()),
+            postfix: new HarmonyMethod(typeof(InventorySlotsPlugin), "RejectUnsupportedPathOfValheimanUtilityEquip"));
         var equipmentCells = (IEnumerable)assembly.GetType("Valheiman.Api.Equipment")!.GetProperty("Cells")!.GetValue(null);
         StorageCells = Bind<Func<IReadOnlyList<string>>>("Valheiman.Api.Storage", "get_Cells")();
 
