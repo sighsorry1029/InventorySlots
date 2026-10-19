@@ -390,7 +390,7 @@ public sealed partial class InventoryActionsPlugin
 
     private static bool CanUseContainerActionStacking(ItemData item)
     {
-        return item?.m_shared != null && (HasNoCustomData(item) || IsEpicLootStackingItem(item));
+        return item?.m_shared != null && (CanUseSupportedStackMetadata(item) || IsEpicLootStackingItem(item));
     }
 
     private static string GetPlayerId(Player player)

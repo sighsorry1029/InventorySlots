@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.19
+
+- Added guarded Path of Valheiman metadata support to InventoryActions sorting, favorite-stack filling, local Quick Stack and Restock. Crafting time and ID differences alone no longer block these actions; actual item bonuses and other metadata remain protected.
+- Reuse FineDining's own freshness rules for compatible stacks, preserving earlier expiry, completed spoilage and the untouched remainder after partial transfers. Failed transfers do not change metadata, and confirmed movement is reconciled even if a later hook throws. Unavailable FineDining callbacks keep its metadata protected.
+- Retained existing PoV node gates, favorites, EpicLoot rules and MultiUserChest remote-transfer restrictions. PoV's own native Sort and ordinary manual crafting/dragging are unchanged. Added isolated regression checks against original PoV 5.0.10, FineDining 1.1.7 and Valheim 1.0.20; actual game and multiplayer verification is still required.
+
 ## 1.1.18
 
 - When Path of Valheiman is installed, nearby Quick Stack (Hold E) and player inventory sorting now require its Tidy Pack mastery, using the public unlock API. Opened-container Place stacks, container sorting and Restock retain their existing rules; availability without PoV is unchanged.

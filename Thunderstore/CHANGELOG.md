@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.14
+
+- Fixed matching crafted stacks being kept separate solely by Path of Valheiman's per-batch crafting time and ID. Existing destination provenance and partial source stacks are preserved; actual food bonuses, rarity and other item data still have to match.
+- Retained FineDining's guarded freshness composition, including the earlier expiry time when merging compatible food stacks. PoV's own native Sort comparison remains unchanged.
+- Added isolated regression checks using original PoV 5.0.10, FineDining 1.1.7 and Valheim 1.0.20 assemblies for separate batches, partial transfers, source preservation and invalid metadata. Actual game and multiplayer verification is still required.
+
 ## 1.6.13
 
 - When Path of Valheiman is installed, nearby Quick Stack (Hold E) and player inventory sorting now require its Tidy Pack mastery, using the public unlock API. Opened-container Place stacks, container sorting and Restock retain their existing rules; availability without PoV is unchanged.

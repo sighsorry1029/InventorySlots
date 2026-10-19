@@ -130,6 +130,12 @@ namespace InventoryActions
         private static bool CanShareInventoryStack(ItemData a, ItemData b) => HasSameStackIdentity(a, b);
         private static bool HasCompatibleStackMetadata(ItemData a, ItemData b) => StackMetadataPolicy.AreCompatible(a.m_customData, b.m_customData);
         private static void MergeStackMetadata(ItemData a, ItemData b) => StackMetadataPolicy.MergeInto(a.m_customData, b.m_customData);
+#else
+        // These EpicLoot fixtures run without PoV/FineDining, so ordinary metadata
+        // keeps the pre-existing conservative behavior.
+        private static bool CanUseSupportedStackMetadata(ItemData item) => HasNoCustomData(item);
+        private static bool HasCompatibleActionStackMetadata(ItemData a, ItemData b) => HasNoCustomData(a) && HasNoCustomData(b);
+        private static void MergeActionStackMetadata(ItemData a, ItemData b) { }
 #endif
     }
 }

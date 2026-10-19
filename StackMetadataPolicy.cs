@@ -1,7 +1,11 @@
 using System;
 using System.Collections.Generic;
 
+#if INVENTORY_ACTIONS
+namespace InventoryActions;
+#else
 namespace InventorySlots;
+#endif
 
 /// <summary>
 /// Central policy for custom-data fields whose values may be combined when two

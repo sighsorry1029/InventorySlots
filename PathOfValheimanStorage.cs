@@ -43,8 +43,7 @@ public sealed partial class InventorySlotsPlugin
             // Register before PoV's ObjectDB callback. Differently rolled items must
             // never become mergeable merely because both keys belong to PoV.
             var keys = bridge.Bind<Func<IEnumerable<string>>>("PassiveTree.InventorySlotsCompat", "OurKeys");
-            foreach (string key in keys())
-                StackMetadataPolicy.Register(key, (a, _) => a, (a, b) => string.Equals(a, b, StringComparison.Ordinal));
+            PathOfValheimanStackMetadata.Register(keys());
             Log.LogInfo("PoV storage provider registered; InventorySlots owns cells and discovery progression, PoV retains node requirements and effects.");
             return true;
         }

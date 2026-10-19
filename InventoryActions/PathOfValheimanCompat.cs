@@ -120,6 +120,7 @@ public sealed partial class InventoryActionsPlugin
             prefix: new HarmonyMethod(typeof(InventoryActionsPlugin), nameof(PovNativeStackStarting)) { priority = Priority.Last - 2 });
         harmony.Patch(AccessTools.DeclaredMethod(typeof(ZNet), "StopAll", new[] { typeof(bool) }),
             postfix: new HarmonyMethod(typeof(InventoryActionsPlugin), nameof(PovNetworkStopped)));
+        BindPathOfValheimanStackMetadata(assembly);
     }
 
     private static bool HasPovPatch(IEnumerable<Patch> patches, MethodInfo method)

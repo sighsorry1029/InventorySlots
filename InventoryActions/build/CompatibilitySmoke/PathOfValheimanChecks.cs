@@ -145,6 +145,7 @@ internal static class PathOfValheimanChecks
                 features[storageFeature] = "storage";
             }
             Call("BindPathOfValheimanCompatibility", pov, harmony);
+            PoVStackMetadataChecks.Run(plugin, pov, Check);
             Check(!rowsType.IsPublic, "original PoV equipment type remains internal");
             foreach (string name in new[] { "_povBackpackRows", "_povIsCellPosition", "_povEquipmentEnabled", "_povStorageProvider", "_povStorageSuspended" })
             {

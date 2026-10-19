@@ -54,14 +54,16 @@ public sealed partial class InventoryActionsPlugin
                     !CanShareInventoryStack(target, source) ||
                     !HasCompatibleStackMetadata(target, source)) continue;
 #else
-                if (!HasNoCustomData(target) || !HasNoCustomData(source) ||
+                if (!CanUseSupportedStackMetadata(target) || !CanUseSupportedStackMetadata(source) ||
                     target.m_cheated != source.m_cheated ||
-                    !HasSameStackIdentity(target, source)) continue;
+                    !HasSameStackIdentity(target, source) || !HasCompatibleActionStackMetadata(target, source)) continue;
 #endif
 
                 int amount = Math.Min(free, source.m_stack);
 #if INVENTORY_SLOTS
                 MergeStackMetadata(target, source);
+#else
+                MergeActionStackMetadata(target, source);
 #endif
                 target.m_stack += amount;
                 source.m_stack -= amount;

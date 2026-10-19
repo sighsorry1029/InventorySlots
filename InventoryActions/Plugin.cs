@@ -20,7 +20,7 @@ namespace InventoryActions;
 public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
 {
     internal const string ModName = "InventoryActions";
-    internal const string ModVersion = "1.1.18";
+    internal const string ModVersion = "1.1.19";
     internal const string Author = "sighsorry";
     internal const string ModGUID = $"{Author}.{ModName}";
     private const string ExternalMultiUserChestGuid = "com.maxsch.valheim.MultiUserChest";
@@ -126,6 +126,7 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
 
     private void Start()
     {
+        InitializePathOfValheimanFoodStacking();
         // AdventureTools 0.8.4 installs these in Awake after our plugin loads.
         // Its old prefixes bypass our metadata checks. Retire only that stacking
         // adapter once all Awake calls finish; its tracker/input patches stay active.

@@ -25,7 +25,7 @@
         <DebugType>full</DebugType>
         <Optimize>false</Optimize>
         <OutputPath>bin\Debug\</OutputPath>
-        <DefineConstants>DEBUG;TRACE</DefineConstants>
+        <DefineConstants>DEBUG;TRACE;INVENTORY_ACTIONS</DefineConstants>
         <WarningLevel>4</WarningLevel>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
@@ -35,7 +35,7 @@
         <DebugType>none</DebugType>
         <Optimize>true</Optimize>
         <OutputPath>bin\Release\</OutputPath>
-        <DefineConstants>TRACE</DefineConstants>
+        <DefineConstants>TRACE;INVENTORY_ACTIONS</DefineConstants>
         <WarningLevel>4</WarningLevel>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
@@ -99,6 +99,7 @@
     </ItemGroup>
     <ItemGroup>
         <Compile Include="*.cs"/>
+        <Compile Include="../StackMetadataPolicy.cs" Link="StackMetadataPolicy.cs"/>
         <Compile Include="../Shared/Compatibility/*.cs" Link="Compatibility/%(Filename)%(Extension)"/>
         <Compile Include="../Shared/ItemRules/*.cs" Link="ItemRules/%(Filename)%(Extension)"/>
         <Compile Include="../Shared/Persistence/*.cs" Link="Persistence/%(Filename)%(Extension)"/>

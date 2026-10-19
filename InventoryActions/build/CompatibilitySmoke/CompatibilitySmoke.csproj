@@ -10,6 +10,7 @@
   <ItemGroup>
     <Compile Include="../../../build/SharedSmoke/PoVTrashChecks.cs" Link="PoVTrashChecks.cs" />
     <Compile Include="../../../build/SharedSmoke/PoVTidyPackChecks.cs" Link="PoVTidyPackChecks.cs" />
+    <Compile Include="../../../build/SharedSmoke/PoVStackMetadataChecks.cs" Link="PoVStackMetadataChecks.cs" />
     <!-- Original game assemblies: this test does not publicize any references. -->
     <Reference Include="0Harmony"><HintPath>$(BepInExPath)/core/0Harmony.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="BepInEx"><HintPath>$(BepInExPath)/core/BepInEx.dll</HintPath><Private>false</Private></Reference>

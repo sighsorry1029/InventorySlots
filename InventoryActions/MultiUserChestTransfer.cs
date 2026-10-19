@@ -297,13 +297,14 @@ public sealed partial class InventoryActionsPlugin
         RememberFavoriteSlotItems(session.Player);
         foreach (ItemData target in GetRestockTargets(session.Player, session.Inventory, RestockMode.AreaFavoriteRestock))
         {
+            if (!CanUseMucActionStacking(target)) continue;
             // Do not reinforce an unexpected positional-race delivery on the
             // next hotkey press. Manual replacement/unfavoriting releases it.
             if (ShouldDeferMucFavoriteMemory(session.Inventory, target.m_gridPos, target)) continue;
             for (int i = container.m_inventory.m_inventory.Count - 1; i >= 0; i--)
             {
                 ItemData source = container.m_inventory.m_inventory[i];
-                if (!CanRestockFromContainerItem(target, source)) continue;
+                if (!CanUseMucActionStacking(source) || !CanRestockFromContainerItem(target, source)) continue;
                 int amount = GetRestockTransferAmount(container.m_inventory, source,
                     GetRestockTargetStack(target) - target.m_stack, RestockMode.AreaFavoriteRestock);
                 if (amount <= 0) continue;
@@ -314,7 +315,7 @@ public sealed partial class InventoryActionsPlugin
         foreach (ItemData source in container.m_inventory.GetAllItems())
         {
             if (source?.m_shared == null || source.m_stack <= 0 || source.m_shared.m_maxStackSize <= 1 ||
-                !CanUseContainerActionStacking(source) ||
+                !CanUseMucActionStacking(source) ||
                 RestockTargetLimitCore.ResolveConfiguredKey(Runtime.RestockTargetStackLimits, GetRestockTargetLookupTokens(source)) != key ||
                 !TryFindEmptyFavoriteRestockCell(session.Player, session.Inventory, source, out Vector2i cell)) continue;
             int amount = GetRestockTransferAmount(container.m_inventory, source, GetRestockTargetStack(source), RestockMode.AreaFavoriteRestock);
@@ -330,8 +331,9 @@ public sealed partial class InventoryActionsPlugin
             .Select(i => i.m_shared.m_name), StringComparer.OrdinalIgnoreCase);
         foreach (ItemData source in GetQuickStackCandidates(session.Player, session.Inventory))
         {
+            if (!CanUseMucActionStacking(source)) continue;
             if (!accepted.Contains(source.m_shared.m_name)) continue;
-            ItemData? target = chest.GetAllItems().Where(i => CanStackIntoTargetForTopFirstMove(i, source))
+            ItemData? target = chest.GetAllItems().Where(i => CanUseMucActionStacking(i) && CanStackIntoTargetForTopFirstMove(i, source))
                 .OrderBy(i => i.m_gridPos.y).ThenBy(i => i.m_gridPos.x).FirstOrDefault();
             if (target != null)
                 return SendMucTransfer(session, container, source, target, target.m_gridPos,
@@ -342,6 +344,11 @@ public sealed partial class InventoryActionsPlugin
         }
         return false;
     }
+
+    // Local metadata callbacks cannot authorize a remote owner's merge. Keep the
+    // existing MUC eligibility until that protocol exposes guarded composition.
+    private static bool CanUseMucActionStacking(ItemData item) =>
+        item?.m_shared != null && (HasNoCustomData(item) || IsEpicLootStackingItem(item));
 
     private static bool SendMucTransfer(MucTransferSession session, Container container, ItemData source,
         ItemData? target, Vector2i to, int amount, bool seedEmpty = false)
@@ -496,6 +503,7 @@ public sealed partial class InventoryActionsPlugin
     }
 
     private static bool MatchesMucTransferredItem(ItemData expected, ItemData actual) =>
+        CanUseMucActionStacking(expected) && CanUseMucActionStacking(actual) &&
         CanRestockFromContainerItem(expected, actual) &&
         string.Equals(GetFavoriteMemoryPrefab(expected), GetFavoriteMemoryPrefab(actual), StringComparison.Ordinal);
 

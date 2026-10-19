@@ -568,7 +568,7 @@ public sealed partial class InventoryActionsPlugin
                 }
 
                 int before = containerItem.m_stack;
-                bool movedOk = playerInventory.MoveItemToThis(containerInventory, containerItem, amount, playerItem.m_gridPos.x, playerItem.m_gridPos.y);
+                bool movedOk = MoveActionStack(playerInventory, containerInventory, containerItem, amount, playerItem);
                 int moved = CountMovedFromContainerSource(containerInventory, containerItem, before, amount, movedOk);
                 potential += moved;
                 movedAmount += moved;
@@ -591,7 +591,7 @@ public sealed partial class InventoryActionsPlugin
                CanUseContainerActionStacking(source) &&
                (IsEpicLootStackingItem(target) || IsEpicLootStackingItem(source)
                    ? CanMergeEpicLootStacks(target, source)
-                   : HasSameStackIdentity(target, source));
+                   : HasSameStackIdentity(target, source) && HasCompatibleActionStackMetadata(target, source));
     }
 
     private static void SortCurrentContainer(Player? player)
@@ -695,6 +695,7 @@ public sealed partial class InventoryActionsPlugin
     private static bool MergeSortableStacks(List<ItemData> toMerge, Inventory inventory)
     {
         bool changed = MergeEpicLootSortableStacks(toMerge, inventory);
+        changed |= MergePathOfValheimanSortableStacks(toMerge, inventory);
         List<List<ItemData>> grouped = toMerge
             .Where(item => item?.m_shared != null && item.m_stack < item.m_shared.m_maxStackSize &&
                            HasNoCustomData(item) && !IsEpicLootStackingItem(item))
@@ -1449,8 +1450,7 @@ public sealed partial class InventoryActionsPlugin
                     break;
                 }
 
-                if ((IsEpicLootStackingItem(target) || IsEpicLootStackingItem(source)) &&
-                    !CanMergeEpicLootStacks(target, source)) continue;
+                if (!CanStackIntoTargetForTopFirstMove(target, source)) continue;
 
                 int amount = Math.Min(target.m_shared.m_maxStackSize - target.m_stack, source.m_stack);
                 if (amount <= 0)
@@ -1459,7 +1459,7 @@ public sealed partial class InventoryActionsPlugin
                 }
 
                 int before = source.m_stack;
-                bool movedOk = targetInventory.MoveItemToThis(sourceInventory, source, amount, target.m_gridPos.x, target.m_gridPos.y);
+                bool movedOk = MoveActionStack(targetInventory, sourceInventory, source, amount, target);
                 movedAmount += CountMovedFromContainerSource(sourceInventory, source, before, amount, movedOk);
             }
         }
@@ -1541,7 +1541,7 @@ public sealed partial class InventoryActionsPlugin
                CanStackForTopFirstMove(source) &&
                (IsEpicLootStackingItem(target) || IsEpicLootStackingItem(source)
                    ? CanMergeEpicLootStacks(target, source)
-                   : HasSameStackIdentity(target, source)) &&
+                   : HasSameStackIdentity(target, source) && HasCompatibleActionStackMetadata(target, source)) &&
                target.m_stack < target.m_shared.m_maxStackSize;
     }
 
