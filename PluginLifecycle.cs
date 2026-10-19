@@ -17,6 +17,7 @@ public sealed partial class InventorySlotsPlugin
             BindItemLinksConfig();
             BindItemRuleConfigs();
             if (!InitializePathOfValheimanStorage()) return;
+            InitializePathOfValheimanActionGate();
             EnsureDefaultYamlFiles();
             InitializeJewelcraftingSlotCompatibility();
             InitializeBackpackCompatibility();

@@ -217,6 +217,8 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
+        if (!RequireTidyPackActions(player)) return;
+
         Inventory inventory = ((Humanoid)player).GetInventory();
         if (inventory == null)
         {

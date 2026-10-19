@@ -50,6 +50,13 @@ public sealed partial class InventoryActionsPlugin
             return false;
         }
 
+        if (!CanUseTidyPackActions())
+        {
+            if (!_vanillaQuickStackHoldConsumed) RequireTidyPackActions(player);
+            _vanillaQuickStackHoldConsumed = true;
+            return true; // Do not fall through to vanilla's hold-to-stack path.
+        }
+
         if (HasExternalMultiUserChestActive && !InventoryGui.IsVisible() && GetHoveredContainer(player) == container &&
             CanUseMucTransferContainer(player, container, container, AreaContainerActionKind.QuickStack))
         {
@@ -246,6 +253,7 @@ public sealed partial class InventoryActionsPlugin
     {
         if (includeArea)
         {
+            if (!RequireTidyPackActions(localPlayer)) return true;
             if (HasExternalMultiUserChestActive)
                 return StartMucTransfer(localPlayer, playerInventory, container, AreaContainerActionKind.QuickStack);
             return TryStartAreaContainerTransfer(
@@ -626,6 +634,8 @@ public sealed partial class InventoryActionsPlugin
             return;
         }
 
+        if (!RequireTidyPackActions(player)) return;
+
         Inventory? inventory = GetPlayerInventory(player);
         if (inventory == null)
         {
@@ -935,14 +945,15 @@ public sealed partial class InventoryActionsPlugin
         Player? player = Player.m_localPlayer;
         if (player == null ||
             player.m_isLoading ||
-            string.IsNullOrWhiteSpace(text) ||
-            !CanHandleContainerAction(
-                player,
-                container,
-                AreaContainerActionKind.Restock))
+            container == null ||
+            string.IsNullOrWhiteSpace(text))
         {
             return;
         }
+
+        if (!CanUseTidyPackActions())
+            text += "\n<color=#FFA94D>" + GetTidyPackLockedText() + "</color>";
+        if (!CanHandleContainerAction(player, container, AreaContainerActionKind.Restock)) return;
 
         string restockKey = GetContainerRestockKeyDisplayText();
         if (!string.IsNullOrWhiteSpace(restockKey))

@@ -1,5 +1,44 @@
 # Compatibility smoke checks on original Valheim Mono
 
+## Release 1.1.18 verification — 2026-10-19
+
+Final merged Release DLL SHA-256:
+`E2C2340ED62AA3504524DC457F308C5B6684DBA8F07A753F0D0AD04821BCE506`.
+The original PoV 5.0.10 / Valheim 1.0.20 run passed **81** isolated checks with
+process exit 0 and normal Mono cleanup. Rule tests passed **144** checks and UI
+fixtures passed **164**. Static contracts had **0 failures** (665 references,
+51 Harmony targets, seven reflected contracts; two dynamic targets remain manual).
+
+Debug and Release builds succeeded without warnings/errors, and the Debug DLL
+matched its Steam plugins copy. Assembly/plugin/manifest versions, merged
+dependencies and every Thunderstore ZIP entry were verified against source files
+and the final Release DLL. Actual game UI, node refund during remote/MUC transfer
+and reconnect remain untested; these fixtures do not validate live networking.
+
+## Tidy Pack action gate — 2026-10-19
+
+Debug **1.1.17**, version unchanged, passed **81** PoV-mode checks against original
+PoV **5.0.10** (`252B60914EFC9F402A977A8C235E28BCB363D7BB7CEEBDF5F22A228518282E74`)
+and original Valheim **1.0.20** client assemblies/runtime. Process exit was 0 with
+Mono cleanup completed. Debug/deployed SHA-256:
+`334B06766F9E4810E5E4DC7D5A509CF76B28B1EE54BB8832736C478456F82F68`.
+
+The shared `PoVTidyPackChecks` fixture checks original public API binding,
+live unlock/refund, failure locking, guide changes, player sort/nearby transfer
+guards, next-target cancellation, and single-chest/restock routing. A signed MUC
+pending request survives node-loss cancellation and accepts its original late
+response without resuming the batch. These use controlled progression, managed
+session fixtures and leaf transfer/message observers, not live RPC/item movement
+or Unity rendering. Static contracts: **0 failures**, 665 references, 51 Harmony
+targets, seven reflected contracts; two targets remain manual. Rule tests:
+**144**; UI regression checks: **164**. Debug built with zero warnings/errors and
+deployment hashes matched. No version bump or Release package was made.
+
+Actual UI, node refund during remote/MUC transmission and reconnect still need
+game testing. Opened Place stacks, container sort and restock keep existing rules;
+PoV absent keeps normal availability. This is client action gating, not a new
+server-side RPC authorization policy.
+
 These checks load the final InventoryActions DLL and original game/BepInEx
 assemblies in an isolated process. They do not start Unity, a world, the BepInEx
 preloader, or networking. The MUC modes can also load the original optional

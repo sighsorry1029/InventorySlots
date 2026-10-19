@@ -56,6 +56,13 @@ public sealed partial class InventorySlotsPlugin
             return true;
         }
 
+        if (!CanUseTidyPackActions())
+        {
+            if (!_containerQuickStackHoldConsumed) RequireTidyPackActions(player);
+            _containerQuickStackHoldConsumed = true;
+            return true; // Do not fall through to vanilla's hold-to-stack path.
+        }
+
         if (!HasContainerPlayerAccess(player, container, flashGuardStone: true))
         {
             player.Message(MessageHud.MessageType.Center, "$msg_cantopen", 0, null);
@@ -149,6 +156,11 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool TryQuickStackFromHoveredContainer(Player player, Container container)
     {
+        if (!RequireTidyPackActions(player))
+        {
+            _containerQuickStackHoldConsumed = true;
+            return true;
+        }
         if (container == null ||
             container.m_inventory == null ||
             !CanHandleContainerAreaAction(player, container))

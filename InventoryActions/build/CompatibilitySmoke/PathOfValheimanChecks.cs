@@ -91,6 +91,7 @@ internal static class PathOfValheimanChecks
         }
         Inventory bag = new Inventory("bag", null, 8, 10); // Four backpack + six PoV storage rows in 5.0.8.
         PoVTrashChecks.Run(plugin.Assembly, pov, Check);
+        PoVTidyPackChecks.Run(plugin, pov, Check);
         Inventory chest = new Inventory("chest", null, 8, 8);
         // Only managed data is used. These sentinels have no native Unity objects;
         // no transform, component lookup, Player constructor or world logic is invoked.

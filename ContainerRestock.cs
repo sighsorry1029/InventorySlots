@@ -68,10 +68,14 @@ public sealed partial class InventorySlotsPlugin
     internal static void AppendContainerRestockHoverText(Container container, ref string text)
     {
         Player? player = Player.m_localPlayer;
-        if (player == null || player.m_isLoading || string.IsNullOrWhiteSpace(text) || !IsContainerRestockKeyConfigured() || !CanHandleContainerRestock(player, container))
+        if (player == null || player.m_isLoading || container == null || string.IsNullOrWhiteSpace(text))
         {
             return;
         }
+
+        if (!CanUseTidyPackActions())
+            text += "\n<color=#FFA94D>" + GetTidyPackLockedText() + "</color>";
+        if (!IsContainerRestockKeyConfigured() || !CanHandleContainerRestock(player, container)) return;
 
         string hint = LocalizeUi("$inventoryslots_hold_to_restock", "Hold to restock");
         if (text.IndexOf("Hold to restock", StringComparison.OrdinalIgnoreCase) >= 0 ||

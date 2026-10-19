@@ -1,5 +1,43 @@
 # InventorySlots / Path of Valheiman isolated checks
 
+## Release 1.6.13 verification — 2026-10-19
+
+Final merged Release DLL SHA-256:
+`2EFB97DD9EA9DD60D6031CD25508AC907773CDC316C3CD2442235A6544BFC425`.
+Original PoV 5.0.10 and Valheim 1.0.20 checks passed **342 cold / 344 warm**,
+both with process exit 0 and normal Mono cleanup. The unit runner passed **190**
+tests. Static contract inspection found **0 failures** (1,153 references, 163
+Harmony targets, 52 reflected contracts; ten dynamic targets remain manual).
+
+Debug build/deployment succeeded without warnings and the Steam plugin copy
+matched. Release succeeded with no mod compilation warnings; the solution's
+unchanged unit fixture emitted two nullable warnings in `StuWardCompat.cs:19`.
+Assembly/plugin/manifest versions, merged dependencies and all Thunderstore/Nexus
+ZIP entries were verified against the source files and final DLL. Actual game UI,
+node refund during delayed transfers, reconnect and multiplayer remain untested.
+
+## Tidy Pack action gate — 2026-10-19
+
+Debug **1.6.12**, version unchanged, passed **342 cold checks** against original
+PoV **5.0.10** (`252B60914EFC9F402A977A8C235E28BCB363D7BB7CEEBDF5F22A228518282E74`)
+and the Valheim **1.0.20** client/runtime documented below. Process exit was 0
+with Mono cleanup completed. Debug/deployed DLL SHA-256:
+`7861F1832699046E142A0A11952262A09810872682869E82C6DF488F666B1F81`.
+
+The shared `PoVTidyPackChecks` fixture verifies the original public getter binding,
+no-character lock, live unlock/refund, missing/throwing API failure, guide changes,
+blocked player sorting and area mutation, next-target cancellation, and continued
+single-chest/restock routing. Progression values and leaf transfer/message bodies
+are fixture substitutes; these assertions do not exercise live item movement,
+network packets or rendering. The final compiled action/gate methods are used.
+Unit runner: **190** passes. Static contracts: **0 failures**, 1,153 references,
+163 Harmony targets, 52 reflected contracts; ten dynamic targets remain manual.
+Debug build: zero warnings/errors. No Release package was generated.
+
+Game checks remain: locked/unlocked S and controller UI, Hold E versus the opened
+Place stacks button, refund during a delayed remote handoff, reconnect, and PoV
+absent behavior. This feature does not introduce server-side node authorization.
+
 These checks load the final merged InventorySlots DLL and the **original** PoV and Valheim assemblies in Valheim's Windows x64 Mono runtime. They do not start Unity or a game session. No game assembly is publicized or rewritten, and no plugin/config is installed by this runner.
 
 Build/deploy InventorySlots separately:

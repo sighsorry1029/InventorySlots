@@ -1,4 +1,8 @@
 inventoryslots_search: Search
+inventoryslots_pov_tidy_pack_locked: "Nearby quick stack and inventory sorting require PoV's Tidy Pack mastery."
+inventoryslots_pov_tidy_pack_unavailable: "PoV unlock status unavailable: nearby quick stack and inventory sorting are locked."
+inventoryslots_pov_sort_locked: "Sort: locked by PoV"
+inventoryslots_pov_sort_description: "Fill favorite stacks from matching non-favorite stacks outside the hotbar, then sort the remaining ordinary stacks. Favorite stacks stay in place."
 inventoryslots_itemlink_share: Insert into chat
 inventoryslots_itemlink_share_help: "Add this tooltip to your chat draft. Press Enter to send; your current text is kept."
 inventoryslots_itemlink_pin_action: Pin / unpin

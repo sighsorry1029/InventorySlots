@@ -168,6 +168,7 @@ public sealed partial class InventoryActionsPlugin
 
     private static bool CanUseMucTransferContainer(Player player, Container container, Container anchor, AreaContainerActionKind action)
     {
+        if (action == AreaContainerActionKind.QuickStack && !CanUseTidyPackActions()) return false;
         if (_mucTransferApi == null || player == null || player.m_isLoading ||
             !IsAreaContainerEligible(container) || !IsAreaContainerEligible(anchor) ||
             container.GetType() != typeof(Container) || anchor.GetType() != typeof(Container) ||
@@ -239,7 +240,8 @@ public sealed partial class InventoryActionsPlugin
     {
         PruneMucSeedMemoryProtection(player);
         var session = _mucTransfer;
-        if (session != null && (player == null || session.Player != player || player.m_isLoading || player.IsDead() ||
+        if (session != null && (session.Action == AreaContainerActionKind.QuickStack && !CanUseTidyPackActions() ||
+            player == null || session.Player != player || player.m_isLoading || player.IsDead() ||
             player.IsTeleporting() || ((Character)player).InCutscene() || InventoryGui.IsVisible() ||
             session.Inventory != GetPlayerInventory(player) || !CanUseMucTransferContainer(player, session.Anchor, session.Anchor, session.Action)))
         {

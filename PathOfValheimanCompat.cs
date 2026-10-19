@@ -341,6 +341,7 @@ public sealed partial class InventorySlotsPlugin
     private static void ShutdownPathOfValheimanCompatibility()
     {
         InventoryCompatibility.PathOfValheimanTrashMode.Dispose();
+        ResetPathOfValheimanActionGate();
         foreach (Harmony harmony in PathOfValheimanPatches) harmony.UnpatchSelf();
         PathOfValheimanPatches.Clear();
         ShutdownPathOfValheimanCrafting();

@@ -225,7 +225,7 @@ public sealed partial class InventoryActionsPlugin
 
     private static void ShowControllerSortButtonFocus(bool container) =>
         ShowControllerFocusedButton(IsControllerSortButtonVisible(container) ? ControllerSortButtons[container ? 1 : 0] : null,
-            ControllerButtonHelpText(ControllerButtonText("sort", "Sort")));
+            !container && !CanUseTidyPackActions() ? GetTidyPackSortLockedText() : ControllerButtonHelpText(ControllerButtonText("sort", "Sort")));
 
     private static string ControllerButtonText(string key, string fallback) =>
         LocalizeUi("$" + ModName.ToLowerInvariant() + "_controller_" + key, fallback);

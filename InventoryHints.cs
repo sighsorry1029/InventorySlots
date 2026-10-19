@@ -605,7 +605,7 @@ public sealed partial class InventorySlotsPlugin
                         "External MultiUserChest limits area Quick Stack/Restock support. Recommended: disable external MUC and use InventorySlots' Enable Multi User Chest.");
                 guide += "\n<color=#FFA94D>" + notice + "</color>";
             }
-            TooltipUi.FeatureGuideExpandedText = AddFeatureGuideToggleHint(guide)
+            TooltipUi.FeatureGuideExpandedText = AddFeatureGuideToggleHint(AddTidyPackGuideHint(guide))
                 .Replace("{tooltipKey}", GetPinnedTooltipKeyDisplayText())
                 .Replace("{favoriteKey}", GetFavoriteKeyHintDisplayText())
                 .Replace("{useKey}", GetContainerQuickStackKeyDisplayText())

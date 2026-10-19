@@ -124,6 +124,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static bool TryStartContainerAreaTransfer(Player player, Inventory inventory, Container anchor, bool quickStack)
     {
+        if (quickStack && !CanUseTidyPackActions()) return false;
         if (_containerAreaSession != null ||
             (UsesVanillaContainerProtocol && !NativeContainerHandoff.CanBegin) ||
             player == null || inventory == null || anchor == null || ContainerAreaPlayerLoading(player))
@@ -242,6 +243,11 @@ public sealed partial class InventorySlotsPlugin
         if (session == null || session.Pending != null) return;
         while (_containerAreaSession == session && session.Next < session.Targets.Count)
         {
+            if (session.QuickStack && !CanUseTidyPackActions())
+            {
+                CancelContainerAreaTransfer();
+                return;
+            }
             Container target = session.Targets[session.Next];
             if (NativeContainerHandoff.IsRequestBlocked(target) ||
                 !CanUseContainerAreaTarget(session, target, requireOwner: false))
@@ -386,6 +392,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void ExecuteContainerAreaTargetAction(ContainerAreaSession session, Container target)
     {
+        if (session.QuickStack && !CanUseTidyPackActions()) return;
         if (session.Interaction == null)
         {
             int moved = ExecuteContainerAreaTransfer(session.Player, session.Inventory, target, session.QuickStack);
@@ -653,6 +660,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool ContainerAreaSessionContextValid(ContainerAreaSession session)
     {
+        if (session.QuickStack && !CanUseTidyPackActions()) return false;
         if (session.Anchor == null || session.Player == null ||
             (session.Player.transform.position - session.Anchor.transform.position).sqrMagnitude >
             ContainerAreaAnchorDistance * ContainerAreaAnchorDistance) return false;

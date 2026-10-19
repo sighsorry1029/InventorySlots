@@ -152,6 +152,7 @@ public sealed partial class InventorySlotsPlugin
         Button? sortButton = EnsureActionButton(InventoryPanels.InventorySortPanel, gui.m_takeAllButton, "InventorySlots_PlayerSortButton", "S", () => SortPlayerInventory(Player.m_localPlayer));
         RegisterControllerSortButton(gui, false, sortButton);
         LayoutActionButton(sortButton, buttonWidth, buttonHeight);
+        UpdateTidyPackSortButton(sortButton);
 
         SetActionPanelActive(InventoryPanels.InventorySortPanel, true);
     }

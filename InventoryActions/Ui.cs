@@ -174,7 +174,7 @@ public sealed partial class InventoryActionsPlugin
         RegisterControllerSortButton(gui, false, sortButton);
         DisableActionPanelChildren(Runtime.PlayerActionPanel, sortButton);
         LayoutActionButton(sortButton, buttonSize, buttonSize);
-        SetTooltip(sortButton, "Sort inventory", "Fill favorite stacks from matching non-favorite stacks outside the hotbar, then sort the remaining ordinary stacks. Favorite stacks stay in place and never merge with each other.");
+        UpdateTidyPackSortButton(sortButton);
         SetActionPanelActive(Runtime.PlayerActionPanel, true);
     }
 

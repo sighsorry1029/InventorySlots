@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.18
+
+- When Path of Valheiman is installed, nearby Quick Stack (Hold E) and player inventory sorting now require its Tidy Pack mastery, using the public unlock API. Opened-container Place stacks, container sorting and Restock retain their existing rules; availability without PoV is unchanged.
+- Apply unlocks and refunds immediately, and stop a revoked nearby-transfer batch before its next transfer. Pending MultiUserChest responses retain their original tracking so they can finish without restarting the batch. Missing or failing unlock APIs keep these actions locked and log one warning.
+- Show the lock reason in the sort button, controller menus, chest hover text and quick guide, with English and Korean text. Added isolated checks against original PoV 5.0.10; actual game UI and multiplayer timing still require verification.
+
 ## 1.1.17
 
 - Disabled Path of Valheiman's Delete button and deletion mode while InventoryActions is active. InventoryActions' own trash controls remain available, and PoV continues to manage its inventory and equipment slots.

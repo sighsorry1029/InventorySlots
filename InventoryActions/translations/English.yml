@@ -1,4 +1,8 @@
 inventoryactions_button_take_all: Take all
+inventoryactions_pov_tidy_pack_locked: "Nearby quick stack and inventory sorting require PoV's Tidy Pack mastery."
+inventoryactions_pov_tidy_pack_unavailable: "PoV unlock status unavailable: nearby quick stack and inventory sorting are locked."
+inventoryactions_pov_sort_locked: "Sort: locked by PoV"
+inventoryactions_pov_sort_description: "Fill favorite stacks from matching non-favorite stacks outside the hotbar, then sort the remaining ordinary stacks. Favorite stacks stay in place."
 inventoryactions_button_place_stacks: Place stacks
 inventoryactions_button_place_all: Place all
 inventoryactions_button_take_stacks: Take stacks

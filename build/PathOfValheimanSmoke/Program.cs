@@ -115,6 +115,7 @@ internal static partial class Program
         Check(mod.GetTypes().Length > 0, "final IS types enumerate before original PoV assembly loads");
         Assembly pov = Assembly.LoadFrom(args[1]);
         PoVTrashChecks.Run(mod, pov, Check);
+        PoVTidyPackChecks.Run(mod.GetType("InventorySlots.InventorySlotsPlugin", true)!, pov, Check);
         Type bridgeType = mod.GetType("InventorySlots.PathOfValheimanStorageBridge", true)!;
         Type contract = pov.GetType("Valheiman.Api.IStorageProvider", true)!;
         Type equipment = pov.GetType("Valheiman.Api.Equipment", true)!;

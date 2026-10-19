@@ -72,6 +72,7 @@ public sealed partial class InventoryActionsPlugin
             ControllerMenuRows[i]!.color = i == choice ? new Color(1f, 0.68f, 0.16f, 0.5f) : new Color(0, 0, 0, 0.2f);
             ControllerMenuLabels[i]!.text = offerFavorite && i == 0
                 ? LocalizeUi(prefix + (favorite ? "menu_unfavorite" : "menu_favorite"), favorite ? "Remove favorite" : "Favorite slot")
+                : grid == gui.m_playerGrid && !CanUseTidyPackActions() ? GetTidyPackSortLockedText()
                 : LocalizeUi(prefix + "menu_sort", "Sort inventory");
         }
         float height = 38 + count * 34 + 48;

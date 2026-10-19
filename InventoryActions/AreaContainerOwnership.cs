@@ -69,6 +69,7 @@ public sealed partial class InventoryActionsPlugin
         Container anchor,
         AreaContainerActionKind action)
     {
+        if (action == AreaContainerActionKind.QuickStack && !CanUseTidyPackActions()) return false;
         if (_areaContainerTransfer != null ||
             (UsesVanillaContainerProtocol && !NativeContainerHandoff.CanBegin) ||
             AreaOwnershipHandoff.Phase != AreaOwnershipHandoffPhase.Idle ||
@@ -119,7 +120,8 @@ public sealed partial class InventoryActionsPlugin
             return;
         }
 
-        if (player == null ||
+        if (session.Action == AreaContainerActionKind.QuickStack && !CanUseTidyPackActions() ||
+            player == null ||
             session.Player != player ||
             session.PlayerInventory != GetPlayerInventory(player) ||
             player.m_isLoading ||
@@ -257,6 +259,11 @@ public sealed partial class InventoryActionsPlugin
         while (_areaContainerTransfer == session &&
                session.NextTargetIndex < session.Targets.Count)
         {
+            if (session.Action == AreaContainerActionKind.QuickStack && !CanUseTidyPackActions())
+            {
+                CancelAreaContainerTransfer();
+                return;
+            }
             Container target = session.Targets[session.NextTargetIndex];
             if (NativeContainerHandoff.IsRequestBlocked(target))
             {
@@ -511,6 +518,7 @@ public sealed partial class InventoryActionsPlugin
     {
         if (session.Action == AreaContainerActionKind.QuickStack)
         {
+            if (!CanUseTidyPackActions()) return 0;
             List<ItemData> candidates = GetQuickStackCandidates(
                 session.Player,
                 session.PlayerInventory);
@@ -1070,6 +1078,7 @@ public sealed partial class InventoryActionsPlugin
         bool requireDirectOwner,
         bool allowOpenQuickStackAnchor = false)
     {
+        if (action == AreaContainerActionKind.QuickStack && !CanUseTidyPackActions()) return false;
         // MUC 0.6.1 does not expose all secondary users or pending positional
         // item RPCs, so even a locally owned chest cannot be proven idle.
         if (HasExternalMultiUserChestActive ||
