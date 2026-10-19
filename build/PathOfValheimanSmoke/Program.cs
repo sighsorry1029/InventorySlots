@@ -238,6 +238,7 @@ internal static partial class Program
         Check(!(bool)cells.GetProperty("External", Statics)!.GetValue(null)!, "Forget releases active backend");
         CheckInventoryBackend(mod, pov, plugin, bridgeType, bridge, cells, contract);
         patches.UnpatchSelf(); engine.UnpatchSelf(); new Harmony("sighsorry.InventorySlots.pov.native-hud").UnpatchSelf();
+        new Harmony("sighsorry.InventorySlots.pov.unified-hud").UnpatchSelf();
         Check(((IEnumerable<string>)currentStorage).Count() == 28, "unpatch leaves original 28-cell storage cache unchanged");
         foreach (object info in (IEnumerable)currentEquipment)
         {

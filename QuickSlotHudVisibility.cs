@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace InventorySlots;
 
@@ -18,29 +19,37 @@ internal sealed class QuickSlotHudVisibility
     private bool _initialized;
     private QuickSlotHudMode _mode;
     private int _playerId;
-    private int _definitionVersion;
     private float[] _slotUseTimes = Array.Empty<float>();
+    private string[] _slotIds = Array.Empty<string>();
     private float _lastUseTime = float.NegativeInfinity;
 
-    public void SyncContext(QuickSlotHudMode mode, int playerId, int definitionVersion, int unlockedCount)
+    public void SyncContext(QuickSlotHudMode mode, int playerId, IReadOnlyList<string> slotIds)
     {
-        unlockedCount = Math.Max(0, unlockedCount);
-        if (_initialized && _mode == mode && _playerId == playerId &&
-            _definitionVersion == definitionVersion && _slotUseTimes.Length == unlockedCount)
+        int unlockedCount = slotIds.Count;
+        if (_initialized && _mode == mode && _playerId == playerId && SameSlots(slotIds))
         {
             return;
         }
 
         _mode = mode;
         _playerId = playerId;
-        _definitionVersion = definitionVersion;
         if (_slotUseTimes.Length != unlockedCount)
         {
             _slotUseTimes = new float[unlockedCount];
+            _slotIds = new string[unlockedCount];
         }
+        for (int i = 0; i < unlockedCount; i++) _slotIds[i] = slotIds[i];
 
         ResetTimers();
         _initialized = true;
+    }
+
+    private bool SameSlots(IReadOnlyList<string> slots)
+    {
+        if (_slotIds.Length != slots.Count) return false;
+        for (int i = 0; i < slots.Count; i++)
+            if (!string.Equals(_slotIds[i], slots[i], StringComparison.Ordinal)) return false;
+        return true;
     }
 
     public void NotifyUse(int slotIndex, float now)

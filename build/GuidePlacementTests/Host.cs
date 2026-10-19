@@ -51,8 +51,8 @@ public sealed partial class InventoryActionsPlugin
     public static bool HasSavedHud => InventoryClient.ClientState.Inventory.QuickSlotsHudPosition != null;
     public static Vector3 HudPosition(RectTransform hud, InventoryGrid? grid, int rows, bool follows, out float space) =>
         ResolveQuickSlotHudPosition(hud, grid, 8, rows, follows, out space);
-    public static Vector3 ClampHud(Rect viewport, Vector3 position, float space, int rows) =>
-        ClampQuickSlotHudPosition(viewport, position, space, rows);
+    public static Vector3 ClampHud(Rect viewport, Vector3 position, float space, int rows, int columns = 3) =>
+        ClampQuickSlotHudPosition(viewport, position, space, rows, columns);
     private readonly record struct MovedPlayerStatPanel(RectTransform Rect);
     private static RectTransform? _craftingGroupRail;
     public static void ExtraPanels(RectTransform equipment, RectTransform quick, RectTransform rail)

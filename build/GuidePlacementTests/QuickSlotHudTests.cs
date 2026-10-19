@@ -73,6 +73,8 @@ internal static class QuickSlotHudTests
         var viewport = new Rect(-960, -540, 1920, 1080);
         Equal(Plugin.ClampHud(viewport, new(-5000, 5000, 0), 70, 1), new(-952, 532, 0), "Old offscreen animation coordinates recover at top and left");
         Equal(Plugin.ClampHud(viewport, new(5000, -5000, 0), 70, 3), new(742, -322, 0), "All rows and columns fit at bottom and right");
+        Equal(Plugin.ClampHud(viewport, new(5000, -5000, 0), 70, 3, 6), new(532, -322, 0), "Combined six-column PoV HUD fits at the right edge");
+        Equal(Plugin.ClampHud(viewport, new(5000, -5000, 0), 70, 1, 1), new(882, -462, 0), "PoV-only arrow HUD uses its actual one-column bounds");
         Equal(Plugin.ClampHud(new Rect(0, 0, 100, 100), new(500, -500, 0), 70, 3), new(8, 92, 0), "Oversized HUD uses a deterministic visible top-left");
         Equal(Plugin.ClampHud(viewport, new(5000, -5000, 0), 1, 3), new(926, -506, 0), "Minimum 24-pixel cells are included in bounds");
 

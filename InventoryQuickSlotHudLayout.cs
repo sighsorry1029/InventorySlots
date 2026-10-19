@@ -5,7 +5,7 @@ namespace InventorySlots;
 public sealed partial class InventorySlotsPlugin
 {
     private static Vector3 ResolveQuickSlotHudPosition(RectTransform hudRoot, InventoryGrid? grid,
-        int inventoryWidth, int rows, bool followsPanel, out float elementSpace)
+        int inventoryWidth, int rows, bool followsPanel, out float elementSpace, int columns = QuickSlotPanelColumns)
     {
         bool useDefaultPosition = InventoryClient.ClientState.Inventory.QuickSlotsHudPosition == null;
         Vector3 position = useDefaultPosition
@@ -29,7 +29,7 @@ public sealed partial class InventorySlotsPlugin
             elementSpace = grid.m_elementSpace;
         }
 
-        position = ClampQuickSlotHudPosition(hudRoot.rect, position, elementSpace, rows);
+        position = ClampQuickSlotHudPosition(hudRoot.rect, position, elementSpace, rows, columns);
         // These are HUD-root local coordinates, not RectTransform anchoredPosition.
         // Keep only runtime coordinates here. An unset default stays viewport-
         // anchored as GuiScaler settles or the aspect ratio changes; explicit
@@ -48,14 +48,15 @@ public sealed partial class InventorySlotsPlugin
         viewport.yMax - ClientStateCore.DefaultQuickSlotsHudTop,
         0f);
 
-    private static Vector3 ClampQuickSlotHudPosition(Rect viewport, Vector3 position, float elementSpace, int rows)
+    private static Vector3 ClampQuickSlotHudPosition(Rect viewport, Vector3 position, float elementSpace, int rows, int columns = QuickSlotPanelColumns)
     {
         if (viewport.width <= 0f || viewport.height <= 0f) return position;
 
         const float margin = 8f;
         float cellSize = Mathf.Max(24f, elementSpace - 8f);
-        float width = Mathf.Max(QuickSlotPanelColumns * elementSpace,
-            (QuickSlotPanelColumns - 1) * elementSpace + cellSize);
+        columns = Mathf.Max(1, columns);
+        float width = Mathf.Max(columns * elementSpace,
+            (columns - 1) * elementSpace + cellSize);
         float height = Mathf.Max(rows * elementSpace, (Mathf.Max(1, rows) - 1) * elementSpace + cellSize);
         float left = viewport.xMin + margin;
         float top = viewport.yMax - margin;

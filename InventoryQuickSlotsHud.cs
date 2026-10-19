@@ -16,7 +16,7 @@ namespace InventorySlots;
 
 internal sealed class QuickHudSlotMarker : MonoBehaviour
 {
-    public int Index { get; set; }
+    public string SlotId { get; set; } = "";
     public Image? DurabilityFill { get; set; }
     public GameObject? DurabilityObject { get; set; }
     public TMP_Text? BindingText { get; set; }
@@ -34,32 +34,78 @@ internal sealed class QuickHudSlotMarker : MonoBehaviour
 public sealed partial class InventorySlotsPlugin
 {
     private static readonly QuickSlotHudVisibility QuickHudVisibility = new();
+    private static readonly List<SlotDefinition> QuickHudSlots = new();
+    private static readonly List<string> QuickHudSlotIds = new();
+    private static int _quickHudBaseCount;
+    private static int _quickHudColumns = QuickSlotPanelColumns;
+    private static int _quickHudRows;
+    private static Player? _quickHudLayoutPlayer;
+    private static int _quickHudLayoutVersion = -1;
+    private static bool _quickHudLayoutHasPov;
 
-    private static void SyncQuickSlotHudVisibility(Player player)
+    private static void SyncQuickSlotHudVisibility(Player player, bool forceLayout = false)
     {
+        List<SlotDefinition> ordinary = GetQuickPanelSlots(player);
+        bool hasPov = CanUsePathOfValheimanHud(player);
+        int version = InventoryDefinitions.SlotDefinitionVersion;
+        // PoV's existing inventory-change and unlock polling paths invalidate
+        // definitions. Reuse the display list between those changes: Open can
+        // parse belt data, so it must not run per cell on every hidden frame.
+        if (forceLayout || _quickHudLayoutPlayer != player || _quickHudLayoutVersion != version ||
+            _quickHudBaseCount != ordinary.Count || _quickHudLayoutHasPov != hasPov)
+        {
+            QuickHudSlots.Clear();
+            QuickHudSlotIds.Clear();
+            QuickHudSlots.AddRange(ordinary);
+            _quickHudBaseCount = ordinary.Count;
+            _quickHudColumns = QuickSlotPanelColumns;
+            _quickHudRows = GetQuickPanelRows(_quickHudBaseCount);
+            if (hasPov)
+            {
+                UpdatePathOfValheimanPanelSlots(player, player.GetInventory(), _quickHudBaseCount);
+                QuickHudSlots.AddRange(PovVisibleActions);
+                _quickHudColumns = _povQuickColumns;
+                _quickHudRows = _povQuickContentRows;
+            }
+            foreach (SlotDefinition slot in QuickHudSlots) QuickHudSlotIds.Add(slot.Id);
+            _quickHudLayoutPlayer = player;
+            _quickHudLayoutVersion = version;
+            _quickHudLayoutHasPov = hasPov;
+        }
         QuickHudVisibility.SyncContext(_quickSlotHudMode?.Value ?? QuickSlotHudMode.AllOnUse,
-            player.GetInstanceID(), InventoryDefinitions.SlotDefinitionVersion, GetUnlockedQuickSlotCount(player));
+            player.GetInstanceID(), QuickHudSlotIds);
     }
 
     private static void NotifyQuickSlotHudUse(Player player, SlotDefinition slot)
     {
         // Input runs before the HUD update; initialize here so that first use is not lost.
-        SyncQuickSlotHudVisibility(player);
-        QuickHudVisibility.NotifyUse(slot.QuickSlotIndex, Time.unscaledTime);
+        SyncQuickSlotHudVisibility(player, forceLayout: slot.PovCell != null);
+        QuickHudVisibility.NotifyUse(QuickHudSlotIds.IndexOf(slot.Id), Time.unscaledTime);
     }
 
     private static void UpdateQuickSlotsHud(Player player)
     {
-        if (GetQuickSlotCount() <= 0 || Hud.instance == null || Hud.instance.m_rootObject == null)
+        if (Hud.instance == null || Hud.instance.m_rootObject == null)
         {
             ClearQuickSlotsHud();
             return;
         }
 
         SyncQuickSlotHudVisibility(player);
+        List<SlotDefinition> quickSlots = QuickHudSlots;
+        if (quickSlots.Count == 0)
+        {
+            ClearQuickSlotsHud();
+            return;
+        }
         float now = Time.unscaledTime;
         bool hudFollowsPanel = _quickSlotHudFollowsPanel?.Value == Toggle.On;
-        if (!QuickHudVisibility.IsVisible(now) || Hud.IsUserHidden() || !Hud.instance.IsVisible() || (hudFollowsPanel && (InventoryGui.IsVisible() || InventoryPanels.QuickSlotPanelIntroActive || InventoryPanels.QuickSlotPanelOutroActive)))
+        bool visible = QuickHudVisibility.IsVisible(now) && !Hud.IsUserHidden() && Hud.instance.IsVisible() &&
+            !(hudFollowsPanel && (InventoryGui.IsVisible() || InventoryPanels.QuickSlotPanelIntroActive || InventoryPanels.QuickSlotPanelOutroActive));
+        // Prepare the combined HUD once even in an initially hidden mode before
+        // taking over PoV's native display. Hidden frames do not render tooltips.
+        if (!visible && (!CanUsePathOfValheimanHud(player) || _povUnifiedHudPlayer == player &&
+            !IsUnityNull(InventoryPanels.QuickSlotsHotkeyBarRect)))
         {
             if (!IsUnityNull(InventoryPanels.QuickSlotsHotkeyBarRect) &&
                 InventoryPanels.QuickSlotsHotkeyBarRect!.gameObject.activeSelf)
@@ -70,13 +116,6 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        List<SlotDefinition> quickSlots = GetQuickPanelSlots(player);
-        if (quickSlots.Count == 0)
-        {
-            ClearQuickSlotsHud();
-            return;
-        }
-
         HotkeyBar? hotkeyBar = EnsureQuickSlotsHotkeyBar();
         if (hotkeyBar == null || InventoryPanels.QuickSlotsHotkeyBarRect == null)
         {
@@ -84,21 +123,27 @@ public sealed partial class InventorySlotsPlugin
         }
 
         Inventory inventory = ((Humanoid)player).GetInventory();
-        int panelRows = GetQuickPanelRows(quickSlots.Count);
+        int panelRows = _quickHudRows;
         float elementSpace = GetQuickSlotHudElementSpace();
         Vector3 position = InventoryPanels.QuickSlotsHotkeyBarRect.parent is RectTransform hudRoot
             ? ResolveQuickSlotHudPosition(hudRoot, InventoryGui.instance?.m_playerGrid,
-                inventory.GetWidth(), panelRows, hudFollowsPanel, out elementSpace)
+                inventory.GetWidth(), panelRows, hudFollowsPanel, out elementSpace, _quickHudColumns)
             : GetQuickSlotHudPosition();
         InventoryPanels.QuickSlotsHotkeyBarRect.localPosition = position;
-        InventoryPanels.QuickSlotsHotkeyBarRect.sizeDelta = new Vector2(QuickSlotPanelColumns * elementSpace, panelRows * elementSpace);
+        InventoryPanels.QuickSlotsHotkeyBarRect.sizeDelta = new Vector2(_quickHudColumns * elementSpace, panelRows * elementSpace);
         hotkeyBar.m_elementSpace = elementSpace;
         EnsureQuickSlotsHotkeyBarElementCount(hotkeyBar, quickSlots.Count);
+        _povUnifiedHudPlayer = CanUsePathOfValheimanHud(player) ? player : null;
+        if (!visible)
+        {
+            InventoryPanels.QuickSlotsHotkeyBarRect.gameObject.SetActive(false);
+            return;
+        }
 
         for (int i = 0; i < quickSlots.Count; i++)
         {
             SlotDefinition slot = quickSlots[i];
-            if (!SetQuickHudElementVisibility(hotkeyBar.m_elements[i], QuickHudVisibility.GetSlotAlpha(slot.QuickSlotIndex, now)))
+            if (!SetQuickHudElementVisibility(hotkeyBar.m_elements[i], QuickHudVisibility.GetSlotAlpha(i, now)))
             {
                 continue;
             }
@@ -244,7 +289,6 @@ public sealed partial class InventorySlotsPlugin
             hotkeyBar.m_elements.Add(element);
 
             QuickHudSlotMarker marker = element.m_go.GetComponent<QuickHudSlotMarker>() ?? element.m_go.AddComponent<QuickHudSlotMarker>();
-            marker.Index = hotkeyBar.m_elements.Count - 1;
             UIInputHandler input = element.m_go.GetComponent<UIInputHandler>() ?? element.m_go.AddComponent<UIInputHandler>();
             input.m_onLeftClick += handler => SelectQuickHudSlot(handler.GetComponentInParent<QuickHudSlotMarker>());
             input.m_onRightClick += handler => UseQuickHudSlot(handler.GetComponentInParent<QuickHudSlotMarker>());
@@ -301,12 +345,16 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        element.m_go.transform.localPosition = GetQuickSlotPanelElementPosition(index, elementSpace);
+        element.m_go.transform.localPosition = index < _quickHudBaseCount
+            ? GetQuickSlotPanelElementPosition(index, elementSpace)
+            : new Vector3((Math.Min(QuickSlotPanelColumns, _quickHudBaseCount) +
+                (index - _quickHudBaseCount) % QuickSlotPanelColumns) * elementSpace,
+                -((index - _quickHudBaseCount) / QuickSlotPanelColumns) * elementSpace, 0f);
         element.m_go.transform.localScale = Vector3.one;
         element.m_used = item != null;
 
         QuickHudSlotMarker marker = element.m_go.GetComponent<QuickHudSlotMarker>() ?? element.m_go.AddComponent<QuickHudSlotMarker>();
-        marker.Index = slot.QuickSlotIndex;
+        marker.SlotId = slot.Id;
         ConfigureQuickHudElementLayout(element, marker, elementSpace);
 
         ConfigureQuickSlotsHotkeyBarElementBackground(element);
@@ -325,7 +373,7 @@ public sealed partial class InventorySlotsPlugin
             marker.TooltipHash = 0;
             marker.TooltipItem = null;
             marker.NextTooltipRefreshTime = 0f;
-            string slotName = LocalizeUi("$inventoryslots_quick_slot_format", "Quick {index}")
+            string slotName = slot.PovCell != null ? slot.Name : LocalizeUi("$inventoryslots_quick_slot_format", "Quick {index}")
                 .Replace("{index}", (slot.QuickSlotIndex + 1).ToString());
             SetQuickHotkeyBarTooltip(element, marker, $"empty|{slot.Id}|{slotName}", slotName, "");
             return;
@@ -347,7 +395,8 @@ public sealed partial class InventorySlotsPlugin
             element.m_amount.text = $"{item.m_stack}/{item.m_shared.m_maxStackSize}";
         }
 
-        element.m_equiped?.SetActive(IsQuickSlotHudItemEquipped(player, item));
+        element.m_equiped?.SetActive(slot.PovCell?.StartsWith("arrow.", StringComparison.Ordinal) == true
+            ? player.GetAmmoItem() == item : IsQuickSlotHudItemEquipped(player, item));
         int tooltipHash = GetQuickHudTooltipHash(item);
         float now = Time.unscaledTime;
         if (!ReferenceEquals(marker.TooltipItem, item) ||
@@ -548,7 +597,7 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        string text = GetQuickSlotBindingText(slot);
+        string text = slot.PovCell != null ? GetPathOfValheimanSlotBindingText(slot) : GetQuickSlotBindingText(slot);
         string signature = $"{slot.Id}|{text}";
         if (string.Equals(marker.BindingSignature, signature, StringComparison.Ordinal))
         {
@@ -717,8 +766,9 @@ public sealed partial class InventorySlotsPlugin
         }
 
         Inventory inventory = ((Humanoid)Player.m_localPlayer).GetInventory();
-        if (!TryGetQuickSlotDefinition(marker.Index, out SlotDefinition? slot) ||
+        if (!TryGetSlotById(marker.SlotId, out SlotDefinition? slot) ||
             slot == null ||
+            !QuickHudSlotIds.Contains(slot.Id) ||
             !TryGetSlotGridPos(inventory, slot, out Vector2i pos))
         {
             return;
@@ -736,13 +786,20 @@ public sealed partial class InventorySlotsPlugin
         }
 
         Inventory inventory = ((Humanoid)Player.m_localPlayer).GetInventory();
-        if (!TryGetQuickSlotDefinition(marker.Index, out SlotDefinition? slot) ||
+        if (!TryGetSlotById(marker.SlotId, out SlotDefinition? slot) ||
             slot == null ||
+            !QuickHudSlotIds.Contains(slot.Id) ||
             !TryGetSlotGridPos(inventory, slot, out Vector2i pos))
         {
             return;
         }
 
+        if (slot.PovCell != null)
+        {
+            if (!InventoryGui.IsVisible() && ShouldBlockGlobalHotkeys(Player.m_localPlayer)) return;
+            UsePathOfValheimanHudSlot(Player.m_localPlayer, slot);
+            return;
+        }
         ItemData? item = inventory.GetItemAt(pos.x, pos.y);
         if (item != null && slot.Accepts(item))
         {
@@ -754,6 +811,11 @@ public sealed partial class InventorySlotsPlugin
 
     private static void ClearQuickSlotsHud()
     {
+        _povUnifiedHudPlayer = null;
+        _quickHudLayoutPlayer = null;
+        _quickHudLayoutVersion = -1;
+        QuickHudSlots.Clear();
+        QuickHudSlotIds.Clear();
         QuickHudVisibility.Clear();
         if (!IsUnityNull(InventoryPanels.QuickSlotsHotkeyBarRect))
         {

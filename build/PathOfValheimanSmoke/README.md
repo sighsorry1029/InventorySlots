@@ -124,6 +124,52 @@ matched Release. Assembly/plugin/manifest versions, merged dependencies,
 package entries and packaged source files were verified. Actual game and
 multiplayer execution remain untested.
 
+## Unified quick-slot HUD — 2026-10-19
+
+Debug InventorySlots **1.6.10** (`11FDE0E9BE380B53B1D816C8D867FE0D947588455BFA41FA7576E04972DDB109`)
+passed **323 cold / 325 warm** checks with original PoV 5.0.9 and **287 cold**
+checks with original PoV 5.0.8. All managed/native exits were 0 and Mono cleanup
+completed. No version bump or Release package was made.
+
+`HudChecks.cs` exercises the real native Eat/Drink/CycleArrows methods and the
+merged mod's provider, HUD list and notification hooks. Managed fixtures supply
+capacity grants, permanent-potion status, final game use/equip bodies and message
+services. Checks cover one use dispatch, both native-hotkey and HUD entry points,
+permanent and closed potion/food restrictions, ammo cycling past empty slots and
+failed equip, player loading, all four display modes, PoV-only layouts, cached
+capacity reads, and preservation of reveal timers across inventory invalidation.
+Native display fallback selection is checked with sentinel renderer state;
+actual GameObjects, rendering and mouse events are not executed.
+
+The unit runner passed **190 tests**. The layout fixture passed **33 HUD / 71
+guide checks**, including six-column and PoV-only viewport bounds. Contract
+inspection resolved 1,153 references, 163 declared Harmony targets and 52
+reflected contracts with zero failures; ten dynamic targets remain manual.
+Debug build had zero warnings/errors and the Steam plugins DLL hash matched.
+Actual game checks must include AllOnUse/UsedSlotOnUse after PoV key use,
+right-click food/potion and arrow cycling, belt/quiver changes, HUD hiding,
+Follows Panel toggling, UI scaling and reconnect. No rendered-game pass or
+measured frame-rate improvement is claimed.
+
+## Release 1.6.11 verification — 2026-10-19
+
+The final merged Release DLL
+(`0CC35A1D4A2271DEC83B9191ED9A477F7849331E659E3503399E53E7C6EBF635`)
+passed **323 cold / 325 warm** checks against original PoV **5.0.10**
+(`252B60914EFC9F402A977A8C235E28BCB363D7BB7CEEBDF5F22A228518282E74`).
+Both processes exited 0 and completed Mono cleanup. The same Debug build also
+passed 323 cold checks. These are the managed fixtures described above, not a
+complete game startup or gameplay test.
+
+The unit runner passed **190 tests** and the layout fixture passed **33 HUD / 71
+guide checks**. Release contract inspection found zero failures (1,153 references,
+163 declared Harmony targets and 52 reflected contracts; ten dynamic targets
+remain manual). Debug and Release builds completed with zero warnings/errors;
+the Debug DLL matched the Steam plugins copy. Assembly/plugin/manifest version
+1.6.11, merged dependencies and all Thunderstore/Nexus ZIP entries were verified
+against their source files, including the final Release DLL. Actual game and
+multiplayer execution remain untested.
+
 ## Game checks still required
 
 Use backed-up test characters to exercise first login from native PoV, full inventory, death/tombstone recovery, logout/reconnect, live node reset and Equipment On/Off. Check actual registered quivers, nearby crafting/quick stack, host/dedicated-server sessions and delayed/conflicting container operations. Visually check equipment/storage/HUD layouts across UI scales, craft/salvage/disenchant/VNEI tab changes and pinned/socket/rarity tooltips. No game or multiplayer pass is claimed by these isolated results.

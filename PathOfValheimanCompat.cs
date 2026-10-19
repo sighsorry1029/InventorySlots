@@ -35,9 +35,15 @@ public sealed partial class InventorySlotsPlugin
     private static Action? _povCellHudHide;
     private static Action<Player>? _povCellHudTick;
     private static Func<string>? _povEquipmentHost;
+    private static Action<Player, int>? _povHudEat, _povHudDrink;
+    private static Action<Player>? _povHudCycleArrows;
+    private static bool _povHudBound;
+    private static Player? _povUnifiedHudPlayer;
 
     private static void InitializePathOfValheimanNativeHud(Assembly assembly)
     {
+        _povHudBound = false;
+        bool nativeReady = false;
         InstallPathOfValheimanCapability("native-hud", harmony =>
         {
             Type tools = assembly.GetType("PassiveTree.Gear.ToolBar", true)!;
@@ -52,6 +58,25 @@ public sealed partial class InventorySlotsPlugin
             if (target == null || target.IsStatic || target.ReturnType != typeof(void) || target.GetParameters().Length != 0)
                 throw new MissingMethodException("PoV equipment LateUpdate");
             harmony.Patch(target, transpiler: new HarmonyMethod(typeof(InventorySlotsPlugin), nameof(KeepPathOfValheimanNativeHud)));
+            nativeReady = true;
+        });
+        if (!nativeReady) return;
+        // Keep the native display fallback if only the new action integration fails.
+        InstallPathOfValheimanCapability("unified-hud", harmony =>
+        {
+            Type state = assembly.GetType("PassiveTree.Gear.State", true)!;
+            _povHudEat = (Action<Player, int>)Delegate.CreateDelegate(typeof(Action<Player, int>),
+                RequirePathOfValheimanMethod(state, "Eat", typeof(void), typeof(Player), typeof(int)));
+            _povHudDrink = (Action<Player, int>)Delegate.CreateDelegate(typeof(Action<Player, int>),
+                RequirePathOfValheimanMethod(state, "Drink", typeof(void), typeof(Player), typeof(int)));
+            MethodInfo cycle = RequirePathOfValheimanMethod(state, "CycleArrows", typeof(void), typeof(Player));
+            _povHudCycleArrows = (Action<Player>)Delegate.CreateDelegate(typeof(Action<Player>), cycle);
+            // Observe the real use call, after PoV's capacity/permanent-potion
+            // checks. Never dispatch a second use from a display notification.
+            harmony.Patch(AccessTools.Method(typeof(Humanoid), "UseItem", new[] { typeof(Inventory), typeof(ItemData), typeof(bool) }),
+                prefix: new HarmonyMethod(typeof(InventorySlotsPlugin), nameof(NotifyPathOfValheimanHudItemUse)));
+            harmony.Patch(cycle, postfix: new HarmonyMethod(typeof(InventorySlotsPlugin), nameof(NotifyPathOfValheimanHudArrowUse)));
+            _povHudBound = true;
         });
     }
 
@@ -76,8 +101,49 @@ public sealed partial class InventorySlotsPlugin
     }
     private static void UpdatePathOfValheimanCellHud()
     {
-        if (KeepPathOfValheimanHud()) _povCellHudTick!(Player.m_localPlayer);
+        Player player = Player.m_localPlayer;
+        if (KeepPathOfValheimanHud() && !(_povUnifiedHudPlayer == player && CanUsePathOfValheimanHud(player) &&
+            !IsUnityNull(InventoryPanels.QuickSlotsHotkeyBarRect))) _povCellHudTick!(player);
         else _povCellHudHide!();
+    }
+
+    private static bool CanUsePathOfValheimanHud(Player player) =>
+        _povHudBound && PovCanMutate(player) && _pov!.Enabled();
+
+    private static void NotifyPathOfValheimanHudItemUse(Humanoid __instance, ItemData item)
+    {
+        Player player = Player.m_localPlayer;
+        if (__instance != player || item == null || !CanUsePathOfValheimanHud(player)) return;
+        Inventory inventory = player.GetInventory();
+        if (!TryGetSlotAtGridPos(inventory, item.m_gridPos, out SlotDefinition? slot) || slot?.PovCell == null ||
+            !(slot.PovCell.StartsWith("food.", StringComparison.Ordinal) || slot.PovCell.StartsWith("potion.", StringComparison.Ordinal)) ||
+            inventory.GetItemAt(item.m_gridPos.x, item.m_gridPos.y) != item || !slot.Accepts(item) ||
+            !IsQuickSlotUnlocked(player, slot)) return;
+        NotifyQuickSlotHudUse(player, slot);
+    }
+
+    private static void NotifyPathOfValheimanHudArrowUse(Player __0)
+    {
+        if (!CanUsePathOfValheimanHud(__0)) return;
+        ItemData item = __0.GetAmmoItem();
+        Inventory inventory = __0.GetInventory();
+        if (item == null || !TryGetSlotAtGridPos(inventory, item.m_gridPos, out SlotDefinition? slot) ||
+            slot?.PovCell?.StartsWith("arrow.", StringComparison.Ordinal) != true ||
+            inventory.GetItemAt(item.m_gridPos.x, item.m_gridPos.y) != item || !slot.Accepts(item) ||
+            !IsQuickSlotUnlocked(__0, slot)) return;
+        NotifyQuickSlotHudUse(__0, slot);
+    }
+
+    private static void UsePathOfValheimanHudSlot(Player player, SlotDefinition slot)
+    {
+        if (!CanUsePathOfValheimanHud(player) || slot.PovCell == null || !IsQuickSlotUnlocked(player, slot)) return;
+        string cell = slot.PovCell;
+        int dot = cell.LastIndexOf('.');
+        if (dot < 0 || !int.TryParse(cell.Substring(dot + 1), out int index) || index < 0 || index > 2) return;
+        if (cell.StartsWith("food.", StringComparison.Ordinal)) _povHudEat!(player, index);
+        else if (cell.StartsWith("potion.", StringComparison.Ordinal)) _povHudDrink!(player, index);
+        // As with PoV's arrow hotkey, any arrow cell cycles to the next usable stack.
+        else if (cell.StartsWith("arrow.", StringComparison.Ordinal)) _povHudCycleArrows!(player);
     }
     private static void ClearPathOfValheimanNativeHud()
     {
@@ -85,6 +151,10 @@ public sealed partial class InventorySlotsPlugin
         _povToolHudHide = _povCellHudHide = null;
         _povCellHudTick = null;
         _povEquipmentHost = null;
+        _povHudEat = _povHudDrink = null;
+        _povHudCycleArrows = null;
+        _povHudBound = false;
+        _povUnifiedHudPlayer = null;
     }
 
     private static void InitializePathOfValheimanCompatibility()

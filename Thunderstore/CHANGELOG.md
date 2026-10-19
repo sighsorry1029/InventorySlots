@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.11
+
+- Integrated Path of Valheiman's unlocked food, potion and arrow cells into the InventorySlots quick-slot HUD beside the ordinary quick slots. Each bank wraps after three columns, and HUD positioning accounts for the combined width and height.
+- Applied all four Quick Slot HUD Mode options to both banks. PoV food/potion use and arrow selection now reveal the HUD in AllOnUse or the corresponding cell in UsedSlotOnUse, with the existing three-second hold and fade. Inventory refreshes no longer reset reveal timers when the visible slot identities are unchanged.
+- Added PoV key labels, selected-ammunition highlighting and HUD right-click actions through PoV's existing use and arrow-cycle logic. PoV retains its slot restrictions, belt capacities and permanent-potion rules; ordinary quick-slot progression is unchanged.
+- Hide PoV's native cell HUD only after the combined display is ready, retaining the native fallback if action integration is unavailable. Added isolated checks for native/HUD actions, restricted cells, display modes, layout bounds and timer preservation.
+
 ## 1.6.10
 
 - Fixed item-discovery backpack progression being bypassed when Path of Valheiman is installed. HardAntler and the other configured discoveries now unlock and reveal rows normally. If PoV also grants rows, the larger extra-row count is used without double counting; purchased rows and special-slot coordinates are preserved. The supplied PoV 5.0.8/5.0.9 default trees have no Big Bag row-unlock node.

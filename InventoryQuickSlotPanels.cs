@@ -108,8 +108,9 @@ public sealed partial class InventorySlotsPlugin
         Vector3 targetOffset = quickPanel.parent.TransformVector(targetPosition - quickPanel.localPosition);
         Vector3 anchoredPosition = hudRoot.InverseTransformPoint(QuickSlotHudAnchorCorners[1] + targetOffset);
         float hudElementSpace = Mathf.Max(1f, elementSpace);
+        SyncQuickSlotHudVisibility(Player.m_localPlayer);
         anchoredPosition = ClampQuickSlotHudPosition(hudRoot.rect, anchoredPosition, hudElementSpace,
-            GetQuickPanelRows(GetQuickPanelSlots(Player.m_localPlayer).Count));
+            _quickHudRows, _quickHudColumns);
         InventoryPanels.QuickSlotHudAnchoredPosition = anchoredPosition;
         InventoryPanels.QuickSlotHudElementSpace = hudElementSpace;
         InventoryPanels.QuickSlotHudAnchorValid = true;

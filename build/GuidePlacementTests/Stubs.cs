@@ -81,6 +81,7 @@ namespace UnityEngine
     {
         public static float Min(float a, float b) => Math.Min(a, b);
         public static float Max(float a, float b) => Math.Max(a, b);
+        public static int Max(int a, int b) => Math.Max(a, b);
         public static float Clamp(float value, float min, float max) => Math.Clamp(value, min, max);
     }
     public readonly record struct AnimatorStateInfo(string Name, float normalizedTime)

@@ -106,6 +106,7 @@ internal static partial class Program
             items.Clear();
             plugin.GetField("_povQuiverAvailable", Statics)!.SetValue(null, true);
             Check(!(bool)Call("IsPathOfValheimanQuiverVisible", player, bag, quiver)!, "catalog availability alone does not discover a quiver");
+            CheckHud(mod, pov, plugin, player, bag, config);
         }
         finally
         {
