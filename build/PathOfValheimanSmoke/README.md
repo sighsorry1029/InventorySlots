@@ -1,5 +1,54 @@
 # InventorySlots / Path of Valheiman isolated checks
 
+## Release 1.6.15 verification — 2026-10-20
+
+Final merged Release DLL SHA-256:
+`6517C7BA5637FA240511609360556A6BBAD8426CD8E6C3C29905C19A2EB93AFB`.
+Original PoV **5.1.0**, FineDining **1.1.7** callbacks and Valheim **1.0.20**
+x64 Mono passed **473 cold / 475 warm** checks, both with exit 0 and normal
+Mono cleanup. These include stacking, ring storage/layout and the Bound Gear
+death gate; the fixture boundaries and game-validation limits below still apply.
+
+The unit runner passed **190** tests, quick-stack fixtures **143**, and capacity
+fixtures **139**. Static contract inspection reported **0 failures**
+(1,154 references, 164 Harmony targets, 52 reflected contracts; ten manual).
+Debug and Release builds completed without warnings/errors; the final Debug
+DLL matched its Steam plugin copy. Assembly/plugin/manifest versions, merged
+dependencies and every Thunderstore/Nexus ZIP entry were verified. The final
+Release crafting-tooltip method includes the PoV presentation call.
+
+Actual Unity rendering, ring/controller interaction, world death/recovery,
+reconnect and multiplayer were not executed.
+
+## Bound Gear Death Keep gate — 2026-10-20
+
+Debug **1.6.14**, version unchanged, SHA-256:
+`5475388B169F173C6D287045E36A878D1625541131DE013B75C0DFE760B8BAD5`.
+The final merged DLL and local Steam plugin copy matched. Baseline and patched
+Debug builds passed without warnings/errors; the unit runner passed **190** tests
+before and after the change. Static contract inspection reported **0 failures**
+(1,154 references, 164 Harmony targets, 52 reflected contracts; ten manual).
+
+Original PoV **5.1.0** passed **464 cold / 466 warm** checks; original **5.0.10**
+passed **403 cold** checks. All processes exited 0 with normal Mono cleanup.
+The original PoV and Valheim 1.0.20 inputs are the same as the ring checkpoint below.
+
+`DeathKeepChecks` binds the original public `Stats.Has` and supplies managed
+progression objects to the original `StatSet`. It exercises missing progression,
+unlock/refund, Equipment Off, the YAML setting, another player, unavailable or
+throwing APIs, and refund during an already prepared restore. It also installs
+PoV's original `CraftPathfinder.Player_Tomb` handlers together with InventorySlots'
+compiled handlers and checks ordinary transfers, YAML Off/native hotbar retention,
+reference conservation and finalizer recovery after an injected death-body error.
+Coin checks cover Magic Purse with Bound Gear locked and overlapping unlocked rules.
+
+The tombstone-spawn/transfer body, prefab lookup and equipment-effect refresh are
+managed fixture substitutes. Actual world death rules, equipped/custom/ring
+effects, a locked-special-slot fallback competing with PoV's temporarily removed
+hotbar items, reconnect and multiplayer deaths remain game-validation work.
+This patch changes selection eligibility only; existing restoration and Harmony
+ordering are unchanged. No Release package or version change was made.
+
 ## Release 1.6.13 verification — 2026-10-19
 
 Final merged Release DLL SHA-256:
@@ -236,6 +285,69 @@ matched the Steam plugin copy. Assembly/plugin/manifest version 1.6.12, merged
 dependencies and every Thunderstore/Nexus ZIP entry were verified against the
 source files and final Release DLL. Actual game and multiplayer remain untested.
 
+## Metadata policy patch — 2026-10-20
+
+Debug 1.6.14 (version unchanged) passed **389 cold** checks with original PoV
+5.0.10, FineDining 1.1.7 and Valheim 1.0.20 x64 Mono. Process exit was 0 with
+normal cleanup. Final Debug and Steam plugin DLL SHA-256:
+`8102C9B5E838B2050D979655E26979E61DD5CFDF4A65780FA6E3D423452BF85A`.
+
+The shared metadata fixture checks brew/bonus provenance, protected effect and
+aging values, exact unknown metadata, actual automatic stack lookup and capacity,
+direct favorite-fill restrictions, public registration and partial source
+preservation. Cache checks cover incoming metadata, destination-only live guards
+and cheated identity. The existing FineDining tests use its actual callbacks
+through the public InventorySlots API and original native inventory move bodies.
+Set `INVENTORY_TEST_FINEDINING_DLL` to include these optional owner checks.
+
+The unit suite passed 190 tests, capacity fixture 139, quick-stack fixture 143,
+and simulated EpicLoot fixtures 47 (Slots) / 44 (Actions). The old quick-stack
+fixture lacked boundary doubles for already-existing PoV and metadata helpers;
+these were restored without replacing the production transfer algorithms.
+Final incremental Debug build/deploy succeeded with zero warnings/errors;
+baseline/full test compilation reports two existing nullable warnings in the
+StuWardCompat unit fixture. No Release package or actual game test was run.
+
+## PoV 5.1.0 ring adapter — 2026-10-20
+
+Debug 1.6.14 (version unchanged), using original PoV 5.1.0 / API 1.3 DLL
+`C3341BDDA00FFD2955C7EE324161CD576C7E86167C87DA6F279EB47BE15087AB`,
+passed **452 cold / 454 warm** checks. The original PoV 5.0.10 DLL above passed
+**391 cold** regression checks. All three processes exited 0 and completed
+Mono cleanup. FineDining 1.1.7 callbacks were included.
+
+New checks cover ten stable ring identities, native acceptance of marked
+Utility/Trinket items, base two cells, simulated six-cell grants and refunds,
+Pending and Equipment Off exclusions from the original `Rings()` iterator,
+locked occupied-cell withdrawal, transactional native ring hand-off, and native
+saved ordinal reprojection without changing item references or metadata.
+Geometry checks cover six half-size cells in three normal columns, wrapping in
+narrower panels, different cell pivots, default quick-panel clearance and
+preservation of custom coordinates. Transpiler checks verify that only the
+intended unequip calls change, with native arguments, labels and placement
+branches retained. Ring effect enumeration is tested; actual status-effect and
+affix calculations are not.
+
+The new Assign guard was first rejected by the old matcher, then reproduced from
+original IL and supported explicitly. The HUD fixture follows the installed
+version's Drink implementation; 5.1 removed the earlier permanent-potion guard.
+The panel source-contract test now uses the shared saved/default-position policy,
+with actual position behavior covered by Mono checks.
+
+The unit suite passed **190** tests. Static contracts found **0 failures**
+(1,154 references, 164 Harmony targets, 52 reflected contracts; ten manual
+targets). The final clean Debug build/deploy had zero warnings/errors. One prior
+build attempt crashed in ILRepack's native PDB writer; a build with servers
+disabled and a clean rebuild both completed successfully. Final merged Debug
+and deployed Steam plugin DLL SHA-256:
+`C702A693BC3CADD44AC3A3141BC51EB0E84223306E9E2F6C6C759BE1AA4FE238`.
+No version bump, Release package or game execution was performed.
+
 ## Game checks still required
 
 Use backed-up test characters to exercise first login from native PoV, full inventory, death/tombstone recovery, logout/reconnect, live node reset and Equipment On/Off. Check actual registered quivers, nearby crafting/quick stack, host/dedicated-server sessions and delayed/conflicting container operations. Visually check equipment/storage/HUD layouts across UI scales, craft/salvage/disenchant/VNEI tab changes and pinned/socket/rarity tooltips. No game or multiplayer pass is claimed by these isolated results.
+
+For rings, check hover/drag on the miniature hit areas, two-to-six unlocks and
+refunds, repeated inventory opening, panel drag/release and HUD follows-panel
+placement. Controller selection retains the existing logical grid navigation;
+visual ring order and controller movement have not been verified in-game.

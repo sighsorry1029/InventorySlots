@@ -138,7 +138,8 @@ public sealed partial class InventorySlotsPlugin
         {
             return keptItems;
         }
-        bool keepYaml = DeathKeepRulesEnabled() && _yamlConfig.KeepOnDeath?.Count > 0;
+        bool keepYaml = DeathKeepRulesEnabled() && _yamlConfig.KeepOnDeath?.Count > 0 &&
+                        CanUsePathOfValheimanDeathKeep(player);
         bool keepCoins = KeepPathOfValheimanCoinsOnDeath(player);
         if (!keepYaml && !keepCoins) return keptItems;
 

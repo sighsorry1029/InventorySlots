@@ -25,6 +25,8 @@ internal static partial class Program
         object? oldKeep = keep.GetValue(yaml);
         FieldInfo keepOption = plugin.GetField("_deathKeepRulesEnabled", Statics)!;
         object? oldOption = keepOption.GetValue(null);
+        FieldInfo deathGate = plugin.GetField("_povHasDeathKeepStat", Statics)!;
+        object? oldDeathGate = deathGate.GetValue(null);
         bool oldEnabled = enabled.Value;
         var coins = new ItemData { m_gridPos = new Vector2i(2, 0), m_stack = 7,
             m_shared = new ItemData.SharedData { m_name = "Coins", m_weight = 2f, m_maxStackSize = 999 } };
@@ -103,7 +105,11 @@ internal static partial class Program
             // Match the prefab token without requiring a native GameObject.
             effects.Patch(AccessTools.Method(plugin, "GetItemPrefabName"), prefix: new HarmonyMethod(typeof(Program), nameof(QuiverPrefab)));
             held = Prepare();
-            Check(held.Count == 1, "overlapping YAML and PoV rules collect one snapshot only");
+            Check(held.Count == 1, "Magic Purse protects Coins even while BoundGear/YAML is locked");
+            Call("RestoreKeepOnDeathItems", player, held);
+            deathGate.SetValue(null, (Func<string, bool>)(stat => stat == "BoundGear"));
+            held = Prepare();
+            Check(held.Count == 1, "unlocked overlapping YAML and PoV rules collect one snapshot only");
             Call("RestoreKeepOnDeathItems", player, held);
             // A skipped/no-op death body retains the other 31 items: no duplication
             // or free-capacity requirement is allowed to discard the escrowed coin.
@@ -125,6 +131,7 @@ internal static partial class Program
             items.Clear(); items.AddRange(oldItems); coinFixtureItem = null;
             gate.SetValue(null, oldGate); weightless.SetValue(null, oldWeightless);
             keep.SetValue(yaml, oldKeep); keepOption.SetValue(null, oldOption); enabled.Value = oldEnabled;
+            deathGate.SetValue(null, oldDeathGate);
             effects.UnpatchSelf();
         }
     }

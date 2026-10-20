@@ -50,8 +50,8 @@ internal static class StackMetadataPolicy
 
     /// <summary>
     /// Returns true only when every custom-data field is governed by a merge
-    /// policy. This is used by conservative automatic inventory actions that did
-    /// not historically stack arbitrary custom-data items.
+    /// policy. Direct quantity edits (sorting/favorite fill) require an explicit
+    /// composer; native transfers may also accept exactly matching unknown data.
     /// </summary>
     internal static bool CanParticipateInAutomaticStacking(
         IDictionary<string, string>? customData)

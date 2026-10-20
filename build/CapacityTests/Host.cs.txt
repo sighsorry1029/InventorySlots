@@ -40,7 +40,7 @@ public static class CapacityProbe
     { MetadataChecks++; Order.Add("metadata"); return a.MetadataMatches && b.MetadataMatches; }
     private static bool CanUseAutomaticStackDestination(Inventory inventory, ItemData existing, ItemData incoming)
     { SlotChecks++; Order.Add("slot"); return existing != null && existing.DestinationAllowed; }
-    private static bool CanCacheCanAddItemFailure(ItemData item) => CacheAllowed;
+    private static bool CanCacheCanAddItemFailure(Inventory inventory, ItemData item) => CacheAllowed;
     private static int ComputeInventoryPlacementCacheContext(Player player, Inventory inventory) { ContextChecks++; return Context; }
     private static int ComputeCanAddItemCacheItemKey(ItemData item) => item.m_quality;
     private static int GetUsableRegularRows(Player player) => 4;
@@ -94,10 +94,12 @@ public static class CapacityProbe
         Check(CountStackSpaceForIncomingItem(inventory, incoming) == 0, "Null inventory entry is ignored");
         target = new ItemData { m_stack = 40 }; inventory.m_inventory[0] = target;
         incoming.MetadataAllowed = false;
-        Check(CountStackSpaceForIncomingItem(inventory, incoming) == 0, "Unknown custom data remains protected");
+        Check(CountStackSpaceForIncomingItem(inventory, incoming) == 10, "Identical unknown metadata contributes native transfer capacity");
+        incoming.MetadataMatches = false;
+        Check(CountStackSpaceForIncomingItem(inventory, incoming) == 0, "Different unknown metadata remains protected");
         incoming.Trusted = true;
         Check(CountStackSpaceForIncomingItem(inventory, incoming) == 10, "Trusted orb stacking behavior is preserved");
-        incoming.Trusted = false; incoming.Epic = target.Epic = true;
+        incoming.Trusted = false; incoming.MetadataMatches = true; incoming.Epic = target.Epic = true;
         ResetCounters(); EpicAllows = false;
         Check(CountStackSpaceForIncomingItem(inventory, incoming) == 0 && EpicChecks == 1, "EpicLoot veto is retained");
         Check(string.Join(",", Order) == "slot,epic", "Candidate slot policy precedes optional EpicLoot callback");

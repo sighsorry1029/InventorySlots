@@ -8,7 +8,6 @@ namespace InventoryActions;
 
 public sealed partial class InventoryActionsPlugin
 {
-    private static bool _povStackMetadataReady;
     private static Func<ItemData, bool>? _normalizeFineDiningStack;
 
     private static void BindPathOfValheimanStackMetadata(Assembly assembly)
@@ -20,20 +19,18 @@ public sealed partial class InventoryActionsPlugin
             throw new MissingMethodException("PassiveTree.InventorySlotsCompat", "OurKeys");
         PathOfValheimanStackMetadata.Register(((Func<IEnumerable<string>>)Delegate.CreateDelegate(
             typeof(Func<IEnumerable<string>>), keys))());
-        _povStackMetadataReady = true;
     }
 
-    private static void InitializePathOfValheimanFoodStacking()
+    private static void InitializeFineDiningStacking()
     {
         // Start runs after optional plugins' Awake, including FineDining's setup.
         // Bind once; never discover reflection members during stack comparisons.
-        if (!_povStackMetadataReady || _povUnavailable ||
-            !Chainloader.PluginInfos.TryGetValue("sighsorry.FineDining", out var plugin) || plugin.Instance == null) return;
+        if (!Chainloader.PluginInfos.TryGetValue("sighsorry.FineDining", out var plugin) || plugin.Instance == null) return;
         var instance = plugin.Instance;
         try { BindFineDiningStackMetadata(instance.GetType().Assembly, () => instance != null); }
         catch (Exception error)
         {
-            Log.LogWarning("PoV/FineDining automatic stacking unavailable; food metadata remains protected: " + error.GetBaseException().Message);
+            Log.LogWarning("FineDining automatic stacking unavailable; food metadata remains protected: " + error.GetBaseException().Message);
         }
     }
 
@@ -77,7 +74,6 @@ public sealed partial class InventoryActionsPlugin
     }
 
     private static bool CanUseSupportedStackMetadata(ItemData item) =>
-        HasNoCustomData(item) || _povStackMetadataReady && !_povUnavailable &&
         StackMetadataPolicy.CanParticipateInAutomaticStacking(item.m_customData);
 
     private static bool HasCompatibleActionStackMetadata(ItemData target, ItemData source) =>
@@ -127,9 +123,8 @@ public sealed partial class InventoryActionsPlugin
         }
     }
 
-    private static bool MergePathOfValheimanSortableStacks(List<ItemData> items, Inventory inventory)
+    private static bool MergeRegisteredMetadataSortableStacks(List<ItemData> items, Inventory inventory)
     {
-        if (!_povStackMetadataReady || _povUnavailable) return false;
         bool changed = false;
         for (int i = 0; i < items.Count; ++i)
         for (int j = i + 1; j < items.Count; ++j)
@@ -138,6 +133,7 @@ public sealed partial class InventoryActionsPlugin
             // Leave the established metadata-free and EpicLoot paths in charge.
             if (HasNoCustomData(target) && HasNoCustomData(source) ||
                 IsEpicLootStackingItem(target) || IsEpicLootStackingItem(source) ||
+                !CanUseSupportedStackMetadata(target) || !CanUseSupportedStackMetadata(source) ||
                 target.m_stack <= 0 || source.m_stack <= 0 ||
                 !CanStackIntoTargetForTopFirstMove(target, source)) continue;
             int amount = Math.Min(source.m_stack, target.m_shared.m_maxStackSize - target.m_stack);

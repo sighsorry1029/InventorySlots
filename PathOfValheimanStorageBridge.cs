@@ -34,6 +34,7 @@ internal sealed class PathOfValheimanStorageBridge
     internal readonly Action<string> Changed;
     internal readonly List<(string Id, int Ordinal)> Cells = new();
     internal bool HasExtraTrinkets { get; private set; }
+    internal bool HasRings { get; private set; }
     private readonly Dictionary<string, Func<Player, ItemData>> _trinketReads = new(StringComparer.Ordinal);
     internal IReadOnlyList<string> StorageCells { get; private set; } = Array.Empty<string>();
     private readonly MethodInfo _register;
@@ -100,6 +101,10 @@ internal sealed class PathOfValheimanStorageBridge
         foreach (object cell in equipmentCells)
         {
             string key = (string)id.GetValue(cell);
+            if (key.StartsWith("ring.", StringComparison.Ordinal) &&
+                ((bool)cellInfo.GetProperty("Worn")!.GetValue(cell) ||
+                 cellInfo.GetProperty("Kind")!.GetValue(cell)?.ToString() != "Ring"))
+                throw new NotSupportedException("PoV ring storage/effect ownership changed");
             Cells.Add((key, Convert.ToInt32(ordinal.GetValue(cell))));
         }
         // 5.0.9 advertises API 1.1.0 but AtLeast(1, 1) still returns false.
@@ -120,9 +125,31 @@ internal sealed class PathOfValheimanStorageBridge
             harmony.Patch(Require("PassiveTree.Trinkets+Spawn", "Postfix", typeof(void), typeof(Player)),
                 postfix: new HarmonyMethod(typeof(InventorySlotsPlugin), "OnPathOfValheimanTrinketsSpawned"));
         }
-        if (StorageCells.Count(c => !c.StartsWith("purse.", StringComparison.Ordinal)) != 28 || Cells.Count != (HasExtraTrinkets ? 46 : 43))
+        HasRings = Cells.Any(c => c.Id == "ring.0");
+        if (HasRings)
+        {
+            Require("Valheiman.Api.Equipment", "IsRing", typeof(bool), typeof(ItemData));
+            for (int i = 0; i < 10; i++)
+                if (!Cells.Contains(("ring." + i, 48 + i)) || !StorageCells.Contains("ring." + i) ||
+                    Convert.ToInt32(Enum.Parse(slotType, "Ring" + i)) != 48 + i)
+                    throw new NotSupportedException("PoV ring cell contract changed");
+        }
+        int ringCells = HasRings ? 10 : 0;
+        if (StorageCells.Count(c => !c.StartsWith("purse.", StringComparison.Ordinal)) != 28 + ringCells ||
+            Cells.Count != (HasExtraTrinkets ? 46 : 43) + ringCells)
             throw new NotSupportedException("Unrecognized PoV equipment layout");
 
+        if (HasRings)
+        {
+            // 5.1 arranges native side plates every frame. The provider's UI
+            // already owns their layout; keep PoV's other side-plate work.
+            Type plates = assembly.GetType("PassiveTree.UI.SidePlates", true)!;
+            FieldInfo columned = AccessTools.DeclaredField(plates, "Columned");
+            if (columned?.FieldType != typeof(bool) || !columned.IsStatic)
+                throw new MissingFieldException(plates.FullName, "Columned");
+            harmony.Patch(Require(plates.FullName!, "Column", typeof(void), typeof(InventoryGui), typeof(UnityEngine.RectTransform)),
+                prefix: new HarmonyMethod(typeof(InventorySlotsPlugin), "KeepPathOfValheimanStatPanelLayout"));
+        }
         // Coins stay in ordinary backpack cells. Public API queries retain PoV's
         // node/option policy; field injection respects the original private field.
         harmony.Patch(AccessTools.DeclaredMethod(typeof(Inventory), "UpdateTotalWeight", Type.EmptyTypes),
@@ -133,6 +160,8 @@ internal sealed class PathOfValheimanStorageBridge
             Require("PassiveTree.Gear.UtilitySlots", "Tick", typeof(void), typeof(Player)) })
         {
             InventorySlotsPlugin.FindPathOfValheimanUtilityUnequip(PatchProcessor.GetOriginalInstructions(target).ToList());
+            if (HasRings && target.Name == "Tick")
+                InventorySlotsPlugin.FindPathOfValheimanUtilityUnequip(PatchProcessor.GetOriginalInstructions(target).ToList(), "PutRing");
             harmony.Patch(target, transpiler: new HarmonyMethod(typeof(InventorySlotsPlugin), "DeferPathOfValheimanUtilityUnequip"));
         }
     }

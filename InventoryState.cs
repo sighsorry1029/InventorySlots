@@ -73,6 +73,7 @@ public sealed partial class InventorySlotsPlugin
         public RectTransform? DraggedInventoryPanel;
         public Vector2 InventoryPanelDragStartLocalMouse;
         public Vector2 InventoryPanelDragStartOffset;
+        public Vector2 InventoryPanelDragOriginalOffset;
         public bool ContainerPanelBasePositionSet;
         public bool ContainerWeightPanelBasePositionSet;
         public bool DraggingQuickSlotsPanelOffset;

@@ -17,10 +17,12 @@ Restock limits and all container actions retain their previous meaning.
 - Exhausted ordinary donors are removed through Inventory.RemoveItem. The final
   inventory change notification also runs when filling leaves nothing to sort.
 - Newly filled favorite quantities gain the existing quick-stack protection.
-- InventorySlots uses its existing conservative automatic metadata policy and
-  metadata merge helper. InventoryActions excludes custom-data stacks and preserves
-  the cheat-marker separation used by its ordinary Sort merge. Neither path uses a
-  trusted external-mod stacking shortcut to perform a direct quantity merge.
+- Both mods require registered policies for every custom-data field before a
+  direct quantity merge and preserve cheat-marker separation. InventoryActions
+  accepts owner policies independently of PoV, including FineDining's guarded
+  freshness composition. Identical unknown fields may pass native transfers but
+  remain excluded here. Neither path uses a trusted external-mod stacking shortcut
+  to perform a direct quantity merge.
 
 The quantity loop is source-linked from Shared/Sorting/FavoriteStackFill.cs into
 both plugins. Each host selects cells according to its own existing slot policy.

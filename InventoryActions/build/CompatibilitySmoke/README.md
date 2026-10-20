@@ -1,5 +1,51 @@
 # Compatibility smoke checks on original Valheim Mono
 
+## Release 1.1.20 verification — 2026-10-20
+
+Final merged Release DLL SHA-256:
+`A2AC07E0BAEBA1C4D0F2DF3B39B1C9C1873F1AC79CDBAACEE8BC1BF681CE1F81`.
+Original Valheim **1.0.20** x64 Mono passed **135** PoV checks using original
+PoV **5.1.0**, **33** metadata checks without PoV, and **22** MUC restock checks.
+FineDining **1.1.7** callbacks were enabled for both metadata modes. All three
+processes exited 0 and completed Mono cleanup. The shared quick-stack fixtures
+also passed **143** checks.
+
+Debug and Release builds completed without warnings/errors; the final Debug
+DLL matched its Steam plugin copy. Static contract inspection reported
+**0 failures** (665 references, 51 Harmony targets, seven reflected contracts;
+two manual). Assembly/plugin/manifest versions, merged dependencies, both public
+metadata-policy API overloads and all Thunderstore ZIP entries were verified.
+
+These are static/isolated managed checks with the explicit boundary substitutes
+described below. Actual UI, gameplay, networking and multiplayer were not run.
+
+## Metadata policy patch — 2026-10-20
+
+Debug 1.1.19 (version unchanged) passed **135** `pov` checks and **33**
+`stack-metadata` checks with original Valheim 1.0.20 x64 Mono and FineDining
+1.1.7. The `pov` run used PoV 5.0.10 SHA-256
+`252B60914EFC9F402A977A8C235E28BCB363D7BB7CEEBDF5F22A228518282E74`.
+Both processes exited 0 and completed Mono cleanup.
+
+`stack-metadata` explicitly verifies that PoV was never loaded. It covers the
+public owner-policy API, native transfer of identical unknown data, rejection of
+different/missing unknown data, conservative direct Sort/favorite filling,
+FineDining clocks/spoilage, partial source preservation, owner shutdown and
+post-mutation exceptions. The shared PoV checks additionally cover brew origin,
+bonus markers and protected effect/aging/processing fields.
+
+Set `INVENTORY_TEST_FINEDINING_DLL` to the original FineDining DLL, then run:
+
+```powershell
+./InventoryActions/build/CompatibilitySmoke/Run-MonoSmoke.ps1 -Mode stack-metadata
+./InventoryActions/build/CompatibilitySmoke/Run-MonoSmoke.ps1 -Mode pov -PovDll <original-PathOfValheiman.dll>
+```
+
+Final Debug/deployed DLL SHA-256:
+`911CD9E7131E1C3BF4C75EEF27481F8CD104A68587455E88C69B5630B8120760`.
+These are isolated managed checks with explicit engine boundary stubs. Actual
+pickup, chest contention and host/dedicated-server gameplay remain untested.
+
 ## Release 1.1.18 verification — 2026-10-19
 
 Final merged Release DLL SHA-256:

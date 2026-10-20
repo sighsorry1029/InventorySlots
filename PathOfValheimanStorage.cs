@@ -221,7 +221,7 @@ public sealed partial class InventorySlotsPlugin
                     throw new InvalidOperationException("Quiver action did not equip or queue the item");
                 }
             }
-            else if (cell.StartsWith("utility", StringComparison.Ordinal))
+            else if (cell.StartsWith("utility", StringComparison.Ordinal) || IsPathOfValheimanRingSlot(slot))
             {
                 UnequipInventorySlotsItem(player, item);
             }
@@ -280,7 +280,7 @@ public sealed partial class InventorySlotsPlugin
         finally { _povNotificationActive = false; }
     }
 
-    internal static int FindPathOfValheimanUtilityUnequip(List<CodeInstruction> instructions)
+    internal static int FindPathOfValheimanUtilityUnequip(List<CodeInstruction> instructions, string handoff = "Put")
     {
         MethodInfo original = AccessTools.Method(typeof(Humanoid), nameof(Humanoid.UnequipItem), new[] { typeof(ItemData), typeof(bool) });
         int match = -1;
@@ -290,9 +290,33 @@ public sealed partial class InventorySlotsPlugin
             // Trinket replacement (effects=true) must still remove its predecessor.
             if (!instructions[i].Calls(original) || instructions[i - 1].opcode != OpCodes.Ldc_I4_0) continue;
             bool put = false;
-            for (int j = i + 1; j < Math.Min(i + 12, instructions.Count); j++)
+            int start = i + 1;
+            // 5.1 Assign adds "if (!External && !IntoCell(p,s,item)) return false"
+            // before Put. Accept that exact branch, not arbitrary intervening code.
+            if (handoff == "Put" && i + 13 < instructions.Count &&
+                instructions[i + 1].operand is MethodInfo external && external.Name == "get_External" &&
+                external.DeclaringType?.FullName == "PassiveTree.Gear.Cells" &&
+                instructions[i + 2].Branches(out Label? externalTarget) &&
+                instructions[i + 2].opcode.FlowControl == FlowControl.Cond_Branch &&
+                instructions[i + 3].opcode == OpCodes.Ldarg_0 &&
+                instructions[i + 4].opcode == OpCodes.Ldarg_1 &&
+                instructions[i + 5].opcode == OpCodes.Ldarg_2 &&
+                instructions[i + 6].operand is MethodInfo into && into.Name == "IntoCell" &&
+                into.DeclaringType?.FullName == "PassiveTree.Gear.State" &&
+                instructions[i + 7].Branches(out Label? successTarget) &&
+                (instructions[i + 2].opcode == OpCodes.Brtrue || instructions[i + 2].opcode == OpCodes.Brtrue_S) &&
+                (instructions[i + 7].opcode == OpCodes.Brtrue || instructions[i + 7].opcode == OpCodes.Brtrue_S) &&
+                externalTarget.HasValue && successTarget.HasValue &&
+                instructions[i + 10].labels.Contains(externalTarget.Value) &&
+                instructions[i + 10].labels.Contains(successTarget.Value) &&
+                instructions[i + 8].opcode == OpCodes.Ldc_I4_0 && instructions[i + 9].opcode == OpCodes.Ret &&
+                instructions[i + 10].opcode == OpCodes.Ldarg_0 &&
+                instructions[i + 11].opcode == OpCodes.Ldarg_1 &&
+                instructions[i + 12].opcode == OpCodes.Ldarg_2)
+                start = i + 10;
+            for (int j = start; j < Math.Min(start + 11, instructions.Count); j++)
             {
-                if (instructions[j].operand is MethodInfo method && method.Name == "Put" &&
+                if (instructions[j].operand is MethodInfo method && method.Name == handoff &&
                     method.DeclaringType?.FullName == "PassiveTree.Gear.UtilitySlots") { put = true; break; }
                 if (instructions[j].opcode.FlowControl is FlowControl.Branch or FlowControl.Cond_Branch or FlowControl.Return) break;
             }
@@ -304,12 +328,21 @@ public sealed partial class InventorySlotsPlugin
         return match;
     }
 
-    private static IEnumerable<CodeInstruction> DeferPathOfValheimanUtilityUnequip(IEnumerable<CodeInstruction> source)
+    private static IEnumerable<CodeInstruction> DeferPathOfValheimanUtilityUnequip(IEnumerable<CodeInstruction> source, MethodBase __originalMethod)
     {
         var instructions = source.ToList();
         int index = FindPathOfValheimanUtilityUnequip(instructions);
         instructions[index].opcode = OpCodes.Call;
         instructions[index].operand = AccessTools.Method(typeof(InventorySlotsPlugin), nameof(PathOfValheimanUtilityUnequip));
+        // Ring routing was added in 5.1. Detect the checked native hand-off,
+        // not runtime provider state: Harmony can rebuild this patch later.
+        if (__originalMethod.Name == "Tick" &&
+            __originalMethod.DeclaringType?.Assembly.GetType("Valheiman.Api.Equipment")?.GetMethod("IsRing") != null)
+        {
+            int ring = FindPathOfValheimanUtilityUnequip(instructions, "PutRing");
+            instructions[ring].opcode = OpCodes.Call;
+            instructions[ring].operand = instructions[index].operand;
+        }
         return instructions;
     }
 

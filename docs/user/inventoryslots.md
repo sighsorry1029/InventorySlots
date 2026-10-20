@@ -140,6 +140,12 @@ KeepOnDeath:
 
 Turn **Enable Death Keep Rules** Off to disable this feature.
 
+With **Path of Valheiman**, these YAML rules also require the player's **Bound Gear**
+effect (also called Grave Tether). Unlocking it enables the existing YAML selection,
+including matching spare gear in the backpack; refunding it locks the rules again.
+This requirement is independent of PoV's Equipment system option. PoV's own death
+benefits, world death rules and Magic Purse coin protection remain separate.
+
 ## Crafting and comparisons
 
 Use the **Grid / List** button immediately left of the search field to switch views. New installations default to **List**; an existing saved selection is preserved. Both views share search, filters, favorites, selection, craft quantity, and the queue.

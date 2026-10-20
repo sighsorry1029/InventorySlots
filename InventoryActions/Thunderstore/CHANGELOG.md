@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.20
+
+- Allowed otherwise compatible Path of Valheiman brew batches and bonus harvest drops to stack while retaining destination provenance and preserving partially transferred sources. Food strength, aging clocks and other gameplay metadata remain protected.
+- Added public `InventoryActionsApi.RegisterStackMetadataPolicy` overloads for item-data owners, independent of PoV. Registered policies now support Sort and favorite-stack filling without requiring PoV, and FineDining's guarded freshness composition also initializes when PoV is absent.
+- Allowed local Quick Stack, Restock and native transfers to merge stacks with exactly matching unknown metadata. Different or missing values still require an explicit owner policy; direct Sort/favorite quantity merges require policies for every field. MultiUserChest retains its separate conservative restrictions.
+- Expanded isolated checks for owner policies, FineDining without PoV, partial transfers, failed transfers and post-mutation exceptions. Existing PoV unlock gates, favorites and EpicLoot rules remain in effect; actual game and multiplayer verification remain required.
+
 ## 1.1.19
 
 - Added guarded Path of Valheiman metadata support to InventoryActions sorting, favorite-stack filling, local Quick Stack and Restock. Crafting time and ID differences alone no longer block these actions; actual item bonuses and other metadata remain protected.

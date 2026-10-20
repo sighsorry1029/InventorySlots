@@ -244,6 +244,7 @@ public sealed partial class InventorySlotsPlugin
         int quality = 1;
         int amount = pair.Recipe.m_amount;
         string tooltip = GetLocalizedStaticItemTooltip(pair.Recipe.m_item.m_itemData, quality, crafting: true, amount);
+        tooltip = AppendPathOfValheimanAffixes(pair.Recipe.m_item.m_itemData, tooltip);
         return AppendItemRequiresSkillLevelCraftingTooltip(pair, tooltip);
     }
 }

@@ -66,8 +66,10 @@ internal static partial class Program
         MethodInfo? permanent = null;
         foreach (var instruction in PatchProcessor.GetOriginalInstructions(AccessTools.Method(state, "Drink")))
             if (instruction.operand is MethodInfo method && method.Name == "Permanent") permanent = method;
-        hooks.Patch(permanent ?? throw new MissingMethodException("Drink permanent-potion guard"),
-            prefix: new HarmonyMethod(typeof(Program), nameof(HudPermanent)));
+        if (permanent != null)
+            hooks.Patch(permanent, prefix: new HarmonyMethod(typeof(Program), nameof(HudPermanent)));
+        else Check(pov.GetType("Valheiman.Api.Equipment")!.GetMethod("IsRing") != null,
+            "5.1 Drink no longer has the old permanent-potion guard");
         hooks.Patch(AccessTools.Method(typeof(Humanoid), "UseItem", new[] { typeof(Inventory), typeof(ItemData), typeof(bool) }), prefix: new HarmonyMethod(typeof(Program), nameof(HudUse)));
         hooks.Patch(AccessTools.Method(typeof(Humanoid), "EquipItem"), prefix: new HarmonyMethod(typeof(Program), nameof(HudEquip)));
         Type localization = Assembly.Load("assembly_guiutils").GetType("Localization", true)!;
@@ -128,8 +130,11 @@ internal static partial class Program
             Call("InvalidateSlotDefinitionCaches"); Sync();
             Check(Alpha("pov.food.0") == 1, "inventory notification after consumption preserves same-cell reveal");
             Clear(); hudPermanent = true;
-            Call("UsePathOfValheimanHudSlot", player, slots["potion.0"]);
-            Check(hudUseCalls == 1 && Alpha("pov.potion.0") == 0, "original permanent potion rule neither consumes nor reveals a false use");
+            if (permanent != null)
+            {
+                Call("UsePathOfValheimanHudSlot", player, slots["potion.0"]);
+                Check(hudUseCalls == 1 && Alpha("pov.potion.0") == 0, "original permanent potion rule neither consumes nor reveals a false use");
+            }
             hudPermanent = false;
             state.GetMethod("Drink", Statics)!.Invoke(null, new object[] { player, 0 });
             Check(hudUseCalls == 2 && ReferenceEquals(hudUsedItem, potion) && Alpha("pov.potion.0") == 1,

@@ -4,7 +4,7 @@ param(
     [string]$ModDll,
     [ValidateSet('basic', 'muc-session', 'muc-restock', 'muc-api', 'ui-layout',
         'restock-reserve', 'button-modes', 'favorite-fill', 'material-access',
-        'empty-favorite', 'epicloot-overlap', 'pov')]
+        'empty-favorite', 'epicloot-overlap', 'pov', 'stack-metadata')]
     [string]$Mode = 'muc-session',
     [string]$MucDll,
     [string]$PovDll

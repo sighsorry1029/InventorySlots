@@ -12,8 +12,9 @@ internal static class PoVStackMetadataChecks
     private const BindingFlags Static = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
     private const string Expiry = "sighsorry.FineDining.ExpiryWorldTicks";
     private const string Lifetime = "sighsorry.FineDining.AssignedLifetimeTicks";
+    private static bool withPoV;
 
-    internal static void Run(Type plugin, Assembly pov, Action<bool, string> check)
+    internal static void Run(Type plugin, Assembly? pov, Action<bool, string> check)
     {
         // Standalone Mono has no Unity native logging service. Inventory's
         // original mutation bodies still run; only their diagnostic sink is off.
@@ -23,37 +24,58 @@ internal static class PoVStackMetadataChecks
         object? Call(string name, params object?[] args) => plugin.GetMethod(name, Static)!.Invoke(null, args);
         bool Compatible(ItemData a, ItemData b) => (bool)policy.GetMethod("AreCompatible", Static)!
             .Invoke(null, new object?[] { a.m_customData, b.m_customData })!;
-        var keys = (IEnumerable<string>)pov.GetType("PassiveTree.InventorySlotsCompat", true)!
-            .GetMethod("OurKeys", Static)!.Invoke(null, null)!;
-        plugin.Assembly.GetType(plugin.Namespace + ".PathOfValheimanStackMetadata", true)!
-            .GetMethod("Register", Static)!.Invoke(null, new object[] { keys });
-        var target = Item(5, "a", "100");
-        var source = Item(5, "b", "101");
-        check(Compatible(target, source), "PoV separate craft batches are compatible");
-        check(Compatible(source, source.Clone()), "PoV split clone remains compatible");
-        source.m_customData["pt.food"] = "1.2";
-        check(!Compatible(target, source), "PoV food strength remains part of identity");
-        source.m_customData["pt.food"] = "1.1";
-        source.m_customData["unknown.mod"] = "x";
-        check(!Compatible(target, source), "unknown metadata cannot be discarded");
-        source.m_customData.Remove("unknown.mod");
-        source.m_customData["pt.work.portal"] = "quest";
-        check(!Compatible(target, source), "other PoV quest provenance stays exact");
-        source.m_customData.Remove("pt.work.portal");
-        source.m_customData[Expiry] = "900";
-        check(!Compatible(target, source), "FineDining data stays exact before owner registration");
-        source.m_customData.Remove(Expiry);
-        var partialBefore = new Dictionary<string, string>(source.m_customData);
-        policy.GetMethod("MergeInto", Static)!.Invoke(null, new object[] { target.m_customData, source.m_customData });
-        check(target.m_customData["pt.work.made"] == "100" && target.m_customData["pt.work.made.id"] == "a",
-            "destination craft time and ID are retained together");
-        var noProvenance = Item(1, "c", "102");
-        noProvenance.m_customData.Remove("pt.work.made");
-        noProvenance.m_customData.Remove("pt.work.made.id");
-        policy.GetMethod("MergeInto", Static)!.Invoke(null, new object[] { noProvenance.m_customData, source.m_customData });
-        check(!noProvenance.m_customData.ContainsKey("pt.work.made") && !noProvenance.m_customData.ContainsKey("pt.work.made.id"),
-            "unstamped destination does not acquire invented craft provenance");
-        check(Equal(source.m_customData, partialBefore), "metadata merge never modifies remaining source");
+        withPoV = pov != null;
+        ItemData target, source;
+        Dictionary<string, string> partialBefore;
+        if (pov != null)
+        {
+            var keys = (IEnumerable<string>)pov.GetType("PassiveTree.InventorySlotsCompat", true)!
+                .GetMethod("OurKeys", Static)!.Invoke(null, null)!;
+            plugin.Assembly.GetType(plugin.Namespace + ".PathOfValheimanStackMetadata", true)!
+                .GetMethod("Register", Static)!.Invoke(null, new object[] { keys });
+            target = Item(5, "a", "100");
+            source = Item(5, "b", "101");
+            check(Compatible(target, source), "PoV separate craft batches are compatible");
+            check(Compatible(source, source.Clone()), "PoV split clone remains compatible");
+            target.m_customData["pt.work.origin"] = "brew:player:batch-a";
+            target.m_customData.Remove("pt.bonus");
+            source.m_customData["pt.work.origin"] = "brew:player:batch-b";
+            source.m_customData["pt.bonus"] = "1";
+            check(Compatible(target, source), "different brew batches and bonus drops are compatible");
+            foreach (string key in new[] { "pt.brew", "pt.keep", "pt.fooddur", "pt.foodfresh",
+                         "pt.age.t", "pt.aged", "pt.fish.caught", "pt.work.wind-used", "pt.born" })
+            {
+                source.m_customData[key] = "1";
+                check(!Compatible(target, source), key + " remains protected");
+                source.m_customData.Remove(key);
+            }
+            source.m_customData["pt.food"] = "1.2";
+            check(!Compatible(target, source), "PoV food strength remains part of identity");
+            source.m_customData["pt.food"] = "1.1";
+            source.m_customData["unknown.mod"] = "x";
+            check(!Compatible(target, source), "unknown metadata cannot be discarded");
+            source.m_customData.Remove("unknown.mod");
+            source.m_customData["pt.work.portal"] = "quest";
+            check(!Compatible(target, source), "other PoV quest provenance stays exact");
+            source.m_customData.Remove("pt.work.portal");
+            source.m_customData[Expiry] = "900";
+            check(!Compatible(target, source), "FineDining data stays exact before owner registration");
+            source.m_customData.Remove(Expiry);
+            partialBefore = new Dictionary<string, string>(source.m_customData);
+            policy.GetMethod("MergeInto", Static)!.Invoke(null, new object[] { target.m_customData, source.m_customData });
+            check(target.m_customData["pt.work.made"] == "100" && target.m_customData["pt.work.made.id"] == "a",
+                "destination craft time and ID are retained together");
+            check(target.m_customData["pt.work.origin"] == "brew:player:batch-a" &&
+                  !target.m_customData.ContainsKey("pt.bonus"), "destination origin and absent bonus marker are retained");
+            var noProvenance = Item(1, "c", "102");
+            noProvenance.m_customData.Remove("pt.work.made");
+            noProvenance.m_customData.Remove("pt.work.made.id");
+            policy.GetMethod("MergeInto", Static)!.Invoke(null, new object[] { noProvenance.m_customData, source.m_customData });
+            check(!noProvenance.m_customData.ContainsKey("pt.work.made") && !noProvenance.m_customData.ContainsKey("pt.work.made.id"),
+                "unstamped destination does not acquire invented craft provenance");
+            check(Equal(source.m_customData, partialBefore), "metadata merge never modifies remaining source");
+        }
+        CheckNativePolicies(plugin, check);
 
         string? fdPath = Environment.GetEnvironmentVariable("INVENTORY_TEST_FINEDINING_DLL");
         if (string.IsNullOrEmpty(fdPath))
@@ -67,8 +89,9 @@ internal static class PoVStackMetadataChecks
         if (actions)
         {
             // Binding failure must not leave half the owner policies installed.
-            try { Call("BindFineDiningStackMetadata", pov, new Func<bool>(() => available)); }
+            try { Call("BindFineDiningStackMetadata", plugin.Assembly, new Func<bool>(() => available)); }
             catch (TargetInvocationException) { }
+            target = Item(5, "a", "100"); source = Item(5, "b", "101");
             source.m_customData[Expiry] = "900";
             check(!Compatible(target, source), "unsupported FineDining binding leaves policy closed");
             Call("BindFineDiningStackMetadata", fd, new Func<bool>(() => available));
@@ -112,10 +135,6 @@ internal static class PoVStackMetadataChecks
             available = false;
             check(!(bool)Call("CanRestockFromContainerItem", target, source)!, "destroyed FineDining owner blocks subsequent transfers");
             available = true;
-            var ready = plugin.GetField("_povStackMetadataReady", Static)!;
-            ready.SetValue(null, false);
-            check(!(bool)Call("CanUseContainerActionStacking", source)!, "IA keeps custom-data protection without PoV binding");
-            ready.SetValue(null, true);
             // Actual original Inventory.MoveItemToThis/AddItem, deliberately no
             // FD native tracker: local-only chests need our confirmed-move merge.
             Call("MoveActionStack", inventory, from, source, 5, target);
@@ -130,7 +149,8 @@ internal static class PoVStackMetadataChecks
         check(target.m_stack == 20 && source.m_stack == 3 && from.ContainsItem(source), "partial native move conserves item counts");
         check(target.m_customData[Expiry] == "900", "partial native move preserves earliest actual FD expiry");
         check(Equal(source.m_customData, partialBefore), "partial native move keeps source freshness and craft identity");
-        check(target.m_customData["pt.work.made.id"] == "a", "partial native move retains target craft ID");
+        if (withPoV)
+            check(target.m_customData["pt.work.made.id"] == "a", "partial native move retains target craft ID");
 
         if (actions)
         {
@@ -193,6 +213,99 @@ internal static class PoVStackMetadataChecks
         }
     }
 
+    private static void CheckNativePolicies(Type plugin, Action<bool, string> check)
+    {
+        bool actions = plugin.Namespace == "InventoryActions";
+        object? Call(string name, params object?[] args) => plugin.GetMethod(name, Static)!.Invoke(null, args);
+        bool Pair(ItemData a, ItemData b) => (bool)Call(actions
+            ? "CanStackIntoTargetForTopFirstMove" : "CanShareInventoryStack", a, b)!;
+        var target = Item(18, "a", "100");
+        var source = Item(5, "b", "101");
+        target.m_customData = new Dictionary<string, string> { ["smoke.owner"] = "2" };
+        source.m_customData = new Dictionary<string, string> { ["smoke.owner"] = "2" };
+        check(Pair(target, source), "matching unknown metadata permits native stacking");
+        check((bool)Call("CanUseContainerActionStacking", source)!, "unknown metadata is a native transfer candidate");
+        if (!actions)
+        {
+            var bag = Bag(target);
+            check((int)Call("CountStackSpaceForIncomingItem", bag, source)! == 2,
+                "matching unknown metadata contributes pickup capacity");
+            Call("BeginInventoryAddItemDataStackLookup", source);
+            try
+            {
+                object?[] lookup = { bag, source.m_shared.m_name, source.m_quality, (float)source.m_worldLevel, null };
+                Call("TryOverrideFindFreeStackItem", lookup);
+                check(ReferenceEquals(lookup[4], target), "automatic pickup selects matching unknown metadata");
+                source.m_customData["smoke.owner"] = "different";
+                Call("TryOverrideFindFreeStackItem", lookup);
+                check(lookup[4] == null && (int)Call("CountStackSpaceForIncomingItem", bag, source)! == 0,
+                    "automatic pickup rejects different unknown metadata");
+            }
+            finally { Call("EndInventoryAddItemDataStackLookup", true); }
+        }
+        source.m_customData["smoke.owner"] = "1";
+        check(!Pair(target, source), "different unknown metadata blocks native stacking");
+        source.m_customData.Clear();
+        check(!Pair(target, source), "missing unknown metadata blocks native stacking");
+        source.m_customData["smoke.owner"] = "2";
+        Call("FillFavoriteStackAmounts", new List<ItemData> { target }, new List<ItemData> { source });
+        check(target.m_stack == 18 && source.m_stack == 5, "unknown data does not authorize direct favorite fill");
+        if (actions)
+        {
+            source.m_gridPos = new Vector2i(1, 0);
+            var bag = Bag(target, source);
+            Call("MergeSortableStacks", new List<ItemData> { target, source }, bag);
+            check(target.m_stack == 18 && source.m_stack == 5, "unknown data does not authorize direct sort");
+            Call("MoveActionStack", Bag(target), Bag(source), source, 2, target);
+            check(target.m_stack == 20 && source.m_stack == 3 &&
+                  target.m_customData["smoke.owner"] == "2" && source.m_customData["smoke.owner"] == "2",
+                "matching unknown metadata survives partial native transfer");
+            target.m_stack = 18; source.m_stack = 5;
+        }
+
+        Type api = plugin.Assembly.GetType(plugin.Namespace + "." + plugin.Namespace + "Api", true)!;
+        var register = api.GetMethod("RegisterStackMetadataPolicy", new[] {
+            typeof(string), typeof(Func<string,string,string>), typeof(Func<string,string,bool>) })!;
+        bool ready = false;
+        Func<string?, string?, string?> merge = (a, b) => a == null ? b : b == null ? a :
+            Math.Min(int.Parse(a), int.Parse(b)).ToString();
+        Func<string?, string?, bool> guard = (_, _) => ready;
+        check((bool)register.Invoke(null, new object[] { "smoke.owner", merge, guard })!, "public API registers owner policy");
+        check(!(bool)register.Invoke(null, new object[] { "smoke.owner", merge, guard })!, "public API preserves first registration");
+        check(!Pair(target, source), "live owner guard veto is honored");
+        ready = true; source.m_customData["smoke.owner"] = "1";
+        check(Pair(target, source), "live owner guard can allow previously rejected pair");
+        var before = new Dictionary<string, string>(source.m_customData);
+        Call("FillFavoriteStackAmounts", new List<ItemData> { target }, new List<ItemData> { source });
+        check(target.m_stack == 20 && source.m_stack == 3 && target.m_customData["smoke.owner"] == "1" &&
+              Equal(source.m_customData, before), "registered favorite fill composes destination and preserves source remainder");
+        if (actions)
+        {
+            target.m_stack = source.m_stack = 5;
+            var bag = Bag(target, source);
+            Call("MergeSortableStacks", new List<ItemData> { target, source }, bag);
+            check(target.m_stack == 10 && !bag.ContainsItem(source), "registered owner sort works independently of PoV");
+        }
+        else
+        {
+            target.m_stack = 18;
+            source.m_customData.Clear();
+            var bag = Bag(target);
+            ready = false;
+            check(!Pair(target, source) && !(bool)Call("CanCacheCanAddItemFailure", bag, source)!,
+                "destination-only live metadata veto cannot be cached");
+            ready = true;
+            check(Pair(target, source), "destination-only owner state change allows immediate retry");
+            source.m_customData["smoke.owner"] = "1";
+            check(!(bool)Call("CanCacheCanAddItemFailure", bag, source)!, "metadata source failure is never reused for another batch");
+            target.m_customData.Clear(); source.m_customData.Clear();
+            check((bool)Call("CanCacheCanAddItemFailure", bag, source)!, "ordinary metadata-free failures remain cacheable");
+            int originalKey = (int)Call("ComputeCanAddItemCacheItemKey", source)!;
+            source.m_cheated = true;
+            check(originalKey != (int)Call("ComputeCanAddItemCacheItemKey", source)!, "failure cache distinguishes cheated identity");
+        }
+    }
+
     private static void ThrowAfterMove() => throw new InvalidOperationException("stack fixture fault");
 
     private static bool Equal(Dictionary<string, string> a, Dictionary<string, string> b) =>
@@ -202,7 +315,10 @@ internal static class PoVStackMetadataChecks
     {
         m_shared = new ItemData.SharedData { m_name = "smoke_food", m_maxStackSize = 20, m_itemType = ItemData.ItemType.Consumable },
         m_stack = count, m_quality = 1,
-        m_customData = new Dictionary<string, string> { ["pt.food"] = "1.1", ["pt.work.made"] = time, ["pt.work.made.id"] = id }
+        m_customData = withPoV
+            ? new Dictionary<string, string> { ["pt.food"] = "1.1", ["pt.work.made"] = time,
+                ["pt.work.made.id"] = id, ["pt.work.origin"] = "brew:player:" + id, ["pt.bonus"] = "1" }
+            : new Dictionary<string, string>()
     };
     private static ItemData Food(int count, string id, string time, string expiry)
     {

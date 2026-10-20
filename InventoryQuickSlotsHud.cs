@@ -62,7 +62,8 @@ public sealed partial class InventorySlotsPlugin
             _quickHudRows = GetQuickPanelRows(_quickHudBaseCount);
             if (hasPov)
             {
-                UpdatePathOfValheimanPanelSlots(player, player.GetInventory(), _quickHudBaseCount);
+                UpdatePathOfValheimanPanelSlots(player, player.GetInventory(), _quickHudBaseCount,
+                    GetCustomPanelSlots(player, player.GetInventory()).Count);
                 QuickHudSlots.AddRange(PovVisibleActions);
                 _quickHudColumns = _povQuickColumns;
                 _quickHudRows = _povQuickContentRows;

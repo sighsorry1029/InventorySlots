@@ -35,7 +35,8 @@ internal static partial class Program
             Check((bool)Call("TryGetSlotGridPos", args)!, "slot has a physical coordinate: " + Id(slot));
             return (Vector2i)args[2]!;
         }
-        void Layout(int quick = 3) => Call("UpdatePathOfValheimanPanelSlots", player, bag, quick);
+        void Layout(int quick = 3) => Call("UpdatePathOfValheimanPanelSlots", player, bag, quick,
+            ((IList)Call("GetCustomPanelSlots", player, bag)!).Count);
         void Size(int columns, int rows, string scenario) => Check(
             (int)plugin.GetField("_povQuickColumns", Statics)!.GetValue(null)! == columns &&
             (int)plugin.GetField("_povQuickContentRows", Statics)!.GetValue(null)! == rows, scenario);
@@ -87,6 +88,7 @@ internal static partial class Program
             Check(((IList)Call("GetQuickPanelSlots", player)!).Cast<object>().All(s => Role(s) == null) && ((IList)Call("GetQuickPanelSlots", player)!).Count == 3,
                 "generic quick HUD list remains exactly the original three hotkey cells");
             Check((Vector3)Call("GetPathOfValheimanActionPosition", 0, 70f)! == new Vector3(210, 0, 0), "PoV action bank starts beside the original quick bank");
+            CheckRings(pov, plugin, player, bag);
             // A closed occupied cell remains visible for withdrawal; its empty
             // locked peers must not reserve unused columns or another row.
             items.Add(new ItemData { m_shared = new ItemData.SharedData(), m_gridPos = originalCoordinates["pov.potion.0"] });

@@ -169,7 +169,7 @@ public sealed partial class InventorySlotsPlugin
         for (int i = 0; i < SlotDefinitions.Count; i++)
         {
             SlotDefinition slot = SlotDefinitions[i];
-            if (IsEquipmentPanelSlot(slot))
+            if (IsEquipmentPanelSlot(slot) && !IsPathOfValheimanRingSlot(slot))
             {
                 InventoryDefinitions.CustomPanelSlotCache.Add(slot);
             }
@@ -591,7 +591,7 @@ public sealed partial class InventorySlotsPlugin
     {
         if (slot.PovCell != null) return player != null && _pov != null &&
             !_pov.Suspended() && _pov.ProviderId() == ModGUID && _pov.Open(player, slot.PovCell) &&
-            (!IsEquipmentPanelSlot(slot) || IsEquipmentSlotDiscovered(player, player.GetInventory(), slot));
+            (IsPathOfValheimanRingSlot(slot) || !IsEquipmentPanelSlot(slot) || IsEquipmentSlotDiscovered(player, player.GetInventory(), slot));
         return slot.Kind != SlotKind.Quick || player == null || slot.QuickSlotIndex >= 0 && slot.QuickSlotIndex < GetUnlockedQuickSlotCount(player);
     }
 

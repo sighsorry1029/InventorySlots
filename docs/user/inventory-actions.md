@@ -28,6 +28,8 @@ Press the player's **S** button to sort. Sorting first fills existing favorite s
 
 The chest's **S** button sorts that chest. Automatic actions retain item metadata and stacking restrictions; InventoryActions also keeps cheat-marked and unmarked stacks separate. Hotbar and supported special slots are excluded from ordinary player sorting and quick stack.
 
+Local Quick Stack, Restock and other native transfers can merge stacks with identical unknown custom data. Different or missing values still block merging unless the data owner has a registered merge policy. Sort merging and favorite filling require policies for every custom-data field because they edit quantities directly. MultiUserChest retains its separate, conservative metadata rules.
+
 **Sort Button Side** places both S buttons on the **Left** (default) or **Right** edge. Find it under **3 - Client UI** in InventorySlots or **2 - Client** in InventoryActions. This client-only setting applies immediately and updates controller navigation. The selection is saved in the current config section. InventoryActions keeps **Sort Button Position** as an additional player-button offset from the selected side; existing values are preserved, with positive X moving right and positive Y moving up. Button placement continues to use the supported inventory mod's displayed rows and grid width.
 
 ## Container actions

@@ -29,6 +29,8 @@ public sealed partial class InventorySlotsPlugin
     private static bool _pathOfValheimanTooltipWarning;
     private static bool _pathOfValheimanTooltipWasDisabled;
     private static bool _povMultiUserChestWarning;
+    private static Func<string, bool>? _povHasDeathKeepStat;
+    private static bool _povDeathKeepWarning;
     private static MethodInfo? _povToolHudHideMethod;
     private static MethodInfo? _povCellHudHideMethod;
     private static Action? _povToolHudHide;
@@ -161,6 +163,7 @@ public sealed partial class InventorySlotsPlugin
     {
         if (_pov == null) return;
         Assembly assembly = _pov.Assembly;
+        InstallPathOfValheimanCapability("death-keep", _ => BindPathOfValheimanDeathKeep(assembly));
         InstallPathOfValheimanCapability("delete-ui", _ => InventoryCompatibility.PathOfValheimanTrashMode.Install(assembly, ModGUID));
         InstallPathOfValheimanCapability("item-presentation", _ => BindPathOfValheimanItemPresentation(assembly));
         InitializePathOfValheimanNativeHud(assembly);
@@ -199,6 +202,34 @@ public sealed partial class InventorySlotsPlugin
             _pathOfValheimanTreeOpen = (Func<bool>)Delegate.CreateDelegate(typeof(Func<bool>),
                 RequirePathOfValheimanMethod(assembly.GetType("PassiveTree.UI.TreeWindow", true)!, "get_IsOpen", typeof(bool)));
         });
+    }
+
+    private static void BindPathOfValheimanDeathKeep(Assembly assembly)
+    {
+        _povHasDeathKeepStat = null;
+        Type? type = assembly.GetType("Valheiman.Api.Stats");
+        MethodInfo? method = type?.GetMethod("Has", BindingFlags.Public | BindingFlags.Static,
+            null, new[] { typeof(string) }, null);
+        if (type?.IsVisible != true || method == null || method.ReturnType != typeof(bool) || method.ContainsGenericParameters)
+            throw new MissingMethodException("Valheiman.Api.Stats", "Has");
+        _povHasDeathKeepStat = (Func<string, bool>)Delegate.CreateDelegate(typeof(Func<string, bool>), method);
+    }
+
+    private static bool CanUsePathOfValheimanDeathKeep(Player player)
+    {
+        if (_pov == null) return true;
+        // Stats is local-character state. Bound Gear is independent of the
+        // equipment-system toggle; read the effect at death, never cache it.
+        if (player == null || player != Player.m_localPlayer) return false;
+        try { return _povHasDeathKeepStat?.Invoke("BoundGear") == true; }
+        catch (Exception error)
+        {
+            _povHasDeathKeepStat = null;
+            if (!_povDeathKeepWarning)
+                Log.LogWarning("PoV Bound Gear unlock status unavailable; YAML Death Keep rules are locked: " + error.GetBaseException().Message);
+            _povDeathKeepWarning = true;
+            return false;
+        }
     }
 
     private static MethodInfo RequirePathOfValheimanMethod(Type type, string name, Type result, params Type[] args)
@@ -342,6 +373,8 @@ public sealed partial class InventorySlotsPlugin
     {
         InventoryCompatibility.PathOfValheimanTrashMode.Dispose();
         ResetPathOfValheimanActionGate();
+        _povHasDeathKeepStat = null;
+        _povDeathKeepWarning = false;
         foreach (Harmony harmony in PathOfValheimanPatches) harmony.UnpatchSelf();
         PathOfValheimanPatches.Clear();
         ShutdownPathOfValheimanCrafting();

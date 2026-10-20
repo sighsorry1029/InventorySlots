@@ -123,6 +123,8 @@ internal static partial class Program
         Type storage = pov.GetType("Valheiman.Api.Storage", true)!;
         Type state = pov.GetType("PassiveTree.Gear.State", true)!;
         Type slot = pov.GetType("PassiveTree.Gear.Slot", true)!;
+        bool hasRings = equipment.GetMethod("IsRing") != null;
+        int storageCount = hasRings ? 38 : 28;
         Type cells = pov.GetType("PassiveTree.Gear.Cells", true)!;
         MethodInfo isStorage = state.GetMethod("IsStorage", Statics)!;
         int nativeCount = Enum.GetValues(slot).Length;
@@ -133,7 +135,7 @@ internal static partial class Program
         {
             oldEquipment = equipment.GetProperty("Cells")!.GetValue(null);
             oldStorage = storage.GetProperty("Cells")!.GetValue(null);
-            Check(((IEnumerable<string>)oldStorage!).Count() == 28, "warm original cache has 28 storage cells");
+            Check(((IEnumerable<string>)oldStorage!).Count() == storageCount, "warm original storage cache count");
         }
         var patches = new Harmony("smoke.pov.storage.bridge");
         object bridge;
@@ -141,7 +143,19 @@ internal static partial class Program
         if (newer != null)
         {
             bridge = newer.Invoke(new object[] { pov });
-            bridgeType.GetMethod("InstallFixes", Instances)!.Invoke(bridge, new object[] { patches });
+            try { bridgeType.GetMethod("InstallFixes", Instances)!.Invoke(bridge, new object[] { patches }); }
+            catch
+            {
+                foreach (MethodInfo target in new[] { AccessTools.Method(state, "Assign"), AccessTools.Method(pov.GetType("PassiveTree.Gear.UtilitySlots"), "Tick") })
+                {
+                    System.Console.WriteLine(target);
+                    var code = PatchProcessor.GetOriginalInstructions(target).ToList();
+                    for (int i = 0; i < code.Count; i++)
+                        if (code[i].operand is MethodInfo m && m.Name == "UnequipItem")
+                            foreach (var line in code.Skip(Math.Max(0, i - 2)).Take(19)) System.Console.WriteLine(line);
+                }
+                throw;
+            }
         }
         else bridge = bridgeType.GetConstructor(Instances, null, new[] { typeof(Assembly), typeof(Harmony) }, null)!.Invoke(new object[] { pov, patches });
         Check(true, "actual bridge reflection bindings and Harmony patch installation succeed on original Mono");
@@ -149,7 +163,10 @@ internal static partial class Program
         foreach (MethodInfo method in new[] { AccessTools.Method(state, "Assign"), AccessTools.Method(pov.GetType("PassiveTree.Gear.UtilitySlots"), "Tick") })
         {
             var original = PatchProcessor.GetOriginalInstructions(method).ToList();
-            var patched = ((IEnumerable<CodeInstruction>)plugin.GetMethod("DeferPathOfValheimanUtilityUnequip", Statics)!.Invoke(null, new object[] { original })!).ToList();
+            var before = new (OpCode Opcode, object Operand, Label[] Labels)[original.Count];
+            for (int i = 0; i < original.Count; i++)
+                before[i] = (original[i].opcode, original[i].operand, original[i].labels.ToArray());
+            var patched = ((IEnumerable<CodeInstruction>)plugin.GetMethod("DeferPathOfValheimanUtilityUnequip", Statics)!.Invoke(null, new object[] { original, method })!).ToList();
             MethodInfo unequip = AccessTools.Method(typeof(Humanoid), "UnequipItem", new[] { typeof(ItemData), typeof(bool) });
             int deferredCalls = 0; bool effectsPreserved = true;
             for (int i = 0; i < patched.Count; i++)
@@ -157,8 +174,15 @@ internal static partial class Program
                 if (patched[i].operand is MethodInfo m && m.Name == "PathOfValheimanUtilityUnequip") deferredCalls++;
                 if (patched[i].Calls(unequip) && (i == 0 || patched[i - 1].opcode != OpCodes.Ldc_I4_1)) effectsPreserved = false;
             }
-            Check(deferredCalls == 1 && effectsPreserved,
-                  method.Name + " changes only utility hand-off; trinket replacement unequip remains intact");
+            Check(deferredCalls == (hasRings && method.Name == "Tick" ? 2 : 1) && effectsPreserved,
+                  method.Name + " defers utility/ring hand-offs; trinket replacement unequip remains intact");
+            bool preserved = patched.Count == before.Length;
+            for (int i = 0; preserved && i < patched.Count; i++)
+                preserved = patched[i].labels.SequenceEqual(before[i].Labels) &&
+                    (patched[i].opcode == before[i].Opcode && Equals(patched[i].operand, before[i].Operand) ||
+                     Equals(before[i].Operand, unequip) && patched[i].opcode == OpCodes.Call &&
+                     patched[i].operand is MethodInfo replacement && replacement.Name == "PathOfValheimanUtilityUnequip");
+            Check(preserved, method.Name + " preserves all arguments, branch targets and unrelated native instructions");
         }
         plugin.GetMethod("BindPathOfValheimanCrafting", Statics)!.Invoke(null, new object[] { pov });
         Check(true, "actual crafting binding succeeds against original triple Returns and float ReturnChance");
@@ -205,7 +229,7 @@ internal static partial class Program
         object currentEquipment = equipment.GetProperty("Cells")!.GetValue(null)!;
         object currentStorage = storage.GetProperty("Cells")!.GetValue(null)!;
         if (oldEquipment != null) Check(ReferenceEquals(oldEquipment, currentEquipment) && ReferenceEquals(oldStorage, currentStorage), "warm API cache object identities preserved");
-        Check(((IEnumerable<string>)currentStorage).Distinct().Count() == 28, "original storage cache stays unchanged at 28 unique cells");
+        Check(((IEnumerable<string>)currentStorage).Distinct().Count() == storageCount, "original storage cache stays unchanged");
         for (int i = 0; i < nativeCount; i++)
         {
             bool actual = (bool)isStorage.Invoke(null, new[] { Enum.ToObject(slot, i) })!;
@@ -241,7 +265,7 @@ internal static partial class Program
         CheckInventoryBackend(mod, pov, plugin, bridgeType, bridge, cells, contract);
         patches.UnpatchSelf(); engine.UnpatchSelf(); new Harmony("sighsorry.InventorySlots.pov.native-hud").UnpatchSelf();
         new Harmony("sighsorry.InventorySlots.pov.unified-hud").UnpatchSelf();
-        Check(((IEnumerable<string>)currentStorage).Count() == 28, "unpatch leaves original 28-cell storage cache unchanged");
+        Check(((IEnumerable<string>)currentStorage).Count() == storageCount, "unpatch leaves original storage cache unchanged");
         foreach (object info in (IEnumerable)currentEquipment)
         {
             Type t = info.GetType(); string id = (string)t.GetProperty("Id")!.GetValue(info)!;
@@ -368,6 +392,7 @@ internal static partial class Program
             Items().Clear(); Items().Add(tool); tool.m_gridPos = new Vector2i(1, fixedRows);
             fixture.Patch(pov.GetType("PassiveTree.Gear.EquipmentApi", true)!.GetMethod("Prefab", Statics)!, prefix: new HarmonyMethod(typeof(Program), nameof(QuiverPrefab)));
             CheckCoinBenefits(pov, plugin, player, bag, enabled, config);
+            CheckDeathKeep(pov, plugin, player, bag, enabled, config);
             enabled.Value = false;
             Check(!Put(tool, "arrow.0") && tool.m_gridPos == new Vector2i(1, fixedRows), "Equipment Off rejects insertion with existing coordinate preserved");
             Check(Take("potion.0") && tool.m_gridPos.y < 4, "Equipment Off permits existing storage item withdrawal");

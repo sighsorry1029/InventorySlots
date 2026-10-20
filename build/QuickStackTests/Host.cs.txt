@@ -67,6 +67,17 @@ public class Slots : Boundaries
 }
 public class Actions : Boundaries
 {
+    // PoV cell ownership and metadata composition run in the original-DLL
+    // Mono suite. This fixture covers transfer ordering and eligibility routing.
+    private static bool _povPresent = false;
+    private static bool TryGetPathOfValheimanRows(Inventory inventory, out int rows)
+    { rows = inventory.GetHeight(); return false; }
+    private static bool IsPathOfValheimanProtectedCell(Inventory inventory, Vector2i cell) => false;
+    private static bool HasCompatibleActionStackMetadata(ItemData target, ItemData source) =>
+        target.MetadataAllowed && source.MetadataAllowed;
+    private static bool CanUseMucActionStacking(ItemData item) => item.MetadataAllowed;
+    private static bool MoveActionStack(Inventory to, Inventory from, ItemData source, int amount, ItemData target) =>
+        to.MoveItemToThis(from, source, amount, target.m_gridPos.x, target.m_gridPos.y);
     private class MucTransferSession { public Player Player = new(); public Inventory Inventory = new(); }
     private class Container { public Inventory m_inventory = new(); }
     public static (ItemData? Source, ItemData? Target, Vector2i Cell, int Amount)? Sent;

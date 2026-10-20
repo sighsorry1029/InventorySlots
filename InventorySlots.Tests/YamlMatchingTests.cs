@@ -16,7 +16,7 @@ internal static class YamlMatchingTests
             .Where(method => names.Contains(method.Identifier.ValueText)).Select(method => method.ToFullString()));
         string host = Read("InventorySlots.Tests/YamlMatchingHost.cs.txt").Replace("/* METHODS */",
             Methods("ItemClassifier.cs", "ItemMatchesBuiltInPredefinedGroup", "ItemMatchesBuiltInPredefinedGroupUncached") +
-            Methods("PathOfValheimanStoragePanel.cs", "IsEquipmentPanelSlot") +
+            Methods("PathOfValheimanStoragePanel.cs", "IsEquipmentPanelSlot", "IsPathOfValheimanRingSlot") +
             Methods("InventorySlotLayout.cs", "IsEquipmentSlotUnlocked", "IsEquipmentSlotDiscovered", "InventoryContainsAcceptedSlotItem",
                 "PlayerHasAcceptedEquippedItem", "RefreshEquipmentSlotUnlockCache", "GetEquipmentSlotUnlockCacheSignature",
                 "GetKnownMaterialHash", "PlayerKnowsAcceptedSlotItem", "PlayerKnowsItem", "PlayerKnowsMaterialToken", "PlayerKnowsMaterial"));

@@ -23,7 +23,7 @@ public sealed partial class InventorySlotsPlugin
             // or changing any inventory transforms while the inventory is hidden.
             RefreshFeatureGuideLayout(gui);
             Vector3 target = GetSidePanelBasePosition(GetGridOrigin(grid), inventoryWidth, grid.m_elementSpace) +
-                             (Vector3)InventoryPanels.QuickSlotsPanelRuntimeOffset;
+                             GetQuickSlotPanelDisplayOffset(grid.m_elementSpace);
             Vector3 world = grid.m_gridRoot.TransformPoint(target) - GetFeatureGuideAnimationOffset(grid.m_gridRoot);
             position = hudRoot.InverseTransformPoint(world);
             elementSpace = grid.m_elementSpace;

@@ -467,6 +467,11 @@ public sealed partial class InventorySlotsPlugin
 
         InventoryPanels.DraggedInventoryPanel = panel;
         InventoryPanels.InventoryPanelDragStartLocalMouse = localMousePosition;
+        InventoryPanels.InventoryPanelDragOriginalOffset = isQuickSlotsPanel
+            ? InventoryPanels.QuickSlotsPanelRuntimeOffset : InventoryPanels.EquipmentSlotsPanelRuntimeOffset;
+        if (isQuickSlotsPanel && InventoryGui.instance?.m_playerGrid != null)
+            InventoryPanels.QuickSlotsPanelRuntimeOffset =
+                GetQuickSlotPanelDisplayOffset(InventoryGui.instance.m_playerGrid.m_elementSpace);
         InventoryPanels.InventoryPanelDragStartOffset = isQuickSlotsPanel ? InventoryPanels.QuickSlotsPanelRuntimeOffset : InventoryPanels.EquipmentSlotsPanelRuntimeOffset;
         InventoryPanels.DraggingQuickSlotsPanelOffset = isQuickSlotsPanel;
         InventoryPanels.DraggingEquipmentSlotsPanelOffset = isEquipmentSlotsPanel;
@@ -474,7 +479,11 @@ public sealed partial class InventorySlotsPlugin
 
     private static void StopInventoryPanelDrag()
     {
-        CommitDraggedInventoryPanelOffset();
+        if (InventoryPanels.DraggingQuickSlotsPanelOffset &&
+            InventoryPanels.QuickSlotsPanelRuntimeOffset == InventoryPanels.InventoryPanelDragStartOffset)
+            InventoryPanels.QuickSlotsPanelRuntimeOffset = InventoryPanels.InventoryPanelDragOriginalOffset;
+        else
+            CommitDraggedInventoryPanelOffset();
         InventoryPanels.DraggedInventoryPanel = null;
         InventoryPanels.DraggingQuickSlotsPanelOffset = false;
         InventoryPanels.DraggingEquipmentSlotsPanelOffset = false;
@@ -619,7 +628,7 @@ public sealed partial class InventorySlotsPlugin
         {
             Vector3 quickPanelTargetPosition =
                 sidePanelBasePosition +
-                (Vector3)InventoryPanels.QuickSlotsPanelRuntimeOffset;
+                GetQuickSlotPanelDisplayOffset(playerGrid.m_elementSpace);
             PositionQuickSlotPanel(playerGrid, quickPanel, quickPanelTargetPosition, playerGrid.m_elementSpace);
             handledDraggedPanel |= InventoryPanels.DraggingQuickSlotsPanelOffset;
         }

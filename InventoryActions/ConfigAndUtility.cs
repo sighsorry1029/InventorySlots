@@ -390,7 +390,9 @@ public sealed partial class InventoryActionsPlugin
 
     private static bool CanUseContainerActionStacking(ItemData item)
     {
-        return item?.m_shared != null && (CanUseSupportedStackMetadata(item) || IsEpicLootStackingItem(item));
+        // Native transfers preserve owner hooks. Occupied targets still require
+        // pair compatibility; unknown metadata must match exactly.
+        return item?.m_shared != null;
     }
 
     private static string GetPlayerId(Player player)

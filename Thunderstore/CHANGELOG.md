@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.6.15
+
+- Added Path of Valheiman 5.1.0 ring cells below the equipment cells at half width and height (one quarter of the area). PoV controls unlocks, item restrictions and effects; occupied locked cells remain accessible for withdrawal.
+- Adjusted the default quick-slot panel and following HUD to clear the miniature ring rows while preserving custom positions. Prevented PoV's native stat layout and ring-icon scaling from overriding the integrated display, and retained native placement guards during equipment transfers.
+- With PoV installed, YAML `KeepOnDeath` rules now also require the player's Bound Gear effect (Grave Tether). Unlocks and refunds apply on the next death, independently of Equipment system On/Off. The existing Death Keep setting and YAML selection still apply; PoV's own death benefits, world rules and Magic Purse coin protection remain separate.
+- Allowed otherwise compatible PoV brew batches and bonus harvest drops to stack while retaining destination provenance and preserving partially transferred sources. Food strength, aging state and other gameplay metadata remain protected, including FineDining's guarded freshness composition.
+- Allowed native transfers and automatic pickup to stack items with exactly matching unknown metadata. Different or missing values still require an explicit owner policy, and direct Sort/favorite quantity merges remain limited to registered policies. Updated pickup-capacity caching to respect live metadata guards and cheat-marker differences.
+- Added PoV affix information to crafting item tooltips. Expanded isolated regression coverage for stacking, ring storage/layout and death retention; actual game UI and multiplayer verification remain required.
+
 ## 1.6.14
 
 - Fixed matching crafted stacks being kept separate solely by Path of Valheiman's per-batch crafting time and ID. Existing destination provenance and partial source stacks are preserved; actual food bonuses, rarity and other item data still have to match.

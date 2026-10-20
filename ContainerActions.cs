@@ -258,9 +258,9 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool CanUseContainerActionStacking(ItemData item)
     {
-        return item?.m_shared != null &&
-               (CanUseStackMetadataAutomaticStacking(item) ||
-                IsTrustedCustomDataStackingItem(item));
+        // Native transfers preserve owner hooks. Occupied targets still require
+        // pair compatibility; unknown metadata must match exactly.
+        return item?.m_shared != null;
     }
 
     private static bool IsTrustedCustomDataStackingItem(ItemData? item)

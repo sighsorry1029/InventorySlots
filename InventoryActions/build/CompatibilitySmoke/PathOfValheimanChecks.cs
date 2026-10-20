@@ -59,18 +59,43 @@ internal static class PathOfValheimanChecks
         yield return new CodeInstruction(System.Reflection.Emit.OpCodes.Ret);
     }
 
-    internal static int Run(Type plugin, string path)
+    internal static int RunStackMetadataWithoutPoV(Type plugin)
     {
-        const BindingFlags statics = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
-        var pov = Assembly.LoadFrom(path);
-        var harmony = new Harmony("inventory-tests.pov");
-        var povHarmony = new Harmony("treextr.pathofvalheiman");
+        var harmony = new Harmony("inventory-tests.stack-without-pov");
+        InitializeEngineBoundary(harmony);
+        int checks = 0;
+        try
+        {
+            PoVStackMetadataChecks.Run(plugin, null, (ok, name) =>
+            {
+                if (!ok) throw new InvalidOperationException(name);
+                ++checks;
+                System.Console.WriteLine("PASS " + name);
+            });
+            if (AppDomain.CurrentDomain.GetAssemblies().Any(a => a.GetName().Name == "PathOfValheiman"))
+                throw new InvalidOperationException("No-PoV test unexpectedly loaded PoV");
+            return checks;
+        }
+        finally { harmony.UnpatchSelf(); }
+    }
+
+    private static void InitializeEngineBoundary(Harmony harmony)
+    {
         mono_add_internal_call("UnityEngine.Animator::StringToHash_Injected", Marshal.GetFunctionPointerForDelegate(HashStub));
         mono_add_internal_call("UnityEngine.Object::GetOffsetOfInstanceIDInCPlusPlusObject", Marshal.GetFunctionPointerForDelegate(OffsetStub));
         harmony.Patch(AccessTools.Method(typeof(UnityEngine.Object), "CompareBaseObjects"),
             prefix: new HarmonyMethod(typeof(PathOfValheimanChecks), nameof(ObjectEquality)));
         harmony.Patch(AccessTools.PropertyGetter(Assembly.Load("assembly_guiutils").GetType("Localization", true), "instance"),
             transpiler: new HarmonyMethod(typeof(PathOfValheimanChecks), nameof(NoLocalization)));
+    }
+
+    internal static int Run(Type plugin, string path)
+    {
+        const BindingFlags statics = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
+        var pov = Assembly.LoadFrom(path);
+        var harmony = new Harmony("inventory-tests.pov");
+        var povHarmony = new Harmony("treextr.pathofvalheiman");
+        InitializeEngineBoundary(harmony);
         MethodInfo Method(string name) => plugin.GetMethod(name, statics)!;
         object? Call(string name, params object?[] args) => Method(name).Invoke(null, args);
         void Write(string name, object value) => plugin.GetField(name, statics)!.SetValue(null, value);

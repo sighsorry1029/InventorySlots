@@ -13,13 +13,14 @@ internal static class PathOfValheimanStackMetadata
     {
         foreach (string key in keys)
         {
-            // PoV assigns these per newly crafted stack. They track the original
-            // crafted object for quests, not food/brew strength. Keep destination
-            // provenance as a pair (including absence); never stamp the remainder
-            // of a partially consumed source or copy half of its provenance.
-            bool craftProvenance = key == "pt.work.made" || key == "pt.work.made.id";
+            // Craft/brew origin and bonus-drop markers do not encode item strength.
+            // Keep destination provenance (including absence), without changing a
+            // partial source or stripping a world drop's bonus marker before pickup.
+            // Effect values, aging clocks and other processing markers stay exact.
+            bool provenance = key == "pt.work.made" || key == "pt.work.made.id" ||
+                              key == "pt.work.origin" || key == "pt.bonus";
             StackMetadataPolicy.Register(key, (destination, _) => destination,
-                craftProvenance ? static (_, _) => true :
+                provenance ? static (_, _) => true :
                     static (a, b) => string.Equals(a, b, StringComparison.Ordinal));
         }
     }

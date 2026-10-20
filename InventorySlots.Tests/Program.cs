@@ -1315,12 +1315,12 @@ internal static class Tests
                     "sidePanelBasePosition +",
                     StringComparison.Ordinal) &&
                 layout.Contains(
-                    "InventoryPanels.QuickSlotsPanelRuntimeOffset",
+                    "GetQuickSlotPanelDisplayOffset",
                     StringComparison.Ordinal) &&
                 !layout.Contains("quickPanelYOffset", StringComparison.Ordinal) &&
                 !layout.Contains("equipmentPanelRows", StringComparison.Ordinal) &&
                 !layout.Contains("EquipmentPanelGapRows", StringComparison.Ordinal),
-                "Quick panel placement must use only its own saved offset in normal and drag-only layout paths");
+                "Quick panel placement must share the saved/default offset policy in normal and drag-only layout paths");
         }
 
         Assert.False(

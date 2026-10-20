@@ -131,15 +131,6 @@ public sealed partial class InventorySlotsPlugin
         }
 
         ItemData? sourceItem = GetCurrentInventoryAddItemDataStackLookupItem();
-        if (sourceItem != null)
-        {
-            if (!IsTrustedCustomDataStackingItem(sourceItem) &&
-                !CanUseStackMetadataAutomaticStacking(sourceItem))
-            {
-                return false;
-            }
-        }
-
         bool trustedSource =
             sourceItem != null && IsTrustedCustomDataStackingItem(sourceItem);
         ItemData? best = null;
@@ -578,7 +569,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool TryGetCachedCanAddItemFailure(Player player, Inventory inventory, ItemData item, int requestedStack)
     {
-        if (!CanCacheCanAddItemFailure(item))
+        if (item?.m_shared == null)
         {
             return false;
         }
@@ -591,12 +582,13 @@ public sealed partial class InventorySlotsPlugin
                InventorySafety.CanAddItemFailureCacheVersion == InventorySafety.InventoryPlacementCacheVersion &&
                InventorySafety.CanAddItemFailureCacheRequestedStack == requestedStack &&
                InventorySafety.CanAddItemFailureCacheItemKey == ComputeCanAddItemCacheItemKey(item) &&
+               CanCacheCanAddItemFailure(inventory, item) &&
                InventorySafety.CanAddItemFailureCacheContext == ComputeInventoryPlacementCacheContext(player, inventory);
     }
 
     private static void CacheCanAddItemFailure(Player player, Inventory inventory, ItemData item, int requestedStack)
     {
-        if (!CanCacheCanAddItemFailure(item))
+        if (!CanCacheCanAddItemFailure(inventory, item))
         {
             return;
         }
@@ -608,12 +600,23 @@ public sealed partial class InventorySlotsPlugin
         InventorySafety.CanAddItemFailureCacheRequestedStack = requestedStack;
     }
 
-    private static bool CanCacheCanAddItemFailure(ItemData item)
+    private static bool CanCacheCanAddItemFailure(Inventory inventory, ItemData item)
     {
-        return item?.m_shared != null &&
-               !IsEpicLootStackingItem(item) &&
-               (CanUseStackMetadataAutomaticStacking(item) ||
-                IsTrustedCustomDataStackingItem(item));
+        // The cache key does not encode metadata or live owner guard state.
+        if (item?.m_shared == null || IsEpicLootStackingItem(item) ||
+            item.m_customData != null && item.m_customData.Count != 0) return false;
+        foreach (ItemData existing in inventory.m_inventory)
+        {
+            if (existing?.m_shared != null &&
+                existing.m_stack < existing.m_shared.m_maxStackSize &&
+                existing.m_shared.m_name == item.m_shared.m_name &&
+                existing.m_quality == item.m_quality &&
+                existing.m_worldLevel == item.m_worldLevel &&
+                existing.m_cheated == item.m_cheated &&
+                existing.m_customData != null && existing.m_customData.Count != 0)
+                return false;
+        }
+        return true;
     }
 
     private static int ComputeInventoryPlacementCacheContext(Player player, Inventory inventory)
@@ -640,6 +643,7 @@ public sealed partial class InventorySlotsPlugin
             hash = hash * 31 + StringComparer.OrdinalIgnoreCase.GetHashCode(GetItemPrefabName(item));
             hash = hash * 31 + item.m_quality;
             hash = hash * 31 + item.m_worldLevel.GetHashCode();
+            hash = hash * 31 + item.m_cheated.GetHashCode();
             hash = hash * 31 + Math.Max(1, item.m_shared?.m_maxStackSize ?? 1);
             return hash;
         }
@@ -701,13 +705,6 @@ public sealed partial class InventorySlotsPlugin
             return 0;
         }
 
-        bool trustedCustomDataStacking = IsTrustedCustomDataStackingItem(item);
-        if (!trustedCustomDataStacking &&
-            !CanUseStackMetadataAutomaticStacking(item))
-        {
-            return 0;
-        }
-
         int capacity = 0;
         foreach (ItemData existing in inventory.m_inventory)
         {
@@ -760,8 +757,6 @@ public sealed partial class InventorySlotsPlugin
 
         bool trustedCustomDataStacking = IsTrustedCustomDataStackingItem(incoming);
         return (trustedCustomDataStacking ||
-                CanUseStackMetadataAutomaticStacking(incoming) &&
-                CanUseStackMetadataAutomaticStacking(existing) &&
                 HasCompatibleStackMetadata(existing, incoming)) &&
                existing.m_shared.m_name == incoming.m_shared.m_name &&
                existing.m_quality == incoming.m_quality &&

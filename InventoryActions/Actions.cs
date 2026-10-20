@@ -695,7 +695,7 @@ public sealed partial class InventoryActionsPlugin
     private static bool MergeSortableStacks(List<ItemData> toMerge, Inventory inventory)
     {
         bool changed = MergeEpicLootSortableStacks(toMerge, inventory);
-        changed |= MergePathOfValheimanSortableStacks(toMerge, inventory);
+        changed |= MergeRegisteredMetadataSortableStacks(toMerge, inventory);
         List<List<ItemData>> grouped = toMerge
             .Where(item => item?.m_shared != null && item.m_stack < item.m_shared.m_maxStackSize &&
                            HasNoCustomData(item) && !IsEpicLootStackingItem(item))
