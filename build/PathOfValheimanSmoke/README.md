@@ -1,5 +1,22 @@
 # InventorySlots / Path of Valheiman isolated checks
 
+## Release 1.6.16 verification — 2026-10-21
+
+Final merged Release DLL SHA-256:
+`F41CBC6C409291574E8B550A659332C4402A2D2D0AAA3906F802BE9B470A32BE`.
+Original PoV 5.1.0 and Valheim 1.0.20 x64 Mono passed **482 cold / 484 warm**
+checks, with exit 0 and normal cleanup. Coverage includes repeated pickup
+notifications, equipment-discovery invalidation, independent/following HUD layout,
+unlock API failure fallback, YAML selection/Off, and combined death-hook recovery.
+Explicitly locked nodes and PoV storage/slot protections remain enforced.
+
+The unit runner passed **190** tests. Static contract inspection found **0 failures**
+(1,154 references, 164 Harmony targets, 52 reflected contracts; ten manual).
+Debug/Release builds had no warnings/errors, Debug deployment hashes matched,
+and plugin/assembly/manifest versions, merged dependencies and all Thunderstore
+and Nexus ZIP entries matched their inputs. Actual game rendering, FPS,
+world death/recovery and multiplayer were not executed.
+
 ## Release 1.6.15 verification — 2026-10-20
 
 Final merged Release DLL SHA-256:

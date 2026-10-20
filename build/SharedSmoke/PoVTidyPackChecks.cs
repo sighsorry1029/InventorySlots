@@ -116,10 +116,17 @@ internal static class PoVTidyPackChecks
             bool missing = false;
             try { Call("BindPathOfValheimanActionGate", typeof(PoVTidyPackChecks).Assembly); }
             catch (TargetInvocationException error) { missing = error.InnerException is MissingMethodException; }
-            check(missing && !Allowed(), "Tidy Pack: installed PoV with missing API fails closed");
+            check(missing && Allowed(), "Tidy Pack: missing API preserves ordinary action eligibility");
+            check((string)Call("AddTidyPackGuideHint", "Title\nBody")! == "Title\nBody" &&
+                (bool)Call("RequireTidyPackActions", new object?[] { null })!,
+                "Tidy Pack: missing API emits no guide or action lock notice");
             int attempts = 0;
             Write("_povTidyPackAvailable", (Func<bool>)(() => { attempts++; throw new InvalidOperationException("fixture getter failure"); }));
-            check(!Allowed() && !Allowed() && attempts == 1, "Tidy Pack: throwing getter locks actions without a per-frame exception loop");
+            check(Allowed() && Allowed() && attempts == 1, "Tidy Pack: throwing getter preserves ordinary actions without a per-frame exception loop");
+            check((string)Call("AddTidyPackGuideHint", "Title\nBody")! == "Title\nBody",
+                "Tidy Pack: failed getter emits no guide lock notice");
+            Call("BindPathOfValheimanActionGate", pov);
+            check(!Allowed(), "Tidy Pack: a rebound API still enforces an explicitly locked node");
             Call("ResetPathOfValheimanActionGate");
             check(Allowed(), "Tidy Pack: teardown releases the old plugin delegate/state");
         }

@@ -16,6 +16,8 @@ internal static partial class Program
     private static ItemData? hudUsedItem, hudAmmo;
     private static Inventory? hudUsedInventory;
     private static bool hudFromGui;
+    private static int hudEquipmentQueries;
+    private static void CountHudEquipmentQuery() => hudEquipmentQueries++;
     private static bool HudFoodCount(ref int __result) { hudCapacityReads++; __result = hudFoodCount; return false; }
     private static bool HudPotionCount(ref int __result) { hudCapacityReads++; __result = hudPotionCount; return false; }
     private static bool HudArrowCount(ref int __result) { hudCapacityReads++; __result = hudArrowCount; return false; }
@@ -49,8 +51,14 @@ internal static partial class Program
         var entry = (ConfigEntryBase)bind.MakeGenericMethod(mode).Invoke(config, new object[] { "test", "hud-mode", Enum.Parse(mode, "UsedSlotOnUse"), "" })!;
         FieldInfo modeField = plugin.GetField("_quickSlotHudMode", Statics)!;
         object? oldMode = modeField.GetValue(null);
+        FieldInfo followField = plugin.GetField("_quickSlotHudFollowsPanel", Statics)!;
+        object? oldFollow = followField.GetValue(null);
+        ConfigEntryBase follow = BindProgressionToggle(plugin, config, "_quickSlotHudFollowsPanel");
+        follow.BoxedValue = Enum.Parse(follow.SettingType, "Off");
         Type state = pov.GetType("PassiveTree.Gear.State", true)!;
         var hooks = new Harmony("smoke.pov.hud.engine-boundaries");
+        hooks.Patch(AccessTools.Method(plugin, "GetCustomPanelSlots"),
+            prefix: new HarmonyMethod(typeof(Program), nameof(CountHudEquipmentQuery)));
         ItemData Item(string cell, int type, float food = 0)
         {
             object?[] args = { bag, slots[cell], null }; Call("TryGetSlotGridPos", args);
@@ -83,15 +91,34 @@ internal static partial class Program
             items.Clear(); hudFoodCount = hudPotionCount = hudArrowCount = 3;
             hudUseCalls = hudEquipCalls = 0; hudPermanent = false; hudEquipResult = true; SetHudAmmo(player, null);
             Check((bool)plugin.GetField("_povHudBound", Statics)!.GetValue(null)!, "original PoV action bindings install independently of native HUD fallback");
+            hudEquipmentQueries = 0;
             Sync(true);
             Check(Ids().Count == 12 && (int)plugin.GetField("_quickHudColumns", Statics)!.GetValue(null)! == 6 &&
                 (int)plugin.GetField("_quickHudRows", Statics)!.GetValue(null)! == 3, "combined HUD has three ordinary and nine real PoV cells in two banks");
             int capacityReads = hudCapacityReads;
             Sync(); Sync();
             Check(hudCapacityReads == capacityReads, "unchanged hidden HUD reuses its layout without querying native capacities");
+            for (int i = 0; i < 100; i++)
+            {
+                Call("NotifyPathOfValheimanStorageChanged"); Sync();
+            }
+            Check(hudEquipmentQueries == 0, "100 pickup notifications never query equipment layout from independent hidden HUD");
+            Call("InvalidateSlotDefinitionCaches"); Sync(true);
+            Check(hudEquipmentQueries == 0, "independent HUD avoids equipment discovery even after definition rebuild");
             string[] fallbackFields = { "_povEquipmentHost", "_povCellHudTick", "_povCellHudHide", "_povUnifiedHudPlayer" };
             object?[] oldFallback = fallbackFields.Select(f => plugin.GetField(f, Statics)!.GetValue(null)).ToArray();
             object panels = plugin.GetField("InventoryPanels", Statics)!.GetValue(null)!;
+            FieldInfo offsetField = panels.GetType().GetField("QuickSlotsPanelRuntimeOffset")!;
+            object? oldOffset = offsetField.GetValue(panels);
+            try
+            {
+                offsetField.SetValue(panels, plugin.GetField("QuickSlotsPanelFixedOffset", Statics)!.GetValue(null));
+                follow.BoxedValue = Enum.Parse(follow.SettingType, "On"); Sync();
+                Check(hudEquipmentQueries == 1, "following default panel refreshes ring spacing before first Tab");
+                follow.BoxedValue = Enum.Parse(follow.SettingType, "Off"); Sync();
+                Check(hudEquipmentQueries == 1, "switching back to independent HUD stops equipment queries");
+            }
+            finally { offsetField.SetValue(panels, oldOffset); }
             FieldInfo rootField = panels.GetType().GetField("QuickSlotsHotkeyBarRect")!;
             object? oldRoot = rootField.GetValue(panels);
             int ticks = 0, hides = 0;
@@ -171,7 +198,7 @@ internal static partial class Program
         }
         finally
         {
-            hooks.UnpatchSelf(); modeField.SetValue(null, oldMode); Clear();
+            hooks.UnpatchSelf(); modeField.SetValue(null, oldMode); followField.SetValue(null, oldFollow); Clear();
             AccessTools.Field(typeof(Player), "m_isLoading").SetValue(player, false);
             definitions.Clear(); foreach (object definition in savedDefinitions) definitions.Add(definition);
             Call("InvalidateSlotDefinitionCaches");

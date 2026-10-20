@@ -171,6 +171,9 @@ namespace InventorySlots
             var slot = new SlotDefinition { Predicate = item => Match(item, "Crown") };
             player.m_knownMaterial.Add("$item_wood");
             Require(!IsEquipmentSlotUnlocked(player, inventory, slot) && slot.Calls == 1, "unknown custom prefab must skip predicate");
+            slot.Calls = 0; InventoryDefinitions.SlotDefinitionVersion++;
+            Require(!IsEquipmentSlotUnlocked(player, inventory, slot) && slot.Calls == 0,
+                "display state changes reuse cached negative discovery");
             inventory.m_inventory.Add(accepted);
             Require(IsEquipmentSlotUnlocked(player, inventory, slot), "cached false must allow carried item");
             inventory.m_inventory.Clear();
@@ -184,11 +187,14 @@ namespace InventorySlots
             Require(IsEquipmentSlotUnlocked(player, inventory, slot), "new discovery invalidates cached false");
             slot.Calls = 0; inventory.m_inventory.Add(unrelated);
             Require(IsEquipmentSlotUnlocked(player, inventory, slot) && slot.Calls == 0, "known cached true skips carried search");
+            InventoryDefinitions.SlotDefinitionVersion++;
+            Require(IsEquipmentSlotUnlocked(player, inventory, slot) && slot.Calls == 0,
+                "display state changes reuse cached positive discovery");
             player.m_knownMaterial.Remove("$item_crown"); player.m_knownMaterial.Add("$item_other");
             Require(!IsEquipmentSlotUnlocked(player, inventory, slot), "same-count knowledge reset invalidates true");
             player.m_knownMaterial.Add("$item_crown");
             Require(IsEquipmentSlotUnlocked(player, inventory, slot), "knowledge restored");
-            slot.Predicate = _ => false; InventoryDefinitions.SlotDefinitionVersion++;
+            slot.Predicate = _ => false; InvalidateEquipmentSlotUnlockCache();
             Require(!IsEquipmentSlotUnlocked(player, inventory, slot), "slot definition reload invalidates true");
             Progression = false; slot.Calls = 0;
             Require(IsEquipmentSlotUnlocked(player, inventory, slot) && slot.Calls == 0, "progression Off bypasses predicates");

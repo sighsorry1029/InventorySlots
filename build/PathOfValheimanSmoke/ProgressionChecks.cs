@@ -11,6 +11,8 @@ using ItemData = ItemDrop.ItemData;
 internal static partial class Program
 {
     private static int grantedPovRows;
+    private static int equipmentDiscoveryReads;
+    private static void CountEquipmentDiscovery() => equipmentDiscoveryReads++;
     private static bool GrantedPovRows(ref int __result) { __result = grantedPovRows; return false; }
 
     private static ConfigEntryBase BindProgressionToggle(Type plugin, ConfigFile config, string field)
@@ -61,6 +63,8 @@ internal static partial class Program
         // policy execute from the merged mod; no live remote tree is loaded.
         hooks.Patch(AccessTools.PropertyGetter(pov.GetType("Valheiman.Api.Rows", true), "Extra"),
             prefix: new HarmonyMethod(typeof(Program), nameof(GrantedPovRows)));
+        hooks.Patch(AccessTools.Method(plugin, "PlayerKnowsAcceptedSlotItem"),
+            prefix: new HarmonyMethod(typeof(Program), nameof(CountEquipmentDiscovery)));
         try
         {
             items.Clear(); known.Clear(); grantedPovRows = 0;
@@ -102,6 +106,22 @@ internal static partial class Program
             var coordinates = mapped.Keys.Cast<string>().ToDictionary(k => k, k => Pos(mapped[k]!));
             foreach (string role in new[] { "helmet", "chest", "legs", "cape", "belt", "trinket", "utility.wisp", "utility.wishbone" })
                 Check(!Open(mapped[role]!), "undiscovered equipment cell stays closed: " + role);
+            equipmentDiscoveryReads = 0;
+            bool equipmentStayedClosed = true;
+            for (int i = 0; i < 100; i++)
+            {
+                Call("NotifyPathOfValheimanStorageChanged");
+                equipmentStayedClosed &= !Open(mapped["cape"]!) && !Open(mapped["helmet"]!);
+            }
+            Check(equipmentStayedClosed && equipmentDiscoveryReads == 0,
+                "100 inventory changes reuse fixed equipment discovery without catalog searches");
+            Check(!Open(mapped["belt"]!) && equipmentDiscoveryReads == 1,
+                "inventory changes still reevaluate roles affected by late external quiver registration");
+            known.Add("$smoke_new_material");
+            Check(!Open(mapped["cape"]!) && equipmentDiscoveryReads == 2, "new knowledge reevaluates equipment discovery");
+            Call("InvalidateSlotDefinitionCaches");
+            Check(!Open(mapped["cape"]!) && equipmentDiscoveryReads == 3, "real slot definition change reevaluates equipment discovery");
+            known.Clear();
             Check(Open(mapped["arrow.0"]!) && !Open(mapped["potion.0"]!), "action cells retain PoV capacity rules, independent of discovery");
             var cape = new ItemData { m_gridPos = new Vector2i(0, 0), m_shared = new ItemData.SharedData { m_name = "$smoke_cape", m_itemType = (ItemData.ItemType)17 } };
             items.Add(cape);

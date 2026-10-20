@@ -1,5 +1,21 @@
 # Compatibility smoke checks on original Valheim Mono
 
+## Release 1.1.21 verification — 2026-10-21
+
+Final merged Release DLL SHA-256:
+`97A4FE439DDB89843A7D0B24E8B52C1921623B218A79285E569A640F88F18BA4`.
+Original PoV 5.1.0 and Valheim 1.0.20 x64 Mono passed **117** `pov` checks,
+with exit 0 and normal cleanup. Missing/throwing Tidy Pack APIs restore ordinary
+action eligibility; explicit false, reserved-cell boundaries, loading/provider
+guards and pending-response handling remain enforced. No unlock-failure UI
+notice is added.
+
+Debug/Release builds had no warnings/errors. Static contract inspection found
+**0 failures** (665 references, 51 Harmony targets, seven reflected contracts;
+two manual). Debug deployment hashes, plugin/assembly/manifest versions,
+merged dependencies and every Thunderstore ZIP entry were verified.
+Actual game UI, networking and multiplayer were not executed.
+
 ## Release 1.1.20 verification — 2026-10-20
 
 Final merged Release DLL SHA-256:

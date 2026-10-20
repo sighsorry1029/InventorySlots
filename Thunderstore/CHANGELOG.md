@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.16
+
+- Reduced repeated equipment-discovery work after item pickups with Path of Valheiman. Independent quick-slot HUD updates no longer rebuild equipment/ring layout, and ordinary inventory changes reuse equipment-discovery results. Discovery and slot-definition changes still refresh the cache, while dynamic utility/quiver roles retain their existing refresh behavior.
+- Preserved ring spacing when the HUD follows the default quick-slot panel, including before the inventory is first opened. HUD modes, reveal/fade timing and custom positions are unchanged.
+- If PoV's Tidy Pack or Bound Gear unlock API is missing or throws, nearby Quick Stack, player inventory sorting and YAML Death Keep now use their normal InventorySlots settings. A successful query reporting a locked node still blocks the corresponding feature. Death Keep remains limited to the configured YAML selection; PoV slot capacities, storage safety checks and coin benefits retain their existing rules.
+- Show the player inventory S-button hover tooltip only while its PoV node is locked. Removed the title and ordinary usage description, as well as the on-screen unlock-query failure notice; query failures log one diagnostic warning instead.
+- Added isolated regression checks for repeated pickup notifications, discovery-cache refresh, failed unlock queries and death-item recovery. Actual game performance, UI and multiplayer validation remain required.
+
 ## 1.6.15
 
 - Added Path of Valheiman 5.1.0 ring cells below the equipment cells at half width and height (one quarter of the area). PoV controls unlocks, item restrictions and effects; occupied locked cells remain accessible for withdrawal.

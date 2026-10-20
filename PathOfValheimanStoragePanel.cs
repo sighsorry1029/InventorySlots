@@ -79,18 +79,29 @@ public sealed partial class InventorySlotsPlugin
 
     private static void UpdatePathOfValheimanPanelSlots(Player player, Inventory inventory, int quickCount, int equipmentCount)
     {
-        PovVisibleActions.Clear();
+        UpdatePathOfValheimanActionSlots(player, inventory, quickCount);
+        UpdatePathOfValheimanEquipmentPanelSlots(player, inventory, equipmentCount);
+    }
+
+    private static void UpdatePathOfValheimanEquipmentPanelSlots(Player player, Inventory inventory, int equipmentCount)
+    {
         PovVisibleRings.Clear();
         foreach (SlotDefinition slot in SlotDefinitions)
         {
-            if (slot.PovCell == null || IsUnsupportedPathOfValheimanCell(slot.PovCell)) continue;
-            if (IsPathOfValheimanRingSlot(slot))
-            {
-                // Keep an occupied, now-locked cell reachable for withdrawal.
-                if (IsQuickSlotUnlocked(player, slot) || IsOccupiedSlot(inventory, slot)) PovVisibleRings.Add(slot);
-                continue;
-            }
-            if (IsEquipmentPanelSlot(slot)) continue;
+            if (!IsPathOfValheimanRingSlot(slot) || IsUnsupportedPathOfValheimanCell(slot.PovCell!)) continue;
+            // Keep an occupied, now-locked cell reachable for withdrawal.
+            if (IsQuickSlotUnlocked(player, slot) || IsOccupiedSlot(inventory, slot)) PovVisibleRings.Add(slot);
+        }
+        _povEquipmentColumns = Math.Max(1, GetCustomPanelColumns(equipmentCount));
+        _povEquipmentRows = equipmentCount > 0 ? CustomSlotPanelRows : 0;
+    }
+
+    private static void UpdatePathOfValheimanActionSlots(Player player, Inventory inventory, int quickCount)
+    {
+        PovVisibleActions.Clear();
+        foreach (SlotDefinition slot in SlotDefinitions)
+        {
+            if (slot.PovCell == null || IsEquipmentPanelSlot(slot) || IsUnsupportedPathOfValheimanCell(slot.PovCell)) continue;
             if (!IsQuickSlotUnlocked(player, slot) && !IsOccupiedSlot(inventory, slot)) continue;
             PovVisibleActions.Add(slot);
         }
@@ -101,8 +112,6 @@ public sealed partial class InventorySlotsPlugin
         _povActionColumnOffset = Math.Min(QuickSlotPanelColumns, quickCount);
         _povQuickColumns = Math.Max(1, _povActionColumnOffset + Math.Min(QuickSlotPanelColumns, PovVisibleActions.Count));
         _povQuickContentRows = Math.Max(GetQuickPanelRows(quickCount), GetQuickPanelRows(PovVisibleActions.Count));
-        _povEquipmentColumns = Math.Max(1, GetCustomPanelColumns(equipmentCount));
-        _povEquipmentRows = equipmentCount > 0 ? CustomSlotPanelRows : 0;
     }
 
     private static Vector3 GetPathOfValheimanActionPosition(int index, float spacing) =>

@@ -696,7 +696,9 @@ public sealed partial class InventorySlotsPlugin
     private static string GetEquipmentSlotUnlockCacheSignature(Player player)
     {
         int objectDbCount = ObjectDB.instance?.m_items?.Count ?? -1;
-        return $"{GetPlayerId(player)}|{InventoryDefinitions.SlotDefinitionVersion}|{objectDbCount}|{GetKnownMaterialHash(player)}";
+        // Inventory/PoV state changes do not change which known prefabs a slot
+        // accepts. Actual definition rebuilds explicitly clear this cache.
+        return $"{GetPlayerId(player)}|{objectDbCount}|{GetKnownMaterialHash(player)}";
     }
 
     private static int GetKnownMaterialHash(Player player)
@@ -807,6 +809,18 @@ public sealed partial class InventorySlotsPlugin
     private static void InvalidateSlotDefinitionCaches()
     {
         InventoryDefinitions.YamlMatchTokens.Clear();
+        InvalidateEquipmentSlotUnlockCache();
+        InvalidateSlotStateCaches();
+    }
+
+    private static void InvalidateEquipmentSlotUnlockCache()
+    {
+        InventoryDefinitions.EquipmentSlotUnlockCache.Clear();
+        InventoryDefinitions.EquipmentSlotUnlockCacheSignature = "";
+    }
+
+    private static void InvalidateSlotStateCaches()
+    {
         unchecked
         {
             InventoryDefinitions.SlotDefinitionVersion++;

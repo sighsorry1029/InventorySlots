@@ -42,17 +42,22 @@ public sealed partial class InventorySlotsPlugin
     private static Player? _quickHudLayoutPlayer;
     private static int _quickHudLayoutVersion = -1;
     private static bool _quickHudLayoutHasPov;
+    private static bool _quickHudLayoutFollowsEquipment;
 
     private static void SyncQuickSlotHudVisibility(Player player, bool forceLayout = false)
     {
         List<SlotDefinition> ordinary = GetQuickPanelSlots(player);
         bool hasPov = CanUsePathOfValheimanHud(player);
+        bool followsEquipment = hasPov && _quickSlotHudFollowsPanel?.Value == Toggle.On &&
+            InventoryPanels.QuickSlotsPanelRuntimeOffset == QuickSlotsPanelFixedOffset &&
+            !InventoryPanels.DraggingQuickSlotsPanelOffset;
         int version = InventoryDefinitions.SlotDefinitionVersion;
         // PoV's existing inventory-change and unlock polling paths invalidate
         // definitions. Reuse the display list between those changes: Open can
         // parse belt data, so it must not run per cell on every hidden frame.
         if (forceLayout || _quickHudLayoutPlayer != player || _quickHudLayoutVersion != version ||
-            _quickHudBaseCount != ordinary.Count || _quickHudLayoutHasPov != hasPov)
+            _quickHudBaseCount != ordinary.Count || _quickHudLayoutHasPov != hasPov ||
+            _quickHudLayoutFollowsEquipment != followsEquipment)
         {
             QuickHudSlots.Clear();
             QuickHudSlotIds.Clear();
@@ -62,8 +67,12 @@ public sealed partial class InventorySlotsPlugin
             _quickHudRows = GetQuickPanelRows(_quickHudBaseCount);
             if (hasPov)
             {
-                UpdatePathOfValheimanPanelSlots(player, player.GetInventory(), _quickHudBaseCount,
-                    GetCustomPanelSlots(player, player.GetInventory()).Count);
+                UpdatePathOfValheimanActionSlots(player, player.GetInventory(), _quickHudBaseCount);
+                // Only a HUD following the default panel pose needs ring spacing.
+                // Independent HUDs must not discover every equipment slot on pickup.
+                if (followsEquipment)
+                    UpdatePathOfValheimanEquipmentPanelSlots(player, player.GetInventory(),
+                        GetCustomPanelSlots(player, player.GetInventory()).Count);
                 QuickHudSlots.AddRange(PovVisibleActions);
                 _quickHudColumns = _povQuickColumns;
                 _quickHudRows = _povQuickContentRows;
@@ -72,6 +81,7 @@ public sealed partial class InventorySlotsPlugin
             _quickHudLayoutPlayer = player;
             _quickHudLayoutVersion = version;
             _quickHudLayoutHasPov = hasPov;
+            _quickHudLayoutFollowsEquipment = followsEquipment;
         }
         QuickHudVisibility.SyncContext(_quickSlotHudMode?.Value ?? QuickSlotHudMode.AllOnUse,
             player.GetInstanceID(), QuickHudSlotIds);

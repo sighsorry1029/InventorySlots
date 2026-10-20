@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.21
+
+- If Path of Valheiman's Tidy Pack unlock API is missing or throws, nearby Quick Stack and player inventory sorting now use their normal InventoryActions settings. A successful query reporting a locked node still blocks these actions. PoV reserved-cell boundaries, loading checks and transfer safeguards remain unchanged.
+- Show the player inventory S-button hover tooltip only while its PoV node is locked. Removed the title and ordinary usage description, as well as the on-screen unlock-query failure notice; query failures log one diagnostic warning instead.
+- Expanded isolated checks for missing/failing unlock APIs, live unlock/refund behavior and pending-transfer handling. Actual game UI and multiplayer validation remain required.
+
 ## 1.1.20
 
 - Allowed otherwise compatible Path of Valheiman brew batches and bonus harvest drops to stack while retaining destination provenance and preserving partially transferred sources. Food strength, aging clocks and other gameplay metadata remain protected.

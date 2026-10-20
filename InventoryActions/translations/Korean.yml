@@ -1,6 +1,5 @@
 inventoryactions_button_take_all: 모두 가져오기
 inventoryactions_pov_tidy_pack_locked: "주변 퀵스택과 인벤토리 정렬은 PoV의 Tidy Pack 마스터리를 해금해야 사용할 수 있습니다."
-inventoryactions_pov_tidy_pack_unavailable: "PoV 해금 상태를 확인할 수 없어 주변 퀵스택과 인벤토리 정렬이 잠겨 있습니다."
 inventoryactions_pov_sort_locked: "정렬: PoV에 의해 잠김"
 inventoryactions_pov_sort_description: "핫바 밖의 일반 아이템으로 즐겨찾기 스택을 보충한 뒤 나머지 일반 아이템을 정렬합니다. 즐겨찾기 스택의 위치는 유지됩니다."
 inventoryactions_button_place_stacks: 스택 넣기

@@ -276,7 +276,17 @@ public sealed partial class InventorySlotsPlugin
     {
         if (_pov == null || _povNotificationActive || _povMutationDepth > 0) return;
         _povNotificationActive = true;
-        try { _pov.Changed(""); InvalidateSlotDefinitionCaches(); }
+        try
+        {
+            _pov.Changed("");
+            // Late quiver registrations can reclassify utility prefabs without a
+            // definition rebuild. Retain their existing refresh-on-change policy,
+            // while ordinary armor/custom-slot discovery keeps its cached result.
+            foreach (SlotDefinition slot in SlotDefinitions)
+                if (slot.PovCell is "belt" or "quiver" or "utility" or "utility.wisp" or "utility.wishbone")
+                    InventoryDefinitions.EquipmentSlotUnlockCache.Remove(slot.Id);
+            InvalidateSlotStateCaches();
+        }
         finally { _povNotificationActive = false; }
     }
 

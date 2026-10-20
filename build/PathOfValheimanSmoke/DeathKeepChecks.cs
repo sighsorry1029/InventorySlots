@@ -137,11 +137,21 @@ internal static partial class Program
             bool missing = false;
             try { Call("BindPathOfValheimanDeathKeep", typeof(Program).Assembly); }
             catch (TargetInvocationException error) { missing = error.InnerException is MissingMethodException; }
-            Check(missing && !Allowed(player), "Death Keep: missing API fails closed for YAML rules");
+            Check(missing && Allowed(player) && !Allowed(remote), "Death Keep: missing API permits local YAML rules without granting another player");
+            held = Prepare();
+            Check(held.Count == 1 && !items.Contains(spare) && items.Contains(weapon) && items.Contains(food),
+                "Death Keep: missing API preserves only YAML-selected items");
+            Call("RestoreKeepOnDeathItems", player, held);
+            option.BoxedValue = off;
+            Check(Prepare().Count == 0 && items.Count == 3, "Death Keep: YAML Off overrides missing-API fallback");
+            option.BoxedValue = on;
             int attempts = 0;
             gate.SetValue(null, (Func<string, bool>)(_ => { attempts++; throw new InvalidOperationException("fixture API failure"); }));
-            Check(!Allowed(player) && !Allowed(player) && attempts == 1, "Death Keep: throwing API locks YAML rules without repeated exceptions");
+            Check(Allowed(player) && Allowed(player) && attempts == 1, "Death Keep: throwing API permits YAML rules without repeated exceptions");
+            Check(!Allowed(remote), "Death Keep: failed-API fallback still rejects another player");
             Call("BindPathOfValheimanDeathKeep", pov);
+            Node(false);
+            Check(!Allowed(player), "Death Keep: rebound API still enforces an explicitly locked node");
 
             Type nativeTomb = pov.GetType("PassiveTree.CraftPathfinder+Player_Tomb", true)!;
             Type slotsTomb = plugin.Assembly.GetType("InventorySlots.PlayerCreateTombStoneKeepOnDeathPatch", true)!;
@@ -160,6 +170,24 @@ internal static partial class Program
                 Check(items.Concat(deathGrave).Distinct().Count() == 3 && items.Count + deathGrave.Count == 3,
                     "Death Keep: combined death keeps exactly one reference to every item");
             }
+            Node(false); ResetItems();
+            gate.SetValue(null, (Func<string, bool>)(_ => throw new InvalidOperationException("fixture death-time API failure")));
+            tomb.Invoke(player, null);
+            Check(items.SequenceEqual(new[] { spare }) && deathGrave.SequenceEqual(new[] { weapon, food }) &&
+                items.Concat(deathGrave).Distinct().Count() == 3,
+                "Death Keep: API failure during combined death preserves YAML selection and every item reference");
+            ResetItems(); option.BoxedValue = off;
+            tomb.Invoke(player, null);
+            Check(items.Count == 0 && deathGrave.Count == 3, "Death Keep: YAML Off still applies during failed-API combined death");
+            option.BoxedValue = on;
+            ResetItems(); deathBodyThrows = true;
+            bool fallbackFailed = false;
+            try { tomb.Invoke(player, null); }
+            catch (TargetInvocationException error) { fallbackFailed = error.InnerException is InvalidOperationException; }
+            Check(fallbackFailed && items.Count == 3 && items.Distinct().Count() == 3 && deathGrave.Count == 0,
+                "Death Keep: failed-API fallback restores every reference after a death-body exception");
+            deathBodyThrows = false;
+            Call("BindPathOfValheimanDeathKeep", pov);
             Node(true); ResetItems(); option.BoxedValue = off;
             tomb.Invoke(player, null);
             Check(items.SequenceEqual(new[] { weapon }) && deathGrave.Contains(spare), "Death Keep: YAML Off still allows PoV's own hotbar protection");

@@ -221,14 +221,16 @@ public sealed partial class InventorySlotsPlugin
         // Stats is local-character state. Bound Gear is independent of the
         // equipment-system toggle; read the effect at death, never cache it.
         if (player == null || player != Player.m_localPlayer) return false;
-        try { return _povHasDeathKeepStat?.Invoke("BoundGear") == true; }
+        // Failure removes only the extra node requirement. The caller still
+        // applies the configured YAML toggle/selection and death recovery rules.
+        try { return _povHasDeathKeepStat?.Invoke("BoundGear") ?? true; }
         catch (Exception error)
         {
             _povHasDeathKeepStat = null;
             if (!_povDeathKeepWarning)
-                Log.LogWarning("PoV Bound Gear unlock status unavailable; YAML Death Keep rules are locked: " + error.GetBaseException().Message);
+                Log.LogWarning("PoV Bound Gear unlock status unavailable; using configured YAML Death Keep rules: " + error.GetBaseException().Message);
             _povDeathKeepWarning = true;
-            return false;
+            return true;
         }
     }
 

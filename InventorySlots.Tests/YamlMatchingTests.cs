@@ -18,7 +18,7 @@ internal static class YamlMatchingTests
             Methods("ItemClassifier.cs", "ItemMatchesBuiltInPredefinedGroup", "ItemMatchesBuiltInPredefinedGroupUncached") +
             Methods("PathOfValheimanStoragePanel.cs", "IsEquipmentPanelSlot", "IsPathOfValheimanRingSlot") +
             Methods("InventorySlotLayout.cs", "IsEquipmentSlotUnlocked", "IsEquipmentSlotDiscovered", "InventoryContainsAcceptedSlotItem",
-                "PlayerHasAcceptedEquippedItem", "RefreshEquipmentSlotUnlockCache", "GetEquipmentSlotUnlockCacheSignature",
+                "PlayerHasAcceptedEquippedItem", "RefreshEquipmentSlotUnlockCache", "GetEquipmentSlotUnlockCacheSignature", "InvalidateEquipmentSlotUnlockCache",
                 "GetKnownMaterialHash", "PlayerKnowsAcceptedSlotItem", "PlayerKnowsItem", "PlayerKnowsMaterialToken", "PlayerKnowsMaterial"));
         var sources = new[] { "YamlItemMatcher.cs", "InventorySlotsConfigCore.cs", "InventorySlotsYamlModels.cs", "ItemGroupRegistry.cs" }
             .Select(file => CSharpSyntaxTree.ParseText(Read(file))).Append(CSharpSyntaxTree.ParseText(host));

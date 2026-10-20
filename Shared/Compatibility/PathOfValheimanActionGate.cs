@@ -45,15 +45,17 @@ public sealed partial class InventoryActionsPlugin
     private static bool CanUseTidyPackActions()
     {
         if (!_povTidyPackRequired) return true;
-        try { return _povTidyPackAvailable?.Invoke() == true; }
-        catch (Exception error) { DisablePathOfValheimanActionGate(error); return false; }
+        // This is an additional progression gate, not a storage/access check.
+        // An unavailable API restores ordinary actions; a valid false stays locked.
+        try { return _povTidyPackAvailable?.Invoke() ?? true; }
+        catch (Exception error) { DisablePathOfValheimanActionGate(error); return true; }
     }
 
     private static void DisablePathOfValheimanActionGate(Exception error)
     {
         _povTidyPackAvailable = null;
         if (!_povTidyPackWarning)
-            Log.LogWarning("PoV Tidy Pack unlock status unavailable; nearby quick stack and player inventory sorting are locked: " + error.GetBaseException().Message);
+            Log.LogWarning("PoV Tidy Pack unlock status unavailable; nearby quick stack and player inventory sorting use their normal settings: " + error.GetBaseException().Message);
         _povTidyPackWarning = true;
     }
 
@@ -64,9 +66,8 @@ public sealed partial class InventoryActionsPlugin
         _povTidyPackWarning = false;
     }
 
-    private static string GetTidyPackLockedText() => _povTidyPackAvailable == null
-        ? LocalizeUi("$" + ModName.ToLowerInvariant() + "_pov_tidy_pack_unavailable", "PoV unlock status unavailable: nearby quick stack and inventory sorting are locked.")
-        : LocalizeUi("$" + ModName.ToLowerInvariant() + "_pov_tidy_pack_locked", "Nearby quick stack and inventory sorting require PoV's Tidy Pack mastery.");
+    private static string GetTidyPackLockedText() =>
+        LocalizeUi("$" + ModName.ToLowerInvariant() + "_pov_tidy_pack_locked", "Nearby quick stack and inventory sorting require PoV's Tidy Pack mastery.");
 
     private static bool RequireTidyPackActions(Player? player)
     {
@@ -91,10 +92,21 @@ public sealed partial class InventoryActionsPlugin
         if (button == null) return;
         bool available = CanUseTidyPackActions();
         SetButtonInteractable(button, available);
-        UITooltip tooltip = button.GetComponent<UITooltip>() ?? button.gameObject.AddComponent<UITooltip>();
-        tooltip.m_topic = LocalizeUi("$" + ModName.ToLowerInvariant() + "_action_sort", "Sort");
-        tooltip.m_text = available
-            ? LocalizeUi("$" + ModName.ToLowerInvariant() + "_pov_sort_description", "Fill favorite stacks from matching non-favorite stacks outside the hotbar, then sort the remaining ordinary stacks. Favorite stacks stay in place.")
-            : GetTidyPackLockedText();
+        UITooltip? tooltip = button.GetComponent<UITooltip>();
+        if (available)
+        {
+            if (tooltip != null)
+            {
+                tooltip.m_topic = "";
+                tooltip.m_text = "";
+                // Native OnDisable also dismisses a lock hint already on screen.
+                tooltip.enabled = false;
+            }
+            return;
+        }
+        tooltip ??= button.gameObject.AddComponent<UITooltip>();
+        tooltip.m_topic = "";
+        tooltip.m_text = GetTidyPackLockedText();
+        tooltip.enabled = true;
     }
 }
