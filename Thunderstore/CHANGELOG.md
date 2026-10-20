@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.17
+
+- Updated Path of Valheiman compatibility for 5.1.1. Only reviewed PoV slot IDs are hosted: Tome, Earring and future unrecognized storage slots are not added. Existing slot rules and saved-item recovery remain protected; changes to native equipment roles or existing storage contracts still require review.
+- Made InventorySlots responsible for sorting and nearby Quick Stack while PoV supplies the Tidy Pack unlock. Disabled PoV's separate action inputs, buttons and execution, and detached its quick-stack ownership/save response handlers to prevent competing transfer handling.
+- Retained PoV's reserved-item protection on delegated vanilla stack transfers and existing favorites, access checks, node-query fallback and transfer safeguards.
+- Adapted PoV's revised ring hand-off. Failed placement preserves the worn ring; a ring already stored in a provider cell clears duplicate native equipment without moving or duplicating the item.
+- Added original-DLL isolated checks for supported/ignored slots, saved-item recovery, ring state, response isolation and stack-item restoration after exceptions. Actual game UI and multiplayer validation remain required.
+
 ## 1.6.16
 
 - Reduced repeated equipment-discovery work after item pickups with Path of Valheiman. Independent quick-slot HUD updates no longer rebuild equipment/ring layout, and ordinary inventory changes reuse equipment-discovery results. Discovery and slot-definition changes still refresh the cache, while dynamic utility/quiver roles retain their existing refresh behavior.

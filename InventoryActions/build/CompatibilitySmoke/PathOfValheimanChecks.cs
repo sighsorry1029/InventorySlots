@@ -41,24 +41,6 @@ internal static class PathOfValheimanChecks
     private static extern void mono_add_internal_call(string name, IntPtr method);
     private static bool ObjectEquality(UnityEngine.Object lhs, UnityEngine.Object rhs, ref bool __result)
     { __result = ReferenceEquals(lhs, rhs); return false; }
-    private static bool allowResponse;
-    private static bool allowNativeRequest;
-    private static bool responseBodySawOurs;
-    private static int responseBodyCalls;
-    private static FieldInfo ours = null!;
-    private static bool ResponseGate() => allowResponse;
-    private static bool NativeRequestGate() => allowNativeRequest;
-    private static IEnumerable<CodeInstruction> EmptyBody()
-    {
-        yield return new CodeInstruction(System.Reflection.Emit.OpCodes.Ret);
-    }
-    private static void ObserveResponseBody() { ++responseBodyCalls; responseBodySawOurs = (bool)ours.GetValue(null)!; }
-    private static IEnumerable<CodeInstruction> ResponseBody()
-    {
-        yield return new CodeInstruction(System.Reflection.Emit.OpCodes.Call, AccessTools.Method(typeof(PathOfValheimanChecks), nameof(ObserveResponseBody)));
-        yield return new CodeInstruction(System.Reflection.Emit.OpCodes.Ret);
-    }
-
     internal static int RunStackMetadataWithoutPoV(Type plugin)
     {
         var harmony = new Harmony("inventory-tests.stack-without-pov");
@@ -116,6 +98,7 @@ internal static class PathOfValheimanChecks
         }
         Inventory bag = new Inventory("bag", null, 8, 10); // Four backpack + six PoV storage rows in 5.0.8.
         PoVTrashChecks.Run(plugin.Assembly, pov, Check);
+        PoVActionsChecks.Run(plugin.Assembly, pov, Check);
         PoVTidyPackChecks.Run(plugin, pov, Check);
         Inventory chest = new Inventory("chest", null, 8, 8);
         // Only managed data is used. These sentinels have no native Unity objects;
@@ -133,9 +116,7 @@ internal static class PathOfValheimanChecks
         try
         {
             var response = AccessTools.DeclaredMethod(typeof(Container), "RPC_StackResponse", new[] { typeof(long), typeof(bool) });
-            Type responseHooks = quick.GetNestedType("Response", BindingFlags.NonPublic)!;
-            povHarmony.Patch(response, prefix: new HarmonyMethod(responseHooks.GetMethod("Prefix", statics)),
-                finalizer: new HarmonyMethod(responseHooks.GetMethod("Finalizer", statics)));
+            PoVActionsChecks.InstallNativeHooks(pov, povHarmony);
             Type storageApi = pov.GetType("Valheiman.Api.Storage", true)!;
             harmony.Patch(AccessTools.PropertyGetter(storageApi, "ProviderId"),
                 prefix: new HarmonyMethod(typeof(PathOfValheimanChecks), nameof(StorageProvider)));
@@ -178,9 +159,6 @@ internal static class PathOfValheimanChecks
                 Check(bound.IsPublic && bound.DeclaringType!.IsVisible && bound.DeclaringType.Namespace == "Valheiman.Api",
                     name + " binds the original public API");
             }
-            foreach (string method in new[] { "Sort", "Run", "Movable", "ForeignCell" })
-                Check(Harmony.GetPatchInfo(quick.GetMethod(method, statics))!.Owners.Contains(harmony.Id), "actual PoV " + method + " accepts compatibility hook");
-
             owner.SetValue(null, bag);
             start.SetValue(null, 4);
             int Rows(Inventory inventory) => (int)Call("GetRegularPlayerRowsOrInventoryHeight", inventory)!;
@@ -198,7 +176,7 @@ internal static class PathOfValheimanChecks
             AccessTools.Field(typeof(Inventory), "m_height").SetValue(bag, 10);
             start.SetValue(null, 4);
             AccessTools.Field(typeof(Player), "m_isLoading").SetValue(player, true);
-            Check(Rows(bag) == 0 && Cells(bag).Count == 0 && Rows(chest) == 8 && !(bool)Call("PovSortStarting", player)!,
+            Check(Rows(bag) == 0 && Cells(bag).Count == 0 && Rows(chest) == 8,
                 "character loading blocks native and IA player actions even while rows are owned");
             AccessTools.Field(typeof(Player), "m_isLoading").SetValue(player, false);
             Check(Rows(bag) == 4, "loaded owned inventory resumes without a cached loading state");
@@ -215,11 +193,6 @@ internal static class PathOfValheimanChecks
             bag.GetAllItems().AddRange(new[] { hidden, equipped, favorite, ordinary });
             favorites.Add(favorite.m_gridPos);
             favorites.Add(new Vector2i(0, 1)); // Empty favorite also reserves a sort destination.
-            var movable = new List<ItemDrop.ItemData> { hidden, equipped, favorite, ordinary };
-            Call("PovFilterMovableItems", player, movable);
-            Check(movable.SequenceEqual(new[] { ordinary }), "native candidates retain only ordinary, nonfavorite, unequipped items");
-            Check((bool)quick.GetMethod("ForeignCell", statics)!.Invoke(null, new object[] { new Vector2i(0, 1) })!, "patched PoV destination helper protects empty favorites");
-            Check((bool)quick.GetMethod("ForeignCell", statics)!.Invoke(null, new object[] { new Vector2i(7, 7) })!, "patched PoV destination helper protects empty hidden cells");
             var actionCells = (List<Vector2i>)Call("GetPlayerActionSlots", player, bag)!;
             Check(!actionCells.Contains(equipped.m_gridPos) && !actionCells.Contains(hidden.m_gridPos) &&
                   !actionCells.Contains(favorite.m_gridPos) && !actionCells.Contains(new Vector2i(0, 1)),
@@ -230,10 +203,10 @@ internal static class PathOfValheimanChecks
             var earlier = Item(4, 2); earlier.m_shared.m_name = "A-test";
             bag.GetAllItems().Add(earlier);
             quick.GetMethod("Sort", statics)!.Invoke(null, new object[] { player });
-            Check(earlier.m_gridPos == new Vector2i(3, 1) && ordinary.m_gridPos == new Vector2i(4, 1) &&
+            Check(earlier.m_gridPos == new Vector2i(4, 2) && ordinary.m_gridPos == new Vector2i(3, 1) &&
                   hidden.m_gridPos == new Vector2i(0, 4) && favorite.m_gridPos == new Vector2i(2, 1) &&
                   equipped.m_gridPos == new Vector2i(1, 1) && hidden.m_stack == 2 && favorite.m_stack == 2,
-                "actual PoV Sort reaches patched helpers and preserves reserved cells and quantities");
+                "native PoV Sort is suppressed; IA retains sole control of sorting and reserved cells");
             Check(!(bool)Call("CanMoveItemToInventoryTopFirst", bag, chest, hidden)! &&
                   (int)Call("MoveItemToInventoryTopFirst", bag, chest, hidden, null)! == 0,
                 "protected source cannot be moved or unequipped through IA");
@@ -256,76 +229,18 @@ internal static class PathOfValheimanChecks
             AccessTools.Field(typeof(Inventory), "m_height").SetValue(bag, 4);
             Check(Rows(bag) == 4, "released inventory with Equipment Off returns to ordinary actions");
             storageProvider = "test.external";
-            Check(Rows(bag) == 0 && Cells(bag).Count == 0 && Rows(chest) == 8 && !(bool)Call("PovSortStarting", player)!,
+            Check(Rows(bag) == 0 && Cells(bag).Count == 0 && Rows(chest) == 8,
                 "external provider cannot expose empty reserved cells even with Equipment Off");
             enabled.Value = true;
             Check(Rows(bag) == 0, "registered external provider is not assumed ready with Equipment On");
             storageProvider = null;
             storageSuspended = true;
-            Check(Rows(bag) == 0 && !(bool)Call("PovSortStarting", player)!, "suspended storage blocks actions independently of provider ID");
+            Check(Rows(bag) == 0, "suspended storage blocks actions independently of provider ID");
             storageSuspended = false;
             Check(Rows(bag) == 0 && Rows(chest) == 8, "enabled equipment awaiting Attach blocks only player actions");
-            object?[] scope = { player, false };
-            Check(!(bool)Method("PovQuickStackStarting").Invoke(null, scope)! && !(bool)scope[1]!,
-                "native PoV quick stack cannot start before storage is ready");
             owner.SetValue(null, bag);
             AccessTools.Field(typeof(Inventory), "m_height").SetValue(bag, 10);
-            Check(Rows(bag) == 4 && (bool)Call("PovSortStarting", player)!, "native storage resumes after attach without reinitializing the adapter");
-            Check((bool)Method("PovQuickStackStarting").Invoke(null, scope)! && (bool)scope[1]!, "PoV native request scope begins");
-            Check((int)plugin.GetField("_povQuickStackDepth", statics)!.GetValue(null)! == 1, "scope marks only synchronous PoV dispatch");
-            Call("PovQuickStackFinished", true);
-            Call("PovQuickStackFinished", false);
-            Check((int)plugin.GetField("_povQuickStackDepth", statics)!.GetValue(null)! == 0, "finalizer balances entered scope and ignores skipped calls");
-            bool runFailed = false;
-            try { quick.GetMethod("Run", statics)!.Invoke(null, new object[] { player }); }
-            catch (TargetInvocationException) { runFailed = true; } // No Game/world exists in this process.
-            Check(runFailed && (int)plugin.GetField("_povQuickStackDepth", statics)!.GetValue(null)! == 0,
-                "exception in original PoV Run propagates and restores dispatch scope");
-            var hasMuc = AccessTools.PropertyGetter(plugin, "HasExternalMultiUserChestActive");
-            harmony.Patch(hasMuc, prefix: new HarmonyMethod(typeof(PathOfValheimanChecks), nameof(MucPresent)));
-            scope[1] = false;
-            Check(!(bool)Method("PovQuickStackStarting").Invoke(null, scope)! && !(bool)scope[1]!,
-                "MUC blocks PoV's native transfer without entering its dispatch scope");
-            harmony.Unpatch(hasMuc, AccessTools.Method(typeof(PathOfValheimanChecks), nameof(MucPresent)));
-
-            // Exercise HarmonyX's real prefix ordering and __runOriginal. The RPC
-            // body is an observer: this tests state handling, not network validation.
-            harmony.Patch(response, prefix: new HarmonyMethod(typeof(PathOfValheimanChecks), nameof(ResponseGate)) { priority = Priority.First },
-                transpiler: new HarmonyMethod(typeof(PathOfValheimanChecks), nameof(ResponseBody)));
-            var asked = (HashSet<Container>)quick.GetField("asked", statics)!.GetValue(null)!;
-            ours = quick.GetField("ours", statics)!;
-            var box = (Container)FormatterServices.GetUninitializedObject(typeof(Container));
-            asked.Add(box);
-            allowResponse = false;
-            response.Invoke(box, new object[] { 1L, true });
-            Check(asked.Contains(box) && !(bool)ours.GetValue(null)! && !responseBodySawOurs,
-                "earlier rejected RPC does not consume PoV's pending request");
-            allowResponse = true;
-            response.Invoke(box, new object[] { 1L, true });
-            Check(!asked.Contains(box) && responseBodySawOurs && !(bool)ours.GetValue(null)!,
-                "later accepted RPC enters PoV protection and finalizer restores it");
-            responseBodySawOurs = false;
-            response.Invoke(box, new object[] { 1L, true });
-            Check(!responseBodySawOurs && responseBodyCalls == 1, "duplicate response cannot reach unprotected native StackAll");
-            var nativeRequest = AccessTools.DeclaredMethod(typeof(Container), nameof(Container.StackAll));
-            harmony.Patch(nativeRequest,
-                prefix: new HarmonyMethod(typeof(PathOfValheimanChecks), nameof(NativeRequestGate)) { priority = Priority.Last },
-                transpiler: new HarmonyMethod(typeof(PathOfValheimanChecks), nameof(EmptyBody)));
-            Check(Harmony.GetPatchInfo(nativeRequest)!.Prefixes.Single(p => p.PatchMethod == Method("PovNativeStackStarting")).priority < Priority.Last,
-                "registered native request observer runs after the shared Last-priority fence");
-            allowNativeRequest = false;
-            nativeRequest.Invoke(box, null);
-            response.Invoke(box, new object[] { 1L, true });
-            Check(responseBodyCalls == 1, "rejected native request cannot reopen a completed response");
-            allowNativeRequest = true;
-            nativeRequest.Invoke(box, null);
-            asked.Add(box);
-            response.Invoke(box, new object[] { 1L, true });
-            Check(responseBodyCalls == 2 && responseBodySawOurs, "new permitted request reopens PoV response processing");
-            Call("PovNetworkStopped");
-            response.Invoke(box, new object[] { 1L, true });
-            Check(responseBodyCalls == 3, "network stop releases response fences from the old session");
-            owner.SetValue(null, bag);
+            Check(Rows(bag) == 4, "native storage resumes after attach without reinitializing the adapter");
             var backpack = (Func<Player, int>)plugin.GetField("_povBackpackRows", statics)!.GetValue(null)!;
             foreach (int invalid in new[] { 0, bag.GetHeight(), bag.GetHeight() + 1 })
             {
@@ -342,7 +257,6 @@ internal static class PathOfValheimanChecks
             Write("_povUnavailable", false);
             Write("_povBackpackRows", new Func<Player, int>(_ => throw new InvalidOperationException("probe failure")));
             Check(Rows(bag) == 0 && Cells(bag).Count == 0 && Rows(chest) == 8, "lookup failure blocks player actions without blocking chest cells");
-            Check(!(bool)Call("PovSortStarting", player)!, "native PoV sort also stops after integration failure");
             Write("_povPresent", false);
             Check(Rows(bag) == 10 && Cells(bag).Count == 80, "PoV absent leaves existing inventory behavior unchanged");
         }
@@ -351,6 +265,7 @@ internal static class PathOfValheimanChecks
             local.SetValue(null, oldPlayer);
             owner.SetValue(null, null);
             favorites.Clear();
+            plugin.Assembly.GetType("InventoryCompatibility.PathOfValheimanActions", true)!.GetMethod("Dispose", statics)!.Invoke(null, null);
             harmony.UnpatchSelf();
             povHarmony.UnpatchSelf();
         }

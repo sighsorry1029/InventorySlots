@@ -1,5 +1,50 @@
 # InventorySlots / Path of Valheiman isolated checks
 
+## Release 1.6.17 verification — 2026-10-21
+
+Final merged Release DLL SHA-256:
+`5EDFDC6B12C3463D9CD944DCDC314D484EF01740247F24FA9943556D78B05F75`.
+Original PoV 5.1.1 and Valheim 1.0.20 x64 Mono passed **520 cold / 522 warm**
+checks, exit 0 with normal cleanup. Coverage and fixture limits are described
+in the implementation checkpoint below.
+
+The unit runner passed **190** tests. Static inspection reported **0 failures**
+(1,154 references, 164 Harmony targets, 52 reflected contracts; ten manual).
+Debug/Release builds had no warnings/errors. Debug deployment hashes,
+assembly/plugin/file/manifest versions, merged dependencies and every
+Thunderstore/Nexus ZIP entry were verified against the final build and sources.
+Actual game UI, world recovery, disconnect/reconnect and multiplayer were not run.
+
+## PoV 5.1.1 slot allowlist and action ownership — 2026-10-21
+
+Debug 1.6.16, version unchanged, final/deployed DLL SHA-256:
+`BC87CAE7A4A7EF6925A1C34A7E6198F343F0009BDB667E2A2E342FBE0BD802D7`.
+Original PoV 5.1.1 SHA-256:
+`275D256A88783D1CCB1E3970D920AA629149060962495E556ED22396CB9C6136`.
+The original Valheim 1.0.20 x64 Mono runner passed **520 cold / 522 warm**
+checks, exit 0 with normal cleanup. Baseline/final Debug builds had no
+warnings/errors. No Release build, version bump or package was made.
+
+The allowlist tests cover current slot contracts, ignored Tome/Earring and a
+synthetic future storage descriptor, duplicate/changed-contract rejection,
+native save-coordinate recovery, preserved normal utility equipment, and
+ring hand-offs including a ring already stored in its provider cell.
+Unknown native worn roles still fail safely; the allowlist is not a promise
+of compatibility with arbitrary future PoV implementations.
+
+Shared `PoVActionsChecks` installs the original PoV response, key and stack
+handlers. It verifies selective response/key removal, execution suppression,
+other-owner guards/observers, granted/denied replies, storage-item exclusion
+and restoration on success/exception, and exact observer/button-host rollback.
+Engine/RPC bodies and some classification boundaries are fixtures. The original
+`Inventory.StackAll(Inventory, bool)` returns `int`.
+
+Unit runner: **190** passes; quick-stack fixtures: **143**; both native handoff
+variants: **143 each**. Static contracts: **0 failures**, 1,154 references,
+164 Harmony targets, 52 reflected contracts, ten manual dynamic targets.
+Actual Unity UI, MagicPlugin item effects, multiplayer chest contention,
+disconnect/reconnect and world item recovery remain untested.
+
 ## Release 1.6.16 verification — 2026-10-21
 
 Final merged Release DLL SHA-256:

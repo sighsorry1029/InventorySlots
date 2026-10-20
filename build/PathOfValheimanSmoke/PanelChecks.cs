@@ -56,6 +56,9 @@ internal static partial class Program
                 "Tool/Key/Purse roles create no InventorySlots definitions");
             Check(!mapped.Contains("utility") && !definitions.Cast<object>().Any(s => Id(s) == "pov.utility"),
                 "PoV does not add a separate generic Utility cell");
+            Check(!mapped.Contains("utility.tome") && !mapped.Contains("utility.earring") &&
+                  !definitions.Cast<object>().Any(s => Role(s) is "utility.tome" or "utility.earring"),
+                "Tome/Earring create no physical, equipment-panel or HUD slots");
             Check(Id(mapped["belt"]!) == "utility", "configured Utility cell still provides the PoV Belt role");
             Type state = pov.GetType("PassiveTree.Gear.State", true)!;
             Type nativeSlot = pov.GetType("PassiveTree.Gear.Slot", true)!;
@@ -80,6 +83,37 @@ internal static partial class Program
                 "native/API Utility rejection preserves item identity, stack, coordinates and the worn belt");
             equipArgs = new object[] { player, beltItem, false };
             Check((bool)nativeEquip.Invoke(null, equipArgs)!, "belt still follows its original equipment path");
+            Type? magic = pov.GetType("PassiveTree.Gear.MagicSlots");
+            if (magic != null)
+            {
+                Type equipment = pov.GetType("Valheiman.Api.Equipment", true)!;
+                foreach (var role in new[] { ("Tome", "utility.tome"), ("Earring", "utility.earring") })
+                {
+                    FieldInfo fake = magic.GetField("Fake" + role.Item1, Statics)!;
+                    fake.SetValue(null, new Func<ItemData, bool>(item => ReferenceEquals(item, extraUtility)));
+                    try
+                    {
+                        Check(!(bool)isOpen.Invoke(null, new[] { (object)player, Enum.Parse(nativeSlot, role.Item1) })!,
+                            "native " + role.Item1 + " stays closed even with its source mod present");
+                        equipArgs = new object[] { player, extraUtility, false };
+                        Check((bool)nativeEquip.Invoke(null, equipArgs)! && !(bool)equipArgs[2],
+                            role.Item1 + " continues the original item/mod equip path without reporting success");
+                        Check(!(bool)equipment.GetMethod("Put")!.Invoke(null, new object[] { player, role.Item2, extraUtility })! &&
+                              equipment.GetMethod("ItemIn")!.Invoke(null, new object[] { player, role.Item2 }) == null,
+                            role.Item1 + " rejects native assignment and exposes no provider equipment");
+                        extraUtility.m_equipped = true;
+                        beltField.SetValue(player, extraUtility);
+                        pov.GetType("PassiveTree.Gear.UtilitySlots", true)!.GetMethod("Tick", Statics)!.Invoke(null, new object[] { player });
+                        Check(ReferenceEquals(beltField.GetValue(player), extraUtility) && extraUtility.m_equipped &&
+                              extraUtility.m_gridPos == new Vector2i(0, 0) && items.Count == 2,
+                            role.Item1 + " Tick preserves existing equip, coordinates and item identity");
+                        object[] regen = { player, 0.4f };
+                        magic.GetNestedType("Regen", BindingFlags.NonPublic)!.GetMethod("Postfix", Statics)!.Invoke(null, regen);
+                        Check((float)regen[1] == 0.4f, role.Item1 + " adds no duplicate PoV regeneration effect");
+                    }
+                    finally { fake.SetValue(null, null); extraUtility.m_equipped = false; beltField.SetValue(player, beltItem); }
+                }
+            }
             items.Clear(); beltField.SetValue(player, oldBelt);
             var originalCoordinates = definitions.Cast<object>().ToDictionary(Id, Position);
             Layout();

@@ -124,7 +124,7 @@ Install with a Valheim mod manager, or place `InventorySlots.dll` in `BepInEx/pl
 
 - **Client only:** you can join a vanilla server. Other players do not need InventorySlots; your local settings apply.
 - **Installed on the server:** all clients need the same InventorySlots version, and server-synced settings follow the server.
-- **Choose one inventory overhaul:** do not combine InventorySlots with InventoryActions, Quick Stack Store, ExtraSlots, AzuExtendedPlayerInventory, Equipment and Quick Slots, or ComfyQuickSlots. Path of Valheiman 5.0.8/5.0.9 has an optional API-based adapter; read its storage and save-conversion limits before combining them. [Compatibility details](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/compatibility.md#path-of-valheiman).
+- **Choose one inventory overhaul:** do not combine InventorySlots with InventoryActions, Quick Stack Store, ExtraSlots, AzuExtendedPlayerInventory, Equipment and Quick Slots, or ComfyQuickSlots. Path of Valheiman has an optional API-based adapter; read its checked versions, supported slots and save-conversion limits before combining them. [Compatibility details](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/compatibility.md#path-of-valheiman).
 
 Want the inventory actions while keeping your existing inventory layout? Use [InventoryActions](https://thunderstore.io/c/valheim/p/sighsorry/InventoryActions/) instead.
 

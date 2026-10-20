@@ -20,7 +20,7 @@ namespace InventoryActions;
 public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
 {
     internal const string ModName = "InventoryActions";
-    internal const string ModVersion = "1.1.21";
+    internal const string ModVersion = "1.1.22";
     internal const string Author = "sighsorry";
     internal const string ModGUID = $"{Author}.{ModName}";
     private const string ExternalMultiUserChestGuid = "com.maxsch.valheim.MultiUserChest";
@@ -184,7 +184,7 @@ public sealed partial class InventoryActionsPlugin : BaseUnityPlugin
         _mucTransferApi = null;
         CloseInventoryTrashConfirmDialog();
         // Keep inventory action patches installed during runtime teardown to avoid item-move logic changing mid-session.
-        // PoV boundary delegates and response observers stay with those patches.
+        // PoV boundary delegates and native action suppression stay with those patches.
         Config.Save();
     }
 

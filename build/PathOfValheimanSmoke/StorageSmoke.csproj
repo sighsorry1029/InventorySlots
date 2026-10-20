@@ -9,6 +9,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../SharedSmoke/PoVTrashChecks.cs" Link="PoVTrashChecks.cs" />
+    <Compile Include="../SharedSmoke/PoVActionsChecks.cs" Link="PoVActionsChecks.cs" />
     <Compile Include="../SharedSmoke/PoVTidyPackChecks.cs" Link="PoVTidyPackChecks.cs" />
     <Compile Include="../SharedSmoke/PoVStackMetadataChecks.cs" Link="PoVStackMetadataChecks.cs" />
     <Reference Include="0Harmony"><HintPath>$(GameRoot)/BepInEx/core/0Harmony.dll</HintPath><Private>false</Private></Reference>

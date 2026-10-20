@@ -11,9 +11,11 @@ using ItemData = ItemDrop.ItemData;
 internal static partial class Program
 {
     private static int ringCapacity;
+    private static int ringUnequips;
     private static bool RingCapacity(ref int __result) { __result = ringCapacity; return false; }
     private static bool RingUnequip(Humanoid __instance, ItemData item)
     {
+        ringUnequips++;
         foreach (string name in new[] { "m_utilityItem", "m_trinketItem" })
         {
             FieldInfo field = AccessTools.Field(typeof(Humanoid), name);
@@ -118,14 +120,23 @@ internal static partial class Program
             blocker.m_equipped = true; belt.SetValue(player, blocker);
             hooks.Patch(AccessTools.Method(typeof(Humanoid), "UnequipItem"),
                 prefix: new HarmonyMethod(typeof(Program), nameof(RingUnequip)));
+            hooks.CreateClassProcessor(plugin.Assembly.GetType("InventorySlots.HumanoidUnequipItemPatch", true)).Patch();
+            ringUnequips = 0;
             utility.GetMethod("Tick", Statics)!.Invoke(null, new object[] { player });
-            Check(ReferenceEquals(belt.GetValue(player), blocker) && blocker.m_equipped && blocker.m_gridPos == new Vector2i(3, 0),
+            Check(ReferenceEquals(belt.GetValue(player), blocker) && blocker.m_equipped && blocker.m_gridPos == new Vector2i(3, 0) &&
+                ringUnequips == 0,
                 "failed native ring hand-off preserves worn ring and its coordinate");
             Check(Take("ring.1"), "free one ring destination");
             utility.GetMethod("Tick", Statics)!.Invoke(null, new object[] { player });
             Check(belt.GetValue(player) == null && !blocker.m_equipped && blocker.m_gridPos == Pos(1) &&
-                Effects().Count(it => ReferenceEquals(it, blocker)) == 1,
+                Effects().Count(it => ReferenceEquals(it, blocker)) == 1 && ringUnequips == 1,
                 "successful native hand-off clears old native equipment exactly once");
+            first.m_equipped = true; belt.SetValue(player, first); ringUnequips = 0;
+            int beforeCount = items.Count;
+            utility.GetMethod("Tick", Statics)!.Invoke(null, new object[] { player });
+            Check(belt.GetValue(player) == null && !first.m_equipped && first.m_gridPos == Pos(0) &&
+                items.Count == beforeCount && Effects().Count(it => ReferenceEquals(it, first)) == 1 && ringUnequips == 1,
+                "already stored ring clears duplicate native equipment once without withdrawing or duplicating it");
             // The native ordinal save format must map by role, not UI index.
             items.Clear(); items.Add(first); items.Add(second);
             first.m_gridPos = new Vector2i(0, 10); // native rowStart=4, ordinal48

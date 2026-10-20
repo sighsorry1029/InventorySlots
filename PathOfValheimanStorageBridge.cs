@@ -33,6 +33,9 @@ internal sealed class PathOfValheimanStorageBridge
     private Action<Player>? _removeQuiverWhenDisabled;
     internal readonly Action<string> Changed;
     internal readonly List<(string Id, int Ordinal)> Cells = new();
+    internal readonly HashSet<int> UnsupportedOrdinals = new();
+    internal readonly List<string> UnhostedUtilityCells = new();
+    private static readonly Dictionary<string, (int Ordinal, string Kind, bool Worn, bool Storage)> SupportedCells = CreateSupportedCells();
     internal bool HasExtraTrinkets { get; private set; }
     internal bool HasRings { get; private set; }
     private readonly Dictionary<string, Func<Player, ItemData>> _trinketReads = new(StringComparer.Ordinal);
@@ -91,6 +94,7 @@ internal sealed class PathOfValheimanStorageBridge
             prefix: new HarmonyMethod(typeof(InventorySlotsPlugin), "AllowPathOfValheimanCell"));
         harmony.Patch(Require("PassiveTree.Gear.UtilitySlots+Equip", "Prefix", typeof(bool), typeof(Humanoid),
                 typeof(ItemData), typeof(bool).MakeByRefType()),
+            prefix: new HarmonyMethod(typeof(InventorySlotsPlugin), "SkipUnhostedPathOfValheimanUtilityEquip"),
             postfix: new HarmonyMethod(typeof(InventorySlotsPlugin), "RejectUnsupportedPathOfValheimanUtilityEquip"));
         var equipmentCells = (IEnumerable)assembly.GetType("Valheiman.Api.Equipment")!.GetProperty("Cells")!.GetValue(null);
         StorageCells = Bind<Func<IReadOnlyList<string>>>("Valheiman.Api.Storage", "get_Cells")();
@@ -98,18 +102,47 @@ internal sealed class PathOfValheimanStorageBridge
         Type cellInfo = assembly.GetType("Valheiman.Api.CellInfo", true)!;
         PropertyInfo id = cellInfo.GetProperty("Id")!;
         FieldInfo ordinal = AccessTools.DeclaredField(cellInfo, "Slot");
+        var descriptors = new Dictionary<string, (int Ordinal, string Kind, bool Worn, bool Storage)>(StringComparer.Ordinal);
+        var ordinals = new HashSet<int>();
+        var storageIds = new HashSet<string>(StorageCells, StringComparer.Ordinal);
+        if (storageIds.Count != StorageCells.Count) throw new NotSupportedException("Duplicate PoV storage IDs");
         foreach (object cell in equipmentCells)
         {
             string key = (string)id.GetValue(cell);
-            if (key.StartsWith("ring.", StringComparison.Ordinal) &&
-                ((bool)cellInfo.GetProperty("Worn")!.GetValue(cell) ||
-                 cellInfo.GetProperty("Kind")!.GetValue(cell)?.ToString() != "Ring"))
-                throw new NotSupportedException("PoV ring storage/effect ownership changed");
-            Cells.Add((key, Convert.ToInt32(ordinal.GetValue(cell))));
+            int position = Convert.ToInt32(ordinal.GetValue(cell));
+            string kind = cellInfo.GetProperty("Kind")!.GetValue(cell)!.ToString();
+            bool worn = (bool)cellInfo.GetProperty("Worn")!.GetValue(cell);
+            if (string.IsNullOrEmpty(key) || descriptors.ContainsKey(key) || position < 0 ||
+                position == 4 || position == 5 || !ordinals.Add(position))
+                throw new NotSupportedException("Duplicate or invalid PoV equipment coordinates");
+            var contract = (position, kind, worn, storageIds.Contains(key));
+            descriptors.Add(key, contract);
+            if (SupportedCells.TryGetValue(key, out var expected))
+            {
+                if (contract != expected) throw new NotSupportedException("PoV cell contract changed: " + key);
+            }
+            else
+            {
+                // New provider-backed cells are deliberately not hosted. Unknown
+                // native worn roles may bypass the provider and still need review.
+                // PoV's existing purse descriptors are Worn despite having no
+                // native equipment role. Preserve that known omission, not new worn roles.
+                bool purse = position >= 24 && position <= 31 && key == "purse." + (position - 24) &&
+                             kind == "Purse" && worn && !contract.Item4;
+                if (!purse && (worn || !contract.Item4))
+                    throw new NotSupportedException("Unsupported native PoV equipment role: " + key);
+                UnsupportedOrdinals.Add(position);
+                if (kind == "Utility" && key != "utility") UnhostedUtilityCells.Add(key);
+            }
+            // Retain every native coordinate for atomic recovery of saved items,
+            // even when no physical InventorySlots cell will be created for it.
+            Cells.Add((key, position));
         }
+        if (storageIds.Any(key => !descriptors.ContainsKey(key)))
+            throw new NotSupportedException("PoV storage refers to an unknown equipment cell");
         // 5.0.9 advertises API 1.1.0 but AtLeast(1, 1) still returns false.
         // Detect the actual cells, including their native saved coordinates.
-        HasExtraTrinkets = Cells.Any(c => c.Id == "trinket.1");
+        HasExtraTrinkets = Cells.Any(c => c.Id.StartsWith("trinket.", StringComparison.Ordinal) && SupportsCell(c.Id));
         if (HasExtraTrinkets)
         {
             foreach (var role in new[] { ("trinket.1", 45), ("trinket.2", 46), ("trinket.hand", 47) })
@@ -125,7 +158,7 @@ internal sealed class PathOfValheimanStorageBridge
             harmony.Patch(Require("PassiveTree.Trinkets+Spawn", "Postfix", typeof(void), typeof(Player)),
                 postfix: new HarmonyMethod(typeof(InventorySlotsPlugin), "OnPathOfValheimanTrinketsSpawned"));
         }
-        HasRings = Cells.Any(c => c.Id == "ring.0");
+        HasRings = Cells.Any(c => c.Id.StartsWith("ring.", StringComparison.Ordinal) && SupportsCell(c.Id));
         if (HasRings)
         {
             Require("Valheiman.Api.Equipment", "IsRing", typeof(bool), typeof(ItemData));
@@ -134,10 +167,11 @@ internal sealed class PathOfValheimanStorageBridge
                     Convert.ToInt32(Enum.Parse(slotType, "Ring" + i)) != 48 + i)
                     throw new NotSupportedException("PoV ring cell contract changed");
         }
-        int ringCells = HasRings ? 10 : 0;
-        if (StorageCells.Count(c => !c.StartsWith("purse.", StringComparison.Ordinal)) != 28 + ringCells ||
-            Cells.Count != (HasExtraTrinkets ? 46 : 43) + ringCells)
-            throw new NotSupportedException("Unrecognized PoV equipment layout");
+        foreach (string key in SupportedCells.Keys)
+            if (!(key.StartsWith("ring.", StringComparison.Ordinal) && !HasRings) &&
+                !(key.StartsWith("trinket.", StringComparison.Ordinal) && !HasExtraTrinkets) &&
+                !descriptors.ContainsKey(key))
+                throw new NotSupportedException("Required PoV cell is missing: " + key);
 
         if (HasRings)
         {
@@ -164,6 +198,32 @@ internal sealed class PathOfValheimanStorageBridge
                 InventorySlotsPlugin.FindPathOfValheimanUtilityUnequip(PatchProcessor.GetOriginalInstructions(target).ToList(), "PutRing");
             harmony.Patch(target, transpiler: new HarmonyMethod(typeof(InventorySlotsPlugin), "DeferPathOfValheimanUtilityUnequip"));
         }
+    }
+
+    internal static bool SupportsCell(string id) => SupportedCells.ContainsKey(id);
+
+    private static Dictionary<string, (int Ordinal, string Kind, bool Worn, bool Storage)> CreateSupportedCells()
+    {
+        var cells = new Dictionary<string, (int, string, bool, bool)>(StringComparer.Ordinal)
+        {
+            ["helmet"] = (0, "Armour", true, false), ["chest"] = (1, "Armour", true, false),
+            ["legs"] = (2, "Armour", true, false), ["cape"] = (3, "Armour", true, false),
+            ["belt"] = (6, "Belt", true, false), ["quiver"] = (7, "Quiver", false, false),
+            ["trinket"] = (8, "Trinket", true, false),
+            ["utility.wisp"] = (43, "Utility", false, true),
+            ["utility.wishbone"] = (44, "Utility", false, true),
+            ["trinket.1"] = (45, "Trinket", true, false),
+            ["trinket.2"] = (46, "Trinket", true, false),
+            ["trinket.hand"] = (47, "Trinket", true, false)
+        };
+        for (int i = 0; i < 3; i++)
+        {
+            cells.Add("food." + i, (10 + i, "Food", false, true));
+            cells.Add("arrow." + i, (13 + i, "Arrow", false, true));
+            cells.Add("potion." + i, (32 + i, "Potion", false, true));
+        }
+        for (int i = 0; i < 10; i++) cells.Add("ring." + i, (48 + i, "Ring", false, true));
+        return cells;
     }
 
     internal ItemData? TrinketItem(Player player, string cell) =>

@@ -116,6 +116,7 @@ internal static partial class Program
         Assembly pov = Assembly.LoadFrom(args[1]);
         PoVTrashChecks.Run(mod, pov, Check);
         PoVTidyPackChecks.Run(mod.GetType("InventorySlots.InventorySlotsPlugin", true)!, pov, Check);
+        PoVActionsChecks.Run(mod, pov, Check);
         PoVStackMetadataChecks.Run(mod.GetType("InventorySlots.InventorySlotsPlugin", true)!, pov, Check);
         Type bridgeType = mod.GetType("InventorySlots.PathOfValheimanStorageBridge", true)!;
         Type contract = pov.GetType("Valheiman.Api.IStorageProvider", true)!;
@@ -124,11 +125,11 @@ internal static partial class Program
         Type state = pov.GetType("PassiveTree.Gear.State", true)!;
         Type slot = pov.GetType("PassiveTree.Gear.Slot", true)!;
         bool hasRings = equipment.GetMethod("IsRing") != null;
-        int storageCount = hasRings ? 38 : 28;
         Type cells = pov.GetType("PassiveTree.Gear.Cells", true)!;
         MethodInfo isStorage = state.GetMethod("IsStorage", Statics)!;
         int nativeCount = Enum.GetValues(slot).Length;
         bool[] baseline = Enumerable.Range(0, nativeCount).Select(i => (bool)isStorage.Invoke(null, new[] { Enum.ToObject(slot, i) })!).ToArray();
+        int storageCount = baseline.Count(value => value);
         Check(!baseline.Skip(24).Take(8).Any(x => x), "original wallet classification omission present");
         object? oldEquipment = null, oldStorage = null;
         if (args[4] == "warm")
@@ -263,7 +264,9 @@ internal static partial class Program
         cells.GetMethod("Forget", Statics)!.Invoke(null, null);
         Check(!(bool)cells.GetProperty("External", Statics)!.GetValue(null)!, "Forget releases active backend");
         CheckInventoryBackend(mod, pov, plugin, bridgeType, bridge, cells, contract);
-        patches.UnpatchSelf(); engine.UnpatchSelf(); new Harmony("sighsorry.InventorySlots.pov.native-hud").UnpatchSelf();
+        patches.UnpatchSelf();
+        CheckCellContracts(pov, bridgeType);
+        engine.UnpatchSelf(); new Harmony("sighsorry.InventorySlots.pov.native-hud").UnpatchSelf();
         new Harmony("sighsorry.InventorySlots.pov.unified-hud").UnpatchSelf();
         Check(((IEnumerable<string>)currentStorage).Count() == storageCount, "unpatch leaves original storage cache unchanged");
         foreach (object info in (IEnumerable)currentEquipment)
@@ -338,6 +341,17 @@ internal static partial class Program
         Check(utility.m_gridPos == new Vector2i(1, 0) && tool.m_gridPos == new Vector2i(0, fixedRows) &&
             potion.m_gridPos == new Vector2i(1, fixedRows) && Items().Count == 4 && ReferenceEquals(Items()[3], utility),
             "saved provider Utility recovers without overwriting subsequent shifted slots or cloning items");
+        if (pov.GetType("PassiveTree.Gear.MagicSlots") != null)
+        {
+            Items().Clear();
+            ItemData tome = Item(2, 11, 1), earring = Item(3, 11, 2);
+            Items().AddRange(new[] { regular, tome, earring });
+            custom["valheiman.equipment.v1.rowStart"] = "4";
+            Call("CompletePathOfValheimanLoad", player);
+            Check(tome.m_gridPos == new Vector2i(1, 0) && earring.m_gridPos == new Vector2i(2, 0) &&
+                  Items().SequenceEqual(new[] { regular, tome, earring }) && earring.m_stack == 2,
+                "native saved Tome58/Earring59 recover exact items into ordinary cells");
+        }
         Items().Clear();
         for (int y = 0; y < fixedRows; y++) for (int x = 0; x < 8; x++) Items().Add(Item(x, y));
         ItemData orphan = Item(0, fixedRows + 3, 5); Items().Add(orphan);
@@ -363,6 +377,9 @@ internal static partial class Program
             bool Take(string role) => (bool)contract.GetMethod("TakeOut")!.Invoke(provider, new object[] { player, role })!;
             Check(!Put(tool, "utility") && read(player, "utility") == null && tool.m_gridPos == new Vector2i(2, 0) && Items().Count == 1,
                 "unsupported Utility provider rejects insertion without changing or hiding the item");
+            foreach (string role in new[] { "utility.tome", "utility.earring", "future.slot" })
+                Check(!Put(tool, role) && read(player, role) == null && tool.m_gridPos == new Vector2i(2, 0) && Items().Count == 1,
+                    "unsupported provider ID rejects insertion without mutation: " + role);
             Check((bool)Call("CanRouteEquipToDedicatedSlot", player, bag, tool)!, "ordinary inventory candidate is routable before load scope");
             Call("BeginPathOfValheimanLoad", player);
             Check(!(bool)Call("CanRouteEquipToDedicatedSlot", player, bag, tool)! && !Put(tool, "arrow.0") && tool.m_gridPos == new Vector2i(2, 0), "load scope blocks both equip routing and provider insertion without coordinate changes");

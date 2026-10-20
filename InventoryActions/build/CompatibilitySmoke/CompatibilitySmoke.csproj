@@ -9,6 +9,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../../build/SharedSmoke/PoVTrashChecks.cs" Link="PoVTrashChecks.cs" />
+    <Compile Include="../../../build/SharedSmoke/PoVActionsChecks.cs" Link="PoVActionsChecks.cs" />
     <Compile Include="../../../build/SharedSmoke/PoVTidyPackChecks.cs" Link="PoVTidyPackChecks.cs" />
     <Compile Include="../../../build/SharedSmoke/PoVStackMetadataChecks.cs" Link="PoVStackMetadataChecks.cs" />
     <!-- Original game assemblies: this test does not publicize any references. -->

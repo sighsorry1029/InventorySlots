@@ -35,9 +35,6 @@ public sealed partial class InventoryActionsPlugin
     internal static bool TryHandleContainerStackAll(Container container)
     {
         if (NativeContainerHandoff.IsRequestBlocked(container)) return true;
-        // PoV has already selected this chest with its own range/access checks.
-        // Do not turn each native request into another InventoryActions area operation.
-        if (_povQuickStackDepth > 0) return false;
         Player? player = Player.m_localPlayer;
         // Alt+Use can reach vanilla StackAll while held. Keep it reserved for
         // favorite restock even before a remote container grants ownership.

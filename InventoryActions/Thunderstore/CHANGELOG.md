@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.22
+
+- Updated Path of Valheiman compatibility for 5.1.1, removing dependence on its changed private quick-stack response finalizer signature.
+- Made InventoryActions responsible for sorting and nearby Quick Stack while PoV supplies the Tidy Pack unlock. Disabled PoV's separate action inputs, buttons and execution, and detached its ownership/save response handlers from the shared chest-response channel.
+- Retained PoV's reserved-item protection on delegated vanilla stack transfers, along with existing favorites, inventory boundaries, access checks, native/MultiUserChest transfer safeguards and node-query fallback. PoV continues to manage its equipment and storage layout.
+- Added original-DLL isolated checks for response guards, suppressed duplicate actions, exception recovery and handler restoration. Actual game UI and multiplayer validation remain required.
+
 ## 1.1.21
 
 - If Path of Valheiman's Tidy Pack unlock API is missing or throws, nearby Quick Stack and player inventory sorting now use their normal InventoryActions settings. A successful query reporting a locked node still blocks these actions. PoV reserved-cell boundaries, loading checks and transfer safeguards remain unchanged.

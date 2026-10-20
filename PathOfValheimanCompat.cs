@@ -28,7 +28,6 @@ public sealed partial class InventorySlotsPlugin
     private static ItemData? _pathOfValheimanTooltipItem;
     private static bool _pathOfValheimanTooltipWarning;
     private static bool _pathOfValheimanTooltipWasDisabled;
-    private static bool _povMultiUserChestWarning;
     private static Func<string, bool>? _povHasDeathKeepStat;
     private static bool _povDeathKeepWarning;
     private static MethodInfo? _povToolHudHideMethod;
@@ -168,17 +167,6 @@ public sealed partial class InventorySlotsPlugin
         InstallPathOfValheimanCapability("item-presentation", _ => BindPathOfValheimanItemPresentation(assembly));
         InitializePathOfValheimanNativeHud(assembly);
         InitializePathOfValheimanCrafting(assembly);
-        InstallPathOfValheimanCapability("tidy-pack", harmony =>
-        {
-            Type type = assembly.GetType("PassiveTree.QuickStack", true)!;
-            MethodInfo sort = RequirePathOfValheimanMethod(type, "Sort", typeof(void), typeof(Player));
-            MethodInfo movable = RequirePathOfValheimanMethod(type, "Movable", typeof(List<ItemData>), typeof(Player));
-            MethodInfo run = RequirePathOfValheimanMethod(type, "Run", typeof(void), typeof(Player));
-            harmony.Patch(sort, prefix: new HarmonyMethod(typeof(InventorySlotsPlugin), nameof(SortPathOfValheimanInventory)));
-            harmony.Patch(movable, postfix: new HarmonyMethod(typeof(InventorySlotsPlugin), nameof(FilterPathOfValheimanMovableItems)));
-            harmony.Patch(run, prefix: new HarmonyMethod(typeof(InventorySlotsPlugin), nameof(AllowPathOfValheimanNearbyQuickStack)));
-        });
-
         InstallPathOfValheimanCapability("tooltip", _ =>
         {
             Type type = assembly.GetType("PassiveTree.UI.ItemTooltip", true)!;
@@ -263,38 +251,6 @@ public sealed partial class InventorySlotsPlugin
         {
             harmony.UnpatchSelf();
             Log.LogWarning($"Path of Valheiman compatibility unavailable ({name}): {error.Message}");
-        }
-    }
-
-    private static bool SortPathOfValheimanInventory(Player __0)
-    {
-        if (__0 != null && __0 == Player.m_localPlayer && !ContainerAreaPlayerLoading(__0) && InventoryGui.instance != null)
-            SortPlayerInventory(__0, preserveEquipped: true);
-        return false;
-    }
-
-    private static bool AllowPathOfValheimanNearbyQuickStack()
-    {
-        if (!HasExternalMultiUserChestActive) return true;
-        if (!_povMultiUserChestWarning)
-        {
-            _povMultiUserChestWarning = true;
-            Log.LogWarning("PoV nearby quick stack is disabled with MultiUserChest because it uses a different transfer protocol.");
-        }
-        return false;
-    }
-
-    private static void FilterPathOfValheimanMovableItems(Player __0, List<ItemData> __result)
-    {
-        if (__result == null || __0 == null || __0 != Player.m_localPlayer) return;
-        Inventory inventory = __0.GetInventory();
-        for (int i = __result.Count - 1; i >= 0; i--)
-        {
-            ItemData item = __result[i];
-            if (item == null || item.m_equipped || !inventory.ContainsItem(item) ||
-                GetInventoryCellKind(__0, inventory, item.m_gridPos) != InventoryCellKind.RegularUnlocked ||
-                IsFavoriteProtected(__0, inventory, item))
-                __result.RemoveAt(i);
         }
     }
 

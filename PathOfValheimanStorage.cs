@@ -44,6 +44,7 @@ public sealed partial class InventorySlotsPlugin
             // never become mergeable merely because both keys belong to PoV.
             var keys = bridge.Bind<Func<IEnumerable<string>>>("PassiveTree.InventorySlotsCompat", "OurKeys");
             PathOfValheimanStackMetadata.Register(keys());
+            InventoryCompatibility.PathOfValheimanActions.Install(bridge.Assembly, ModGUID);
             Log.LogInfo("PoV storage provider registered; InventorySlots owns cells and discovery progression, PoV retains node requirements and effects.");
             return true;
         }
@@ -119,15 +120,29 @@ public sealed partial class InventorySlotsPlugin
         _pov.ProviderId() == ModGUID && !_pov.Suspended() && _povMutationDepth == 0;
 
     private static bool IsUnsupportedPathOfValheimanCell(string cell) =>
-        cell == "utility" || cell.StartsWith("tool.", StringComparison.Ordinal) || cell.StartsWith("key.", StringComparison.Ordinal) ||
-        cell.StartsWith("purse.", StringComparison.Ordinal);
+        !PathOfValheimanStorageBridge.SupportsCell(cell);
 
     private static bool AllowPathOfValheimanCell(Player __0, int __1, ref bool __result)
     {
         if (_pov == null || __0 != Player.m_localPlayer || _pov.ProviderId() != ModGUID ||
-            !(__1 == 9 || __1 >= 16 && __1 <= 31 || __1 >= 35 && __1 <= 42)) return true;
+            !_pov.UnsupportedOrdinals.Contains(__1)) return true;
         __result = false;
         return false;
+    }
+
+    private static bool SkipUnhostedPathOfValheimanUtilityEquip(Humanoid __0, ItemData __1, ref bool __result)
+    {
+        if (_pov == null || !_pov.Enabled() || __0 != Player.m_localPlayer || _pov.ProviderId() != ModGUID)
+            return true;
+        foreach (string cell in _pov.UnhostedUtilityCells)
+        {
+            if (!_pov.Accepts(cell, __1)) continue;
+            // Return "continue EquipItem" from PoV's prefix, leaving the original
+            // item/mod/YAML route intact. This does not report a successful equip.
+            __result = true;
+            return false;
+        }
+        return true;
     }
 
     private static void RejectUnsupportedPathOfValheimanUtilityEquip(Humanoid __0, ItemData __1, ref bool __2, bool __result)
@@ -301,6 +316,30 @@ public sealed partial class InventorySlotsPlugin
             if (!instructions[i].Calls(original) || instructions[i - 1].opcode != OpCodes.Ldc_I4_0) continue;
             bool put = false;
             int start = i + 1;
+            // 5.1.1 Tick checks the six ring cells before PutRing. Match that
+            // bounded loop and its exits; do not search across arbitrary branches.
+            if (handoff == "PutRing" && i >= 6 && i + 37 < instructions.Count &&
+                instructions[i - 6].operand is MethodInfo ringCheck && ringCheck.Name == "IsRingItem" &&
+                ringCheck.DeclaringType?.FullName == "PassiveTree.Gear.State" &&
+                instructions[i + 3].operand is FieldInfo rings && rings.Name == "rings" &&
+                rings.DeclaringType?.FullName == "PassiveTree.Gear.UtilitySlots" &&
+                instructions[i + 15].operand is MethodInfo at && at.Name == "At" &&
+                at.DeclaringType?.FullName == "PassiveTree.Gear.Cells" &&
+                instructions[i + 35].operand is MethodInfo putRing && putRing.Name == "PutRing" &&
+                putRing.DeclaringType?.FullName == "PassiveTree.Gear.UtilitySlots" &&
+                instructions[i + 1].opcode == OpCodes.Ldc_I4_0 &&
+                instructions[i + 5].opcode == OpCodes.Ldc_I4_0 &&
+                instructions[i + 10].opcode == OpCodes.Ldelem_I4 &&
+                instructions[i + 18].opcode == OpCodes.Ldc_I4_1 &&
+                instructions[i + 22].opcode == OpCodes.Ldc_I4_1 &&
+                instructions[i + 23].opcode == OpCodes.Add &&
+                instructions[i + 27].opcode == OpCodes.Ldlen &&
+                instructions[i + 28].opcode == OpCodes.Conv_I4 &&
+                instructions[i + 36].opcode == OpCodes.Pop &&
+                BranchTo(i - 5, i + 37) && BranchTo(i + 7, i + 25) &&
+                BranchTo(i + 17, i + 21) && BranchTo(i + 20, i + 30) &&
+                BranchTo(i + 29, i + 8) && BranchTo(i + 31, i + 37))
+                start = i + 32;
             // 5.1 Assign adds "if (!External && !IntoCell(p,s,item)) return false"
             // before Put. Accept that exact branch, not arbitrary intervening code.
             if (handoff == "Put" && i + 13 < instructions.Count &&
@@ -336,6 +375,9 @@ public sealed partial class InventorySlotsPlugin
         }
         if (match < 0) throw new InvalidOperationException("PoV utility hand-off contract changed");
         return match;
+
+        bool BranchTo(int from, int to) => instructions[from].Branches(out Label? target) &&
+            target.HasValue && instructions[to].labels.Contains(target.Value);
     }
 
     private static IEnumerable<CodeInstruction> DeferPathOfValheimanUtilityUnequip(IEnumerable<CodeInstruction> source, MethodBase __originalMethod)
@@ -358,7 +400,21 @@ public sealed partial class InventorySlotsPlugin
 
     private static void PathOfValheimanUtilityUnequip(Humanoid humanoid, ItemData item, bool effects)
     {
-        if (_pov != null && humanoid == Player.m_localPlayer && _pov.ProviderId() == ModGUID) return;
+        if (_pov != null && humanoid == Player.m_localPlayer && _pov.ProviderId() == ModGUID)
+        {
+            Player player = Player.m_localPlayer;
+            // 5.1.1 skips PutRing when the same ring already occupies a cell.
+            // Only that committed ring can clear its duplicate native equipment
+            // here; all new hand-offs still wait for a successful provider Put.
+            if (item == null || !TryGetSlotAtGridPos(player.GetInventory(), item.m_gridPos, out SlotDefinition? slot) ||
+                slot == null || !IsPathOfValheimanRingSlot(slot) || ReadPathOfValheimanItem(player, slot.PovCell!) != item)
+                return;
+            _povMutationDepth++;
+            BeginSlotAutoEquipSuppression();
+            try { humanoid.UnequipItem(item, effects); }
+            finally { CompleteSlotAutoEquipSuppression(); _povMutationDepth--; }
+            return;
+        }
         humanoid.UnequipItem(item, effects);
     }
 

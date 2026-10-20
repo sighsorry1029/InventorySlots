@@ -1,5 +1,52 @@
 # Compatibility smoke checks on original Valheim Mono
 
+## Release 1.1.22 verification — 2026-10-21
+
+Final merged Release DLL SHA-256:
+`A6F2773052E2C6FB9366B40E286E7F334EFFDD75C069EDDAB23CF67A8ACFF395`.
+Original PoV 5.1.1 and Valheim 1.0.20 x64 Mono passed **110 pov** checks,
+exit 0 with normal cleanup. Shared unit checks passed **190** tests.
+Static inspection reported **0 failures** (665 references, 51 Harmony targets,
+seven reflected contracts; two manual).
+
+Debug/Release builds had no warnings/errors. Debug deployment hashes,
+assembly/plugin/file/manifest versions, merged dependencies and every
+Thunderstore ZIP entry were verified against the final build and sources.
+The earlier `basic` fixture limitation below remains; it was not treated as a
+passing test. Actual game UI, delayed native/MUC responses, reconnect and
+multiplayer were not run.
+
+## PoV 5.1.1 action ownership — 2026-10-21
+
+Debug 1.1.21, version unchanged, final/deployed DLL SHA-256:
+`EED23E1FD0A6EF7FD6936AADA9C1371FB3BBFA7CD0E5367BB9FD34D9E2E32C62`.
+Original PoV 5.1.1 SHA-256:
+`275D256A88783D1CCB1E3970D920AA629149060962495E556ED22396CB9C6136`.
+Original Valheim 1.0.20 x64 Mono passed **110 pov** checks and **13
+stack-metadata checks without PoV**, exit 0 with normal cleanup. Optional real
+FineDining callbacks were not supplied in the latter run.
+
+Shared `PoVActionsChecks` verifies the original response/key observers are
+detached while other owners' guards and the original response path remain.
+Native Run/Sort/Make no longer execute; the public button host is assigned to
+InventoryActions. The original StackAll storage-item exclusion and exception
+restoration remain active. Rollback restores exact observers/order and does
+not overwrite a later button host. Existing node unlock/refund/failure,
+storage boundaries and favorites tests remain in the `pov` runner.
+
+Baseline/final Debug builds had no warnings/errors. Rule tests: **144**;
+quick-stack fixtures: **143**; native handoff variants: **143 each**; unit
+runner: **190**. Static contracts: **0 failures**, 665 references, 51 Harmony
+targets, seven reflected contracts, two manual dynamic targets.
+
+The older `basic` mode still exits 1 at `NotifyInventoryChanged` because its
+standalone fixture does not provide `Animator.StringToHash_Injected` for
+Player initialization. The same failure was reproduced with the unchanged
+1.1.21 Release DLL (`97A4FE439DDB89843A7D0B24E8B52C1921623B218A79285E569A640F88F18BA4`).
+This is not a successful no-PoV gameplay test or evidence of an in-game Mono
+installation problem. Actual UI, native/MUC networking, contention and
+reconnect remain untested. No version bump, Release build or package was made.
+
 ## Release 1.1.21 verification — 2026-10-21
 
 Final merged Release DLL SHA-256:
