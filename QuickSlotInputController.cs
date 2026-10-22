@@ -11,20 +11,9 @@ public sealed partial class InventorySlotsPlugin
 {
     private static bool QuickSlotAcceptsItem(ItemData? item)
     {
-        if (item?.m_shared == null)
-        {
-            return false;
-        }
-
-        foreach (string token in _yamlConfig.QuickSlots ?? new List<string>())
-        {
-            if (ItemMatchesYamlReferenceToken(item, token))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        // Match the list in one query so prefab/name normalization is shared
+        // across its tokens. Keep YAML groups and aliases live between calls.
+        return _yamlConfig.QuickSlots != null && ItemMatchesSlotItems(item, _yamlConfig.QuickSlots);
     }
 
     private static void HandleHotbarSwitch(Player player)

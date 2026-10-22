@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.18
+
+- Reduced repeated slot checks during automatic pickup when the inventory is full and nearby items cannot enter ordinary quick slots. A rejected item's shared quick-slot rule is evaluated once per capacity query instead of once per quick slot.
+- Reduced temporary matching work by reusing item-name normalization across the QuickSlots YAML list. Custom groups, aliases and item changes remain live between queries; PoV cells retain their individual rules and unlock conditions.
+- Skip expensive slot checks for items that cannot be auto-adopted, including PoV trinkets and items already assigned to another equipment slot. Existing stack metadata, freshness and capacity safeguards are preserved.
+- Added regression checks for later available slots, live YAML/PoV changes and equipment markers. Isolated checks confirm nine ordinary quick-slot rejection checks become one; actual game performance still requires measurement in the affected mod setup.
+
 ## 1.6.17
 
 - Updated Path of Valheiman compatibility for 5.1.1. Only reviewed PoV slot IDs are hosted: Tome, Earring and future unrecognized storage slots are not added. Existing slot rules and saved-item recovery remain protected; changes to native equipment roles or existing storage contracts still require review.

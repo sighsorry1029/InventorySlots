@@ -13,11 +13,15 @@ var names = new[] { "CountStackSpaceForIncomingItem", "CanStackIncomingItemInto"
     "TryGetCachedCanAddItemFailure", "CountUsableRegularEmptyCells" };
 var methods = names.Select(name => policy.DescendantNodes().OfType<MethodDeclarationSyntax>().Single(m =>
     m.Identifier.ValueText == name && (name != "CountUsableRegularEmptyCells" || m.ParameterList.Parameters.Count == 3)));
+var equip = CSharpSyntaxTree.ParseText(File.ReadAllText(Path.Combine(root.FullName, "SlotEquipController.cs"))).GetRoot();
+methods = methods.Concat(equip.DescendantNodes().OfType<MethodDeclarationSyntax>().Where(m =>
+    new[] { "CanAutoPlaceItemInSpecialSlot", "CanAutoAdoptGridSlot", "IsInventorySlotsCustomEquipped" }.Contains(m.Identifier.ValueText)));
 string host = File.ReadAllText(Path.Combine(root.FullName, "build/CapacityTests/Host.cs.txt"));
 host = host.Replace("/* PRODUCTION METHODS */", string.Join("\n", methods.Select(m => m.ToFullString())));
 var references = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator)
     .Select(path => MetadataReference.CreateFromFile(path));
-var compilation = CSharpCompilation.Create("CapacityProbe", new[] { CSharpSyntaxTree.ParseText(host) }, references,
+var compilation = CSharpCompilation.Create("CapacityProbe", new[] { CSharpSyntaxTree.ParseText(host),
+    CSharpSyntaxTree.ParseText(File.ReadAllText(Path.Combine(root.FullName, "InventorySlotSafetyCore.cs"))) }, references,
     new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
 using var stream = new MemoryStream();
 var emitted = compilation.Emit(stream);

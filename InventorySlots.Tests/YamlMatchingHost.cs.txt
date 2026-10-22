@@ -60,6 +60,7 @@ namespace InventorySlots
             public bool Open(Player player, string cell) => Unlocked;
         }
         private static PovFixture? _pov;
+        private static readonly YamlRoot _yamlConfig = new();
         // The original-DLL Mono suite covers trinket ownership; this fixture
         // exercises only equipment unlock policy.
         private static bool IsPathOfValheimanTrinketSlot(SlotDefinition slot) =>
@@ -163,6 +164,30 @@ namespace InventorySlots
             var wood = Item("Wood", "$item_wood");
             Match(wood, names); Normalizations = Classifications = 0;
             Require(!Match(wood, names) && Normalizations <= 3 && Classifications == 0, "whole-list normalization/unknown-group work bound");
+
+            _yamlConfig.QuickSlots = null!;
+            Require(!QuickSlotAcceptsItem(wood), "null QuickSlots list accepts nothing");
+            _yamlConfig.QuickSlots = new();
+            Require(!QuickSlotAcceptsItem(wood), "empty QuickSlots list accepts nothing");
+            _yamlConfig.QuickSlots = new() { "", null!, "UnknownPrefab", "Crowns", "Equipment" };
+            Require(QuickSlotAcceptsItem(crown) && !QuickSlotAcceptsItem(wood), "quick groups retain exact and category matching");
+            Require(!QuickSlotAcceptsItem(null) && !QuickSlotAcceptsItem(new ItemData { m_shared = null! }), "quick missing item/shared");
+            _yamlConfig.QuickSlots = names.ToList();
+            Normalizations = Classifications = 0;
+            Require(!QuickSlotAcceptsItem(wood) && Normalizations <= 3 && Classifications == 0,
+                "quick list normalizes the item once across all tokens");
+            _yamlConfig.QuickSlots = new() { "QuickAlias" };
+            Require(!QuickSlotAcceptsItem(wood), "unregistered quick alias");
+            ItemNameTokens["QuickAlias"] = "$item_wood";
+            Require(QuickSlotAcceptsItem(wood), "quick alias registration is live on next query");
+            ItemNameTokens["QuickAlias"] = "$item_crown";
+            Require(!QuickSlotAcceptsItem(wood), "quick alias replacement is live on next query");
+            _yamlConfig.QuickSlots = new() { "Crowns" };
+            Require(!QuickSlotAcceptsItem(wood), "quick custom group initially rejects material");
+            PredefinedGroupDefinitions["crowns"] = new() { "Wood" };
+            Require(QuickSlotAcceptsItem(wood), "quick custom group reload permits material immediately");
+            wood.m_dropPrefab!.name = "Stone"; wood.m_shared.m_name = "$item_stone";
+            Require(!QuickSlotAcceptsItem(wood), "quick mutable item identity is read again");
 
             Reset();
             var player = new Player(); var inventory = new Inventory();

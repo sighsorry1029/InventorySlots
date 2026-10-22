@@ -1,24 +1,47 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using InventorySlots;
 
 public static class CapacityProbe
 {
-    private sealed class Shared { public string m_name = "Wood"; public int m_maxStackSize = 50; }
-    private sealed class ItemData
+    public sealed class Shared { public string m_name = "Wood"; public int m_maxStackSize = 50; }
+    public sealed class ItemData
     {
         public Shared m_shared = new();
         public int m_stack = 1, m_quality = 1, m_worldLevel;
         public bool m_cheated, Epic, Trusted, MetadataAllowed = true, MetadataMatches = true;
         public bool DestinationAllowed = true;
+        public bool m_equipped;
+        public Dictionary<string, string> m_customData = new();
     }
-    private sealed class Player { }
-    private sealed class Inventory
+    public sealed class Player { }
+    public sealed class Inventory
     {
         public List<ItemData> m_inventory = new();
         public int GetWidth() => 8;
         public int GetHeight() => 12;
     }
     private readonly record struct Vector2i(int x, int y);
+    private enum SlotKind { BuiltIn, CustomEquipment, Quick }
+    private sealed class SlotDefinition
+    {
+        public string Id = "custom";
+        public string? PovCell;
+        public SlotKind Kind;
+        public bool Open = true, Occupied, GuardAllows = true;
+        public int AcceptanceChecks, UseChecks;
+        public Func<ItemData, bool> Predicate = _ => false;
+        public bool Accepts(ItemData item) { AcceptanceChecks++; return Predicate(item); }
+    }
+    private const string SlotIdKey = "slot";
+    private static readonly List<SlotDefinition> SlotDefinitions = new();
+    private static bool IsPathOfValheimanTrinketSlot(SlotDefinition slot) => slot.PovCell?.StartsWith("trinket") == true;
+    private static bool CanUseEmptySpecialSlot(Player player, Inventory inventory, ItemData item, SlotDefinition slot)
+    {
+        slot.UseChecks++;
+        return item?.m_shared != null && slot.Accepts(item) && slot.GuardAllows && slot.Open && !slot.Occupied;
+    }
     private static class InventorySafety
     {
         public static Inventory? CanAddItemFailureCacheInventory;
@@ -149,6 +172,54 @@ public static class CapacityProbe
         occupied.Remove(new(0, 1)); occupied.Remove(new(7, 1)); ResetCounters();
         Check(CountUsableRegularEmptyCells(inventory, player, occupied) == 1, "Only usable empty cells count");
         Check(baseline || CellChecks == 2, "Only the two empty cells need slot policy checks");
+
+        // All ordinary Quick cells share one YAML acceptance policy. Their
+        // unlock, occupancy and external guard decisions are still independent.
+        bool quickAccepts = false;
+        incoming = new ItemData();
+        for (int i = 0; i < 9; i++) SlotDefinitions.Add(new SlotDefinition
+            { Id = "quick" + i, Kind = SlotKind.Quick, Predicate = _ => quickAccepts });
+        Check(!CanAutoPlaceItemInSpecialSlot(player, inventory, incoming), "Unmatched ordinary Quick cells cannot receive the item");
+        int quickChecks = SlotDefinitions.Sum(s => s.AcceptanceChecks);
+        Console.WriteLine($"Rejected special-slot probe: ordinary Quick acceptance calls={quickChecks} (9 cells)");
+        Check(baseline || quickChecks == 1, "Rejected item is classified only once across ordinary Quick cells");
+        quickAccepts = true;
+        foreach (var slot in SlotDefinitions) slot.AcceptanceChecks = 0;
+        SlotDefinitions[0].Occupied = true;
+        SlotDefinitions[1].Open = false;
+        SlotDefinitions[2].GuardAllows = false;
+        Check(CanAutoPlaceItemInSpecialSlot(player, inventory, incoming), "A later available Quick cell survives occupied, locked and guarded cells");
+        Check(SlotDefinitions[3].UseChecks > 0, "Later Quick cell is evaluated independently");
+        Check(SlotDefinitions.Sum(s => s.AcceptanceChecks) <= 5,
+            "Accepted item adds at most one classification precheck before the four candidate cells");
+        foreach (var slot in SlotDefinitions) slot.Occupied = true;
+        Check(!CanAutoPlaceItemInSpecialSlot(player, inventory, incoming), "Accepted item still needs an empty cell");
+        SlotDefinitions[8].Occupied = false;
+        Check(CanAutoPlaceItemInSpecialSlot(player, inventory, incoming), "Newly freed cell is usable on next query");
+        quickAccepts = false;
+        Check(!CanAutoPlaceItemInSpecialSlot(player, inventory, incoming), "Changed acceptance is not cached between queries");
+        var custom = new SlotDefinition { Kind = SlotKind.CustomEquipment, Predicate = _ => true };
+        SlotDefinitions.Add(custom);
+        Check(CanAutoPlaceItemInSpecialSlot(player, inventory, incoming), "Custom material whitelist still works after Quick rejection");
+        custom.Predicate = _ => false;
+        var povFood = new SlotDefinition { Id = "pov.food.0", PovCell = "food.0", Kind = SlotKind.Quick, Predicate = _ => true, Open = false };
+        SlotDefinitions.Add(povFood);
+        Check(!CanAutoPlaceItemInSpecialSlot(player, inventory, incoming), "Locked PoV cell remains locked");
+        povFood.Open = true;
+        Check(CanAutoPlaceItemInSpecialSlot(player, inventory, incoming), "PoV role acceptance and node changes are independent of ordinary Quick rejection");
+        incoming.m_equipped = true; incoming.m_customData[SlotIdKey] = "other";
+        Check(!CanAutoPlaceItemInSpecialSlot(player, inventory, incoming), "Auto pickup cannot reassign an item marked for another cell");
+        incoming.m_customData[SlotIdKey] = povFood.Id;
+        Check(CanAutoPlaceItemInSpecialSlot(player, inventory, incoming), "Matching equipped slot marker retains its existing behavior");
+        SlotDefinitions.Clear();
+        var trinket = new SlotDefinition { PovCell = "trinket.1", Kind = SlotKind.BuiltIn, Predicate = _ => true };
+        SlotDefinitions.Add(trinket);
+        Check(!CanAutoPlaceItemInSpecialSlot(player, inventory, incoming), "PoV trinkets are never auto-adopted");
+        Check(baseline || trinket.UseChecks == 0, "Auto-adopt rejection skips expensive slot policy");
+        SlotDefinitions.Clear(); SlotDefinitions.Add(custom);
+        Check(!CanAutoPlaceItemInSpecialSlot(player, inventory, null!), "Null item stays rejected");
+        Check(!CanAutoPlaceItemInSpecialSlot(player, inventory, new ItemData { m_shared = null! }), "Missing shared data stays rejected");
+        Check(!CanAutoPlaceItemInSpecialSlot(player, inventory, new ItemData { m_customData = null! }), "Rejected malformed metadata does not throw");
         Console.WriteLine($"{Checks} capacity checks passed; isolated policy execution, no Unity/game session.");
     }
 }

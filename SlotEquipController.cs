@@ -1796,14 +1796,30 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool CanAutoAdoptGridSlot(ItemData item, SlotDefinition slot)
     {
-        if (IsPathOfValheimanTrinketSlot(slot)) return false;
+        if (item?.m_shared == null || item.m_customData == null || IsPathOfValheimanTrinketSlot(slot)) return false;
         string? markedSlotId = item.m_customData.TryGetValue(SlotIdKey, out string id) ? id : null;
         return InventorySlotSafetyCore.CanAutoAdoptGridSlot(IsInventorySlotsCustomEquipped(item), markedSlotId, slot.Id);
     }
 
     internal static bool CanAutoPlaceItemInSpecialSlot(Player player, Inventory inventory, ItemData item)
     {
-        return SlotDefinitions.Any(slot => CanAutoPlaceItemInSpecialSlot(player, inventory, item, slot));
+        // Ordinary quick slots all use QuickSlotAcceptsItem. A rejected item
+        // need not repeat the same YAML/classifier work for every quick cell.
+        // Only reuse rejection within this read-only query: slot unlocks,
+        // occupancy and PoV/custom predicates remain independently evaluated.
+        bool? quickItemAccepted = null;
+        foreach (SlotDefinition slot in SlotDefinitions)
+        {
+            if (slot.Kind == SlotKind.Quick && slot.PovCell == null)
+            {
+                quickItemAccepted ??= slot.Accepts(item);
+                if (!quickItemAccepted.Value) continue;
+            }
+
+            if (CanAutoPlaceItemInSpecialSlot(player, inventory, item, slot)) return true;
+        }
+
+        return false;
     }
 
     internal static bool TryAutoPlaceItemInSpecialSlot(Player player, Inventory inventory, ItemData item)
@@ -1822,8 +1838,8 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool CanAutoPlaceItemInSpecialSlot(Player player, Inventory inventory, ItemData item, SlotDefinition slot)
     {
-        return CanUseEmptySpecialSlot(player, inventory, item, slot) &&
-               CanAutoAdoptGridSlot(item, slot);
+        return CanAutoAdoptGridSlot(item, slot) &&
+               CanUseEmptySpecialSlot(player, inventory, item, slot);
     }
 
 }
