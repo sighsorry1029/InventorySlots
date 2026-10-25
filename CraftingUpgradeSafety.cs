@@ -1026,7 +1026,8 @@ public sealed partial class InventorySlotsPlugin
     {
         // Humanoid's snapshot has no PoV extra-trinket list. Never manufacture
         // an equipped flag after PoV rejected/queued restoration of that role.
-        if (IsPathOfValheimanTrinketSlot(transaction.OriginalSlot)) return false;
+        if (IsPathOfValheimanTrinketSlot(transaction.OriginalSlot) ||
+            transaction.OriginalSlot.PovCell == "belt.lantern") return false;
         if (transaction.OriginalSlot.Kind != SlotKind.BuiltIn ||
             UsesCustomEquipmentState(result, transaction.OriginalSlot) ||
             !transaction.Inventory.ContainsItem(result) ||

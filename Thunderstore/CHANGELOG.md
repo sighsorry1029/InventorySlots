@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.22
+
+- Added a Belt Lantern equipment slot when Path of Valheiman exposes its `belt.lantern` role. Unlocking the Belt Lantern mastery reveals the slot without requiring item discovery. It accepts the Dvergr lantern while PoV retains ownership of its equipment state, waist attachment and light; Circlet and ordinary Belt slots are unchanged.
+- Preserved safe withdrawal after refunding the mastery or turning PoV's Equipment system off. Occupied locked slots remain visible for recovery, full backpacks do not discard items, and queued equip actions move items only after native equipment has committed.
+- Added rollback and saved-layout handling for lantern equipment, including conversion from a hand-held lantern. PoV versions without this role retain their existing slot layout; unrelated unsupported roles remain unhosted.
+- Added isolated regression checks for unlock conditions, item acceptance, equipment ownership, withdrawal, queued actions, partial failures and saved-layout round trips. Actual game rendering, lighting and multiplayer behavior still require in-game validation.
+
 ## 1.6.21
 
 - Fixed Path of Valheiman item tooltips appearing behind the quick-slot inventory panel. The existing tooltip card is placed above inventory panels and below modal dialogs while preserving PoV artwork, content and pinned interactions. Closing or disabling the UI restores its original hierarchy.

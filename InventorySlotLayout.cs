@@ -604,6 +604,9 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool IsEquipmentSlotUnlocked(Player? player, Inventory? inventory, SlotDefinition slot)
     {
+        // The mastery alone reveals this native PoV role, even before finding a lantern.
+        if (slot.PovCell == "belt.lantern")
+            return player != null && _pov != null && _pov.Open(player, slot.PovCell);
         if (slot.PovCell == "quiver" || IsPathOfValheimanTrinketSlot(slot) ||
             slot.PovCell != null && _pov?.Enabled() == true)
         {

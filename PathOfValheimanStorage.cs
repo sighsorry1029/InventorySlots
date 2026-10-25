@@ -28,6 +28,7 @@ public sealed partial class InventorySlotsPlugin
     private static bool _povCoinsWeightless;
     private static Inventory? _povCoinWeightInventory;
     private static ItemData? _povLastQuiver;
+    private static ItemData? _povLastBeltLantern;
 
     private bool InitializePathOfValheimanStorage()
     {
@@ -112,6 +113,13 @@ public sealed partial class InventorySlotsPlugin
                 SlotDefinitions.Add(trinket);
                 PovSlots.Add(role, trinket);
             }
+        if (_pov.HasBeltLantern)
+        {
+            var lantern = new SlotDefinition("pov.belt.lantern", "Belt Lantern", SlotKind.BuiltIn,
+                item => item != null && _pov.Accepts("belt.lantern", item), povCell: "belt.lantern");
+            SlotDefinitions.Add(lantern);
+            PovSlots.Add("belt.lantern", lantern);
+        }
     }
 
     private static string PovCellLabel(string id)
@@ -163,8 +171,11 @@ public sealed partial class InventorySlotsPlugin
     }
 
     // Closed/suspended cells reject insertion but must not trap their existing item.
-    private static bool CanWithdrawPathOfValheimanQuiver(Player player, Inventory inventory, ItemData item, SlotDefinition slot) =>
-        slot.PovCell == "quiver" && _pov != null && _pov.ProviderId() == ModGUID &&
+    private static bool IsPathOfValheimanNativeEquipmentSlot(SlotDefinition? slot) =>
+        slot?.PovCell is "quiver" or "belt.lantern";
+
+    private static bool CanWithdrawPathOfValheimanNativeEquipment(Player player, Inventory inventory, ItemData item, SlotDefinition slot) =>
+        IsPathOfValheimanNativeEquipmentSlot(slot) && _pov != null && _pov.ProviderId() == ModGUID &&
         player == Player.m_localPlayer && !player.m_isLoading && !IsPathOfValheimanMutationPending(player) &&
         inventory == player.GetInventory() && ContainsExactItemReference(inventory, item) &&
         TryGetSlotGridPos(inventory, slot, out Vector2i pos) && item.m_gridPos == pos && inventory.GetItemAt(pos.x, pos.y) == item;
@@ -217,30 +228,36 @@ public sealed partial class InventorySlotsPlugin
         if (!IsSpecialSlotUnlocked(player, inventory, slot)) return false;
         if (!ContainsExactItemReference(inventory, item) || !TryGetSlotGridPos(inventory, slot, out Vector2i target)) return false;
         if (IsPathOfValheimanTrinketSlot(slot)) return TryEquipPathOfValheimanTrinket(player, inventory, item, slot);
-        if (inventory.GetItemAt(target.x, target.y) == item && cell != "quiver") return true;
+        bool nativeEquipment = IsPathOfValheimanNativeEquipmentSlot(slot);
+        if (inventory.GetItemAt(target.x, target.y) == item && !nativeEquipment) return true;
         // Empty destinations only for API calls. UI inventory moves retain their
         // existing stack/swap transaction; a rejected API call changes nothing.
         if (inventory.GetItemAt(target.x, target.y) is ItemData occupant && occupant != item) return false;
         Vector2i oldPosition = item.m_gridPos;
         var snapshots = CaptureSlotEquipItemSnapshots(player, inventory, item, slot, target);
         var equipment = CaptureHumanoidEquipmentSnapshot(player);
-        ItemData? oldQuiver = cell == "quiver" ? _pov.Equipped(player, cell) : null;
+        ItemData? oldEquipment = nativeEquipment ? _pov.NativeItem(player, cell) : null;
         _povMutationDepth++;
         BeginSlotAutoEquipSuppression();
         bool routing = InventorySafety.RoutingEquipToDedicatedSlot;
         InventorySafety.RoutingEquipToDedicatedSlot = true;
         try
         {
-            if (cell == "quiver")
+            if (nativeEquipment)
             {
-                if (_pov.Equipped(player, cell) != item && !_pov.Equip(player, cell, item))
-                    throw new InvalidOperationException("Quiver equipment callback rejected the move");
+                // A lantern held before the mastery was learned is already
+                // "equipped" to PoV's generic API. Clear that hand assignment
+                // first, otherwise Assign skips the belt's native equip hook.
+                if (cell == "belt.lantern" && _pov.NativeItem(player, cell) != item && player.IsItemEquiped(item))
+                    player.UnequipItem(item, true);
+                if (_pov.NativeItem(player, cell) != item && !_pov.Equip(player, cell, item))
+                    throw new InvalidOperationException(cell + " equipment callback rejected the move");
                 // The API can enqueue an equipment action. Do not publish a cell
-                // until the actual quiver callback has committed the equipment.
-                if (_pov.Equipped(player, cell) != item)
+                // until the native callback has committed the equipment.
+                if (_pov.NativeItem(player, cell) != item)
                 {
                     if (player.IsEquipActionQueued(item)) return true;
-                    throw new InvalidOperationException("Quiver action did not equip or queue the item");
+                    throw new InvalidOperationException(cell + " action did not equip or queue the item");
                 }
             }
             else if (cell.StartsWith("utility", StringComparison.Ordinal) || IsPathOfValheimanRingSlot(slot))
@@ -252,18 +269,26 @@ public sealed partial class InventorySlotsPlugin
         }
         catch (Exception error)
         {
+            // BeltSlot.Take changes equipped metadata. Remove any partially
+            // committed native state before restoring the hand/item snapshot.
+            if (cell == "belt.lantern")
+            {
+                player.RemoveEquipAction(item);
+                try { if (_pov.NativeItem(player, cell) != oldEquipment) _pov.RemoveNativeItem(player, cell); }
+                catch (Exception cleanupError) { Log.LogWarning("PoV lantern cleanup failed: " + cleanupError.GetBaseException().Message); }
+            }
             try { RestoreSlotEquipMutationSnapshots(player, inventory, snapshots, equipment); }
             catch (Exception restoreError) { Log.LogWarning("PoV move equipment recovery failed: " + restoreError.GetBaseException().Message); }
             finally { item.m_gridPos = oldPosition; }
-            if (cell == "quiver")
+            if (nativeEquipment)
             {
                 player.RemoveEquipAction(item);
                 try
                 {
-                    _pov.RemoveQuiver(player);
-                    if (oldQuiver != null) _pov.Equip(player, cell, oldQuiver);
+                    if (cell != "belt.lantern") _pov.RemoveNativeItem(player, cell);
+                    if (oldEquipment != null && _pov.NativeItem(player, cell) != oldEquipment) _pov.Equip(player, cell, oldEquipment);
                 }
-                catch (Exception restoreError) { Log.LogWarning("PoV quiver callback recovery failed: " + restoreError.GetBaseException().Message); }
+                catch (Exception restoreError) { Log.LogWarning("PoV native equipment recovery failed: " + restoreError.GetBaseException().Message); }
             }
             Log.LogWarning("PoV cell move failed; original item position retained: " + error.GetBaseException().Message);
             return false;
@@ -562,9 +587,11 @@ public sealed partial class InventorySlotsPlugin
         if (ProjectPathOfValheimanTrinkets(player, player.GetInventory()))
             NotifyPathOfValheimanCommit(player.GetInventory());
         ItemData? quiver = _pov.QuiverItem(player);
-        if (!ReferenceEquals(quiver, _povLastQuiver))
+        ItemData? lantern = _pov.NativeItem(player, "belt.lantern");
+        if (!ReferenceEquals(quiver, _povLastQuiver) || !ReferenceEquals(lantern, _povLastBeltLantern))
         {
             _povLastQuiver = quiver;
+            _povLastBeltLantern = lantern;
             RequestLocalInventoryState(InventoryStateEnsureReason.EquipmentChanged, InventoryStateAuditLevel.FullIntegrity);
         }
         if (_povWasEnabled != _pov.Enabled())

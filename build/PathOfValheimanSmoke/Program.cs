@@ -499,6 +499,8 @@ internal static partial class Program
             throwEquip = false;
             if ((bool)bridgeType.GetProperty("HasExtraTrinkets", Instances)!.GetValue(bridge)!)
                 CheckTrinkets(mod, pov, plugin, bridgeType, bridge, player, bag, enabled, fixture);
+            if ((bool)bridgeType.GetProperty("HasBeltLantern", Instances)!.GetValue(bridge)!)
+                CheckBeltLantern(mod, pov, plugin, bridgeType, bridge, player, bag, enabled);
         }
         finally
         {

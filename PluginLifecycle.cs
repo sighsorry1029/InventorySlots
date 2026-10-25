@@ -183,6 +183,7 @@ public sealed partial class InventorySlotsPlugin
         PathOfValheimanStackCompatibility.Dispose();
         _pov = null;
         _povLastQuiver = null;
+        _povLastBeltLantern = null;
         _povCoinsWeightless = false;
         _povCoinWeightInventory = null;
         _povTrinketsReadyPlayer = null;

@@ -63,6 +63,16 @@ Keep generated compatibility slot IDs unchanged when editing YAML. Optional inte
 
 ### Path of Valheiman
 
+PoV's **Belt Lantern** mastery opens a normal-sized **Belt Lantern** cell in
+InventorySlots' equipment panel when PoV exposes the reviewed `belt.lantern`
+role (checked with PoV 5.3.2). The mastery alone reveals the cell; item discovery
+is not required. It accepts the Dvergr lantern (`Lantern`), while PoV owns its
+waist attachment and light. Circlet and the ordinary Belt cell keep their rules.
+Refunding the mastery removes the native lantern effect. An occupied closed
+cell stays visible until a destination has space for withdrawal, including with
+Equipment system Off; new insertion stays blocked. PoV versions without this
+role do not gain a lantern cell, and unrelated unknown slots remain unhosted.
+
 InventorySlots' YAML `KeepOnDeath` rules require PoV's **Bound Gear** effect while
 PoV is installed. `Enable Death Keep Rules` must also be On. The effect is read
 through the public stats API at death, independently of Equipment system On/Off;

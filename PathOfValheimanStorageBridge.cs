@@ -31,6 +31,7 @@ internal sealed class PathOfValheimanStorageBridge
     internal readonly Action<Player, string> Unequip;
     private Func<Player, ItemData>? _quiverWhenDisabled;
     private Action<Player>? _removeQuiverWhenDisabled;
+    private Func<Humanoid, ItemData>? _beltLanternItem;
     internal readonly Action<string> Changed;
     internal readonly List<(string Id, int Ordinal)> Cells = new();
     internal readonly HashSet<int> UnsupportedOrdinals = new();
@@ -39,6 +40,7 @@ internal sealed class PathOfValheimanStorageBridge
     private static readonly Dictionary<string, (int Ordinal, string Kind, bool Worn, bool Storage)> SupportedCells = CreateSupportedCells();
     internal bool HasExtraTrinkets { get; private set; }
     internal bool HasRings { get; private set; }
+    internal bool HasBeltLantern { get; private set; }
     private readonly Dictionary<string, Func<Player, ItemData>> _trinketReads = new(StringComparer.Ordinal);
     internal IReadOnlyList<string> StorageCells { get; private set; } = Array.Empty<string>();
     private readonly MethodInfo _register;
@@ -125,7 +127,7 @@ internal sealed class PathOfValheimanStorageBridge
             else
             {
                 // Storage cells need our backing store, so unhosted cells stay closed.
-                // Native roles (for example belt.lantern) keep their original backpack
+                // Unknown native roles keep their original backpack
                 // equipment behavior; a new descriptor alone must not block loading.
                 // Purse remains the existing intentional omission, handled by coin benefits.
                 bool purse = position >= 24 && position <= 31 && key == "purse." + (position - 24) &&
@@ -167,9 +169,13 @@ internal sealed class PathOfValheimanStorageBridge
                     Convert.ToInt32(Enum.Parse(slotType, "Ring" + i)) != 48 + i)
                     throw new NotSupportedException("PoV ring cell contract changed");
         }
+        HasBeltLantern = descriptors.ContainsKey("belt.lantern");
+        if (HasBeltLantern)
+            _beltLanternItem = Bind<Func<Humanoid, ItemData>>("PassiveTree.BeltSlot", "Get");
         foreach (string key in SupportedCells.Keys)
             if (!(key.StartsWith("ring.", StringComparison.Ordinal) && !HasRings) &&
                 !(key.StartsWith("trinket.", StringComparison.Ordinal) && !HasExtraTrinkets) &&
+                !(key == "belt.lantern" && !HasBeltLantern) &&
                 !descriptors.ContainsKey(key))
                 throw new NotSupportedException("Required PoV cell is missing: " + key);
 
@@ -214,7 +220,8 @@ internal sealed class PathOfValheimanStorageBridge
             ["utility.wishbone"] = (44, "Utility", false, true),
             ["trinket.1"] = (45, "Trinket", true, false),
             ["trinket.2"] = (46, "Trinket", true, false),
-            ["trinket.hand"] = (47, "Trinket", true, false)
+            ["trinket.hand"] = (47, "Trinket", true, false),
+            ["belt.lantern"] = (60, "Utility", true, false)
         };
         for (int i = 0; i < 3; i++)
         {
@@ -230,6 +237,20 @@ internal sealed class PathOfValheimanStorageBridge
         Enabled() ? Equipped(player, cell) : _trinketReads.TryGetValue(cell, out var read) ? read(player) : null;
 
     internal ItemData? QuiverItem(Player player) => Enabled() ? Equipped(player, "quiver") : _quiverWhenDisabled?.Invoke(player);
+
+    // Native equipment owns its effects independently of the provider's coordinates.
+    // Read the lantern even when Equipment is Off so a stored item can be withdrawn.
+    internal ItemData? NativeItem(Player player, string cell) =>
+        cell == "belt.lantern" ? _beltLanternItem?.Invoke(player) : QuiverItem(player);
+
+    internal void RemoveNativeItem(Player player, string cell)
+    {
+        if (cell != "belt.lantern") { RemoveQuiver(player); return; }
+        ItemData? item = NativeItem(player, cell);
+        if (item == null) return;
+        player.RemoveEquipAction(item);
+        player.UnequipItem(item, true);
+    }
 
     internal void RemoveQuiver(Player player)
     {

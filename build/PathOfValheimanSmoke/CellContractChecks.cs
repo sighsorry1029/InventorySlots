@@ -45,6 +45,23 @@ internal static partial class Program
         try
         {
             object bridge = Validate();
+            object? lantern = originals.FirstOrDefault(c => (string)info.GetProperty("Id")!.GetValue(c)! == "belt.lantern");
+            if (lantern != null)
+            {
+                Check((bool)bridgeType.GetProperty("HasBeltLantern", Instances)!.GetValue(bridge)! &&
+                    !((List<string>)bridgeType.GetField("UnhostedNativeCells", Instances)!.GetValue(bridge)!).Contains("belt.lantern"),
+                    "reviewed lantern role is hosted instead of reported as an unknown native cell");
+                int lanternIndex = descriptors.IndexOf(lantern);
+                descriptors.Remove(lantern);
+                try
+                {
+                    object withoutLantern = Validate();
+                    Check(!(bool)bridgeType.GetProperty("HasBeltLantern", Instances)!.GetValue(withoutLantern)!,
+                        "PoV without a lantern descriptor still initializes without requiring the new slot");
+                }
+                finally { descriptors.Insert(lanternIndex, lantern); }
+                bridge = Validate();
+            }
             Check(((HashSet<int>)bridgeType.GetField("UnsupportedOrdinals", Instances)!.GetValue(bridge)!).Contains(futureOrdinal) &&
                   !(bool)bridgeType.GetMethod("SupportsCell", Statics)!.Invoke(null, new object[] { "utility.future" })!,
                 "additive future storage descriptor is accepted for recovery but never hosted");

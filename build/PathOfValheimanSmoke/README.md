@@ -1,5 +1,44 @@
 # InventorySlots / Path of Valheiman isolated checks
 
+## Release 1.6.22 verification — 2026-10-25
+
+Final merged Release DLL SHA-256:
+`BA6DA808738FB0E84635C944ABD064C1CE05DAE8D169F5263C94DC0B37896127`.
+Original PoV 5.3.2 and Valheim 1.0.20 x64 Mono passed **567 cold / 569 warm**
+checks, both with exit 0 and normal cleanup. The original PoV DLL was read from
+Gale's cached 5.3.2 package after the previous profile copy was removed; its
+SHA-256 matched the Belt Lantern checkpoint below.
+
+Debug and Release builds had no warnings/errors. The unit runner passed **191**
+tests. Static contract inspection found **0 failures** (1,155 references,
+164 Harmony targets, 52 reflected contracts; ten manual dynamic targets).
+Plugin/assembly/manifest versions, merged dependencies, all Thunderstore/Nexus
+ZIP entries and the local Debug deployment hash were verified. The standalone
+CraftingTabSoundFix and diagnostic plugins are not part of these packages.
+Actual game UI/light effects, world saves, death/reconnect and multiplayer were
+not run; the fixture boundaries in the checkpoint below remain applicable.
+
+## Belt Lantern equipment cell — 2026-10-25
+
+Debug 1.6.21 (version unchanged), final/deployed DLL SHA-256:
+`B741573DCD03DBC8A098FC990CDF73DC643D816B5C268809DAD3DEA390F32A4F`.
+Original PoV 5.3.2 SHA-256:
+`83BD50F23D9C301FE469B5FBE2C430FD35C928D7A2CCFD99AF5A1040558C9D72`.
+Original Valheim 1.0.20 x64 Mono passed **567 cold / 569 warm** checks;
+both processes exited 0 and completed cleanup. Baseline was 542 cold checks.
+The unit suite passed 191 tests, Debug build had no warnings/errors, and the
+final merged DLL matched the Steam plugins copy. No Release package was made.
+
+`BeltLanternChecks` exercises original PoV mastery/acceptance, API and BeltSlot
+ownership bodies, with fixtures for Unity prefab identity, model/ZDO publication
+and vanilla action timing. It covers node-only visibility, separate belt/hand
+ownership, full-backpack withdrawal, refunds, Equipment Off, queued equipment,
+hand-to-belt conversion, rollback after partial publication, native saved-cell
+conversion and provider layout round trips. Contract checks also permit absence
+of the optional role and retain rejection of conflicting known coordinates.
+Actual rendered panel geometry, light/attachment effects, world saves,
+death/reconnect and multiplayer execution remain untested.
+
 ## Release 1.6.17 verification — 2026-10-21
 
 Final merged Release DLL SHA-256:
