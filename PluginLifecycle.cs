@@ -170,6 +170,7 @@ public sealed partial class InventorySlotsPlugin
     {
         _pov?.Unregister();
         PovStoragePatches.UnpatchSelf();
+        PathOfValheimanStackCompatibility.Dispose();
         _pov = null;
         _povLastQuiver = null;
         _povCoinsWeightless = false;

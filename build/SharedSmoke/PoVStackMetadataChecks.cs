@@ -16,6 +16,33 @@ internal static class PoVStackMetadataChecks
 
     internal static void Run(Type plugin, Assembly? pov, Action<bool, string> check)
     {
+        var native = new Harmony("smoke.pov.native-stack");
+        Type bridge = plugin.Assembly.GetType(plugin.Namespace + ".PathOfValheimanStackCompatibility", true)!;
+        try
+        {
+            if (pov?.GetType("PassiveTree.StackRules")?.GetMethod("SameData", Static) != null)
+            {
+                bridge.GetMethod("Dispose", Static)!.Invoke(null, null);
+                bool lateNative = Environment.GetEnvironmentVariable("INVENTORY_TEST_POV_PATCH_ORDER") == "late";
+                if (lateNative) bridge.GetMethod("Install", Static)!.Invoke(null, new object[] { pov, "smoke." + plugin.Namespace });
+                foreach (string name in new[] { "StackContext", "MatchMetadata", "MetadataSpace", "ItemData_IsSameType" })
+                    native.CreateClassProcessor(pov.GetType("PassiveTree.StackRules+" + name, true)!).Patch();
+                if (!lateNative) bridge.GetMethod("Install", Static)!.Invoke(null, new object[] { pov, "smoke." + plugin.Namespace });
+                check((bool)bridge.GetProperty("Active", Static)!.GetValue(null)!, "metadata bridge installs with native PoV hooks " + (lateNative ? "registered later" : "registered first"));
+            }
+            RunCore(plugin, pov, check);
+            if (pov?.GetType("PassiveTree.StackRules")?.GetMethod("SameData", Static) != null)
+                CheckNativeComparison(plugin, pov, bridge, native, check);
+        }
+        finally
+        {
+            bridge.GetMethod("Dispose", Static)!.Invoke(null, null);
+            native.UnpatchSelf();
+        }
+    }
+
+    private static void RunCore(Type plugin, Assembly? pov, Action<bool, string> check)
+    {
         // Standalone Mono has no Unity native logging service. Inventory's
         // original mutation bodies still run; only their diagnostic sink is off.
         UnityEngine.Debug.unityLogger.logEnabled = false;
@@ -307,6 +334,103 @@ internal static class PoVStackMetadataChecks
     }
 
     private static void ThrowAfterMove() => throw new InvalidOperationException("stack fixture fault");
+    private static void RestoreTemporaryMetadata(ItemData item, Exception? __exception)
+    {
+        if (__exception != null) item.m_customData.Remove("smoke.owner");
+    }
+    private static void RejectComparisonContract() => throw new NotSupportedException("fixture changed PoV comparison");
+
+    private static void CheckNativeComparison(Type plugin, Assembly pov, Type bridge, Harmony native, Action<bool, string> check)
+    {
+        Type stack = pov.GetType("PassiveTree.StackRules", true)!;
+        MethodInfo same = stack.GetMethod("SameData", Static)!;
+        ItemData target = Item(5, "a", "100"), source = Item(5, "b", "101");
+        target.m_customData = new Dictionary<string, string> { ["smoke.owner"] = "2" };
+        source.m_customData = new Dictionary<string, string> { ["smoke.owner"] = "1" };
+        bool Compare() => (bool)same.Invoke(null, new object[] { target, source })!;
+        check(!Compare(), "outside owned transfer native PoV metadata rejection is unchanged");
+        var begin = bridge.GetMethod("Begin", Static)!;
+        using ((IDisposable)begin.Invoke(null, new object[] { source, target })!)
+        {
+            check(Compare(), "exact owned pair uses live metadata owner policy");
+            using ((IDisposable)begin.Invoke(null, new object[] { new ItemData(), new ItemData() })!)
+                check(!Compare(), "nested transfer cannot authorize an unrelated pair");
+            check(Compare(), "nested transfer restores outer pair");
+            stack.GetField("incoming", Static)!.SetValue(null, new ItemData());
+            check(!Compare(), "untracked nested native input cannot borrow outer merge permission");
+            stack.GetField("incoming", Static)!.SetValue(null, null);
+            source.m_variant = 1; check(!Compare(), "native PoV variant difference remains protected"); source.m_variant = 0;
+            source.m_cheated = true; check(!Compare(), "cheat identity remains protected"); source.m_cheated = false;
+            source.m_customData["unknown.mod"] = "1"; check(!Compare(), "unknown metadata difference remains protected in owned scope"); source.m_customData.Remove("unknown.mod");
+        }
+        check(!Compare(), "owned pair scope does not leak to later manual comparisons");
+        if (plugin.Namespace != "InventorySlots")
+        {
+            target.m_stack = 18; source.m_stack = 5; source.m_customData.Clear();
+            plugin.GetMethod("MoveActionStack", Static)!.Invoke(null, new object[] { Bag(target), Bag(source), source, 5, target });
+            check(target.m_stack == 20 && source.m_stack == 3 && target.m_customData["smoke.owner"] == "2",
+                "IA transfer also composes destination-only registered metadata");
+            return;
+        }
+        native.CreateClassProcessor(plugin.Assembly.GetType("InventorySlots.InventoryFindFreeStackItemPatch", true)!).Patch();
+        Inventory bag = Bag(target);
+        // IS rejects this candidate. The real PoV postfix must not resurrect it.
+        source.m_cheated = true;
+        stack.GetField("incoming", Static)!.SetValue(null, source);
+        plugin.GetMethod("BeginInventoryAddItemDataStackLookup", Static)!.Invoke(null,new object[] { source });
+        try
+        {
+            var selected = AccessTools.Method(typeof(Inventory), "FindFreeStackItem").Invoke(bag,new object[] {source.m_shared.m_name,source.m_quality,(float)source.m_worldLevel});
+            check(selected == null, "real PoV search cannot replace IS rejected cheat-identity destination");
+            int capacity = bag.FindFreeStackSpace(source.m_shared.m_name, (float)source.m_worldLevel);
+            check(capacity == 0, "real PoV capacity postfix preserves IS rejected destinations");
+        }
+        finally
+        {
+            stack.GetField("incoming", Static)!.SetValue(null,null);
+            plugin.GetMethod("EndInventoryAddItemDataStackLookup", Static)!.Invoke(null,new object[]{true});
+        }
+        foreach (string name in new[] { "InventoryAddItemXyPatch", "InventoryAddItemDataPatch", "InventoryAddItemPosPatch" })
+            native.CreateClassProcessor(plugin.Assembly.GetType("InventorySlots." + name, true)!).Patch();
+        source.m_cheated = false;
+        target.m_stack = 18; source.m_stack = 5;
+        Inventory origin = Bag(source);
+        bag.MoveItemToThis(origin, source, 5, 0, 0);
+        check(target.m_stack == 20 && source.m_stack == 3 && target.m_customData["smoke.owner"] == "1",
+            "actual IS AddItem Harmony hooks compose a partial native transfer with PoV installed");
+        target.m_stack = 18; target.m_customData["smoke.owner"] = "2"; source.m_stack = 5;
+        MethodInfo positional = AccessTools.Method(typeof(Inventory), "AddItem", new[] { typeof(ItemData), typeof(int), typeof(int), typeof(int), typeof(bool) });
+        var fault = new Harmony("smoke.pov.stack-error");
+        try
+        {
+            fault.Patch(positional, postfix: new HarmonyMethod(typeof(PoVStackMetadataChecks), nameof(ThrowAfterMove)) { priority = Priority.First });
+            fault.Patch(positional, finalizer: new HarmonyMethod(typeof(PoVStackMetadataChecks), nameof(RestoreTemporaryMetadata)) { priority = Priority.First });
+            bool threw = false;
+            try { bag.MoveItemToThis(origin, source, 2, 0, 0); }
+            catch (Exception error) { threw = error.GetBaseException().Message == "stack fixture fault"; }
+            check(threw && target.m_stack == 20 && source.m_stack == 3 && target.m_customData["smoke.owner"] == "1",
+                "IS finalizer composes captured metadata after another finalizer restores the temporary source");
+            target.m_customData["smoke.owner"] = "2";
+            check(!Compare(), "exception finalizer restores the native comparison scope");
+        }
+        finally { fault.UnpatchSelf(); }
+        target.m_stack = 5; source.m_stack = 5; source.m_customData["smoke.owner"] = "1";
+        check(bag.AddItem(source) && target.m_stack == 10 && target.m_customData["smoke.owner"] == "1",
+            "actual automatic AddItem composes metadata with original PoV hooks and IS selection");
+        target.m_customData["smoke.owner"] = "2";
+        bridge.GetMethod("Dispose", Static)!.Invoke(null, null);
+        fault.Patch(bridge.GetMethod("ValidateMetadataComparison", Static),
+            prefix: new HarmonyMethod(typeof(PoVStackMetadataChecks), nameof(RejectComparisonContract)));
+        try
+        {
+            object? warning = bridge.GetMethod("Install", Static)!.Invoke(null, new object[] { pov, "smoke.fallback" });
+            check(warning != null && (bool)bridge.GetProperty("Active", Static)!.GetValue(null)!,
+                "unknown comparison behavior keeps destination protection active without failing initialization");
+            check(!(bool)bridge.GetMethod("MatchesIdentity", Static)!.Invoke(null,new object[]{target,source})!,
+                "unknown comparison behavior adds native rejection instead of granting new permission");
+        }
+        finally { fault.UnpatchSelf(); }
+    }
 
     private static bool Equal(Dictionary<string, string> a, Dictionary<string, string> b) =>
         a.Count == b.Count && a.All(entry => b.TryGetValue(entry.Key, out string value) && value == entry.Value);

@@ -21,9 +21,10 @@ internal static partial class Program
         string[] storageIds = ((IEnumerable<string>)storage.GetProperty("Cells")!.GetValue(null)!).ToArray();
         object future = Activator.CreateInstance(info)!;
         FieldInfo nativeSlot = info.GetField("Slot", Instances)!;
+        int futureOrdinal = originals.Max(c => Convert.ToInt32(nativeSlot.GetValue(c))) + 1;
         void Set(string name, object value) => info.GetProperty(name)!.GetSetMethod(true)!.Invoke(future, new[] { value });
         Set("Id", "utility.future"); Set("Kind", Enum.Parse(info.GetProperty("Kind")!.PropertyType, "Utility"));
-        Set("Worn", false); nativeSlot.SetValue(future, Enum.ToObject(nativeSlot.FieldType, 60));
+        Set("Worn", false); nativeSlot.SetValue(future, Enum.ToObject(nativeSlot.FieldType, futureOrdinal));
         descriptors.Add(future);
         fixtureStorageCells = storageIds.Concat(new[] { "utility.future" }).ToArray();
         var fixture = new Harmony("smoke.pov.future.descriptors");
@@ -31,6 +32,7 @@ internal static partial class Program
         fixture.Patch(storage.GetProperty("Cells")!.GetGetMethod(), prefix: new HarmonyMethod(typeof(Program), nameof(FutureStorageCells)));
         object Validate()
         {
+            validation.UnpatchSelf();
             object bridge = Activator.CreateInstance(bridgeType, Instances, null, new object[] { pov }, null)!;
             bridgeType.GetMethod("InstallFixes", Instances)!.Invoke(bridge, new object[] { validation });
             return bridge;
@@ -43,18 +45,26 @@ internal static partial class Program
         try
         {
             object bridge = Validate();
-            Check(((HashSet<int>)bridgeType.GetField("UnsupportedOrdinals", Instances)!.GetValue(bridge)!).Contains(60) &&
+            Check(((HashSet<int>)bridgeType.GetField("UnsupportedOrdinals", Instances)!.GetValue(bridge)!).Contains(futureOrdinal) &&
                   !(bool)bridgeType.GetMethod("SupportsCell", Statics)!.Invoke(null, new object[] { "utility.future" })!,
                 "additive future storage descriptor is accepted for recovery but never hosted");
             Set("Worn", true);
-            Check(Rejected(), "new worn role that can bypass provider still fails safely");
+            fixtureStorageCells = storageIds;
+            bridge = Validate();
+            Check(!((HashSet<int>)bridgeType.GetField("UnsupportedOrdinals", Instances)!.GetValue(bridge)!).Contains(futureOrdinal) &&
+                  ((List<(string, int)>)bridgeType.GetField("Cells", Instances)!.GetValue(bridge)!).Contains(("utility.future", futureOrdinal)) &&
+                  !((List<string>)bridgeType.GetField("UnhostedUtilityCells", Instances)!.GetValue(bridge)!).Contains("utility.future") &&
+                  !(bool)bridgeType.GetMethod("SupportsCell", Statics)!.Invoke(null, new object[] { "utility.future" })!,
+                "new native role retains original behavior and recovery without creating a panel cell or blocking initialization");
+            Check(((HashSet<int>)bridgeType.GetField("UnsupportedOrdinals", Instances)!.GetValue(bridge)!).Contains(24), "existing purse omission remains disabled");
+            fixtureStorageCells = storageIds.Concat(new[] { "utility.future" }).ToArray();
             Set("Worn", false);
             Set("Id", "helmet");
             Check(Rejected(), "duplicate cell ID cannot replace an existing role");
             Set("Id", "utility.future");
             nativeSlot.SetValue(future, Enum.ToObject(nativeSlot.FieldType, 0));
             Check(Rejected(), "duplicate native coordinate cannot alias a supported slot");
-            nativeSlot.SetValue(future, Enum.ToObject(nativeSlot.FieldType, 60));
+            nativeSlot.SetValue(future, Enum.ToObject(nativeSlot.FieldType, futureOrdinal));
             object helmet = originals.First(c => (string)info.GetProperty("Id")!.GetValue(c)! == "helmet");
             info.GetProperty("Worn")!.GetSetMethod(true)!.Invoke(helmet, new object[] { false });
             try { Check(Rejected(), "changed supported equipment-effect contract is rejected"); }

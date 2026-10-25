@@ -40,10 +40,16 @@ public sealed partial class InventorySlotsPlugin
             bridge.InstallFixes(PovStoragePatches);
             _povWasEnabled = bridge.Enabled();
             bridge.Register(ReadPathOfValheimanItem, TryPutPathOfValheimanItem, TakeOutPathOfValheimanItem);
+            if (bridge.UnhostedNativeCells.Count > 0)
+                Log.LogWarning("PoV native equipment roles have no InventorySlots panel cells; original backpack behavior is retained: " +
+                               string.Join(", ", bridge.UnhostedNativeCells));
             // Register before PoV's ObjectDB callback. Differently rolled items must
             // never become mergeable merely because both keys belong to PoV.
             var keys = bridge.Bind<Func<IEnumerable<string>>>("PassiveTree.InventorySlotsCompat", "OurKeys");
             PathOfValheimanStackMetadata.Register(keys());
+            string? stackingWarning = PathOfValheimanStackCompatibility.Install(bridge.Assembly, ModGUID);
+            if (stackingWarning != null)
+                Log.LogWarning("PoV metadata comparison changed; native restrictions remain in addition to InventorySlots slot rules: " + stackingWarning);
             InventoryCompatibility.PathOfValheimanActions.Install(bridge.Assembly, ModGUID);
             Log.LogInfo("PoV storage provider registered; InventorySlots owns cells and discovery progression, PoV retains node requirements and effects.");
             return true;
@@ -53,6 +59,7 @@ public sealed partial class InventorySlotsPlugin
             _pov?.Unregister();
             _pov = null;
             PovStoragePatches.UnpatchSelf();
+            PathOfValheimanStackCompatibility.Dispose();
             PovStoragePatches.Patch(AccessTools.Method(typeof(Game), "SpawnPlayer"),
                 prefix: new HarmonyMethod(typeof(InventorySlotsPlugin), nameof(BlockUnsupportedPathOfValheimanLoad)) { priority = Priority.First });
             enabled = false;

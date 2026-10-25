@@ -170,6 +170,21 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void OnPlayerAwake(Player player)
     {
+        if (IsUnityNull(player))
+        {
+            return;
+        }
+
+        // FejdStartup creates a Player without a live ZDO for character previews.
+        // Expanding it sends default clothing to the hidden tail before profile save.
+        ZNetView view = !IsUnityNull(player.m_nViewOverride)
+            ? player.m_nViewOverride
+            : player.GetComponent<ZNetView>();
+        if (IsUnityNull(view) || !view.IsValid())
+        {
+            return;
+        }
+
         InvalidateInventoryPlacementCaches();
         InvalidateCustomEquipmentProjectionCache();
         EnsureInventoryState(player, InventoryStateEnsureReason.PlayerAwake);

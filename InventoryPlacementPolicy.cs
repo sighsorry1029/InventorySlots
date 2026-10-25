@@ -698,7 +698,7 @@ public sealed partial class InventorySlotsPlugin
         InventorySafety.InventoryLimitCountCache.Clear();
     }
 
-    private static int CountStackSpaceForIncomingItem(Inventory inventory, ItemData item)
+    internal static int CountStackSpaceForIncomingItem(Inventory inventory, ItemData item)
     {
         if (inventory == null || item?.m_shared == null)
         {
@@ -751,6 +751,8 @@ public sealed partial class InventorySlotsPlugin
         {
             return false;
         }
+
+        if (!PathOfValheimanStackCompatibility.MatchesIdentity(existing, incoming)) return false;
 
         if (IsEpicLootStackingItem(existing) || IsEpicLootStackingItem(incoming))
             return CanMergeEpicLootStacks(existing, incoming);

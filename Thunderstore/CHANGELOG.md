@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.6.19
+
+- Fixed new characters starting with all quick-slot rows open: character-selection previews no longer expand inventory storage before the profile is saved. Live players and occupied-slot recovery retain their existing protections.
+- Updated Path of Valheiman compatibility for 5.3.2 / API 1.6.0. New native equipment roles such as `belt.lantern` no longer stop InventorySlots initialization. They do not create InventorySlots cells; PoV keeps their native backpack behavior, while saved native-cell items can be recovered without duplication. Unrecognized provider storage cells remain closed, and essential storage-contract checks remain in place.
+- Adapted tooltip ownership lookup to PoV's revised implementation while preserving its tooltip artwork.
+- Composed PoV's revised stack comparisons with registered metadata-owner rules, including FineDining freshness, for tracked automatic and manual merges. Preserved slot boundaries, variants, cheat markers and meaningful metadata differences; partial transfers and exceptions reconcile only confirmed movement. Unverified comparison behavior retains conservative native checks.
+- Added a quick-guide hint after restocking that locates the bottom-right inventory buttons and lists only enabled buttons. Hover-to-expand help appears only when an enabled button uses Auto mode. Updated English and Korean text; controller instructions remain separate.
+- Verified Debug builds, core regression checks and original-DLL Mono checks with PoV present, absent and registered in either patch order. Actual game UI and multiplayer validation remain required.
+
 ## 1.6.18
 
 - Reduced repeated slot checks during automatic pickup when the inventory is full and nearby items cannot enter ordinary quick slots. A rejected item's shared quick-slot rule is evaluated once per capacity query instead of once per quick slot.

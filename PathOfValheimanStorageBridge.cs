@@ -35,6 +35,7 @@ internal sealed class PathOfValheimanStorageBridge
     internal readonly List<(string Id, int Ordinal)> Cells = new();
     internal readonly HashSet<int> UnsupportedOrdinals = new();
     internal readonly List<string> UnhostedUtilityCells = new();
+    internal readonly List<string> UnhostedNativeCells = new();
     private static readonly Dictionary<string, (int Ordinal, string Kind, bool Worn, bool Storage)> SupportedCells = CreateSupportedCells();
     internal bool HasExtraTrinkets { get; private set; }
     internal bool HasRings { get; private set; }
@@ -123,16 +124,15 @@ internal sealed class PathOfValheimanStorageBridge
             }
             else
             {
-                // New provider-backed cells are deliberately not hosted. Unknown
-                // native worn roles may bypass the provider and still need review.
-                // PoV's existing purse descriptors are Worn despite having no
-                // native equipment role. Preserve that known omission, not new worn roles.
+                // Storage cells need our backing store, so unhosted cells stay closed.
+                // Native roles (for example belt.lantern) keep their original backpack
+                // equipment behavior; a new descriptor alone must not block loading.
+                // Purse remains the existing intentional omission, handled by coin benefits.
                 bool purse = position >= 24 && position <= 31 && key == "purse." + (position - 24) &&
                              kind == "Purse" && worn && !contract.Item4;
-                if (!purse && (worn || !contract.Item4))
-                    throw new NotSupportedException("Unsupported native PoV equipment role: " + key);
-                UnsupportedOrdinals.Add(position);
-                if (kind == "Utility" && key != "utility") UnhostedUtilityCells.Add(key);
+                if (purse || contract.Item4) UnsupportedOrdinals.Add(position);
+                else UnhostedNativeCells.Add(key);
+                if (contract.Item4 && kind == "Utility" && key != "utility") UnhostedUtilityCells.Add(key);
             }
             // Retain every native coordinate for atomic recovery of saved items,
             // even when no physical InventorySlots cell will be created for it.

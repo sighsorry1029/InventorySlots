@@ -80,6 +80,15 @@ public sealed partial class InventoryActionsPlugin
         _povStorageSuspended = (Func<bool>)Delegate.CreateDelegate(typeof(Func<bool>), suspended);
         _povPresent = true;
         BindPathOfValheimanStackMetadata(assembly);
+        try
+        {
+            string? warning = PathOfValheimanStackCompatibility.Install(assembly, ModGUID);
+            if (warning != null) Log.LogWarning("PoV metadata comparison changed; native restrictions remain unchanged: " + warning);
+        }
+        catch (Exception error)
+        {
+            Log.LogWarning("PoV stack metadata bridge unavailable; native metadata checks remain unchanged: " + error.GetBaseException().Message);
+        }
         InventoryCompatibility.PathOfValheimanActions.Install(assembly, ModGUID);
     }
 

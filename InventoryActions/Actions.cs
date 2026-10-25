@@ -1548,6 +1548,7 @@ public sealed partial class InventoryActionsPlugin
                right?.m_shared != null &&
                string.Equals(left.m_shared.m_name, right.m_shared.m_name, StringComparison.OrdinalIgnoreCase) &&
                left.m_quality == right.m_quality &&
+               PathOfValheimanStackCompatibility.MatchesIdentity(left, right) &&
                (float)left.m_worldLevel == (float)right.m_worldLevel &&
                left.m_cheated == right.m_cheated;
     }

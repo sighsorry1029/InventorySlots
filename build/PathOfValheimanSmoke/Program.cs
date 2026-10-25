@@ -161,6 +161,17 @@ internal static partial class Program
         else bridge = bridgeType.GetConstructor(Instances, null, new[] { typeof(Assembly), typeof(Harmony) }, null)!.Invoke(new object[] { pov, patches });
         Check(true, "actual bridge reflection bindings and Harmony patch installation succeed on original Mono");
         Type plugin = mod.GetType("InventorySlots.InventorySlotsPlugin", true)!;
+        plugin.GetMethod("BindPathOfValheimanTooltip", Statics)!.Invoke(null, new object[] { pov });
+        var tooltipOwner = (Delegate)plugin.GetField("_pathOfValheimanTooltipOwner", Statics)!.GetValue(null)!;
+        var tooltipFixture = FormatterServices.GetUninitializedObject(tooltipOwner.GetType().GetGenericArguments()[0]);
+        var tooltipItem = new ItemData();
+        Type tooltipType = pov.GetType("PassiveTree.UI.ItemTooltip", true)!;
+        MethodInfo? setOwner = tooltipType.GetMethod("SetOwner", Statics);
+        if (setOwner != null)
+        {
+            setOwner.Invoke(null, new object[] { tooltipFixture, tooltipItem });
+            Check(ReferenceEquals(tooltipOwner.DynamicInvoke(tooltipFixture), tooltipItem), "cached private tooltip owner reader resolves original wrapper without publicizing");
+        }
         foreach (MethodInfo method in new[] { AccessTools.Method(state, "Assign"), AccessTools.Method(pov.GetType("PassiveTree.Gear.UtilitySlots"), "Tick") })
         {
             var original = PatchProcessor.GetOriginalInstructions(method).ToList();
@@ -353,6 +364,20 @@ internal static partial class Program
                 "native saved Tome58/Earring59 recover exact items into ordinary cells");
         }
         Items().Clear();
+        if (Enum.IsDefined(pov.GetType("PassiveTree.Gear.Slot", true)!, "BeltLantern"))
+        {
+            ItemData lantern = Item(4, 11, 1); // native ordinal 60, rowStart 4, width 8
+            lantern.m_equipped = true;
+            lantern.m_customData["pt.belt"] = "1";
+            Items().AddRange(new[] { regular, lantern });
+            custom["valheiman.equipment.v1.rowStart"] = "4";
+            Call("CompletePathOfValheimanLoad", player);
+            Check(lantern.m_gridPos == new Vector2i(1, 0) && lantern.m_equipped &&
+                  lantern.m_customData["pt.belt"] == "1" && lantern.m_stack == 1 &&
+                  Items().SequenceEqual(new[] { regular, lantern }),
+                "native Lantern60 recovers into backpack preserving the exact equipped item and pt.belt marker");
+            Items().Clear();
+        }
         for (int y = 0; y < fixedRows; y++) for (int x = 0; x < 8; x++) Items().Add(Item(x, y));
         ItemData orphan = Item(0, fixedRows + 3, 5); Items().Add(orphan);
         var prior = Items().ToDictionary(it => it, it => it.m_gridPos);

@@ -105,6 +105,7 @@ public sealed partial class InventoryActionsPlugin
         int before = target.m_stack;
         var sourceData = source.m_customData == null ? new Dictionary<string, string>() :
             new Dictionary<string, string>(source.m_customData);
+        using var metadataScope = PathOfValheimanStackCompatibility.Begin(source, target);
         try
         {
             return destination.MoveItemToThis(origin, source, amount, target.m_gridPos.x, target.m_gridPos.y);

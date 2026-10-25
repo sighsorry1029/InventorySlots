@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.23
+
+- Updated Path of Valheiman stack compatibility for 5.3.2 / API 1.6.0. InventoryActions Quick Stack and Restock transfers now compose PoV's revised comparisons with registered metadata-owner rules, including FineDining freshness. Ordinary manual transfers outside InventoryActions retain PoV's native rules.
+- Preserved variants, cheat markers, item bonuses, unknown metadata protection and partial-transfer freshness. Unverified comparison behavior falls back to conservative native checks without disabling unrelated InventoryActions features.
+- Added a quick-guide hint after restocking that locates the bottom-right inventory buttons and lists only enabled buttons. Hover-to-expand help appears only when an enabled button uses Auto mode, followed by the existing item-drop instructions. Updated English and Korean text; controller instructions remain separate.
+- Verified Debug builds and original-DLL Mono checks with PoV present, absent and registered in either patch order. Actual game UI and multiplayer validation remain required.
+
 ## 1.1.22
 
 - Updated Path of Valheiman compatibility for 5.1.1, removing dependence on its changed private quick-stack response finalizer signature.

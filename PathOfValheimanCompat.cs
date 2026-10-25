@@ -18,7 +18,7 @@ public sealed partial class InventorySlotsPlugin
     private static readonly List<Harmony> PathOfValheimanPatches = new();
     private static Func<bool>? _pathOfValheimanTreeOpen;
     private static Func<bool>? _pathOfValheimanTooltipWanted;
-    private static ConditionalWeakTable<UITooltip, ItemData>? _pathOfValheimanTooltipOwners;
+    private static Func<UITooltip, ItemData?>? _pathOfValheimanTooltipOwner;
     private static Func<GameObject>? _pathOfValheimanTooltipBody;
     private static Func<UITooltip>? _pathOfValheimanCurrentTooltip;
     private static Func<GameObject>? _pathOfValheimanTooltipRoot;
@@ -167,29 +167,39 @@ public sealed partial class InventorySlotsPlugin
         InstallPathOfValheimanCapability("item-presentation", _ => BindPathOfValheimanItemPresentation(assembly));
         InitializePathOfValheimanNativeHud(assembly);
         InitializePathOfValheimanCrafting(assembly);
-        InstallPathOfValheimanCapability("tooltip", _ =>
-        {
-            Type type = assembly.GetType("PassiveTree.UI.ItemTooltip", true)!;
-            var wanted = (Func<bool>)Delegate.CreateDelegate(typeof(Func<bool>), RequirePathOfValheimanMethod(type, "get_Wanted", typeof(bool)));
-            var refresh = (Action)Delegate.CreateDelegate(typeof(Action), RequirePathOfValheimanMethod(type, "RefreshCurrent", typeof(void)));
-            var body = PathOfValheimanStaticField<GameObject>(type, "sheetGo");
-            var current = PathOfValheimanStaticField<UITooltip>(typeof(UITooltip), "m_current");
-            var root = PathOfValheimanStaticField<GameObject>(typeof(UITooltip), "m_tooltip");
-            var owners = PathOfValheimanStaticField<ConditionalWeakTable<UITooltip, ItemData>>(type, "owners")();
-            if (owners == null) throw new MissingFieldException(type.FullName, "owners");
-            _pathOfValheimanTooltipOwners = owners;
-            _pathOfValheimanCurrentTooltip = current;
-            _pathOfValheimanTooltipRoot = root;
-            _pathOfValheimanTooltipBody = body;
-            _pathOfValheimanRefreshTooltip = refresh;
-            _pathOfValheimanTooltipWanted = wanted;
-        });
+        InstallPathOfValheimanCapability("tooltip", _ => BindPathOfValheimanTooltip(assembly));
 
         InstallPathOfValheimanCapability("tree-input", _ =>
         {
             _pathOfValheimanTreeOpen = (Func<bool>)Delegate.CreateDelegate(typeof(Func<bool>),
                 RequirePathOfValheimanMethod(assembly.GetType("PassiveTree.UI.TreeWindow", true)!, "get_IsOpen", typeof(bool)));
         });
+    }
+
+    private static void BindPathOfValheimanTooltip(Assembly assembly)
+    {
+        Type type = assembly.GetType("PassiveTree.UI.ItemTooltip", true)!;
+        var wanted = (Func<bool>)Delegate.CreateDelegate(typeof(Func<bool>), RequirePathOfValheimanMethod(type, "get_Wanted", typeof(bool)));
+        var refresh = (Action)Delegate.CreateDelegate(typeof(Action), RequirePathOfValheimanMethod(type, "RefreshCurrent", typeof(void)));
+        var body = PathOfValheimanStaticField<GameObject>(type, "sheetGo");
+        var current = PathOfValheimanStaticField<UITooltip>(typeof(UITooltip), "m_current");
+        var root = PathOfValheimanStaticField<GameObject>(typeof(UITooltip), "m_tooltip");
+        Func<UITooltip, ItemData?> owner;
+        if (AccessTools.DeclaredMethod(type, "OwnerOf", new[] { typeof(UITooltip) }) != null)
+            owner = (Func<UITooltip, ItemData?>)Delegate.CreateDelegate(typeof(Func<UITooltip, ItemData>),
+                RequirePathOfValheimanMethod(type, "OwnerOf", typeof(ItemData), typeof(UITooltip)));
+        else
+        {
+            var owners = PathOfValheimanStaticField<ConditionalWeakTable<UITooltip, ItemData>>(type, "owners")();
+            if (owners == null) throw new MissingFieldException(type.FullName, "owners");
+            owner = tooltip => owners.TryGetValue(tooltip, out ItemData item) ? item : null;
+        }
+        _pathOfValheimanTooltipOwner = owner;
+        _pathOfValheimanCurrentTooltip = current;
+        _pathOfValheimanTooltipRoot = root;
+        _pathOfValheimanTooltipBody = body;
+        _pathOfValheimanRefreshTooltip = refresh;
+        _pathOfValheimanTooltipWanted = wanted;
     }
 
     private static void BindPathOfValheimanDeathKeep(Assembly assembly)
@@ -265,8 +275,9 @@ public sealed partial class InventorySlotsPlugin
                 _pathOfValheimanTooltipWasDisabled = true;
                 return false;
             }
+            ItemData? item = _pathOfValheimanTooltipOwner!(tooltip);
             if (!IsInventoryContainerTooltipSource(tooltip) || _pathOfValheimanCurrentTooltip!() != tooltip || _pathOfValheimanTooltipRoot!() == null ||
-                !_pathOfValheimanTooltipOwners!.TryGetValue(tooltip, out ItemData item) || item?.m_shared == null)
+                item?.m_shared == null)
             {
                 ClearPathOfValheimanTooltipState();
                 return false;
@@ -340,7 +351,7 @@ public sealed partial class InventorySlotsPlugin
         ClearPathOfValheimanNativeHud();
         _pathOfValheimanTreeOpen = null;
         _pathOfValheimanTooltipWanted = null;
-        _pathOfValheimanTooltipOwners = null;
+        _pathOfValheimanTooltipOwner = null;
         _pathOfValheimanTooltipBody = null;
         _pathOfValheimanCurrentTooltip = null;
         _pathOfValheimanTooltipRoot = null;

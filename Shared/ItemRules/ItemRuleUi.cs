@@ -69,6 +69,46 @@ public sealed partial class InventoryActionsPlugin
         (IsInventoryTrashButtonEnabled() ? 1 : 0) +
         (restock && IsItemRuleButtonEnabled(false) ? 1 : 0);
 
+    private static string AddInventoryButtonGuideHint(string guide)
+    {
+#if INVENTORY_SLOTS
+        const string prefix = "$inventoryslots_";
+#else
+        const string prefix = "$inventoryactions_";
+#endif
+        List<string> names = new(3);
+        bool hasAutoButton = false;
+        if (IsItemRuleButtonEnabled(true))
+        {
+            names.Add(LocalizeUi(prefix + "rules_restock_title", "Restock targets"));
+            hasAutoButton |= _restockButtonMode?.Value == InventoryButtonMode.Auto;
+        }
+        if (IsItemRuleButtonEnabled(false))
+        {
+            names.Add(LocalizeUi(prefix + "rules_exclude_title", "Auto pickup exclusions"));
+            hasAutoButton |= _autoPickupButtonMode?.Value == InventoryButtonMode.Auto;
+        }
+        if (IsInventoryTrashButtonEnabled())
+        {
+            names.Add(LocalizeUi(prefix + "controller_trash", "Trash"));
+            hasAutoButton |= _trashButtonMode?.Value == InventoryButtonMode.Auto;
+        }
+        if (names.Count == 0) return guide;
+
+        string hint = LocalizeUi(prefix + "feature_guide_buttons",
+                "Bottom right of your inventory: {buttons}")
+            .Replace("{buttons}", "<color=#FFA94D>" + string.Join(" · ", names) + "</color>");
+        if (hasAutoButton)
+            hint += "\n" + LocalizeUi(prefix + "feature_guide_buttons_hover",
+                "Hover over a collapsed button to expand it.");
+
+        // Insert beside restocking, before the YAML path or existing button usage.
+        // A missing anchor in an external translation still leaves the hint usable.
+        int restock = guide.IndexOf("{restockKey}", StringComparison.Ordinal);
+        int lineEnd = restock >= 0 ? guide.IndexOf('\n', restock) : -1;
+        return lineEnd >= 0 ? guide.Insert(lineEnd, "\n" + hint) : guide + "\n" + hint;
+    }
+
     private static void UpdateItemRuleUi(InventoryGui gui, Vector3 gridOrigin, int visibleRows)
     {
         if (gui == null || _instance == null || !_instance.isActiveAndEnabled || IsDedicatedServer || gui.m_takeAllButton == null || gui.m_playerGrid.m_gridRoot == null) return;

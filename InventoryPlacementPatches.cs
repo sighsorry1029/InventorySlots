@@ -206,10 +206,12 @@ internal static class InventoryAddItemDataPatch
     }
 
     private static Exception? Finalizer(
+        Inventory __instance,
         InventoryAddItemStackMetadataState? __state,
         Exception __exception)
     {
-        InventorySlotsPlugin.EndAutomaticStackMetadataMerge(__state);
+        try { InventorySlotsPlugin.CompleteStackMetadataMerge(__instance, __state?.MergeState, __exception != null); }
+        finally { InventorySlotsPlugin.EndAutomaticStackMetadataMerge(__state); }
         return __exception;
     }
 }
@@ -266,6 +268,9 @@ internal static class InventoryAddItemXyPatch
             __state);
         InventorySlotsPlugin.OnPlayerInventoryItemPlaced(__instance, item, new Vector2i(x, y), __result);
     }
+
+    private static void Finalizer(Inventory __instance, InventoryStackMetadataMergeState? __state, Exception? __exception) =>
+        InventorySlotsPlugin.CompleteStackMetadataMerge(__instance, __state, __exception != null);
 }
 
 [HarmonyPatch(typeof(Inventory), "AddItem", typeof(ItemData), typeof(Vector2i))]
@@ -314,10 +319,12 @@ internal static class InventoryAddItemPosPatch
     }
 
     private static Exception? Finalizer(
+        Inventory __instance,
         InventoryAddItemStackMetadataState? __state,
         Exception __exception)
     {
-        InventorySlotsPlugin.EndAutomaticStackMetadataMerge(__state);
+        try { InventorySlotsPlugin.CompleteStackMetadataMerge(__instance, __state?.MergeState, __exception != null); }
+        finally { InventorySlotsPlugin.EndAutomaticStackMetadataMerge(__state); }
         return __exception;
     }
 }

@@ -70,6 +70,8 @@ inventoryslots_inventory_limit_reached: "{item}: you can carry at most {max}."
 inventoryslots_upgrade_safety_canceled: Upgrade canceled because the equipped item could not be returned to its slot safely.
 inventoryslots_refinement_warning: If refinement fails, the item may lose quality or be destroyed.
 
+inventoryslots_feature_guide_buttons: "Bottom right of your inventory: {buttons}"
+inventoryslots_feature_guide_buttons_hover: "Hover over a collapsed button to expand it."
 inventoryslots_rules_restock_title: Restock targets
 inventoryslots_rules_mode_off: "Restock: Off"
 inventoryslots_rules_mode_existing: "Restock: Existing stacks"

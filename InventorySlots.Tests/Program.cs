@@ -2,6 +2,7 @@ using InventorySlots;
 using InventoryPersistence;
 
 TestRunner.Run(
+    ("Character previews preserve native storage while live players and occupied Quick rows stay protected", PlayerInitializationTests.Run),
     ("YAML matching and equipment unlock preserve live rules with bounded repeated work", YamlMatchingTests.Run),
     ("Quick HUD On/Off and empty contexts preserve visibility policy", QuickSlotHudTests.PersistentModes),
     ("Quick HUD whole-panel use holds then fades and restarts", QuickSlotHudTests.WholePanelTiming),
@@ -2548,7 +2549,7 @@ internal static class Tests
             "private static bool CanAddWithinInventoryLimits");
         string stackCount = ReadSourceSection(
             placementPolicy,
-            "private static int CountStackSpaceForIncomingItem",
+            "static int CountStackSpaceForIncomingItem",
             "private static bool CanStackIncomingItemInto");
         string stackLookup = ReadSourceSection(
             placementPolicy,

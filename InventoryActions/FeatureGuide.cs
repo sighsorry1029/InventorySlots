@@ -255,6 +255,7 @@ public sealed partial class InventoryActionsPlugin
         string guide = controllerHints ? GetControllerFeatureGuideText() : LocalizeUi(
             "$inventoryactions_feature_guide",
             "<b>InventoryActions quick guide</b>\n<color=#FFA94D>[{favoriteKey} + Left Click]</color> on a player inventory slot: Toggle favorite\nWhile looking at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching non-favorited items in it and nearby chests\nWhile looking at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill favorite stacks from it and nearby chests up to their targets\nDrop a held item on <color=#FFA94D>Restock targets</color>: Set its favorite-stack target\nDrop a held item on <color=#FFA94D>Auto pickup exclusions / Trash</color>: Exclude auto pickup / delete after confirmation");
+        if (!controllerHints) guide = AddInventoryButtonGuideHint(guide);
         string favoriteKey = _favoriteModifierKey != null ? GetShortcutDisplayText(_favoriteModifierKey.Value) : "";
         string restockKey = controllerHints ? GetFavoriteRestockControllerDisplay() : GetContainerRestockKeyDisplayText();
         string expanded = AddFeatureGuideToggleHint(AddTidyPackGuideHint(guide))

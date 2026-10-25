@@ -1,0 +1,114 @@
+using System;
+using System.Collections.Generic;
+using InventorySlots;
+using ItemData = Item;
+
+// Boundary fixtures only: no Unity scene or real character save is executed here.
+public class UnityObject { public bool Destroyed; }
+public sealed class ZNetView : UnityObject { public bool Valid; public bool IsValid() => Valid; }
+public sealed class Player : UnityObject
+{
+    public ZNetView View, m_nViewOverride;
+    public Inventory Inventory = new();
+    public bool m_isLoading;
+    public string Id = "new-character";
+    public HashSet<string> m_knownMaterial = new();
+    public T GetComponent<T>() where T : class => View as T;
+}
+public readonly record struct Vector2i(int x, int y);
+public sealed class Item { public Vector2i m_gridPos; }
+public sealed class Inventory
+{
+    public int m_height = 4;
+    public List<Item> m_inventory = new();
+    public int GetWidth() => 8;
+}
+public enum SlotKind { BuiltIn, Quick }
+public sealed class SlotDefinition { public SlotKind Kind; public int QuickSlotIndex = -1; }
+public enum InventoryStateEnsureReason { PlayerAwake }
+public static class Mathf
+{
+    public static int CeilToInt(float n) => (int)Math.Ceiling(n);
+    public static int Max(int a, int b) => Math.Max(a, b);
+    public static int Clamp(int n, int a, int b) => Math.Clamp(n, a, b);
+}
+public static class PlayerInitializationContract
+{
+    private const int BaseRows = 4, MaxSupportedExtraRows = 5, QuickSlotPanelColumns = 3;
+    private static readonly List<SlotDefinition> SlotDefinitions = new();
+    private static string QuickSlotProgressionCachePlayerId = "";
+    private static int QuickSlotProgressionCachedRows, PlacementInvalidations, EquipmentInvalidations, Ensures;
+    private static string GetPlayerId(Player player) => player.Id;
+    private static bool IsUnityNull(UnityObject value) => value == null || value.Destroyed;
+    private static void InvalidateQuickSlotProgressionPanelCache() { }
+    private static void InvalidateInventoryPlacementCaches() => PlacementInvalidations++;
+    private static void InvalidateCustomEquipmentProjectionCache() => EquipmentInvalidations++;
+    private static void EnsureInventoryState(Player player, InventoryStateEnsureReason reason)
+    {
+        Ensures++;
+        player.Inventory.m_height = GetFullHeightForWidth(player.Inventory.GetWidth());
+    }
+    /* METHODS */
+    private static void Require(bool value, string message)
+    {
+        if (!value) throw new Exception(message);
+    }
+    private static void Reset(int equipmentCells)
+    {
+        SlotDefinitions.Clear();
+        for (int i = 0; i < equipmentCells; i++) SlotDefinitions.Add(new SlotDefinition());
+        for (int i = 0; i < 9; i++) SlotDefinitions.Add(new SlotDefinition { Kind = SlotKind.Quick, QuickSlotIndex = i });
+        QuickSlotProgressionCachePlayerId = "";
+        QuickSlotProgressionCachedRows = PlacementInvalidations = EquipmentInvalidations = Ensures = 0;
+    }
+    public static void Check()
+    {
+        foreach (int equipmentCells in new[] { 9, 10 })
+        {
+            foreach (ZNetView view in new ZNetView[] { null, new(), new() { Valid = true, Destroyed = true } })
+            {
+                Reset(equipmentCells);
+                var preview = new Player { View = view };
+                OnPlayerAwake(preview);
+                Require(preview.Inventory.m_height == 4 && Ensures == 0, "Preview must keep native inventory height");
+                Require(PlacementInvalidations == 0 && EquipmentInvalidations == 0, "Preview must not invalidate world caches");
+                // Native bottom-first clothing placement in an otherwise empty inventory.
+                var shirt = new Item { m_gridPos = new Vector2i(0, preview.Inventory.m_height - 1) };
+                preview.Inventory.m_inventory.Add(shirt);
+                var world = new Player { View = new() { Valid = true }, m_isLoading = true };
+                OnPlayerAwake(world);
+                world.Inventory.m_inventory.Add(shirt); // saved coordinates survive profile loading
+                PreserveOccupiedQuickSlotRowsDuringLoad(world, world.Inventory);
+                world.m_isLoading = false;
+                world.m_knownMaterial.Add("$item_tunic");
+                Require(GetStableUnlockedQuickSlotRows(world, 1, 3) == 1, "New character must start with one Quick row");
+            }
+
+            Reset(equipmentCells);
+            // Awake precedes SetLocalPlayer; server and remote players likewise have valid views.
+            var networkPlayer = new Player { View = new() { Valid = true } };
+            OnPlayerAwake(networkPlayer);
+            Require(networkPlayer.Inventory.m_height == GetFullHeightForWidth(8) && Ensures == 1,
+                "A live non-local player must still initialize its storage");
+            Require(PlacementInvalidations == 1 && EquipmentInvalidations == 1, "Live Awake must retain invalidations");
+            // Legitimate saved items in upper Quick rows must remain accessible during loading.
+            int tailIndex = equipmentCells + 8;
+            var existing = new Item { m_gridPos = new Vector2i(tailIndex % 8, GetFixedRegularRows() + tailIndex / 8) };
+            networkPlayer.Inventory.m_inventory.Add(existing);
+            networkPlayer.m_isLoading = true;
+            PreserveOccupiedQuickSlotRowsDuringLoad(networkPlayer, networkPlayer.Inventory);
+            Require(GetStableUnlockedQuickSlotRows(networkPlayer, 1, 3) == 3, "Occupied upper Quick rows must stay protected");
+            Require(networkPlayer.Inventory.m_inventory.Count == 1 && ReferenceEquals(existing, networkPlayer.Inventory.m_inventory[0]),
+                "Load preservation must retain the original item");
+        }
+
+        Reset(9);
+        OnPlayerAwake(null);
+        OnPlayerAwake(new Player { Destroyed = true, View = new() { Valid = true } });
+        Require(Ensures == 0, "Null and destroyed players must be ignored");
+        OnPlayerAwake(new Player { View = new(), m_nViewOverride = new() { Valid = true } });
+        Require(Ensures == 1, "Character's valid explicit network view must take precedence");
+        OnPlayerAwake(new Player { View = new() { Valid = true }, m_nViewOverride = new() });
+        Require(Ensures == 1, "An invalid explicit network view must not be bypassed");
+    }
+}

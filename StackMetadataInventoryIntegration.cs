@@ -16,12 +16,15 @@ internal sealed class InventoryStackMetadataMergeState
         OriginalStacks = originalStacks;
         Source = source;
         SourceCustomData = sourceCustomData;
+        Scope = PathOfValheimanStackCompatibility.Begin(source);
     }
 
     internal Inventory Inventory { get; }
     internal Dictionary<ItemData, int> OriginalStacks { get; }
     internal ItemData Source { get; }
     internal Dictionary<string, string> SourceCustomData { get; }
+    internal PathOfValheimanStackCompatibility.Scope Scope { get; }
+    internal bool Completed { get; set; }
 }
 
 internal sealed class InventoryAddItemStackMetadataState
@@ -97,41 +100,49 @@ public sealed partial class InventorySlotsPlugin
             sourceCustomData);
     }
 
-    private static void CompleteStackMetadataMerge(
+    internal static void CompleteStackMetadataMerge(
         Inventory inventory,
-        InventoryStackMetadataMergeState? state)
+        InventoryStackMetadataMergeState? state,
+        bool failed = false)
     {
-        if (state == null ||
+        if (state == null || state.Completed ||
             inventory == null ||
             !ReferenceEquals(inventory, state.Inventory))
         {
             return;
         }
 
-        bool metadataChanged = false;
-        foreach (ItemData destination in inventory.m_inventory)
+        state.Completed = true;
+        try
         {
-            if (destination?.m_customData == null ||
-                !state.OriginalStacks.TryGetValue(destination, out int originalStack) ||
-                destination.m_stack <= originalStack)
+            bool metadataChanged = false;
+            foreach (ItemData destination in inventory.m_inventory)
             {
-                continue;
+                if (destination?.m_customData == null ||
+                    !state.OriginalStacks.TryGetValue(destination, out int originalStack) ||
+                    destination.m_stack <= originalStack)
+                {
+                    continue;
+                }
+
+                // Another mod's finalizer can already have restored temporary source
+                // metadata. On an exceptional transfer retain our prepared snapshot.
+                IDictionary<string, string> sourceCustomData = failed
+                    ? state.SourceCustomData : state.Source.m_customData ?? state.SourceCustomData;
+                metadataChanged |= StackMetadataPolicy.MergeInto(
+                    destination.m_customData,
+                    sourceCustomData);
             }
 
-            IDictionary<string, string> sourceCustomData =
-                state.Source.m_customData ?? state.SourceCustomData;
-            metadataChanged |= StackMetadataPolicy.MergeInto(
-                destination.m_customData,
-                sourceCustomData);
+            // Inventory.AddItem invokes Changed before its Harmony postfix. Notify a
+            // second time only when the post-merge metadata actually changed so a
+            // container ZDO cannot persist the pre-merge expiry value.
+            if (metadataChanged)
+            {
+                inventory.Changed();
+            }
         }
-
-        // Inventory.AddItem invokes Changed before its Harmony postfix. Notify a
-        // second time only when the post-merge metadata actually changed so a
-        // container ZDO cannot persist the pre-merge expiry value.
-        if (metadataChanged)
-        {
-            inventory.Changed();
-        }
+        finally { state.Scope.Dispose(); }
     }
 
     internal static bool TryPreparePositionalStackMetadataMerge(
@@ -166,6 +177,7 @@ public sealed partial class InventorySlotsPlugin
             return true;
         }
 
+        CompleteStackMetadataMerge(inventory, state);
         state = null;
         result = false;
         return false;
