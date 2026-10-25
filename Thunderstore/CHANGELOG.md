@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.20
+
+- Updated release version metadata and rebuilt the packages. No gameplay, configuration or compatibility logic changes from 1.6.19.
+
 ## 1.6.19
 
 - Fixed new characters starting with all quick-slot rows open: character-selection previews no longer expand inventory storage before the profile is saved. Live players and occupied-slot recovery retain their existing protections.

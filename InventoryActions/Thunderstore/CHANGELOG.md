@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.24
+
+- Updated release version metadata and rebuilt the packages. No gameplay, configuration or compatibility logic changes from 1.1.23.
+
 ## 1.1.23
 
 - Updated Path of Valheiman stack compatibility for 5.3.2 / API 1.6.0. InventoryActions Quick Stack and Restock transfers now compose PoV's revised comparisons with registered metadata-owner rules, including FineDining freshness. Ordinary manual transfers outside InventoryActions retain PoV's native rules.
