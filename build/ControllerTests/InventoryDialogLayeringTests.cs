@@ -158,6 +158,7 @@ internal static partial class Program
         tooltip.parent = canvas;
         layer.Update(gui, panels["Quick"].transform, panels["Sort"].transform, tooltip);
         Check(tooltip.parent == canvas && Transform.ParentWrites == parents, "Outer Canvas tooltip keeps its owner's layer");
+        CheckVerifiedOuterCanvasTooltip();
 
         foreach (string dialog in new[] { "Split", "Achievements", "Trophies", "Variant", "Skills", "Texts" })
         {
@@ -176,6 +177,76 @@ internal static partial class Program
         CheckLayerOrder(gui, panels, "Player", "Quick", "Sort", "Tooltip", "Popup");
         layer.Restore();
         CheckLayerOrder(gui, panels, "Tooltip", "Player", "Quick", "Sort", "Popup");
+    }
+
+    private static Canvas AddLayerCanvas(Transform node, int order, bool separate = true)
+    {
+        var canvas = new Canvas { gameObject = node.gameObject, overrideSorting = separate, sortingOrder = order, sortingLayerID = 7 };
+        node.gameObject.Components[typeof(Canvas)] = canvas;
+        return canvas;
+    }
+
+    private static void CheckVerifiedOuterCanvasTooltip()
+    {
+        var layer = new InventorySlots.InventoryDialogLayering.TooltipLayer();
+        var (gui, panels) = CreateLayerFixture("Player", "Quick", "Container", "Crafting", "Sort", "Split", "Popup");
+        panels["Split"].SetActive(true);
+        Transform outer = new GameObject().transform;
+        Canvas outerCanvas = AddLayerCanvas(outer, -100);
+        Transform tooltip = panels["Tooltip"].transform;
+        tooltip.parent = outer;
+        gui.m_inventoryRoot.parent = outer; // Native host is behind the entire inventory.
+        Transform body = new GameObject().transform;
+        body.parent = tooltip;
+        Canvas hostCanvas = AddLayerCanvas(tooltip, -200);
+        Canvas bodyCanvas = AddLayerCanvas(body, 32000);
+        Canvas panelCanvas = AddLayerCanvas(panels["Player"].transform, 0, separate: false);
+        layer.Update(gui, panels["Quick"].transform, panels["Sort"].transform, tooltip);
+        Check(tooltip.parent == outer && tooltip.GetSiblingIndex() < gui.m_inventoryRoot.GetSiblingIndex(),
+            "Unverified outer Canvas host is not adopted");
+        layer.Update(gui, panels["Quick"].transform, panels["Sort"].transform, tooltip, true, body);
+        CheckLayerOrder(gui, panels, "Player", "Quick", "Container", "Crafting", "Sort", "Tooltip", "Split", "Popup");
+        Check(tooltip.LastWorldPositionStays == true && body.parent == tooltip,
+            "Verified external PoV card moves intact with world pose preserved");
+        Check(!hostCanvas.overrideSorting && !bodyCanvas.overrideSorting && outerCanvas.overrideSorting && !panelCanvas.overrideSorting,
+            "Only tooltip-owned Canvas overrides yield to inventory/modal hierarchy");
+        Check(hostCanvas.sortingOrder == -200 && bodyCanvas.sortingOrder == 32000 && hostCanvas.sortingLayerID == 7,
+            "Canvas order/layer values are never overwritten");
+        int parents = Transform.ParentWrites, siblings = Transform.SiblingWrites, overrides = Canvas.OverrideWrites;
+        for (int n = 0; n < 10; n++) layer.Update(gui, panels["Quick"].transform, panels["Sort"].transform, tooltip, true, body);
+        Check(Transform.ParentWrites == parents && Transform.SiblingWrites == siblings && Canvas.OverrideWrites == overrides,
+            "Stable external/pinned tooltip needs no repeat parent/order/Canvas writes");
+
+        // PoV rebuilds its inner card without replacing the shared native host.
+        body.parent = outer;
+        Transform replacement = new GameObject().transform;
+        replacement.parent = tooltip;
+        Canvas replacementCanvas = AddLayerCanvas(replacement, -400);
+        layer.Update(gui, panels["Quick"].transform, panels["Sort"].transform, tooltip, true, replacement);
+        Check(bodyCanvas.overrideSorting && !replacementCanvas.overrideSorting && !hostCanvas.overrideSorting,
+            "Body recreation restores outgoing Canvas and normalizes the replacement");
+        layer.Restore();
+        Check(tooltip.parent == outer && tooltip.GetSiblingIndex() == 0 &&
+            hostCanvas.overrideSorting && replacementCanvas.overrideSorting,
+            "Release restores external parent/sibling and all original Canvas flags");
+
+        layer.Update(gui, panels["Quick"].transform, panels["Sort"].transform, tooltip, true, replacement);
+        tooltip.parent = panels["Popup"].transform;
+        layer.Update(gui, panels["Quick"].transform, panels["Sort"].transform, tooltip, true, replacement);
+        Check(tooltip.parent == panels["Popup"].transform && hostCanvas.overrideSorting && replacementCanvas.overrideSorting,
+            "Foreign popup takeover is retained while our Canvas changes are released");
+        tooltip.parent = outer;
+        layer.Update(gui, panels["Quick"].transform, panels["Sort"].transform, tooltip, true, replacement);
+        gui.m_inventoryRoot.gameObject.SetActive(false);
+        layer.Update(gui, panels["Quick"].transform, panels["Sort"].transform, tooltip, true, replacement);
+        Check(tooltip.parent == outer && hostCanvas.overrideSorting, "Inventory close releases an externally created tooltip");
+
+        // An unexpected owner/root value must never create a Transform cycle.
+        gui.m_inventoryRoot.gameObject.SetActive(true);
+        layer.Update(gui, panels["Quick"].transform, panels["Sort"].transform, outer, true);
+        Check(gui.m_inventoryRoot.parent == outer && outer.parent == null, "Tooltip ancestor is rejected without a parent cycle");
+        layer.Update(gui, panels["Quick"].transform, panels["Sort"].transform, gui.m_inventoryRoot, true);
+        Check(gui.m_inventoryRoot.parent == outer, "Inventory root cannot be adopted as its own tooltip");
     }
 
     private static (InventoryGui, Dictionary<string, GameObject>) CreateLayerFixture(params string[] order)

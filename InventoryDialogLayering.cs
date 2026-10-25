@@ -1,21 +1,29 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace InventorySlots;
 
 internal static class InventoryDialogLayering
 {
-    // The native tooltip can live inside Player's Canvas or a gamepad anchor.
+    // The native tooltip can live inside Player's Canvas or a gamepad anchor,
+    // or remain under the Canvas used when its shared native host was created.
     // Lift the whole host out of that branch without rebuilding another mod's card.
     internal sealed class TooltipLayer
     {
         private Transform? _tooltip, _root, _originalParent;
+        private Transform? _content;
         private int _originalSibling;
+        private int _childCount;
+        private readonly List<Canvas> _canvases = new();
+        private readonly List<Canvas> _overrides = new();
 
-        internal void Update(InventoryGui gui, Transform? quickSlotPanel, Transform? sortLayer, Transform? tooltip)
+        internal void Update(InventoryGui gui, Transform? quickSlotPanel, Transform? sortLayer, Transform? tooltip,
+            bool allowCanvasParent = false, Transform? content = null)
         {
             Transform root = gui.m_inventoryRoot;
             if (root == null || !root.gameObject.activeInHierarchy ||
-                tooltip == null || !tooltip.gameObject.activeInHierarchy)
+                tooltip == null || !tooltip.gameObject.activeInHierarchy ||
+                tooltip == root || root.IsChildOf(tooltip))
             {
                 Restore();
                 return;
@@ -24,21 +32,51 @@ internal static class InventoryDialogLayering
 
             Transform? branch = tooltip;
             while (branch != null && branch.parent != root) branch = branch.parent;
-            // Leave outer-Canvas overlays and foreign popups under their owner's control.
-            if (branch == null || branch != tooltip && !IsBasePanel(branch, gui, quickSlotPanel))
+            // Only the caller that verified the current native PoV item card may
+            // adopt a host directly below an outer Canvas. Unknown popup wrappers
+            // keep ownership; never elevate the Canvas or its other children.
+            bool outerCanvas = branch == null && allowCanvasParent && tooltip.parent != null &&
+                tooltip.parent.gameObject.GetComponent<Canvas>() != null;
+            if (!outerCanvas && (branch == null || branch != tooltip && !IsBasePanel(branch, gui, quickSlotPanel)))
             {
                 Restore();
                 return;
             }
 
             InventoryDialogLayering.Update(gui, quickSlotPanel, sortLayer);
-            if (_tooltip == null || tooltip.parent != root)
+            bool reparented = _tooltip == null || tooltip.parent != root;
+            if (reparented)
             {
                 _tooltip = tooltip;
                 _root = root;
                 _originalParent = tooltip.parent;
                 _originalSibling = tooltip.GetSiblingIndex();
                 if (tooltip.parent != root) tooltip.SetParent(root, worldPositionStays: true);
+            }
+
+            // Inherit the inventory Canvas instead of imposing an arbitrary high
+            // sortingOrder which could cover split/confirmation dialogs. PoV's
+            // body can be rebuilt in place; rescan only on that identity change,
+            // host/reparent changes or direct-child changes, not every UI frame.
+            if (reparented || _content != content || _childCount != tooltip.childCount)
+            {
+                RestoreCanvasOverrides();
+                _canvases.Clear();
+                tooltip.gameObject.GetComponentsInChildren(true, _canvases);
+                _content = content;
+                _childCount = tooltip.childCount;
+            }
+            foreach (Canvas canvas in _canvases)
+            {
+                if (canvas == null) continue;
+                if (!canvas.transform.IsChildOf(tooltip))
+                {
+                    if (_overrides.Remove(canvas) && !canvas.overrideSorting) canvas.overrideSorting = true;
+                    continue;
+                }
+                if (!canvas.overrideSorting) continue;
+                if (!_overrides.Contains(canvas)) _overrides.Add(canvas);
+                canvas.overrideSorting = false;
             }
 
             Transform? lastPanel = null;
@@ -55,6 +93,8 @@ internal static class InventoryDialogLayering
 
         internal void Restore()
         {
+            RestoreCanvasOverrides();
+            _canvases.Clear();
             // Native HideTooltip may already have destroyed the host. A foreign
             // reparent also ends our ownership; never move that popup back.
             if (_tooltip != null && _root != null && _tooltip.parent == _root && _originalParent != null)
@@ -63,7 +103,17 @@ internal static class InventoryDialogLayering
                 int index = Mathf.Clamp(_originalSibling, 0, _originalParent.childCount - 1);
                 if (_tooltip.GetSiblingIndex() != index) _tooltip.SetSiblingIndex(index);
             }
-            _tooltip = _root = _originalParent = null;
+            _tooltip = _root = _originalParent = _content = null;
+            _childCount = 0;
+        }
+
+        private void RestoreCanvasOverrides()
+        {
+            // Only this flag was changed; preserve sortingOrder/layer and any
+            // external reparent. Destroyed/replaced PoV cards are harmless here.
+            foreach (Canvas canvas in _overrides)
+                if (canvas != null && !canvas.overrideSorting) canvas.overrideSorting = true;
+            _overrides.Clear();
         }
     }
 

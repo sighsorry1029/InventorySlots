@@ -336,11 +336,18 @@ public sealed partial class InventorySlotsPlugin
             PathOfValheimanTooltipLayer.Restore();
             return;
         }
+        GameObject? body = _pathOfValheimanTooltipBody?.Invoke();
+        if (body == null || !body.activeSelf || !body.transform.IsChildOf(host.transform))
+        {
+            PathOfValheimanTooltipLayer.Restore();
+            return;
+        }
 
         RectTransform? quickPanel = null;
         if (gui.m_playerGrid != null)
             InventoryPanels.QuickSlotPanels.TryGetValue(gui.m_playerGrid.GetInstanceID(), out quickPanel);
-        PathOfValheimanTooltipLayer.Update(gui, quickPanel, InventoryPanels.SortButtonLayer, host.transform);
+        PathOfValheimanTooltipLayer.Update(gui, quickPanel, InventoryPanels.SortButtonLayer, host.transform,
+            allowCanvasParent: true, content: body.transform);
     }
 
     private static bool HasPathOfValheimanTooltipBody()

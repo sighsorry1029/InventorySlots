@@ -97,6 +97,17 @@ namespace UnityEngine
         public readonly Dictionary<Type, object> Components = new();
         public T? GetComponent<T>() where T : class => Components.TryGetValue(typeof(T), out object? value) ? (T)value : null;
         public T? GetComponentInParent<T>() where T : class => GetComponent<T>() ?? transform.parent?.gameObject?.GetComponentInParent<T>();
+        public void GetComponentsInChildren<T>(bool includeInactive, List<T> result) where T : class
+        {
+            result.Clear();
+            Collect(this);
+            void Collect(GameObject item)
+            {
+                if (includeInactive || item.activeInHierarchy)
+                    if (item.GetComponent<T>() is T component) result.Add(component);
+                for (int i = 0; i < item.transform.childCount; i++) Collect(item.transform.GetChild(i).gameObject);
+            }
+        }
         public void SetActive(bool value) => activeInHierarchy = value;
     }
     public class Component : Object
@@ -106,6 +117,13 @@ namespace UnityEngine
         public bool enabled = true;
         public bool isActiveAndEnabled = true;
         public T[] GetComponentsInChildren<T>(bool includeInactive) => Array.Empty<T>();
+    }
+    public sealed class Canvas : Component
+    {
+        public static int OverrideWrites;
+        private bool _override;
+        public bool overrideSorting { get => _override; set { _override = value; OverrideWrites++; } }
+        public int sortingOrder, sortingLayerID;
     }
     public static class Time { public static int frameCount; public static float unscaledTime; }
     public enum KeyCode { None, F6, F7, W, LeftAlt, RightAlt, LeftControl }

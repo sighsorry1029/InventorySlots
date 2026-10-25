@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.23
+
+- Fixed Path of Valheiman item tooltips remaining behind inventory, equipment and quick-slot panels when the shared tooltip was created under an outer Canvas. Verified PoV item cards now follow the inventory's display order, above panels and below split/confirmation dialogs.
+- Preserved PoV artwork and tooltip contents while temporarily releasing tooltip-owned Canvas sorting overrides. Closing the inventory or handing the tooltip back restores its original parent, sibling order and Canvas flags; unrelated popups remain under their own control.
+- Added regression checks for external tooltip parents, card recreation, Canvas restoration and stable frames without repeated hierarchy changes. Actual in-game rendering still requires validation.
+
 ## 1.6.22
 
 - Added a Belt Lantern equipment slot when Path of Valheiman exposes its `belt.lantern` role. Unlocking the Belt Lantern mastery reveals the slot without requiring item discovery. It accepts the Dvergr lantern while PoV retains ownership of its equipment state, waist attachment and light; Circlet and ordinary Belt slots are unchanged.
