@@ -58,6 +58,8 @@ namespace UnityEngine
         private Transform? _parent;
         private readonly List<Transform> _children = new();
         public static int SiblingWrites;
+        public static int ParentWrites;
+        public bool? LastWorldPositionStays;
         public Transform? parent
         {
             get => _parent;
@@ -70,6 +72,12 @@ namespace UnityEngine
             }
         }
         public int childCount => _children.Count;
+        public void SetParent(Transform value, bool worldPositionStays)
+        {
+            ParentWrites++;
+            LastWorldPositionStays = worldPositionStays;
+            parent = value;
+        }
         public Transform GetChild(int index) => _children[index];
         public int GetSiblingIndex() => _parent?._children.IndexOf(this) ?? 0;
         public void SetSiblingIndex(int index)

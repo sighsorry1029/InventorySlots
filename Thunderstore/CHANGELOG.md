@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.21
+
+- Fixed Path of Valheiman item tooltips appearing behind the quick-slot inventory panel. The existing tooltip card is placed above inventory panels and below modal dialogs while preserving PoV artwork, content and pinned interactions. Closing or disabling the UI restores its original hierarchy.
+- Fixed VNEI tab placement when used with Path of Valheiman. Visible crafting tabs now determine the final position and height of the Salvage and VNEI tabs, including when the station-only Salvage tab is hidden. Tab clicks and crafting refreshes no longer leave VNEI at an outdated position; tab contents and selection behavior are preserved.
+- Added regression checks for tooltip layering, controller anchors, tab visibility, differing UI anchors and scales, button recreation and cleanup. Existing PoV compatibility checks pass with the original game assemblies; actual game UI validation remains required.
+
 ## 1.6.20
 
 - Updated release version metadata and rebuilt the packages. No gameplay, configuration or compatibility logic changes from 1.6.19.

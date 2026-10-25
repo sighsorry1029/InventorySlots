@@ -52,6 +52,8 @@ using System;
 public static class InventorySlotsPlugin
 {
     /* PRODUCTION */
+    internal static void ClearPathOfValheimanCraftingUi(InventoryGui gui) { }
+    internal static void ClearPathOfValheimanStoragePanels() { }
     private static int Checks, StatRestores, CraftRestores, QueueClears, PinHides, HoverClears, StatLayouts;
     private static InputField? _craftingCountInput = new();
     private static class CraftingUi { public static InputField SearchInput = new(); }

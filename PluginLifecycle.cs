@@ -135,11 +135,16 @@ public sealed partial class InventorySlotsPlugin
     {
         if (IsDedicatedServer) return;
         InventoryGui gui = InventoryGui.instance;
-        if (gui == null) return;
+        if (gui == null)
+        {
+            PathOfValheimanTooltipLayer.Restore();
+            return;
+        }
 
         if (!InventoryGui.IsVisible() || IsInventoryPanelClosing(gui))
         {
             SetActionPanelActive(InventoryPanels.SortButtonLayer, false);
+            PathOfValheimanTooltipLayer.Restore();
             return;
         }
         SetActionPanelActive(InventoryPanels.SortButtonLayer, true);
@@ -152,6 +157,9 @@ public sealed partial class InventorySlotsPlugin
 
         // Run after inventory/crafting layout and UI click handlers for this frame.
         InventoryDialogLayering.Update(gui, quickPanel, InventoryPanels.SortButtonLayer);
+        UpdatePathOfValheimanTooltipLayer();
+        // VNEI also repositions on tab clicks/SetupCrafting, after our panel preflight.
+        LayoutPathOfValheimanCraftingTab(gui);
     }
 
     private static bool ShouldDelayPeriodicFullIntegrityAudit()
@@ -161,6 +169,8 @@ public sealed partial class InventorySlotsPlugin
 
     private void OnDisable()
     {
+        PathOfValheimanTooltipLayer.Restore();
+        RestorePathOfValheimanCraftingTabs();
         ClearQuickSlotsHud();
         ClearInventoryClosingLayout();
         ResetItemLinks();

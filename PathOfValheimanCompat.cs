@@ -25,6 +25,8 @@ public sealed partial class InventorySlotsPlugin
     private static Action? _pathOfValheimanRefreshTooltip;
     private static UITooltip? _pathOfValheimanTooltipSource;
     private static GameObject? _pathOfValheimanNativeTooltip;
+    private static readonly InventoryDialogLayering.TooltipLayer PathOfValheimanTooltipLayer = new();
+    private static bool _pathOfValheimanTooltipLayerReady;
     private static ItemData? _pathOfValheimanTooltipItem;
     private static bool _pathOfValheimanTooltipWarning;
     private static bool _pathOfValheimanTooltipWasDisabled;
@@ -266,6 +268,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool TryYieldToPathOfValheimanTooltip(UITooltip tooltip)
     {
+        _pathOfValheimanTooltipLayerReady = false;
         if (_pathOfValheimanTooltipWanted == null) return false;
         try
         {
@@ -294,15 +297,23 @@ public sealed partial class InventorySlotsPlugin
                     _pathOfValheimanRefreshTooltip!();
                 _pathOfValheimanTooltipWasDisabled = false;
             }
-            if (!HasPathOfValheimanTooltipBody()) return false;
+            if (!HasPathOfValheimanTooltipBody())
+            {
+                PathOfValheimanTooltipLayer.Restore();
+                return false;
+            }
             _inventoryContainerHoverTooltipSource = null;
             HideInventoryContainerCustomTooltip();
             ForceHideInventorySimpleNameTooltip();
             RestoreVanillaTooltipVisual(_pathOfValheimanTooltipRoot!());
+            _pathOfValheimanTooltipLayerReady = true;
+            UpdatePathOfValheimanTooltipLayer();
             return true;
         }
         catch (Exception error)
         {
+            _pathOfValheimanTooltipLayerReady = false;
+            PathOfValheimanTooltipLayer.Restore();
             if (!_pathOfValheimanTooltipWarning)
             {
                 _pathOfValheimanTooltipWarning = true;
@@ -310,6 +321,26 @@ public sealed partial class InventorySlotsPlugin
             }
             return false;
         }
+    }
+
+    private static void UpdatePathOfValheimanTooltipLayer()
+    {
+        InventoryGui? gui = InventoryGui.instance;
+        UITooltip? source = _pathOfValheimanTooltipSource;
+        GameObject? host = _pathOfValheimanNativeTooltip;
+        if (_instance == null || !_instance.isActiveAndEnabled || !_pathOfValheimanTooltipLayerReady ||
+            gui == null || !InventoryGui.IsVisible() || IsInventoryPanelClosing(gui) ||
+            source == null || !source.gameObject.activeInHierarchy || host == null ||
+            UITooltip.m_current != source || UITooltip.m_tooltip != host)
+        {
+            PathOfValheimanTooltipLayer.Restore();
+            return;
+        }
+
+        RectTransform? quickPanel = null;
+        if (gui.m_playerGrid != null)
+            InventoryPanels.QuickSlotPanels.TryGetValue(gui.m_playerGrid.GetInstanceID(), out quickPanel);
+        PathOfValheimanTooltipLayer.Update(gui, quickPanel, InventoryPanels.SortButtonLayer, host.transform);
     }
 
     private static bool HasPathOfValheimanTooltipBody()
@@ -332,6 +363,8 @@ public sealed partial class InventorySlotsPlugin
 
     private static void ClearPathOfValheimanTooltipState()
     {
+        _pathOfValheimanTooltipLayerReady = false;
+        PathOfValheimanTooltipLayer.Restore();
         _pathOfValheimanTooltipSource = null;
         _pathOfValheimanNativeTooltip = null;
         _pathOfValheimanTooltipItem = null;

@@ -90,13 +90,99 @@ internal static partial class Program
         panels["Quick"].transform.parent = new GameObject().transform;
         InventorySlots.InventoryDialogLayering.Update(gui, panels["Quick"].transform, panels["Sort"].transform);
         CheckLayerOrder(gui, panels, "Player", "Container", "Sort", "Popup");
+        CheckInventoryTooltipLayering();
+    }
+
+    private static void CheckInventoryTooltipLayering()
+    {
+        var layer = new InventorySlots.InventoryDialogLayering.TooltipLayer();
+        var (gui, panels) = CreateLayerFixture("Player", "Quick", "Crafting", "Sort", "Rules", "Split", "Confirm", "Popup");
+        Transform tooltip = panels["Tooltip"].transform;
+        Transform player = panels["Player"].transform;
+        Transform sibling = new GameObject().transform;
+        tooltip.parent = player;
+        sibling.parent = player;
+        Transform card = new GameObject().transform;
+        card.parent = tooltip;
+        panels["Split"].SetActive(true);
+        layer.Update(gui, panels["Quick"].transform, panels["Sort"].transform, tooltip);
+        CheckLayerOrder(gui, panels, "Player", "Quick", "Crafting", "Sort", "Tooltip", "Rules", "Split", "Confirm", "Popup");
+        Check(tooltip.LastWorldPositionStays == true && card.parent == tooltip,
+            "Tooltip promotion requests world-pose preservation and retains card children");
+        int writes = Transform.SiblingWrites, parents = Transform.ParentWrites;
+        layer.Update(gui, panels["Quick"].transform, panels["Sort"].transform, tooltip);
+        Check(Transform.SiblingWrites == writes && Transform.ParentWrites == parents,
+            "Stable/pinned tooltip layer does not rewrite the hierarchy");
+        layer.Restore();
+        Check(tooltip.parent == player && player.GetChild(0) == tooltip && player.GetChild(1) == sibling,
+            "Releasing tooltip restores original parent and sibling order");
+
+        // Native controller/touch AnchorTooltip can reparent again before our postfix.
+        Transform anchor = new GameObject().transform;
+        anchor.parent = panels["Quick"].transform;
+        tooltip.parent = anchor;
+        layer.Update(gui, panels["Quick"].transform, panels["Sort"].transform, tooltip);
+        Check(tooltip.parent == gui.m_inventoryRoot, "Quick-slot/controller anchor is promoted too");
+        tooltip.parent = anchor;
+        layer.Update(gui, panels["Quick"].transform, panels["Sort"].transform, tooltip);
+        Check(tooltip.parent == gui.m_inventoryRoot, "Later native anchoring is corrected after placement");
+        gui.m_inventoryRoot.gameObject.SetActive(false);
+        layer.Update(gui, panels["Quick"].transform, panels["Sort"].transform, tooltip);
+        Check(tooltip.parent == anchor, "Closing inventory restores the most recent native anchor");
+        gui.m_inventoryRoot.gameObject.SetActive(true);
+        layer.Update(gui, panels["Quick"].transform, panels["Sort"].transform, tooltip);
+        tooltip.gameObject.SetActive(false);
+        layer.Update(gui, panels["Quick"].transform, panels["Sort"].transform, tooltip);
+        Check(tooltip.parent == anchor, "Inactive tooltip releases its layer ownership");
+        tooltip.gameObject.SetActive(true);
+
+        // Replacing the host restores the old card, even if native hide was vetoed.
+        layer.Update(gui, panels["Quick"].transform, panels["Sort"].transform, tooltip);
+        Transform next = new GameObject().transform;
+        next.parent = player;
+        layer.Update(gui, panels["Quick"].transform, panels["Sort"].transform, next);
+        Check(tooltip.parent == anchor && next.parent == gui.m_inventoryRoot, "Host replacement restores previous host only");
+        layer.Update(gui, panels["Quick"].transform, panels["Sort"].transform, null);
+        Check(next.parent == player, "Absent native host safely clears the current ownership");
+
+        // Foreign popups and already-elevated Canvas children are never adopted.
+        layer.Update(gui, panels["Quick"].transform, panels["Sort"].transform, tooltip);
+        tooltip.parent = panels["Popup"].transform;
+        layer.Restore();
+        Check(tooltip.parent == panels["Popup"].transform, "External reparent wins over restoration");
+        writes = Transform.SiblingWrites; parents = Transform.ParentWrites;
+        layer.Update(gui, panels["Quick"].transform, panels["Sort"].transform, tooltip);
+        Check(Transform.SiblingWrites == writes && Transform.ParentWrites == parents, "Foreign popup child is untouched");
+        Transform canvas = new GameObject().transform;
+        gui.m_inventoryRoot.parent = canvas;
+        tooltip.parent = canvas;
+        layer.Update(gui, panels["Quick"].transform, panels["Sort"].transform, tooltip);
+        Check(tooltip.parent == canvas && Transform.ParentWrites == parents, "Outer Canvas tooltip keeps its owner's layer");
+
+        foreach (string dialog in new[] { "Split", "Achievements", "Trophies", "Variant", "Skills", "Texts" })
+        {
+            (gui, panels) = CreateLayerFixture("Player", dialog, "Popup", "Quick", "Sort");
+            tooltip = panels["Tooltip"].transform;
+            tooltip.parent = panels["Player"].transform;
+            panels[dialog].SetActive(true);
+            layer.Update(gui, panels["Quick"].transform, panels["Sort"].transform, tooltip);
+            CheckLayerOrder(gui, panels, "Player", "Quick", "Sort", "Tooltip", dialog, "Popup");
+            layer.Restore();
+        }
+
+        (gui, panels) = CreateLayerFixture("Tooltip", "Player", "Quick", "Sort", "Popup");
+        tooltip = panels["Tooltip"].transform;
+        layer.Update(gui, panels["Quick"].transform, panels["Sort"].transform, tooltip);
+        CheckLayerOrder(gui, panels, "Player", "Quick", "Sort", "Tooltip", "Popup");
+        layer.Restore();
+        CheckLayerOrder(gui, panels, "Tooltip", "Player", "Quick", "Sort", "Popup");
     }
 
     private static (InventoryGui, Dictionary<string, GameObject>) CreateLayerFixture(params string[] order)
     {
         InventoryGui gui = new();
         Dictionary<string, GameObject> panels = new();
-        foreach (string name in new[] { "Player", "Container", "Quick", "Sort", "Info", "Crafting", "Split", "Achievements", "Trophies", "Variant", "Skills", "Texts", "Popup" })
+        foreach (string name in new[] { "Player", "Container", "Quick", "Sort", "Info", "Crafting", "Split", "Achievements", "Trophies", "Variant", "Skills", "Texts", "Popup", "Tooltip", "Rules", "Confirm" })
             panels[name] = new GameObject();
         gui.m_player = panels["Player"].transform;
         gui.m_container = panels["Container"].transform;

@@ -3,6 +3,7 @@ using UnityEngine;
 
 CraftingEntryTests.Run();
 ClosingLayoutTests.Run();
+CraftingTabLayoutTests.Run();
 InventorySlotsPlugin.CheckFrames();
 
 namespace InventorySlots

@@ -31,6 +31,7 @@ public sealed partial class InventorySlotsPlugin
     private static InventoryGui? _povCraftingGui;
     private static RectTransformSnapshot? _povRadiusOriginal;
     private static RectTransformSnapshot? _povTabOriginal;
+    private static RectTransformSnapshot? _povVneiTabOriginal;
     private static readonly Dictionary<ItemData, PoVCraftingPreview> PoVCraftingPreviews = new();
 
     private sealed class PoVCraftingPreview
@@ -314,41 +315,73 @@ public sealed partial class InventorySlotsPlugin
 
     private static void LayoutPathOfValheimanCraftingTab(InventoryGui gui)
     {
-        if (_povSalvageTab == null || gui != InventoryGui.instance || gui.m_tabCraft == null) return;
+        if (_povSalvageTab == null || _instance == null || !_instance.isActiveAndEnabled ||
+            gui == null || gui != InventoryGui.instance || gui.m_tabCraft == null ||
+            gui.m_tabCraft.transform is not RectTransform craft || !craft.gameObject.activeInHierarchy) return;
         try
         {
+            Transform parent = craft.parent;
+            if (parent == null) return;
             Button? tab = _povSalvageTab();
-            if (tab == null || !tab.gameObject.activeInHierarchy || tab.transform is not RectTransform rect ||
-                rect.parent != gui.m_tabCraft.transform.parent) return;
+            RectTransform? salvage = tab != null ? tab.transform as RectTransform : null;
+            if (salvage == null || salvage.parent != parent || !salvage.gameObject.activeInHierarchy) salvage = null;
+            // VNEI 0.17.6 creates this direct tab child; its displayed name is configurable.
+            // Do not scan all loaded types or treat its nested content/buttons as tabs.
+            RectTransform? vnei = parent.Find("VNEI") as RectTransform;
+            if (vnei == null || !vnei.gameObject.activeInHierarchy || vnei.GetComponent<Button>() == null) vnei = null;
+            if (salvage == null && vnei == null) return;
             _povCraftingGui = gui;
-            if (_povTabOriginal == null || _povTabOriginal.Rect != rect) _povTabOriginal = new RectTransformSnapshot(rect);
-            Transform parent = rect.parent;
-            Transform? vnei = null;
-            float right = float.NegativeInfinity;
+            float top = GetCraftingTabEdge(parent, craft, right: false).y;
+            float right = GetCraftingTabEdge(parent, craft, right: true).x;
             for (int i = 0; i < parent.childCount; i++)
             {
                 Transform child = parent.GetChild(i);
-                if (child == rect || child is not RectTransform other || !child.gameObject.activeInHierarchy ||
+                if (child == salvage || child == vnei || child is not RectTransform other || !child.gameObject.activeInHierarchy ||
                     child.GetComponent<Button>() == null) continue;
-                if (IsVneiUiTransform(child, parent)) { vnei = child; continue; }
-                right = Mathf.Max(right, parent.InverseTransformPoint(other.TransformPoint(new Vector3(other.rect.xMax, 0f))).x);
+                // Respect other mods' tabs on this row, excluding controls on other rows.
+                Vector3 edge = GetCraftingTabEdge(parent, other, right: true);
+                if (Mathf.Abs(edge.y - top) <= 2f) right = Mathf.Max(right, edge.x);
             }
-            if (!float.IsNegativeInfinity(right))
+            if (salvage != null)
             {
-                float left = parent.InverseTransformPoint(rect.TransformPoint(new Vector3(rect.rect.xMin, 0f))).x;
-                if (Mathf.Abs(right + 4f - left) > 0.1f)
-                    rect.localPosition += new Vector3(right + 4f - left, 0f);
+                if (_povTabOriginal == null || _povTabOriginal.Rect != salvage) _povTabOriginal = new RectTransformSnapshot(salvage);
+                PlaceCraftingTab(parent, salvage, right + 4f, top);
+                right = GetCraftingTabEdge(parent, salvage, right: true).x;
             }
-            // VNEI positions itself after its preceding active sibling. PoV only
-            // moves its own tab, preserving other mods' callbacks and tab state.
             if (vnei != null)
             {
-                int index = vnei.GetSiblingIndex();
-                int target = rect.GetSiblingIndex() < index ? index - 1 : index;
-                if (rect.GetSiblingIndex() != target) rect.SetSiblingIndex(target);
+                if (_povVneiTabOriginal == null || _povVneiTabOriginal.Rect != vnei) _povVneiTabOriginal = new RectTransformSnapshot(vnei);
+                if (salvage != null)
+                {
+                    int index = vnei.GetSiblingIndex();
+                    int target = salvage.GetSiblingIndex() < index ? index - 1 : index;
+                    if (salvage.GetSiblingIndex() != target) salvage.SetSiblingIndex(target);
+                }
+                // Reconcile VNEI too, including when the station-only salvage tab is hidden.
+                // Local visual edges avoid copying anchoredPosition between unlike anchors.
+                PlaceCraftingTab(parent, vnei, right + 4f, top);
             }
         }
         catch (Exception error) { WarnPathOfValheimanCrafting(error); }
+    }
+
+    private static Vector3 GetCraftingTabEdge(Transform parent, RectTransform tab, bool right) =>
+        parent.InverseTransformPoint(tab.TransformPoint(new Vector3(right ? tab.rect.xMax : tab.rect.xMin, tab.rect.yMax, 0f)));
+
+    private static void PlaceCraftingTab(Transform parent, RectTransform tab, float left, float top)
+    {
+        Vector3 edge = GetCraftingTabEdge(parent, tab, right: false);
+        Vector3 offset = new(left - edge.x, top - edge.y, 0f);
+        if (Mathf.Abs(offset.x) > 0.1f || Mathf.Abs(offset.y) > 0.1f) tab.localPosition += offset;
+    }
+
+    private static void RestorePathOfValheimanCraftingTabs()
+    {
+        Transform? parent = _povCraftingGui?.m_tabCraft != null ? _povCraftingGui.m_tabCraft.transform.parent : null;
+        // A recreated/destroyed tab or a foreign reparent is no longer ours to restore.
+        if (parent != null && _povTabOriginal?.Rect != null && _povTabOriginal.Rect.parent == parent) _povTabOriginal.Restore();
+        if (parent != null && _povVneiTabOriginal?.Rect != null && _povVneiTabOriginal.Rect.parent == parent) _povVneiTabOriginal.Restore();
+        _povTabOriginal = _povVneiTabOriginal = null;
     }
 
     private static void ClearPathOfValheimanCraftingPreviews() => PoVCraftingPreviews.Clear();
@@ -375,8 +408,7 @@ public sealed partial class InventorySlotsPlugin
         if (gui != null && gui != _povCraftingGui) return;
         ClearPathOfValheimanCraftingPreviews();
         RestorePathOfValheimanRadiusButton(gui);
-        _povTabOriginal?.Restore();
-        _povTabOriginal = null;
+        RestorePathOfValheimanCraftingTabs();
         if (_povReturnsRow != null) UnityEngine.Object.Destroy(_povReturnsRow.gameObject);
         _povReturnsRow = null;
         _povCraftingGui = null;
