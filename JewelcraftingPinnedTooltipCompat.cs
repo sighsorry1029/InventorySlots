@@ -120,6 +120,7 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
+        PinnedTooltips.Crafting.Host.Follow(keepOnTop: true);
         for (int i = 0; i < PinnedTooltips.Crafting.Panels.Length; i++)
         {
             RectTransform? panel = PinnedTooltips.Crafting.Panels[i];

@@ -437,7 +437,10 @@ public sealed partial class InventorySlotsPlugin
             return 0;
         }
 
-        string cacheKey = GetCraftingRequirementAvailabilityCacheKey(player, requirement, sharedName);
+        // Preserve Azu's existing policy, including a valid zero/leave-one result.
+        // Never sum two providers' views of the same chest contents.
+        int source = HasAzuCraftyBoxesCraftingSource() ? 1 : ValheimPlusCompat.CraftingActive ? 2 : 0;
+        string cacheKey = GetCraftingRequirementAvailabilityCacheKey(player, requirement, sharedName) + "|" + source;
         float now = Time.unscaledTime;
         if (CraftingRequirements.AvailabilityCache.TryGetValue(cacheKey, out CraftingRequirementAvailabilityCacheEntry cached) &&
             cached.ExpiresAt >= now)
@@ -447,7 +450,10 @@ public sealed partial class InventorySlotsPlugin
 
         Inventory inventory = player.GetInventory();
         int amount = inventory?.CountItems(sharedName, -1, true) ?? 0;
-        amount += GetAzuCraftyBoxesAvailableCraftingRequirementAmount(requirement, sharedName);
+        if (source == 1)
+            amount += GetAzuCraftyBoxesAvailableCraftingRequirementAmount(requirement, sharedName);
+        else if (source == 2 && ValheimPlusCompat.TryGetCraftingStock(amount, requirement, player, out int stock))
+            amount = stock;
         CraftingRequirements.AvailabilityCache[cacheKey] = new CraftingRequirementAvailabilityCacheEntry(
             amount,
             now + CraftingRequirementAvailabilityCacheSeconds);

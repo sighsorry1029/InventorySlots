@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.24
+
+- Added ValheimPlus compatibility that keeps player inventory rows under InventorySlots control and prevents V+'s MoveAll premerge from bypassing item metadata and freshness rules. V+'s chest, cart and ship size settings remain unchanged.
+- Prevented V+'s additional AutoStack sweep from competing with InventorySlots nearby actions while preserving the initial native StackAll transfer. Added V+ CraftFromChest counts to crafting material displays, with AzuCraftyBoxes taking priority when available to avoid counting the same chest twice.
+- Ordered the automatic-pickup capacity optimization before V+'s carry-limit override, preserving its automatic pickup while encumbered option. Compatibility checks apply independently to each V+ integration and leave unrelated features running when a contract cannot be verified.
+- Fixed crafting and upgrade pinned tooltips appearing behind S sort buttons on either side. Preserved panel position, scale, visibility, tab/close cleanup and Jewelcrafting content updates; native split and confirmation dialogs remain above the cards.
+- Added original-DLL Mono compatibility checks and tooltip layout/lifecycle regressions. Build and automated checks pass; actual game UI and multiplayer validation remain required.
+
 ## 1.6.23
 
 - Fixed Path of Valheiman item tooltips remaining behind inventory, equipment and quick-slot panels when the shared tooltip was created under an outer Canvas. Verified PoV item cards now follow the inventory's display order, above panels and below split/confirmation dialogs.

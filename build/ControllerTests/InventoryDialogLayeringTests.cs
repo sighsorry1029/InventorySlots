@@ -79,9 +79,15 @@ internal static partial class Program
         foreach (string dialog in new[] { "Split", "Achievements", "Trophies", "Variant", "Skills", "Texts" })
         {
             (gui, panels) = CreateLayerFixture("Player", dialog, "Popup", "Sort", "Container", "Quick");
+            Transform pinHost = new GameObject().transform;
+            pinHost.parent = panels["Sort"].transform;
+            Transform pinnedCard = new GameObject().transform;
+            pinnedCard.parent = pinHost;
             panels[dialog].SetActive(true);
             InventorySlots.InventoryDialogLayering.Update(gui, panels["Quick"].transform, panels["Sort"].transform);
             CheckLayerOrder(gui, panels, "Player", "Container", "Quick", "Sort", dialog, "Popup");
+            Check(pinHost.parent == panels["Sort"].transform && pinnedCard.parent == pinHost,
+                "Raised crafting pins remain below " + dialog + " without moving their coordinate host");
         }
 
         (gui, panels) = CreateLayerFixture("Sort", "Player", "Quick", "Container", "Popup");

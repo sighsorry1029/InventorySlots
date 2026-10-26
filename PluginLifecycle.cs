@@ -27,6 +27,7 @@ public sealed partial class InventorySlotsPlugin
             InitializeEpicLootStacking();
             InitializeYamlSync();
 
+            InitializeValheimPlusCompatibility();
             _harmony.PatchAll();
             InitializePathOfValheimanCompatibility();
             ApplyMyLittleUICraftingCompatibility();
@@ -150,6 +151,7 @@ public sealed partial class InventorySlotsPlugin
         SetActionPanelActive(InventoryPanels.SortButtonLayer, true);
         InventoryPanels.PlayerSortHost.Follow();
         InventoryPanels.ContainerSortHost.Follow();
+        PinnedTooltips.Crafting.Host.Follow(keepOnTop: true);
 
         RectTransform? quickPanel = null;
         if (gui.m_playerGrid != null)
@@ -169,6 +171,7 @@ public sealed partial class InventorySlotsPlugin
 
     private void OnDisable()
     {
+        SetActionPanelActive(PinnedTooltips.Crafting.Host.Rect, false);
         PathOfValheimanTooltipLayer.Restore();
         RestorePathOfValheimanCraftingTabs();
         ClearQuickSlotsHud();

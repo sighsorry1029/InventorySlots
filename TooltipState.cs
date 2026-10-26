@@ -25,6 +25,7 @@ public sealed partial class InventorySlotsPlugin
 
     private sealed class CraftingPinnedTooltipRuntimeState
     {
+        public readonly InventoryOverlayHost Host = new();
         public readonly RectTransform?[] Panels = new RectTransform?[PinnedTooltipSlotCount];
         public readonly Image?[] Icons = new Image?[PinnedTooltipSlotCount];
         public readonly TMP_Text?[] Texts = new TMP_Text?[PinnedTooltipSlotCount];

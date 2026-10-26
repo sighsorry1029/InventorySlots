@@ -35,6 +35,7 @@ namespace InventorySlots;
 [BepInDependency(TooltipExpansionGuid, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency(CurrencyPocketGuid, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency(MyLittleUIGuid, BepInDependency.DependencyFlags.SoftDependency)]
+[BepInDependency(ValheimPlusGuid, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency(RecycleNReclaimGuid, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency(VeiledRecipesGuid, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency(CircletExtendedGuid, BepInDependency.DependencyFlags.SoftDependency)]

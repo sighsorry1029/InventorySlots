@@ -117,7 +117,7 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        RectTransform host = EnsureSortButtonHost(gui, InventoryPanels.PlayerSortHost, playerGrid.m_gridRoot, "PlayerSortHost");
+        RectTransform host = EnsureInventoryOverlayHost(gui, InventoryPanels.PlayerSortHost, playerGrid.m_gridRoot, "PlayerSortHost");
         InventoryPanels.InventorySortPanel = EnsureActionPanel(host, InventorySortPanelName, InventoryPanels.InventorySortPanel);
         if (InventoryPanels.InventorySortPanel == null)
         {
@@ -295,7 +295,7 @@ public sealed partial class InventorySlotsPlugin
             return null;
         }
 
-        RectTransform host = EnsureSortButtonHost(InventoryGui.instance, InventoryPanels.ContainerSortHost, parent, "ContainerSortHost");
+        RectTransform host = EnsureInventoryOverlayHost(InventoryGui.instance, InventoryPanels.ContainerSortHost, parent, "ContainerSortHost");
         Button? sortButton = EnsureActionButton(host, template, "InventorySlots_SortButton", "S", () => SortCurrentContainer(Player.m_localPlayer));
         if (sortButton == null)
         {
@@ -315,10 +315,10 @@ public sealed partial class InventorySlotsPlugin
         return anchor.localPosition + new Vector3(direction * (GetRectWidth(anchor) * 0.5f + SortButtonOutsideGap + width * 0.5f), 0f, 0f) + offset;
     }
 
-    // Only the sort controls leave their original hierarchy. These two hosts
-    // preserve its coordinate system, animation, visibility and CanvasGroup input
-    // gates while allowing sibling ordering above the separate quick-slot panel.
-    private sealed class SortButtonHost
+    // Sort controls and crafting pins share a raised layer below native dialogs.
+    // Each host preserves its source panel's coordinate system, animation,
+    // visibility and CanvasGroup input gates without adding a sorting Canvas.
+    private sealed class InventoryOverlayHost
     {
         internal RectTransform? Rect;
         internal RectTransform? Source;
@@ -326,9 +326,11 @@ public sealed partial class InventorySlotsPlugin
         internal CanvasGroup? Group;
         internal CanvasGroup[] SourceGroups = Array.Empty<CanvasGroup>();
 
-        internal void Follow()
+        internal void Follow(bool keepOnTop = false)
         {
             if (Rect == null) return;
+            if (keepOnTop && Rect.parent != null && Rect.GetSiblingIndex() != Rect.parent.childCount - 1)
+                Rect.SetAsLastSibling();
             bool active = Source != null && Source.gameObject.activeInHierarchy;
             SetActionPanelActive(Rect, active);
             if (!active) return;
@@ -336,7 +338,7 @@ public sealed partial class InventorySlotsPlugin
             if (Rect.sizeDelta != Source.rect.size) Rect.sizeDelta = Source.rect.size;
             if (Rect.position != Source.position) Rect.position = Source.position;
             if (Rect.rotation != Source.rotation) Rect.rotation = Source.rotation;
-            Vector3 sourceScale = Source.lossyScale, parentScale = Rect.parent.lossyScale;
+            Vector3 sourceScale = Source.lossyScale, parentScale = Rect.parent!.lossyScale;
             Vector3 scale = new(
                 Mathf.Abs(parentScale.x) > 0.0001f ? sourceScale.x / parentScale.x : 1f,
                 Mathf.Abs(parentScale.y) > 0.0001f ? sourceScale.y / parentScale.y : 1f,
@@ -367,7 +369,7 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
-    private static RectTransform EnsureSortButtonHost(InventoryGui gui, SortButtonHost host, RectTransform source, string name)
+    private static RectTransform EnsureInventoryOverlayHost(InventoryGui gui, InventoryOverlayHost host, RectTransform source, string name, bool keepOnTop = false)
     {
         if (InventoryPanels.SortButtonLayer == null || InventoryPanels.SortButtonLayer.parent != gui.m_inventoryRoot)
         {
@@ -392,7 +394,7 @@ public sealed partial class InventorySlotsPlugin
         }
         // Synchronize dimensions before assigning child local positions. LateUpdate
         // follows any subsequent native animation; unchanged values cause no writes.
-        host.Follow();
+        host.Follow(keepOnTop);
         return host.Rect!;
     }
 
@@ -403,6 +405,7 @@ public sealed partial class InventorySlotsPlugin
         InventoryPanels.ContainerSortButton = null;
         InventoryPanels.PlayerSortHost.Clear();
         InventoryPanels.ContainerSortHost.Clear();
+        PinnedTooltips.Crafting.Host.Clear();
     }
 
     private static float GetContainerSortButtonSize(InventoryGui gui)

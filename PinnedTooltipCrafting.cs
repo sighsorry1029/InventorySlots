@@ -198,7 +198,10 @@ public sealed partial class InventorySlotsPlugin
 
     private static RectTransform EnsureCraftingPinnedTooltipPanel(InventoryGui gui, int slot)
     {
-        RectTransform parent = gui.m_crafting;
+        // Keep the Crafting coordinate frame, but render outside its branch so
+        // sort controls cannot cover a pinned comparison card.
+        RectTransform parent = EnsureInventoryOverlayHost(gui, PinnedTooltips.Crafting.Host,
+            gui.m_crafting, "CraftingPinnedTooltips", keepOnTop: true);
         RectTransform panel = EnsurePinnedTooltipPanel(parent, CraftingPinnedTooltipNamePrefix + slot, PinnedTooltips.Crafting.Panels[slot]);
         PinnedTooltips.Crafting.Icons[slot] = EnsurePinnedTooltipIcon(panel);
         PinnedTooltips.Crafting.Texts[slot] = EnsurePinnedTooltipBodyText(panel, 16f);

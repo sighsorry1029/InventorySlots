@@ -26,6 +26,13 @@ before Hide and can still call UpdateInventory/UpdateRecipe in that frame.
 These native methods' existing Harmony patches skip that final update while
 the layout is pending. Other mods' postfixes still run.
 
+The pinned-tooltip regression executes the production overlay follower and
+crafting pin lifecycle with a managed hierarchy/translation/scale model. It
+checks the shared raised layer, delayed sort-control creation, stable sibling
+order, source visibility/opacity/input gates, coordinate preservation, tab
+switches and teardown. Rotation is copied but is not simulated geometrically.
+Native modal ordering is covered by the ControllerTests dialog-layer fixture.
+
 Unity and crafting operations are doubles. These checks are not a frame-time
 benchmark or a replacement for in-game crafting/refinement/controller testing.
 Also verify rapid Tab, death/logout while an input is focused, chest preview,

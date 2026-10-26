@@ -8,6 +8,9 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
+    private static bool HasAzuCraftyBoxesCraftingSource() =>
+        TryGetAzuCraftyBoxesApi(out AzuCraftyBoxesApi? api) && api != null && !api.ShouldPrevent();
+
     private static int GetAzuCraftyBoxesAvailableCraftingRequirementAmount(Requirement requirement, string sharedName)
     {
         Player? player = Player.m_localPlayer;

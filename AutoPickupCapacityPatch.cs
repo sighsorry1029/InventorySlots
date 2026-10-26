@@ -12,9 +12,9 @@ internal static class AutoPickupCapacityPatch
 {
     private static bool Prepare() => !InventorySlotsPlugin.IsDedicatedServer;
 
-    // Reorder the native checks before AdminQoL replaces the carry-limit call.
-    // Its later replacement still controls whether weight limits apply.
-    [HarmonyBefore("sighsorry.AdminQoL")]
+    // Reorder native checks before carry-limit overrides replace the call.
+    // Their later replacements still control whether weight limits apply.
+    [HarmonyBefore("sighsorry.AdminQoL", "mod.valheim_plus")]
     private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
     {
         List<CodeInstruction> code = instructions.Select(i => new CodeInstruction(i)).ToList();

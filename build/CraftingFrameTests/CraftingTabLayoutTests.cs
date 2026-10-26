@@ -50,6 +50,8 @@ public static class TabHost
     private static void UpdatePathOfValheimanTooltipLayer() { }
     private static class PathOfValheimanTooltipLayer { public static void Restore() { } }
     private sealed class Follower { public void Follow() { } }
+    private sealed class PinFollower { public void Follow(bool keepOnTop = false) { } }
+    private static class PinnedTooltips { public static class Crafting { public static PinFollower Host = new(); } }
     private static class InventoryPanels
     {
         public static RectTransform? SortButtonLayer;

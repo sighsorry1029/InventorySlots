@@ -222,6 +222,7 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
+        PinnedTooltips.Crafting.Host.Follow(keepOnTop: true);
         for (int slot = 0; slot < PinnedTooltips.Crafting.Panels.Length; slot++)
         {
             RectTransform? panel = PinnedTooltips.Crafting.Panels[slot];
@@ -276,6 +277,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void RefreshPinnedTooltipLayouts()
     {
+        PinnedTooltips.Crafting.Host.Follow(keepOnTop: true);
         for (int slot = 0; slot < PinnedTooltips.Inventory.Panels.Length; slot++)
         {
             RectTransform? panel = PinnedTooltips.Inventory.Panels[slot];
