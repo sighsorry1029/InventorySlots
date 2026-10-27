@@ -523,28 +523,39 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        if (!CanContinueCraftingQueue(gui))
-        {
-            ClearCraftingQueue();
-            return;
-        }
-
-        CraftingQueue.QueueRemaining--;
-        CraftingQueue.ContinuingQueue = true;
         int originalMultiCraftAmount = gui.m_multiCraftAmount;
         try
         {
+            if (!CanContinueCraftingQueue(gui))
+            {
+                ClearCraftingQueue();
+                return;
+            }
+
+            CraftingQueue.QueueRemaining--;
+            CraftingQueue.ContinuingQueue = true;
             gui.m_multiCraftAmount = 1;
             gui.OnCraftPressed();
-            gui.m_multiCrafting = false;
             if (gui.m_craftTimer < 0f)
             {
                 ClearCraftingQueue();
             }
         }
+        catch (Exception ex)
+        {
+            // Do not retry a failed step on every UI tick or roll back an item
+            // operation that another patch may already have started.
+            ClearCraftingQueue();
+            Log.LogWarning($"Stopped the remaining crafting queue after an error: {ex}");
+        }
         finally
         {
             gui.m_multiCraftAmount = originalMultiCraftAmount;
+            if (CraftingQueue.ContinuingQueue)
+            {
+                gui.m_multiCrafting = false;
+            }
+
             CraftingQueue.ContinuingQueue = false;
         }
     }

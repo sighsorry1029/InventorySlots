@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.25
+
+- Fixed repeated crafting errors when the requested craft count exceeds available materials. Queued crafting now checks requirements before calculating the next output, avoiding missing-ingredient errors for recipes such as Raw Fish after the last input is consumed.
+- Stop the remaining crafting queue after an unexpected validation or start error and log it once instead of retrying every UI tick. Restore temporary crafting-count state without rolling back items or a craft that has already started.
+- Preserved chest-material integrations and existing no-cost rules. Added regression checks for material exhaustion, chest-backed crafting, no-cost recipes, failed starts and queue cleanup; actual game validation remains required.
+
 ## 1.6.24
 
 - Added ValheimPlus compatibility that keeps player inventory rows under InventorySlots control and prevents V+'s MoveAll premerge from bypassing item metadata and freshness rules. V+'s chest, cart and ship size settings remain unchanged.

@@ -87,14 +87,18 @@ public sealed partial class InventorySlotsPlugin
         }
 
         int quality = 1;
-        int needsOnlyOneIngredient;
-        ItemData singleReqItem;
-        int amount = recipe.GetAmount(quality, out needsOnlyOneIngredient, out singleReqItem, 1);
         bool noCost = player.NoCostCheat() || ZoneSystem.instance.GetGlobalKey(GlobalKeys.NoCraftCost);
         if (!noCost && !player.HaveRequirements(recipe, discover: false, quality, 1))
         {
             return false;
         }
+
+        // Single-ingredient recipes derive their output from an actual input item.
+        // Check availability first; GetAmount can dereference null after the last
+        // input is consumed. Keep the patched resolver (including chest sources).
+        int needsOnlyOneIngredient;
+        ItemData singleReqItem;
+        int amount = recipe.GetAmount(quality, out needsOnlyOneIngredient, out singleReqItem, 1);
 
         bool canAdd;
         BeginCraftingInventoryLimitNotice();

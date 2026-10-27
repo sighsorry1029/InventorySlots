@@ -2,6 +2,7 @@ using InventorySlots;
 using UnityEngine;
 
 CraftingEntryTests.Run();
+CraftingQueueTests.Run();
 ClosingLayoutTests.Run();
 CraftingTabLayoutTests.Run();
 PinnedTooltipLayerTests.Run();
