@@ -12,6 +12,7 @@ public sealed partial class InventorySlotsPlugin
     private const string MultiUserChestGuid = "com.maxsch.valheim.MultiUserChest";
     private const string BetterArcheryGuid = "ishid4.mods.betterarchery";
     private const string AzuCraftyBoxesGuid = "Azumatt.AzuCraftyBoxes";
+    private const string CraftFromContainersGuid = "aedenthorn.CraftFromContainers";
     private const string EpicLootGuid = "randyknapp.mods.epicloot";
     private const string TooltipExpansionGuid = "Azumatt.TooltipExpansion";
     private const string JewelcraftingGuid = "org.bepinex.plugins.jewelcrafting";

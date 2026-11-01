@@ -26,6 +26,7 @@ namespace InventorySlots;
 [BepInIncompatibility("goldenrevolver.quick_stack_store")]
 [BepInDependency("treextr.pathofvalheiman", BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency("Azumatt.AzuCraftyBoxes", BepInDependency.DependencyFlags.SoftDependency)]
+[BepInDependency(CraftFromContainersGuid, BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency("org.bepinex.plugins.jewelcrafting", BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency("vapok.mods.adventurebackpacks", BepInDependency.DependencyFlags.SoftDependency)]
 [BepInDependency("org.bepinex.plugins.backpacks", BepInDependency.DependencyFlags.SoftDependency)]
