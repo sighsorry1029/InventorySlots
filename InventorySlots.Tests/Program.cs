@@ -68,6 +68,8 @@ TestRunner.Run(
     ("Crafting List scroll windows expose the final recipe without an empty tail", CraftingViewTests.ListScrollWindows),
     ("Crafting List selection reveal retains the visible window", CraftingViewTests.ListSelectionReveal),
     ("Crafting view switches reveal the same filtered recipe", CraftingViewTests.SwitchKeepsSelectedRecipe),
+    ("Crafting row/page scrolling covers all recipes and clamps both ends", CraftingViewTests.ScrollModesCoverEveryRecipe),
+    ("Crafting grid reveal and zoom preserve the visible selection", CraftingViewTests.GridRevealAndZoomKeepSelectionVisible),
     ("Jewelcrafting socket actions refresh and guard the selected recipe pair", Tests.JewelcraftingSocketActionsRefreshAndGuardSelectedRecipePair),
     ("Client state normalize creates missing roots", Tests.ClientStateNormalizeCreatesMissingRoots),
     ("Client state YAML preserves unset and saved HUD positions", Tests.ClientStateHudPositionRoundTrips),
@@ -1141,6 +1143,11 @@ internal static class Tests
         Assert.Equal(64f, savedAgain.QuickSlotsHudPosition!.X);
         Assert.Equal(-520f, savedAgain.QuickSlotsHudPosition.Y);
         Assert.Equal(62f, savedAgain.QuickSlotsHudElementSpace);
+        saved.Inventory.QuickSlotsPanelPosition = new(ClientStateCore.DefaultQuickSlotsPanelX, ClientStateCore.DefaultQuickSlotsPanelY);
+        saved.Inventory.QuickSlotsPanelManuallyPlaced = true;
+        var placedAgain = ClientStateCore.Normalize(deserializer.Deserialize<InventorySlotsClientState>(serializer.Serialize(saved))).Inventory;
+        Assert.True(placedAgain.QuickSlotsPanelManuallyPlaced, "explicit placement at default coordinates must survive reload without reapplying PoV ring spacing");
+        Assert.Equal(ClientStateCore.DefaultQuickSlotsPanelY, placedAgain.QuickSlotsPanelPosition.Y);
     }
 
     public static void ClientStateNormalizeTrimsPlayersAndLists()
@@ -3501,7 +3508,7 @@ internal static class Tests
         Assert.True(
             lifecycle.Contains("RefreshActiveDynamicTooltipText();", StringComparison.Ordinal) &&
             pinned.Contains("panel.gameObject.activeInHierarchy", StringComparison.Ordinal) &&
-            pinned.Contains("string.Equals(text.text, nextText, StringComparison.Ordinal)", StringComparison.Ordinal) &&
+            CountSourceOccurrences(pinned, "if (!SetPinnedTooltipContent(panel, text, topic, nextText))") == 2 &&
             CountSourceOccurrences(pinned, "resetScroll: false") >= 2,
             "only visible changed pinned text should be applied without resetting scroll");
         Assert.True(

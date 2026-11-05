@@ -3,9 +3,13 @@ using UnityEngine;
 
 CraftingEntryTests.Run();
 CraftingQueueTests.Run();
+CraftingScrollInputTests.Run();
 ClosingLayoutTests.Run();
 CraftingTabLayoutTests.Run();
+CraftingCellLayerTests.Run();
 PinnedTooltipLayerTests.Run();
+PinnedTooltipHeaderTests.Run();
+PanelDragTests.Run();
 InventorySlotsPlugin.CheckFrames();
 
 namespace InventorySlots
@@ -46,7 +50,7 @@ namespace InventorySlots
         private static int GetSelectedCraftingRecipeIndexSafe(InventoryGui gui) => Selection;
         private static string GetCraftingRecipeViewSignature(InventoryGui gui, CraftingTabAdapterState adapter) => View;
         private static int GetCraftingRecipeGridDimension() => 4;
-        private static int GetCraftingRecipePageStart() => _craftingRecipePage * 16;
+        private static int GetCraftingRecipePageStart() => _craftingRecipePage * 4;
         private static int GetCraftingRecipeGridAvailabilityHash(InventoryGui gui, int start, CraftingTabAdapterState adapter) => Availability;
         private static bool HasNoCraftCost() => NoCost;
         private static string GetCraftingPinnedTooltipGridSignature() => Pins;
@@ -61,6 +65,7 @@ namespace InventorySlots
         private static void UpdateCraftingRecipeGridZoomHint(InventoryGui gui, RectTransform grid) { }
         private static void UpdateCraftingTooltipRecipeOverlay(InventoryGui gui) { }
         private static void UpdateCraftingViewControls(InventoryGui gui, RectTransform grid, CraftingTabAdapterState adapter) { }
+        private static void LayoutCraftingStationLevel(InventoryGui gui) { }
         private static void RepairCraftingPinnedTooltipTextVisibility() => Repairs++;
 
         private static void Check(bool ok, string name)

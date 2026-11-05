@@ -16,6 +16,7 @@ public sealed partial class InventorySlotsPlugin
     private const float CraftingHoverTooltipScrollSensitivity = 96f;
     private const float CraftingHoverTooltipMinBodyHeight = 80f;
     private const float CraftingHoverTooltipMaxPanelHeight = 720f;
+    private const float CraftingHoverTooltipIconSize = 64f;
 
     private static void UpdateCraftingTooltipRecipeOverlay(InventoryGui gui)
     {
@@ -56,6 +57,7 @@ public sealed partial class InventorySlotsPlugin
         bool showDetails = mode == CraftingHoverTooltipMode.Full;
         CraftingHoverTooltipContent content = GetCraftingHoverTooltipContent(pair, showDetails);
         bool veiledMasked = IsVeiledRecipeMasked(pair);
+        bool showIcon = UpdateCraftingHoverTooltipIcon(showDetails ? GetCraftingRecipeIcon(pair) : null, veiledMasked);
         ItemData? jewelcraftingTooltipItem = showDetails && !veiledMasked ? GetCraftingJewelcraftingTooltipItem(pair) : null;
         string gemSignature = GetCraftingHoverGemIconSignature(jewelcraftingTooltipItem);
         List<JewelcraftingGemIconData> gemIcons = GetCraftingHoverGemIcons(jewelcraftingTooltipItem, gemSignature);
@@ -79,7 +81,7 @@ public sealed partial class InventorySlotsPlugin
 
         float height = showDetails ? effectiveSlotSize + padding * 2f + (hasGemRow ? gemGap + effectiveGemIconSize : 0f) : 0f;
         RectTransform overlay = EnsureCraftingTooltipRecipeOverlay(tooltipRect, panel);
-        LayoutCraftingHoverTooltipPanel(panel, overlay, overlayWidth, height, padding, showBody: showDetails && !string.IsNullOrWhiteSpace(content.Body), showOverlay: showDetails);
+        LayoutCraftingHoverTooltipPanel(panel, overlay, overlayWidth, height, padding, showBody: showDetails && !string.IsNullOrWhiteSpace(content.Body), showOverlay: showDetails, showIcon: showIcon);
         DisableCraftingTooltipRecipeOverlayBackground(overlay.GetComponent<Image>());
 
         panel.position = ZInput.pointerPosition;
@@ -275,6 +277,11 @@ public sealed partial class InventorySlotsPlugin
 
         ApplyCraftingHoverTooltipBackground(CraftingUi.HoverTooltip.AddComponent<Image>());
 
+        Image icon = CreateTopLeftImageChild("Icon", panel, Color.white, true).GetComponent<Image>();
+        icon.raycastTarget = false;
+        icon.preserveAspect = true;
+        CraftingUi.HoverTooltipIcon = icon;
+
         CreateTextRect("Topic", panel, out TMP_Text topic);
         ApplyTooltipSourceFont(topic, "Topic");
         topic.alignment = TextAlignmentOptions.Center;
@@ -333,9 +340,21 @@ public sealed partial class InventorySlotsPlugin
         return true;
     }
 
-    private static void LayoutCraftingHoverTooltipPanel(RectTransform panel, RectTransform overlay, float width, float overlayHeight, float padding, bool showBody, bool showOverlay)
+    private static bool UpdateCraftingHoverTooltipIcon(Sprite? sprite, bool veiledMasked)
     {
-        string signature = GetCraftingHoverTooltipLayoutSignature(width, overlayHeight, padding, showBody, showOverlay);
+        Image? icon = CraftingUi.HoverTooltipIcon;
+        if (icon == null) return false;
+        bool showIcon = sprite != null;
+        if (icon.sprite != sprite) icon.sprite = sprite;
+        Color color = veiledMasked ? Color.black : Color.white;
+        if (icon.color != color) icon.color = color;
+        if (icon.gameObject.activeSelf != showIcon) icon.gameObject.SetActive(showIcon);
+        return showIcon;
+    }
+
+    private static void LayoutCraftingHoverTooltipPanel(RectTransform panel, RectTransform overlay, float width, float overlayHeight, float padding, bool showBody, bool showOverlay, bool showIcon)
+    {
+        string signature = GetCraftingHoverTooltipLayoutSignature(width, overlayHeight, padding, showBody, showOverlay, showIcon);
         if (string.Equals(CraftingUi.HoverTooltipLayoutSignature, signature, StringComparison.Ordinal))
         {
             ApplyCraftingHoverTooltipScrollPosition();
@@ -345,6 +364,8 @@ public sealed partial class InventorySlotsPlugin
         float topicGap = showBody ? 6f : 0f;
         float rowGap = showOverlay ? 8f : 0f;
         float textWidth = Mathf.Max(40f, width - padding * 2f);
+        float iconInset = showIcon ? CraftingHoverTooltipIconSize + 8f : 0f;
+        float topicWidth = Mathf.Max(40f, textWidth - iconInset);
         float topicHeight = 0f;
         float bodyHeight = 0f;
         float bodyPreferredHeight = 0f;
@@ -353,7 +374,8 @@ public sealed partial class InventorySlotsPlugin
         {
             TMP_Text topic = CraftingUi.HoverTooltipTopic;
             topic.gameObject.SetActive(true);
-            topic.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, textWidth);
+            topic.alignment = showIcon ? TextAlignmentOptions.MidlineLeft : TextAlignmentOptions.Center;
+            topic.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, topicWidth);
             topic.ForceMeshUpdate(ignoreActiveState: true, forceTextReparsing: false);
             topicHeight = Mathf.Max(28f, topic.preferredHeight);
         }
@@ -371,7 +393,8 @@ public sealed partial class InventorySlotsPlugin
             }
         }
 
-        float bodyTop = padding + topicHeight + topicGap;
+        float headerHeight = Mathf.Max(topicHeight, showIcon ? CraftingHoverTooltipIconSize : 0f);
+        float bodyTop = padding + headerHeight + topicGap;
         float fixedHeight = bodyTop + rowGap + (showOverlay ? overlayHeight : 0f) + padding;
         if (showBody)
         {
@@ -389,8 +412,14 @@ public sealed partial class InventorySlotsPlugin
 
         if (CraftingUi.HoverTooltipTopic != null && !IsUnityNull(CraftingUi.HoverTooltipTopic))
         {
-            LayoutCraftingHoverTextRect(CraftingUi.HoverTooltipTopic.rectTransform, padding, padding, topicHeight);
+            SetTopLeftRectLayout(panel, CraftingUi.HoverTooltipTopic.rectTransform,
+                new Vector2(padding + iconInset, -padding), new Vector2(topicWidth, headerHeight));
         }
+
+        if (showIcon && CraftingUi.HoverTooltipIcon != null)
+            SetTopLeftRectLayout(panel, CraftingUi.HoverTooltipIcon.rectTransform,
+                new Vector2(padding, -padding - (headerHeight - CraftingHoverTooltipIconSize) * 0.5f),
+                new Vector2(CraftingHoverTooltipIconSize, CraftingHoverTooltipIconSize));
 
         if (CraftingUi.HoverTooltipText != null && !IsUnityNull(CraftingUi.HoverTooltipText))
         {
@@ -414,7 +443,7 @@ public sealed partial class InventorySlotsPlugin
         CraftingUi.HoverTooltipLayoutSignature = signature;
     }
 
-    private static string GetCraftingHoverTooltipLayoutSignature(float width, float overlayHeight, float padding, bool showBody, bool showOverlay)
+    private static string GetCraftingHoverTooltipLayoutSignature(float width, float overlayHeight, float padding, bool showBody, bool showOverlay, bool showIcon)
     {
         return string.Join(
             "|",
@@ -426,18 +455,8 @@ public sealed partial class InventorySlotsPlugin
             overlayHeight.ToString("0.###"),
             padding.ToString("0.###"),
             showBody,
-            showOverlay);
-    }
-
-    private static void LayoutCraftingHoverTextRect(RectTransform rect, float horizontalPadding, float top, float height)
-    {
-        rect.anchorMin = new Vector2(0f, 1f);
-        rect.anchorMax = new Vector2(1f, 1f);
-        rect.pivot = new Vector2(0.5f, 1f);
-        rect.anchoredPosition = new Vector2(0f, -top);
-        rect.sizeDelta = new Vector2(-horizontalPadding * 2f, height);
-        rect.localScale = Vector3.one;
-        rect.localRotation = Quaternion.identity;
+            showOverlay,
+            showIcon);
     }
 
     private static RectTransform EnsureCraftingHoverTooltipTextScrollContent(RectTransform panel, TMP_Text text)

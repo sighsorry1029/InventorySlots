@@ -1,4 +1,73 @@
-# EpicLoot stacking integration — 2026-09-26
+# EpicLoot stacking integration
+
+## Modern MagicItemData adapter — 2026-11-05
+
+InventorySlots 1.7.0 and InventoryActions 1.2.0 bind either the complete
+legacy public `ItemInfo` contract below or, when both legacy types are absent,
+`EpicLoot.MagicItemData.StacksWith(ItemData existing, ItemData item)`. The supplied
+EpicLoot **0.15.6** has removed `EpicLoot.Data.ItemInfo` and `ItemExtensions`.
+Its assembly version is still 0.13.0.0; the BepInPlugin version is 0.15.6.
+
+- The modern method is **internal static**, not a public integration API. Resolve
+  its exact declared signature once and bind an explicit delegate. Call the
+  destination first, source second. No hard EpicLoot reference, publicization,
+  copied rule implementation, version allowlist or full-DLL hash gate is added.
+- Modern approval returns no merged keys. Slots' registered metadata guards and
+  composers remain in charge of foreign fields; Actions retains exact equality
+  for unmerged EpicLoot-item metadata. Actions deliberately does not broaden that
+  policy: its EpicLoot transfers bypass the general Actions metadata composer.
+- The inspected predicate compares raw magic-component data and does not write
+  metadata. This is **not** a promise that EpicLoot classification is read-only:
+  `IsMagicItem -> Get/Resolve -> MagicItemComponent.Reload` can normalize its own
+  serialized data, fix effect values and synchronize Indestructible state.
+- Partial legacy APIs or missing/malformed modern methods are rejected. Existing
+  exception handling disables only this adapter, not inventory use, saving or
+  joining. No per-pair reflection or new item cache is introduced.
+- Native positional transfer, actual movement accounting, identity checks,
+  favorites and slot restrictions remain unchanged. HarmonyX runs all prefixes;
+  modern EpicLoot's lookup respects `__runOriginal`, so no extra patch-order
+  override or removal of another mod's patches is required for this pair.
+- The reviewed FourPlayer bridge is not needed for 0.15.6 and skips it anyway.
+  That bridge still intercepts InventorySlots 1.6.25 with EpicLoot 0.15.4/0.15.5;
+  running that older combination may replace this adapter with its stricter
+  all-metadata-equal rule. This patch does not disable the third-party bundle.
+
+Original EpicLoot SHA-256:
+`3BD349EEA71565B43EF7B70D656926039EFDACEC1FD0AEEE97D30787571BDD58`.
+Input: Gale `qwerqwer/BepInEx/plugins/RandyKnapp-EpicLoot/EpicLoot.dll`.
+Original game input: global reference snapshot
+`client-b26249040-windows-x64-20261029T094619Z-depot-restored`, Valheim 1.0.21.
+
+Validation:
+
+- Baseline shared-source tests: Actions 44 / Slots 47; baseline and final Debug
+  mod builds: zero warnings/errors. Existing production publicizer configuration
+  is retained; original DLLs are used for metadata and isolated runtime checks.
+- Modern fixtures + supplied original DLL contracts: Actions **57**, Slots **60**
+  checks. Legacy fixtures: Actions **50**, Slots **53**. Covers native veto and
+  partial transfer, owner guards, unknown data, binding failure and unrelated
+  assembly version/identity changes. Native movement in these fixtures is fake.
+- Both final merged DLLs: **18 checks each** on original Valheim x64 Mono with
+  the supplied original EpicLoot. Real internal delegate invocation, raw magic
+  data approval/rejection and metadata preservation passed. The real EpicLoot
+  lookup prefix preserves a rejecting boundary stand-in in either registration
+  order. This does not execute the complete Slots placement policy or plugin
+  lifecycle. Both processes exited 0 and completed Mono cleanup.
+- Static original-game checks: Slots 1,157 references / 164 Harmony targets /
+  52 reflected contracts, Actions 665 / 51 / 7; zero failures. Existing manual
+  entries remain 10 / 2. The modern internal endpoint is additionally checked by
+  the dedicated tests above.
+- Final Debug DLLs were deployed to the Steam game's plugins directory and
+  matched by SHA-256. Manifest BepInEx dependencies were corrected to 5.4.2360.
+  The initial adapter validation kept mod versions unchanged and did not create
+  Release ZIPs. The adapter is included in the 1.7.0 / 1.2.0 releases.
+
+Actual game pickup, sorting, restock, Unity UI, optional-mod combinations and
+multiplayer/server execution remain untested. No gameplay performance claim is
+made. The older public contract remains fixture-tested; this run did not execute
+an older EpicLoot DLL.
+
+## Original ItemInfo integration — 2026-09-26
 
 InventorySlots 1.5.15 and InventoryActions 1.1.8 share an optional stacking
 adapter in `Shared/Sorting/EpicLootStacking.cs`. No EpicLoot binary is linked or

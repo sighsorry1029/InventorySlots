@@ -158,6 +158,7 @@
         <Content Include="Thunderstore\manifest.json"/>
         <EmbeddedResource Include="translations\English.yml"/>
         <EmbeddedResource Include="translations\Korean.yml"/>
+        <EmbeddedResource Include="Assets\QuickSlotsRadial.png" LogicalName="InventorySlots.QuickSlotsRadial.png"/>
     </ItemGroup>
     <ItemGroup>
         <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.2" PrivateAssets="all" />

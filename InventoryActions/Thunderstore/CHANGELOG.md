@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0
+
+- Restored EpicLoot material stacking with the modern MagicItemData contract, including EpicLoot 0.15.6, while retaining the legacy adapter. EpicLoot must approve the pair and additional metadata must match; this does not broaden InventoryActions' metadata policy or delete item data.
+- Preserved item identity, favorites, native transfer vetoes and partial-transfer accounting. Missing or incomplete EpicLoot contracts disable only this integration, with no hard EpicLoot dependency.
+- Restock, Auto Pickup Exclude and Trash buttons now default to On, keeping all three visible. Auto and Off remain available, and existing saved choices are respected.
+- Updated the BepInExPack dependency to 5.4.2360 and checked compiled contracts against original Valheim 1.0.21 assemblies. Added modern and legacy stacking regression coverage and isolated Mono checks against the original EpicLoot DLL; actual game UI and multiplayer validation remain required.
+
 ## 1.1.24
 
 - Updated release version metadata and rebuilt the packages. No gameplay, configuration or compatibility logic changes from 1.1.23.

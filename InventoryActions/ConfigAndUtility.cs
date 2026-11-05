@@ -95,11 +95,11 @@ public sealed partial class InventoryActionsPlugin
                     CustomDrawer = DrawButtonPositionOffsetConfig
                 }),
             synchronizedSetting: false);
-        _restockButtonMode = ConfigEntry(InventoryButtonsConfigSection, "Restock Button", InventoryButtonMode.Auto,
+        _restockButtonMode = ConfigEntry(InventoryButtonsConfigSection, "Restock Button", InventoryButtonMode.On,
             new ConfigDescription(RuleButtonModeDescription, null, new ConfigurationManagerAttributes { Order = 900 }), synchronizedSetting: false);
-        _autoPickupButtonMode = ConfigEntry(InventoryButtonsConfigSection, "Auto Pickup Exclude Button", InventoryButtonMode.Auto,
+        _autoPickupButtonMode = ConfigEntry(InventoryButtonsConfigSection, "Auto Pickup Exclude Button", InventoryButtonMode.On,
             new ConfigDescription(RuleButtonModeDescription, null, new ConfigurationManagerAttributes { Order = 870 }), synchronizedSetting: false);
-        _trashButtonMode = ConfigEntry(InventoryButtonsConfigSection, "Trash Button", InventoryButtonMode.Auto,
+        _trashButtonMode = ConfigEntry(InventoryButtonsConfigSection, "Trash Button", InventoryButtonMode.On,
             new ConfigDescription(TrashButtonModeDescription, null, new ConfigurationManagerAttributes { Order = 850 }), synchronizedSetting: false);
         _showRuleTooltips = ConfigEntry(InventoryButtonsConfigSection, "Show Rule Tooltips", Toggle.On,
             new ConfigDescription("Show hover help for controls in the Restock targets and Auto pickup exclusions panels and restock-entry controls in F1. Applies immediately. Item information tooltips and Configuration Manager setting descriptions remain available.",

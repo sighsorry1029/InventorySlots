@@ -60,7 +60,6 @@ public sealed partial class InventorySlotsPlugin
         {
             if (!IsInventoryClosingLayoutPending(InventoryGui.instance))
                 UpdateMyLittleUICraftingObjectSuppression(InventoryGui.instance, shouldSuppress: false);
-            UpdateQuickSlotInventoryPanelsWhileHidden();
         }
 
         Player? player = Player.m_localPlayer;
@@ -171,6 +170,7 @@ public sealed partial class InventorySlotsPlugin
 
     private void OnDisable()
     {
+        RestoreCraftingStationLevelLayout();
         SetActionPanelActive(PinnedTooltips.Crafting.Host.Rect, false);
         PathOfValheimanTooltipLayer.Restore();
         RestorePathOfValheimanCraftingTabs();
@@ -181,6 +181,7 @@ public sealed partial class InventorySlotsPlugin
 
     private void OnDestroy()
     {
+        RestoreCraftingStationLevelLayout();
         _pov?.Unregister();
         PovStoragePatches.UnpatchSelf();
         PathOfValheimanStackCompatibility.Dispose();
@@ -211,6 +212,7 @@ public sealed partial class InventorySlotsPlugin
         DestroyCraftingListViewUi();
         ShutdownItemRules();
         DestroyRestockModeIcons();
+        DestroyQuickSlotRadialIcon();
         ShutdownEpicLootCompatibility();
         ShutdownMagicSupremacyCompatibility();
         _epicLootStackingApi = null;

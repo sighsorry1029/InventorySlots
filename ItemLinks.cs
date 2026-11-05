@@ -28,9 +28,9 @@ public sealed partial class InventorySlotsPlugin
 
     private static void BindItemLinksConfig()
     {
-        _enableItemLinks = OrderedConfigEntry(ClientUiConfigSection, "Enable Item Tooltips in Chat", Toggle.On,
+        _enableItemLinks = OrderedConfigEntry(TooltipConfigSection, "Enable Item Tooltips in Chat", Toggle.On,
             "Share inventory and container item tooltips in chat. The chat button on a pinned item tooltip adds the item to your chat draft; press Enter to send. Crafting previews cannot be shared. With chat open, hover a shared item to view its tooltip, or press Mouse3 to pin it. Other players need InventorySlots to view shared tooltips; otherwise they see a plain item label. Tooltips show a snapshot of the sender's language and displayed stats, not a transferable item. Shared items can be opened for 10 minutes while the sender is online with sharing enabled. Pinned snapshots remain until closed or disconnected. Client-only; not synced with the server.",
-            order: 855, synchronizedSetting: false);
+            order: 950, synchronizedSetting: false);
     }
 
     private static void UpdateItemLinks()

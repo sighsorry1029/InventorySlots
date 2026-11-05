@@ -12,8 +12,7 @@ public sealed partial class InventorySlotsPlugin
     private const string CraftingUpgradeProgressionName = "InventorySlots_CraftingUpgradeProgression";
     private const string CraftingSearchInputName = "InventorySlots_CraftingSearchInput";
     private const string CraftingSortModeButtonGroupName = "InventorySlots_CraftingSortModeButtons";
-    private const string CraftingGroupFirstSortButtonName = "InventorySlots_CraftingGroupFirstSortButton";
-    private const string CraftingTierFirstSortButtonName = "InventorySlots_CraftingTierFirstSortButton";
+    private const string CraftingSortToggleButtonName = "InventorySlots_CraftingSortToggleButton";
     private const string CraftingRecipeScrollbarName = "InventorySlots_CraftingRecipeScrollbar";
     private const string CraftingControlsBackgroundName = "InventorySlots_CraftingControlsBackground";
     private const string CraftingGroupRailName = "InventorySlots_CraftingGroupRail";
@@ -56,7 +55,6 @@ public sealed partial class InventorySlotsPlugin
     private const float CraftingGroupIconFixedPadding = 3f;
     private static readonly Vector2 CraftingSearchInputFixedOffset = new(0f, 3f);
     private const float CraftingSortModeButtonGap = 4f;
-    private static readonly Vector2 CraftingSortModeButtonsFixedOffset = new(0f, 4f);
     private static readonly Vector2 CraftingBottomControlsFixedOffset = new(0f, 8f);
     private static readonly Vector2 CraftingCraftButtonFixedOffset = new(2f, -4f);
     private static readonly Vector2 CraftingCountInputFixedOffset = new(0f, -4f);

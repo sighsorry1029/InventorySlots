@@ -7,7 +7,7 @@
 
 Item labels are underlined and inherit the message's channel color, including Clan's configured color. Hover tooltips stay beside the chat window while the pointer moves across a link. They prefer the side with enough room, stay within the screen, and render above chat if space is tight. Middle-clicking a link or its hover tooltip reserves that press for pinning, keeps the chat draft and selection, and does not trigger a secondary attack.
 
-**3 - Client UI → Enable Item Tooltips in Chat** enables or disables this feature locally. It is on by default and is not server-synced. Sending a link does not immediately send a chat message or change the current channel. Vanilla `/w` is a nearby whisper, not a private message to a named player.
+**5 - Tooltips & Chat → Enable Item Tooltips in Chat** enables or disables this feature locally. It is on by default and is not server-synced. Sending a link does not immediately send a chat message or change the current channel. Vanilla `/w` is a nearby whisper, not a private message to a named player.
 
 Both players need this feature for interactive links. A client without it sees an ordinary readable item label with a short link ID. No additional server-side item-link component is required by the protocol. General InventorySlots installation requirements still apply independently.
 
@@ -20,6 +20,8 @@ Clan's server supplies the authenticated sender's network identity; authors are 
 Clan's Say/Shout/Whisper dock channels retain the native path. A leading `/say`, `/s` or `/w` selects that native channel even when Clan is highlighted; the history filter is separate. Explicitly re-sharing an item in a native channel makes its snapshot available independently of clan membership. The cursor patch leaves Clan's mouse-capture management intact.
 
 Shared tooltips are **display snapshots**, in the sender's language and with the stats/comparisons visible to that sender. This explanation is kept here rather than repeated inside every tooltip. They do not represent a live inventory item, a trade offer, or proof of item ownership. Receiver-side skills do not recalculate them. EpicLoot text effects and textual Jewelcrafting rows are retained; custom icon-only rows and arbitrary mod UI are not serialized. If the receiver lacks the item prefab, its text still appears without an icon. Crafting previews cannot be shared.
+
+The item icon and name share a compact header above the scrolling body, with the pin/close hint below the name. Name colors and text still come from the sender. This display layout does not change the shared snapshot format; unrecognized tooltip headings remain intact in the body.
 
 Links remain available for up to ten minutes, while the sender is online with sharing enabled. Up to three links in a chat message are interactive. Received pinned snapshots stay until closed, displaced by the pin limit, sharing is disabled, or the session ends; they are not saved to disk. Ordinary inventory/crafting pins temporarily take precedence over received pins. On narrow screens, only the columns that fit are shown. Native dialogs and menus temporarily hide received tooltips.
 

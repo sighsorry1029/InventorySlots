@@ -24,6 +24,8 @@ internal static class ClosingLayoutTests
         foreach (string name in new[] { "IsInventoryClosingLayoutPending", "CancelInventoryClosingLayout", "ClearInventoryClosingLayout", "DeferInventoryClosingLayoutRestore", "UpdateInventoryClosingLayout" })
             members += Method("InventoryUiController.cs", name).ToFullString();
         members += Method("InventoryPatchHandlers.cs", "OnInventoryGuiHide").ToFullString();
+        members += Method("CraftingGroupsAndSearch.cs", "UpdateCraftingSearchQuery").ToFullString();
+        members += Method("CraftingGroupsAndSearch.cs", "ResetClosedCraftingSearchInput").ToFullString();
         var craft = Method("CraftingRecipeActions.cs", "CanStartCraftingAction");
         members += craft.WithBody(SyntaxFactory.Block(craft.Body!.Statements.Take(1)
             .Append(SyntaxFactory.ParseStatement("return true;")))).ToFullString();
@@ -54,9 +56,13 @@ public static class InventorySlotsPlugin
     /* PRODUCTION */
     internal static void ClearPathOfValheimanCraftingUi(InventoryGui gui) { }
     internal static void ClearPathOfValheimanStoragePanels() { }
+    internal static void RestoreCraftingStationLevelLayout(InventoryGui gui) { }
+    private static string _craftingSearchQuery = "";
+    private static int _craftingRecipePage, SearchDirty, ViewInvalidations;
+    private static void InvalidateCraftingRecipeView() => ViewInvalidations++;
     private static int Checks, StatRestores, CraftRestores, QueueClears, PinHides, HoverClears, StatLayouts;
     private static InputField? _craftingCountInput = new();
-    private static class CraftingUi { public static InputField SearchInput = new(); }
+    private static class CraftingUi { public static InputField SearchInput = new(); public static bool SearchInputResetPending; }
     private static void Expect(bool condition, string label)
     {
         if (!condition) throw new Exception(label);
@@ -67,6 +73,9 @@ public static class InventorySlotsPlugin
         ClearInventoryClosingLayout();
         StatRestores = CraftRestores = QueueClears = PinHides = HoverClears = StatLayouts = 0;
         var gui = new InventoryGui();
+        _craftingSearchQuery = "";
+        SearchDirty = ViewInvalidations = 0;
+        CraftingUi.SearchInputResetPending = false;
         gui.m_inventoryRoot!.gameObject.activeInHierarchy = active;
         InventoryGui.instance = gui;
         return gui;
@@ -141,6 +150,34 @@ public static class InventorySlotsPlugin
         OnInventoryGuiHide();
         ShowPrefix(gui, out _);
         Expect(!gui.m_inventoryRoot.gameObject.Group.blocksRaycasts, "Repeated Hide preserves an existing noninteractive group");
+        gui = Fresh();
+        _craftingSearchQuery = CraftingUi.SearchInput.text = "bronze";
+        _craftingRecipePage = 5;
+        gui.m_animator.Visible = false;
+        OnInventoryGuiHide();
+        Expect(_craftingSearchQuery == "" && _craftingRecipePage == 0 && SearchDirty == 1 && ViewInvalidations == 1,
+            "Actual Hide clears search/window and marks the next recipe view dirty");
+        Expect(CraftingUi.SearchInput.text == "bronze" && CraftRestores == 0,
+            "Search reset does not rewrite visible text or layout during the outro");
+        UpdateInventoryClosingLayout();
+        Expect(CraftRestores == 0, "Search invalidation does not finish closing early");
+        OnInventoryGuiHide();
+        Expect(SearchDirty == 1 && ViewInvalidations == 1, "Repeated Hide does not invalidate an already empty query");
+        ShowPrefix(gui, out _);
+        Expect(_craftingSearchQuery == "" && !IsInventoryClosingLayoutPending(gui), "Rapid reopen keeps the empty search model");
+        ResetClosedCraftingSearchInput(); // UpdateCraftingSearchInput calls this after reusing/creating its field.
+        Expect(CraftingUi.SearchInput.text == "" && !CraftingUi.SearchInputResetPending,
+            "Reused input displays the cleared query on next open");
+        CraftingUi.SearchInput.text = "bronze ";
+        UpdateCraftingSearchQuery("bronze ");
+        ResetClosedCraftingSearchInput();
+        Expect(CraftingUi.SearchInput.text == "bronze " && _craftingSearchQuery == "bronze",
+            "Ordinary field refresh does not trim spaces while entering multiword searches");
+        gui.m_animator.Visible = false;
+        OnInventoryGuiHide();
+        CraftingUi.SearchInput = new InputField();
+        ResetClosedCraftingSearchInput();
+        Expect(!CraftingUi.SearchInputResetPending && CraftingUi.SearchInput.text == "", "Recreated input also consumes the pending clear");
         Console.WriteLine($"Closing layout lifecycle: {Checks} checks passed.");
     }
     private static bool IsInventoryPanelClosing(InventoryGui? gui) => gui != null && !gui.m_animator.Visible;
@@ -148,9 +185,13 @@ public static class InventorySlotsPlugin
     private static void HideCraftingPanelRedesign() => CraftRestores++;
     private static void ClearCraftingQueue() => QueueClears++;
     private static void HideCraftingPinnedTooltips() => PinHides++;
-    private static class CraftingController { public static void ClearHoveredRecipe() => HoverClears++; }
+    private static class CraftingController
+    {
+        public static void ClearHoveredRecipe() => HoverClears++;
+        public static void MarkSearchInputDirty() => SearchDirty++;
+    }
     private static void OnInventoryGuiHidden() { }
-    private static void StartQuickSlotPanelOutroAnimation() { }
+    private static void StopInventoryPanelDrag() { }
     private static void PrunePendingSlotActions() { }
     private static void RestoreContainerUiState() { }
     private static void HideInventoryPinnedTooltips() { }
@@ -185,6 +226,12 @@ public sealed class GameObject
     public T AddComponent<T>() where T : new() { var value = new T(); Group = value as CanvasGroup; return value; }
 }
 public sealed class CanvasGroup { public bool blocksRaycasts = true; }
-public sealed class InputField { public bool Focused = true; public void DeactivateInputField() => Focused = false; }
+public sealed class InputField
+{
+    public string text = "";
+    public bool Focused = true;
+    public void DeactivateInputField() => Focused = false;
+    public void SetTextWithoutNotify(string value) => text = value;
+}
 """;
 }

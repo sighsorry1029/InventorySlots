@@ -9,11 +9,11 @@ public sealed partial class InventorySlotsPlugin
 
     private static void BindItemRuleConfigs()
     {
-        _restockButtonMode = OrderedConfigEntry(InventoryButtonsConfigSection, "Restock Button", InventoryButtonMode.Auto,
+        _restockButtonMode = OrderedConfigEntry(InventoryButtonsConfigSection, "Restock Button", InventoryButtonMode.On,
             RuleButtonModeDescription, order: 900, synchronizedSetting: false);
-        _autoPickupButtonMode = OrderedConfigEntry(InventoryButtonsConfigSection, "Auto Pickup Exclude Button", InventoryButtonMode.Auto,
+        _autoPickupButtonMode = OrderedConfigEntry(InventoryButtonsConfigSection, "Auto Pickup Exclude Button", InventoryButtonMode.On,
             RuleButtonModeDescription, order: 870, synchronizedSetting: false);
-        _trashButtonMode = OrderedConfigEntry(InventoryButtonsConfigSection, "Trash Button", InventoryButtonMode.Auto,
+        _trashButtonMode = OrderedConfigEntry(InventoryButtonsConfigSection, "Trash Button", InventoryButtonMode.On,
             TrashButtonModeDescription, order: 850, synchronizedSetting: false);
         _showRuleTooltips = OrderedConfigEntry(InventoryButtonsConfigSection, "Show Rule Tooltips", Toggle.On,
             "Show hover help for controls in the Restock targets and Auto pickup exclusions panels and restock-entry controls in F1. Applies immediately. Item information tooltips and Configuration Manager setting descriptions remain available.",

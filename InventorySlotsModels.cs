@@ -70,6 +70,10 @@ internal sealed class PinnedTooltipPanelUiCache : MonoBehaviour
     public Button? ItemShareButton { get; set; }
     public Image? Background { get; set; }
     public TMP_Text? BodyText { get; set; }
+    public TMP_Text? HeaderText { get; set; }
+    public Image? HeaderIcon { get; set; }
+    public TMP_Text? HeaderHint { get; set; }
+    public RectTransform? HeaderAction { get; set; }
     public ScrollableTooltipBodyState TextScrollBody { get; } = new();
     public float TextWidth { get; set; }
     public float TextContentHeight { get; set; }

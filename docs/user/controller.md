@@ -33,7 +33,7 @@ The menu and direct button navigation below work even when optional controller h
 
 Press **A** to sort. **B**, Right, Up, or Down returns to the original grid slot. Sorting requires an available button and no picked-up item. Shoulder/tab navigation can leave the button for another inventory group.
 
-These controls use the default **Sort Button Side = Left**. Find the setting under **3 - Client UI** in InventorySlots, or **2 - Client** in InventoryActions. With Right selected, use the bottom-right player slot or top-right chest slot, press Right to select S, and Left to return. The on-screen hint follows this setting.
+These controls use the default **Sort Button Side = Left**. Find the setting under **3 - Inventory & Containers** in InventorySlots, or **2 - Client** in InventoryActions. With Right selected, use the bottom-right player slot or top-right chest slot, press Right to select S, and Left to return. The on-screen hint follows this setting.
 
 ## Restock, Exclude, and Trash buttons
 
@@ -84,4 +84,6 @@ With the inventory closed, hold **Use** while looking at a chest to quick stack.
 
 Both modifier settings are client-only and can be changed or set to Off independently. Check the in-game hint after changing a binding.
 
-InventorySlots additionally provides configurable quick-slot hotkeys and **Controller DPad Hotkey Mode**. Its default, **InventoryNavigation**, leaves D-pad movement available in the inventory; other modes allow D-pad hotkeys directly or with a configured modifier.
+InventorySlots adds **Quick slots**, marked by three slots and a lightning bolt, to the game's main radial menu. Open it with the game's radial-menu binding (default keyboard key: **G**) and choose Quick slots, then an item. The menu shows the unlocked 3, 6, or 9 slots in slot order, including empty cells. It uses the game's controller selection, back and activation controls. This replaces the nine controller-specific quick-slot bindings; the nine keyboard shortcuts remain configurable.
+
+**Controller DPad Hotkey Mode** still applies to other configurable controller shortcuts. Its default, **InventoryNavigation**, leaves D-pad movement available in the inventory; other modes allow D-pad hotkeys directly or with a configured modifier.

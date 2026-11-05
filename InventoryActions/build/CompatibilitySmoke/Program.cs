@@ -34,8 +34,9 @@ internal static class Program
         bool mucSession = args.Length == 4 && args[3] == "--muc-session";
         bool pov = args.Length == 5 && args[3] == "--pov";
         bool stackMetadata = args.Length == 4 && args[3] == "--stack-metadata";
-        if (!stackMetadata && !pov && !mucRestock && !mucApi && !mucSession && args.Length != 3 && (args.Length != 4 || (args[3] != "--button-offsets" && args[3] != "--ui-layout" && args[3] != "--restock-reserve" && args[3] != "--button-modes" && args[3] != "--favorite-fill" && args[3] != "--material-access" && args[3] != "--empty-favorite" && args[3] != "--epicloot-overlap")))
-            throw new ArgumentException("Usage: <final mod.dll> <original Managed> <BepInEx core> [--ui-layout|--restock-reserve|--button-modes|--favorite-fill|--material-access|--empty-favorite|--epicloot-overlap|--stack-metadata|--muc-session|--muc-restock <original MUC.dll>|--muc-api <MUC.dll>|--pov <original PathOfValheiman.dll>]");
+        bool epicStacking = args.Length == 5 && args[3] == "--epicloot-stacking";
+        if (!epicStacking && !stackMetadata && !pov && !mucRestock && !mucApi && !mucSession && args.Length != 3 && (args.Length != 4 || (args[3] != "--button-offsets" && args[3] != "--ui-layout" && args[3] != "--restock-reserve" && args[3] != "--button-modes" && args[3] != "--favorite-fill" && args[3] != "--material-access" && args[3] != "--empty-favorite" && args[3] != "--epicloot-overlap")))
+            throw new ArgumentException("Usage: <final mod.dll> <original Managed> <BepInEx core> [--ui-layout|--restock-reserve|--button-modes|--favorite-fill|--material-access|--empty-favorite|--epicloot-overlap|--epicloot-stacking <original EpicLoot.dll>|--stack-metadata|--muc-session|--muc-restock <original MUC.dll>|--muc-api <MUC.dll>|--pov <original PathOfValheiman.dll>]");
         string[] roots = { Path.GetDirectoryName(Path.GetFullPath(args[0]))!, Path.GetFullPath(args[1]), Path.GetFullPath(args[2]) };
         AppDomain.CurrentDomain.AssemblyResolve += (_, request) =>
         {
@@ -66,7 +67,8 @@ internal static class Program
             threading.GetField("<Instance>k__BackingField", BindingFlags.NonPublic | BindingFlags.Static)!.SetValue(null, queue);
             Assembly mod = Assembly.LoadFrom(Path.GetFullPath(args[0]));
             plugin = mod.GetType(mod.GetName().Name + "." + mod.GetName().Name + "Plugin", true)!;
-            if (pov) checks += PathOfValheimanChecks.Run(plugin, args[4]);
+            if (epicStacking) checks += EpicLootStackingChecks.Run(plugin, args[4]);
+            else if (pov) checks += PathOfValheimanChecks.Run(plugin, args[4]);
             else if (stackMetadata) checks += PathOfValheimanChecks.RunStackMetadataWithoutPoV(plugin);
             else if (mucApi) checks += MucTransferChecks.RunApi(plugin, args[4]);
             else if (mucRestock) checks += MucTransferChecks.Run(plugin, args[4]);

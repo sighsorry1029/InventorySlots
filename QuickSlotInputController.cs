@@ -56,7 +56,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void HandleQuickSlotHotkeys(Player player)
     {
-        if (_quickSlotHotkeys == null || ShouldBlockGlobalHotkeys(player))
+        if (_quickSlotHotkeys == null || Hud.InRadial() || ShouldBlockGlobalHotkeys(player))
         {
             return;
         }
@@ -68,22 +68,6 @@ public sealed partial class InventorySlotsPlugin
         }
 
         int count = Mathf.Min(GetUnlockedQuickSlotCount(player), _quickSlotHotkeys.Length);
-        ConfigEntry<ControllerHotkeyAction>[]? controllerQuickSlotButtons = _controllerQuickSlotButtons;
-        int controllerCount = Mathf.Min(count, controllerQuickSlotButtons?.Length ?? 0);
-        for (int i = 0; i < controllerCount; i++)
-        {
-            if (controllerQuickSlotButtons == null ||
-                !IsControllerHotkeyDown(controllerQuickSlotButtons[i]) ||
-                !TryGetQuickSlotDefinition(i, out SlotDefinition? slot) ||
-                !IsQuickSlotUnlocked(player, slot!))
-            {
-                continue;
-            }
-
-            ActivateQuickSlotHotkey(player, inventory, slot!);
-            return;
-        }
-
         for (int i = 0; i < count; i++)
         {
             KeyboardShortcut shortcut = _quickSlotHotkeys[i].Value;

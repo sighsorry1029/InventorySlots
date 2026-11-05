@@ -36,7 +36,11 @@ public sealed class Inventory
         ++Moves;
         if (Veto) return false;
         ItemData target = Items.Single(item => item.m_gridPos == new Vector2i(x, y));
+#if EPICLOOT_MODERN
+        Dictionary<string, string>? merged = EpicLoot.MagicItemData.StacksWith(target, source) ? new() : null;
+#else
         var merged = EpicLoot.Data.ItemExtensions.Data(source).IsStackableWithOtherInfo(EpicLoot.Data.ItemExtensions.Data(target));
+#endif
         if (merged == null) return false;
         amount = Math.Min(amount, MoveCap);
         target.m_stack += amount;
@@ -71,6 +75,24 @@ namespace EpicLoot
         public static bool IsMagicCraftingMaterial(ItemData item) => item.Kind == "material";
     }
 }
+#if EPICLOOT_MODERN
+namespace EpicLoot
+{
+    public static class MagicItemData
+    {
+        public static bool Fail;
+        public static ItemData? ExpectedExisting;
+        internal static bool StacksWith(ItemData existing, ItemData item)
+        {
+            if (Fail) throw new InvalidOperationException("API failure");
+            if (ExpectedExisting != null && !ReferenceEquals(ExpectedExisting, existing)) return false;
+            existing.m_customData.TryGetValue("epic.effect", out string? left);
+            item.m_customData.TryGetValue("epic.effect", out string? right);
+            return left == right;
+        }
+    }
+}
+#else
 namespace EpicLoot.Data
 {
     public static class ItemExtensions
@@ -97,6 +119,7 @@ namespace EpicLoot.Data
         private ItemData Item => item;
     }
 }
+#endif
 
 #if INVENTORY_SLOTS
 namespace InventorySlots
@@ -114,11 +137,22 @@ namespace InventoryActions
         {
             BepInEx.Bootstrap.Chainloader.PluginInfos.Clear();
             if (loaded) BepInEx.Bootstrap.Chainloader.PluginInfos.Add("randyknapp.mods.epicloot", new() { Instance = new EpicLoot.Plugin() });
+#if EPICLOOT_MODERN
+            EpicLoot.MagicItemData.Fail = false;
+            EpicLoot.MagicItemData.ExpectedExisting = null;
+#else
             EpicLoot.Data.ItemInfo.Fail = false;
+#endif
             EpicLoot.API.FailKind = null;
             InitializeEpicLootStacking();
         }
         public static bool Eligible(ItemData item) => IsEpicLootStackingItem(item);
+        public static bool CanBind(System.Reflection.Assembly assembly)
+        {
+            try { _ = new EpicLootStackingApi(assembly); return true; }
+            catch (MissingMemberException) { return false; }
+            catch (TypeLoadException) { return false; }
+        }
         public static bool Pair(ItemData target, ItemData source) => CanMergeEpicLootStacks(target, source);
         public static bool Sort(Inventory inv, List<ItemData> items) => MergeEpicLootSortableStacks(items, inv);
         public static bool Fill(Inventory inv, List<ItemData> targets, List<ItemData> sources) => FillFavoriteStacks(inv, targets, sources);

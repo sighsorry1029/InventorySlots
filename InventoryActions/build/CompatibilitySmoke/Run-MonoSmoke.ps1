@@ -4,10 +4,11 @@ param(
     [string]$ModDll,
     [ValidateSet('basic', 'muc-session', 'muc-restock', 'muc-api', 'ui-layout',
         'restock-reserve', 'button-modes', 'favorite-fill', 'material-access',
-        'empty-favorite', 'epicloot-overlap', 'pov', 'stack-metadata')]
+        'empty-favorite', 'epicloot-overlap', 'epicloot-stacking', 'pov', 'stack-metadata')]
     [string]$Mode = 'muc-session',
     [string]$MucDll,
-    [string]$PovDll
+    [string]$PovDll,
+    [string]$EpicLootDll
 )
 
 $ErrorActionPreference = 'Stop'
@@ -34,6 +35,10 @@ if ($Mode -eq 'pov') {
     if (!$PovDll) { throw '-Mode pov requires -PovDll pointing to the original PathOfValheiman.dll.' }
     $PovDll = (Resolve-Path -LiteralPath $PovDll).ProviderPath
 } elseif ($PovDll) { throw '-PovDll applies only to pov.' }
+if ($Mode -eq 'epicloot-stacking') {
+    if (!$EpicLootDll) { throw '-Mode epicloot-stacking requires -EpicLootDll pointing to the original EpicLoot.dll.' }
+    $EpicLootDll = (Resolve-Path -LiteralPath $EpicLootDll).ProviderPath
+} elseif ($EpicLootDll) { throw '-EpicLootDll applies only to epicloot-stacking.' }
 
 # Build only the test executable. Build/deploy the final mod separately.
 & dotnet build (Join-Path $PSScriptRoot 'CompatibilitySmoke.csproj') -c Debug `
@@ -83,6 +88,7 @@ $testArgs = @($ModDll, $managed, $core)
 if ($Mode -ne 'basic') { $testArgs += "--$Mode" }
 if ($MucDll) { $testArgs += $MucDll }
 if ($PovDll) { $testArgs += $PovDll }
+if ($EpicLootDll) { $testArgs += $EpicLootDll }
 Write-Host "Testing $ModDll using original Valheim x64 Mono ($Mode)."
 & (Join-Path $output 'MonoHost.exe') $runtime $managed $etc $test @testArgs
 $testExit = $LASTEXITCODE

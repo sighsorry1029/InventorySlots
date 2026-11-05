@@ -100,7 +100,7 @@ public sealed partial class InventoryActionsPlugin
             ? IsInventoryTrashButtonEnabled() : IsItemRuleButtonEnabled(_kind == InventorySlideButton.Restock);
 
         private InventoryButtonMode Mode => (_kind == InventorySlideButton.Trash ? _trashButtonMode :
-            _kind == InventorySlideButton.Restock ? _restockButtonMode : _autoPickupButtonMode)?.Value ?? InventoryButtonMode.Auto;
+            _kind == InventorySlideButton.Restock ? _restockButtonMode : _autoPickupButtonMode)?.Value ?? InventoryButtonMode.On;
 
         private float VisibleHeight => Mathf.Lerp(Peek, _size, _progress);
 

@@ -331,10 +331,7 @@ public sealed partial class InventorySlotsPlugin
         string keyboard = _quickSlotHotkeys != null && slot.QuickSlotIndex < _quickSlotHotkeys.Length
             ? _quickSlotHotkeys[slot.QuickSlotIndex].Value.GetCompactDisplayText()
             : "";
-        string controller = _controllerQuickSlotButtons != null && slot.QuickSlotIndex < _controllerQuickSlotButtons.Length
-            ? GetControllerHotkeyDisplayText(_controllerQuickSlotButtons[slot.QuickSlotIndex])
-            : "";
-        return JoinShortcutDisplayTexts(keyboard, controller);
+        return keyboard;
     }
 
     private static Vector3 GetGridOrigin(InventoryGrid playerGrid)
@@ -365,7 +362,7 @@ public sealed partial class InventorySlotsPlugin
         int key = playerGrid.GetInstanceID();
         if (cache.TryGetValue(key, out RectTransform? cached) && !IsUnityNull(cached))
         {
-            if (panelName != QuickSlotPanelName && cached!.parent != playerGrid.m_gridRoot)
+            if (cached!.parent != playerGrid.m_gridRoot)
             {
                 cached.SetParent(playerGrid.m_gridRoot, false);
             }
@@ -375,11 +372,6 @@ public sealed partial class InventorySlotsPlugin
         }
 
         Transform? existing = playerGrid.m_gridRoot.Find(panelName);
-        if (existing == null && string.Equals(panelName, QuickSlotPanelName, StringComparison.Ordinal))
-        {
-            RectTransform? stableParent = GetQuickSlotPanelStableParent(playerGrid);
-            existing = stableParent != null ? stableParent.Find(panelName) : null;
-        }
 
         RectTransform panel = existing != null ? existing.GetComponent<RectTransform>() : null!;
         if (panel == null)
@@ -442,7 +434,8 @@ public sealed partial class InventorySlotsPlugin
 
     private static void StartInventoryPanelDrag(InventoryPanelDragMarker? marker)
     {
-        if (marker == null || !InventoryGui.IsVisible())
+        if (marker == null || !InventoryGui.IsVisible() || InventoryGui.instance == null ||
+            IsInventoryPanelClosing(InventoryGui.instance) || !IsInventoryPanelAnimationSettled(InventoryGui.instance))
         {
             return;
         }
@@ -525,13 +518,15 @@ public sealed partial class InventorySlotsPlugin
         InventorySlotsClientPanelPosition target = isQuickSlotsPanel
             ? InventoryClient.ClientState.Inventory.QuickSlotsPanelPosition
             : InventoryClient.ClientState.Inventory.EquipmentSlotsPanelPosition;
-        if (Mathf.Abs(target.X - value.x) <= 0.01f && Mathf.Abs(target.Y - value.y) <= 0.01f)
+        bool newlyPlaced = isQuickSlotsPanel && !InventoryClient.ClientState.Inventory.QuickSlotsPanelManuallyPlaced;
+        if (Mathf.Abs(target.X - value.x) <= 0.01f && Mathf.Abs(target.Y - value.y) <= 0.01f && !newlyPlaced)
         {
             return;
         }
 
         target.X = value.x;
         target.Y = value.y;
+        if (isQuickSlotsPanel) InventoryClient.ClientState.Inventory.QuickSlotsPanelManuallyPlaced = true;
         SaveClientState();
     }
 
@@ -581,6 +576,10 @@ public sealed partial class InventorySlotsPlugin
 
         Vector2 delta = localMousePosition - InventoryPanels.InventoryPanelDragStartLocalMouse;
         Vector2 nextOffset = new(InventoryPanels.InventoryPanelDragStartOffset.x + delta.x, InventoryPanels.InventoryPanelDragStartOffset.y + delta.y);
+        // A click without movement must not snap or convert a default PoV pose
+        // into a manually saved position. Always snap from the raw drag delta.
+        if (delta.sqrMagnitude > 0.01f)
+            nextOffset = SnapDraggedInventoryPanelOffset(nextOffset);
         if (InventoryPanels.DraggingQuickSlotsPanelOffset)
         {
             InventoryPanels.QuickSlotsPanelRuntimeOffset = nextOffset;

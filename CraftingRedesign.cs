@@ -80,7 +80,9 @@ public sealed partial class InventorySlotsPlugin
         EnsureCraftingVanillaRecipeElementsHidden(gui);
         ApplyCraftingTabAdapterVisibility(gui, adapter);
 
+        CaptureCraftingStationLevelLayout(gui);
         UpdateCraftingPanelHeightExtension(gui);
+        LayoutCraftingStationLevel(gui);
         ResetCraftingCountIfSelectionChanged(gui);
         HandleCraftingCountWheel();
         UpdateCraftingQueueLifecycle(gui);
@@ -325,6 +327,45 @@ public sealed partial class InventorySlotsPlugin
         ClearRecycleNReclaimSignatureCaches();
     }
 
+    private static void CaptureCraftingStationLevelLayout(InventoryGui gui)
+    {
+        RectTransform? level = gui.m_craftingStationLevelRoot;
+        if (CraftingUi.StationLevelOwner == gui && CraftingUi.StationLevelSnapshot?.Rect == level)
+            return;
+
+        RestoreCraftingStationLevelLayout();
+        if (level == null || level.parent == null) return;
+        CraftingUi.StationLevelOwner = gui;
+        CraftingUi.StationLevelParent = level.parent;
+        CraftingUi.StationLevelSnapshot = new RectTransformSnapshot(level);
+    }
+
+    private static void LayoutCraftingStationLevel(InventoryGui gui)
+    {
+        RectTransform? level = CraftingUi.StationLevelSnapshot?.Rect;
+        RectTransform? icon = gui.m_craftingStationIcon != null ? gui.m_craftingStationIcon.rectTransform : null;
+        Transform? parent = CraftingUi.StationLevelParent;
+        if (CraftingUi.StationLevelOwner != gui || level == null || icon == null || parent == null ||
+            gui.m_craftingStationLevelRoot != level || level.parent != parent) return;
+
+        // Move only the native level badge: its value, visibility, size and anchors stay native.
+        Vector3 iconEdge = parent.InverseTransformPoint(icon.TransformPoint(new Vector3(icon.rect.xMax, icon.rect.center.y, 0f)));
+        Vector3 levelEdge = parent.InverseTransformPoint(level.TransformPoint(new Vector3(level.rect.xMin, level.rect.center.y, 0f)));
+        Vector3 offset = new(iconEdge.x + 4f - levelEdge.x, iconEdge.y - levelEdge.y, 0f);
+        if (Mathf.Abs(offset.x) > 0.1f || Mathf.Abs(offset.y) > 0.1f) level.localPosition += offset;
+    }
+
+    internal static void RestoreCraftingStationLevelLayout(InventoryGui? gui = null)
+    {
+        if (gui != null && gui != CraftingUi.StationLevelOwner) return;
+        if (CraftingUi.StationLevelParent != null && CraftingUi.StationLevelSnapshot?.Rect != null &&
+            CraftingUi.StationLevelSnapshot.Rect.parent == CraftingUi.StationLevelParent)
+            CraftingUi.StationLevelSnapshot.Restore();
+        CraftingUi.StationLevelOwner = null;
+        CraftingUi.StationLevelParent = null;
+        CraftingUi.StationLevelSnapshot = null;
+    }
+
     private static void HideCraftingPanelRedesign()
     {
         InventoryGui? gui = InventoryGui.instance;
@@ -338,6 +379,7 @@ public sealed partial class InventorySlotsPlugin
         {
             bool preserveForeignCraftingControls = foreignCraftingTab && ShouldPreserveForeignCraftingControls(gui);
             RestoreCraftingPanelHeightExtension(gui);
+            RestoreCraftingStationLevelLayout(gui);
             RestoreCraftingVanillaState(gui, restoreRecipeUi: !foreignCraftingTab || preserveForeignCraftingControls);
             if (preserveForeignCraftingControls)
             {
@@ -363,6 +405,7 @@ public sealed partial class InventorySlotsPlugin
     {
         HideOwnedCraftingRedesignUi();
         RestoreCraftingPanelHeightExtension(gui);
+        RestoreCraftingStationLevelLayout(gui);
         if (ShouldPreserveForeignCraftingControls(gui))
         {
             RestoreCraftingVanillaState(gui, restoreRecipeUi: true);

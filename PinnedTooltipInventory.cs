@@ -157,7 +157,8 @@ public sealed partial class InventorySlotsPlugin
             text.gameObject.SetActive(true);
             text.color = Color.white;
             text.overflowMode = TextOverflowModes.Overflow;
-            text.text = BuildInventoryPinnedTooltipText(item);
+            string body = BuildInventoryPinnedTooltipText(item, out string topic);
+            SetPinnedTooltipContent(panel, text, topic, body);
             ApplyPinnedTooltipDynamicTextLayout(panel, text, slot, InventoryPinnedTooltipFixedOffset, topReserved: 102f, bottomReserved: 18f);
         }
     }
@@ -238,13 +239,14 @@ public sealed partial class InventorySlotsPlugin
         PinnedTooltips.Inventory.Positions[slot] = new Vector2i(-1, -1);
     }
 
-    private static string BuildInventoryPinnedTooltipText(ItemData item)
+    private static string BuildInventoryPinnedTooltipText(ItemData item, out string topic)
     {
         string displayName = LocalizeUi(item.m_shared.m_name, item.m_shared.m_name);
         string tooltip = Localization.instance != null
             ? Localization.instance.Localize(item.GetTooltip())
             : item.GetTooltip();
         tooltip = AppendPathOfValheimanAffixes(item, tooltip);
-        return $"<size=28><color=#{PathOfValheimanItemNameColor(item)}>{displayName}</color></size>\n{tooltip}";
+        topic = $"<color=#{PathOfValheimanItemNameColor(item)}>{displayName}</color>";
+        return tooltip;
     }
 }

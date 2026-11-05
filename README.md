@@ -18,13 +18,15 @@ Click any image or animation to view the original.
 
 Unlock rows and quick slots without reshuffling saved items, and switch hotbar rows to keep more items within reach.
 
+Use **Quick slots** in the game's main radial menu with a controller or mouse; keyboard shortcuts remain available. Equipment and quick-slot panels move with the inventory and snap to nearby panel edges while dragging. Configure snapping in **3 - Inventory & Containers**.
+
 <a href="https://i.ibb.co/5XMjS4Cw/keyhint.png"><img src="https://i.ibb.co/5XMjS4Cw/keyhint.png" alt="Inventory shortcut hints" width="480"></a>
 
 ### Crafting and upgrades
 
 <a href="https://i.ibb.co/8gDsSjJM/gridchangeenglish.gif"><img src="https://i.ibb.co/8gDsSjJM/gridchangeenglish.gif" alt="Switching between crafting list and grid views" width="240"></a>
 
-Start in List view, or switch to Grid with the button beside Search. Your choice is saved locally.
+Start in List view, or switch to Grid with the button above Search. Your choice is saved locally.
 
 <a href="https://i.ibb.co/pBJJ84sJ/craftingpanellook.png"><img src="https://i.ibb.co/pBJJ84sJ/craftingpanellook.png" alt="Crafting browser with search and categories" width="480"></a>
 
@@ -120,7 +122,7 @@ Favorites protect against quick stack; they do **not** stop crafting, building, 
 
 ## Installation
 
-Install with a Valheim mod manager, or place `InventorySlots.dll` in `BepInEx/plugins`. Requires **BepInExPack Valheim 5.4.2351**. Launch once to generate the config files.
+Install with a Valheim mod manager, or place `InventorySlots.dll` in `BepInEx/plugins`. Requires **BepInExPack Valheim 5.4.2360**. Launch once to generate the config files.
 
 - **Client only:** you can join a vanilla server. Other players do not need InventorySlots; your local settings apply.
 - **Installed on the server:** all clients need the same InventorySlots version, and server-synced settings follow the server.
@@ -130,7 +132,7 @@ Want the inventory actions while keeping your existing inventory layout? Use [In
 
 ## Guides and support
 
-Press **F6** to cycle the quick guide: **Expanded → Collapsed → Hidden → Expanded**, with the inventory open or closed. Or choose **Feature Guide State** directly under **3 - Client UI**. Your choice is saved in the config. Change or unset **Toggle Feature Guide Key** under **4 - Client Keys**; Configuration Manager is optional. [Guide controls](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/inventory-actions.md#show-or-hide-the-quick-guide).
+Press **F6** to cycle the quick guide: **Expanded → Collapsed → Hidden → Expanded**, with the inventory open or closed. Or choose **Feature Guide State** directly under **6 - HUD & Guide**. Your choice is saved in the config. Change or unset **Toggle Feature Guide Key** under **7 - Keyboard & Mouse**; Configuration Manager is optional. [Guide controls](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/inventory-actions.md#show-or-hide-the-quick-guide).
 
 | Guide | Covers |
 | --- | --- |

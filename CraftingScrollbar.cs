@@ -48,9 +48,8 @@ public sealed partial class InventorySlotsPlugin
         SetTopLeftRectLayout(gui.m_crafting, rect, GetCraftingRecipeScrollbarPosition(gui, grid), new Vector2(_craftingListViewActive ? CraftingListScrollbarWidth : 16f, CraftingRecipeIconRows * CraftingRecipeGridCellSpace - 6f));
         SetCraftingRecipeScrollbarGraphicsVisible(rect, visible: true);
         scrollbar.direction = Scrollbar.Direction.BottomToTop;
-        scrollbar.size = _craftingListViewActive
-            ? Mathf.Clamp01(GetCraftingRecipeGridCapacity() / (float)Mathf.Max(1, CraftingRecipes.View.Count))
-            : Mathf.Clamp01(1f / pageCount);
+        int visibleRows = CraftingViewCore.VisibleRows(GetCraftingRecipeGridCapacity(), GetCraftingRecipeGridDimension());
+        scrollbar.size = Mathf.Clamp01(visibleRows / (float)(pageCount - 1 + visibleRows));
 
         CraftingScrollbar.UpdatingRecipeScrollbar = true;
         scrollbar.value = pageCount <= 1 ? 1f : 1f - _craftingRecipePage / (float)(pageCount - 1);

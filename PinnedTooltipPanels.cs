@@ -25,6 +25,7 @@ public sealed partial class InventorySlotsPlugin
     private const float PinnedTooltipBottomOffset = 60f;
     private const float PinnedTooltipInventoryStartOffset = 6f;
     private const float PinnedTooltipCraftingStartOffset = -80f;
+    private const float PinnedTooltipHeaderIconSize = 64f;
 
     private readonly struct PinnedTooltipVerticalFrame
     {
@@ -196,13 +197,12 @@ public sealed partial class InventorySlotsPlugin
                 continue;
             }
 
-            string nextText = BuildInventoryPinnedTooltipText(item);
-            if (string.Equals(text.text, nextText, StringComparison.Ordinal))
+            string nextText = BuildInventoryPinnedTooltipText(item, out string topic);
+            if (!SetPinnedTooltipContent(panel, text, topic, nextText))
             {
                 continue;
             }
 
-            text.text = nextText;
             ApplyPinnedTooltipDynamicTextLayout(
                 panel,
                 text,
@@ -239,13 +239,12 @@ public sealed partial class InventorySlotsPlugin
                 continue;
             }
 
-            string nextText = BuildCraftingPinnedTooltipText(pair);
-            if (string.Equals(text.text, nextText, StringComparison.Ordinal))
+            string nextText = BuildCraftingPinnedTooltipText(pair, out string topic);
+            if (!SetPinnedTooltipContent(panel, text, topic, nextText))
             {
                 continue;
             }
 
-            text.text = nextText;
             if (IsPathOfValheimanSalvageTab(gui))
                 ConfigureCraftingTooltipRecipeRow(panel, pair, new Vector2(18f, 18f), slotSize: 54f, gap: 8f);
             PinnedTooltipPanelUiCache? cache = panel.GetComponent<PinnedTooltipPanelUiCache>();
@@ -581,11 +580,82 @@ public sealed partial class InventorySlotsPlugin
             iconRect.SetParent(panel, false);
         }
 
-        SetTopLeftRectLayout(iconRect, new Vector2(16f, -16f), new Vector2(72f, 72f));
+        SetTopLeftRectLayout(iconRect, new Vector2(16f, -16f), new Vector2(PinnedTooltipHeaderIconSize, PinnedTooltipHeaderIconSize));
 
         Image icon = iconRect.GetComponent<Image>() ?? iconRect.gameObject.AddComponent<Image>();
         icon.raycastTarget = false;
+        icon.preserveAspect = true;
+        (panel.GetComponent<PinnedTooltipPanelUiCache>() ?? panel.gameObject.AddComponent<PinnedTooltipPanelUiCache>()).HeaderIcon = icon;
         return icon;
+    }
+
+    private static bool SetPinnedTooltipContent(RectTransform panel, TMP_Text body, string topic, string content)
+    {
+        PinnedTooltipPanelUiCache cache = panel.GetComponent<PinnedTooltipPanelUiCache>();
+        bool created = cache.HeaderText == null;
+        if (created)
+        {
+            CreateTextRect("Topic", panel, out TMP_Text header);
+            ApplyDefaultFontAsset(header);
+            ApplyTooltipSourceFont(header, "Topic");
+            header.enableAutoSizing = false;
+            header.fontSize = 28f;
+            header.fontStyle = FontStyles.Bold;
+            header.color = new Color(1f, 0.82f, 0.42f, 1f);
+            header.alignment = TextAlignmentOptions.MidlineLeft;
+            header.textWrappingMode = TextWrappingModes.Normal;
+            header.overflowMode = TextOverflowModes.Truncate;
+            header.raycastTarget = false;
+            cache.HeaderText = header;
+        }
+        TMP_Text title = cache.HeaderText!;
+        bool changed = created || title.text != topic || body.text != content;
+        title.gameObject.SetActive(!string.IsNullOrEmpty(topic));
+        if (title.text != topic) title.text = topic;
+        if (body.text != content) body.text = content;
+        if (changed)
+        {
+            cache.TextLayoutSignature = "";
+            cache.TextRepairSignature = "";
+        }
+        return changed;
+    }
+
+    private static float LayoutPinnedTooltipHeader(PinnedTooltipPanelUiCache cache, float width, float maxHeight, float bottomReserved)
+    {
+        const float padding = 16f;
+        const float gap = 12f;
+        bool hasIcon = cache.HeaderIcon != null && cache.HeaderIcon.gameObject.activeSelf && cache.HeaderIcon.sprite != null;
+        bool hasAction = cache.HeaderAction != null && cache.HeaderAction.gameObject.activeSelf;
+        float right = hasAction ? 50f : padding;
+        float maxHeaderHeight = Mathf.Max(1f, maxHeight - bottomReserved - 72f - padding - gap);
+        float iconSize = hasIcon ? Mathf.Min(PinnedTooltipHeaderIconSize, Mathf.Min(maxHeaderHeight, width - padding - right - gap - 80f)) : 0f;
+        if (iconSize < 32f) iconSize = 0f;
+        if (cache.HeaderIcon != null) cache.HeaderIcon.enabled = iconSize > 0f;
+        float left = padding + (iconSize > 0f ? iconSize + gap : 0f);
+        float titleWidth = Mathf.Max(1f, width - left - right);
+        TMP_Text? title = cache.HeaderText;
+        TMP_Text? hint = cache.HeaderHint;
+        bool hasTitle = title != null && title.gameObject.activeSelf;
+        bool hasHint = hint != null && hint.gameObject.activeSelf && !string.IsNullOrEmpty(hint.text);
+        float hintHeight = hasHint ? hint!.GetPreferredValues(hint.text, titleWidth, 0f).y : 0f;
+        float hintGap = hasHint && hasTitle ? 4f : 0f;
+        float titleHeight = hasTitle ? title!.GetPreferredValues(title.text, titleWidth, 0f).y : 0f;
+        // Leave room for body scrolling even on a narrow shared-tooltip canvas.
+        hintHeight = Mathf.Min(hintHeight, Mathf.Max(0f, maxHeaderHeight - Mathf.Min(titleHeight, 28f) - hintGap));
+        titleHeight = Mathf.Min(titleHeight, Mathf.Max(1f, maxHeaderHeight - hintHeight - hintGap));
+        float textHeight = titleHeight + hintGap + hintHeight;
+        float headerHeight = Mathf.Max(iconSize, textHeight);
+        float textTop = padding + (headerHeight - textHeight) * 0.5f;
+        if (hasTitle)
+            SetTopLeftRectLayout(title!.rectTransform, new Vector2(left, -textTop), new Vector2(titleWidth, titleHeight));
+        if (hasHint)
+            SetTopLeftRectLayout(hint!.rectTransform, new Vector2(left, -textTop - titleHeight - hintGap), new Vector2(titleWidth, hintHeight));
+        if (iconSize > 0f)
+            SetTopLeftRectLayout(cache.HeaderIcon!.rectTransform,
+                new Vector2(padding, -padding - (headerHeight - iconSize) * 0.5f),
+                new Vector2(iconSize, iconSize));
+        return padding + headerHeight + gap;
     }
 
     private static RectTransform EnsurePinnedTooltipPanel(RectTransform parent, string name, RectTransform? current, Func<RectTransform?>? findFallback = null)
@@ -995,6 +1065,14 @@ public sealed partial class InventorySlotsPlugin
         // External chat snapshots stay visible when the inventory is hidden;
         // their bounds must not use the animated inventory's vertical frame.
         Vector2 maxSize = sizeLimit ?? GetPinnedTooltipPanelSize(parent);
+        float requestedTopReserved = topReserved;
+        float requestedViewportHeight = maxTextViewportHeight;
+        if (cache.HeaderText != null)
+        {
+            topReserved = LayoutPinnedTooltipHeader(cache, maxSize.x, maxSize.y, bottomReserved);
+            if (maxTextViewportHeight > 1f)
+                maxTextViewportHeight = Mathf.Max(1f, maxTextViewportHeight + requestedTopReserved - topReserved);
+        }
         float textWidth = Mathf.Max(40f, maxSize.x - 44f);
         text.enabled = true;
         text.gameObject.SetActive(true);
@@ -1077,7 +1155,7 @@ public sealed partial class InventorySlotsPlugin
             viewportImage.raycastTarget = false;
         }
 
-        cache.TextLayoutSignature = GetPinnedTooltipTextLayoutSignature(panel, text, slot, groupOffset, topReserved, bottomReserved, maxTextViewportHeight) + sizeLimit;
+        cache.TextLayoutSignature = GetPinnedTooltipTextLayoutSignature(panel, text, slot, groupOffset, requestedTopReserved, bottomReserved, requestedViewportHeight) + sizeLimit;
         return size;
     }
 
@@ -1086,6 +1164,7 @@ public sealed partial class InventorySlotsPlugin
         RectTransform parent = panel.parent as RectTransform ?? panel;
         Rect parentRect = parent.rect;
         string textValue = text.text ?? "";
+        PinnedTooltipPanelUiCache cache = panel.GetComponent<PinnedTooltipPanelUiCache>();
         return string.Join(
             "|",
             slot,
@@ -1100,6 +1179,10 @@ public sealed partial class InventorySlotsPlugin
             panel.childCount,
             textValue.Length,
             textValue.GetHashCode(),
+            cache.HeaderText?.text ?? "",
+            cache.HeaderHint?.text ?? "",
+            cache.HeaderIcon != null && cache.HeaderIcon.gameObject.activeSelf && cache.HeaderIcon.sprite != null,
+            cache.HeaderAction != null && cache.HeaderAction.gameObject.activeSelf,
             Screen.width,
             Screen.height,
             GetPinnedTooltipExtraLayoutSignature(panel),

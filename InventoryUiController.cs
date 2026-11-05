@@ -84,7 +84,6 @@ public sealed partial class InventorySlotsPlugin
 
         if (!InventoryGui.IsVisible())
         {
-            UpdateQuickSlotInventoryPanelsWhileHidden();
             return;
         }
 

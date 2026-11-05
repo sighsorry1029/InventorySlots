@@ -1,4 +1,5 @@
 inventoryslots_search: Search
+inventoryslots_radial_quick_slots: Quick slots
 inventoryslots_pov_tidy_pack_locked: "Nearby quick stack and inventory sorting require PoV's Tidy Pack mastery."
 inventoryslots_pov_sort_locked: "Sort: locked by PoV"
 inventoryslots_pov_sort_description: "Fill favorite stacks from matching non-favorite stacks outside the hotbar, then sort the remaining ordinary stacks. Favorite stacks stay in place."
@@ -18,6 +19,8 @@ inventoryslots_view_list: List
 inventoryslots_view_toggle: Switch between grid and list view
 inventoryslots_view_no_recipe: No matching recipes
 inventoryslots_sort_group_first: Group first
+inventoryslots_sort_group: Group
+inventoryslots_sort_tier: Tier
 inventoryslots_sort_group_first_tooltip: Sort by category, then resource tier.
 inventoryslots_sort_tier_first: Tier first
 inventoryslots_sort_tier_first_tooltip: Sort by resource tier, then category.

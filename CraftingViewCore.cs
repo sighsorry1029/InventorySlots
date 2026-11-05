@@ -3,6 +3,7 @@ using System;
 namespace InventorySlots;
 
 internal enum CraftingViewMode { Grid, List }
+internal enum CraftingScrollMode { Row, Page }
 
 internal static class CraftingViewCore
 {
@@ -16,10 +17,20 @@ internal static class CraftingViewCore
     internal static bool UseList(CraftingViewMode mode, CraftingTabAdapterKind tab) =>
         mode == CraftingViewMode.List && new CraftingTabAdapterState(tab).IsRedesign;
 
-    internal static int PageStart(bool list, int page, int capacity) => list ? page : page * capacity;
+    // Both views store the top visible row. Scroll mode only changes the input
+    // distance, so switching Row/Page live never reinterprets the current position.
+    internal static int PageStart(int topRow, int columns) => topRow * columns;
 
-    internal static int PageCount(bool list, int count, int capacity) =>
-        list ? Math.Max(1, count - capacity + 1) : Math.Max(1, (count + capacity - 1) / capacity);
+    internal static int VisibleRows(int capacity, int columns) => Math.Max(1, capacity / columns);
+
+    internal static int PageCount(int count, int capacity, int columns) =>
+        Math.Max(1, (count + columns - 1) / columns - VisibleRows(capacity, columns) + 1);
+
+    internal static int Scroll(int topRow, int direction, CraftingScrollMode mode, int count, int capacity, int columns)
+    {
+        int step = mode == CraftingScrollMode.Page ? VisibleRows(capacity, columns) : 1;
+        return Math.Max(0, Math.Min(PageCount(count, capacity, columns) - 1, topRow + Math.Sign(direction) * step));
+    }
 
     // Navigate displayed positions, never native recipe indices. Grid rows do
     // not wrap horizontally; a short final row uses its nearest existing cell.
@@ -37,16 +48,17 @@ internal static class CraftingViewCore
         return Math.Max(rowStart, Math.Min(Math.Min(count - 1, rowStart + columns - 1), selected + Math.Sign(horizontal)));
     }
 
-    // A list scroll does not change selection. Reveal it only after a selection,
-    // filter or view-mode change, retaining the current window when possible.
-    internal static int RevealSelection(bool list, int page, int selected, int count, int capacity)
+    // Retain a visible selection's window, including a partially scrolled grid.
+    // List callers only reveal after a selection, filter or view-mode change.
+    internal static int RevealSelection(int topRow, int selected, int count, int capacity, int columns)
     {
-        int last = PageCount(list, count, capacity) - 1;
+        int last = PageCount(count, capacity, columns) - 1;
         if (selected < 0 || selected >= count) return 0;
-        if (!list) return Math.Min(last, selected / capacity);
-        int start = Math.Max(0, Math.Min(last, page));
-        if (selected < start) start = selected;
-        else if (selected >= start + capacity) start = selected - capacity + 1;
+        int start = Math.Max(0, Math.Min(last, topRow));
+        int selectedRow = selected / columns;
+        int visibleRows = VisibleRows(capacity, columns);
+        if (selectedRow < start) start = selectedRow;
+        else if (selectedRow >= start + visibleRows) start = selectedRow - visibleRows + 1;
         return Math.Max(0, Math.Min(last, start));
     }
 }

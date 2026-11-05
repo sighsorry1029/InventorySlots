@@ -140,7 +140,8 @@ public sealed partial class InventorySlotsPlugin
             text.gameObject.SetActive(true);
             text.color = Color.white;
             text.overflowMode = TextOverflowModes.Overflow;
-            text.text = BuildCraftingPinnedTooltipText(pair);
+            string body = BuildCraftingPinnedTooltipText(pair, out string topic);
+            SetPinnedTooltipContent(panel, text, topic, body);
         }
 
         bool hasJewelcraftingTooltip = !veiledMasked && UpdateCraftingJewelcraftingTooltip(panel, pair, ref PinnedTooltips.Crafting.JewelcraftingTooltipRoots[slot]);
@@ -247,10 +248,11 @@ public sealed partial class InventorySlotsPlugin
         CraftingController.MarkRecipeGridLayoutDirty();
     }
 
-    private static string BuildCraftingPinnedTooltipText(InventoryGui.RecipeDataPair pair)
+    private static string BuildCraftingPinnedTooltipText(InventoryGui.RecipeDataPair pair, out string topic)
     {
         string displayName = GetCraftingRecipeDisplayName(pair);
         string itemTooltip = GetCraftingRecipeTooltip(pair);
-        return $"<size=28><color=#FFD36A>{displayName}</color></size>\n{itemTooltip}";
+        topic = $"<color=#FFD36A>{displayName}</color>";
+        return itemTooltip;
     }
 }

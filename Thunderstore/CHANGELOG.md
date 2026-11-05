@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.7.0
+
+- Added Quick slots to Valheim's native radial menu, with a dedicated icon and unlocked slots in their normal order. This replaces the nine individual controller quick-slot bindings; keyboard shortcuts remain available. Radial actions retain normal item use, HUD feedback and stale-selection safeguards.
+- Made the quick-slot inventory panel follow the same parent and opening/closing animation as the equipment panel. Added snapping while dragging equipment and quick-slot panels, including inventory-edge alignment and alignment between the panels. Panel Snap Gap defaults to -5 and accepts -10 through 0; the snap distance is fixed at 10 UI units.
+- Added independent Row/Page mouse-wheel settings for crafting grid and list views. Grid defaults to one row per step; List defaults to one page. Craft, Upgrade and supported external crafting tabs use the selected view's setting.
+- Reworked the crafting header with vanilla-style Grid/List and Group/Tier buttons above the search field. Moved the station level beside the station icon, removed Grid/List hover help, and clear the search when closing the inventory.
+- Added inline item icons to crafting-grid hover tooltips and compact icon-and-title headers to pinned inventory, crafting and shared-chat tooltips.
+- Fixed recipe quantity and quality labels being covered by icons after switching from List to Grid, including Snowball recipes. Other cell badges and controls retain their relative display order.
+- Restock, Auto Pickup Exclude and Trash buttons now default to On. Auto and Off remain available.
+- Reorganized settings by feature, with Progressive Slots in section 2 and separate Inventory & Containers, Crafting, Tooltips & Chat, HUD & Guide, and Keyboard & Mouse sections. Settings under renamed sections are not migrated automatically; reapply customized values there. Inventory Buttons and Controller Input are now sections 8 and 9.
+- Restored EpicLoot material stacking with the modern MagicItemData contract, including EpicLoot 0.15.6, while preserving registered metadata-owner rules, identity checks and confirmed-transfer accounting. Missing or incomplete contracts disable only this integration; the legacy adapter remains supported.
+- Updated the BepInExPack dependency to 5.4.2360 and checked compiled contracts against original Valheim 1.0.21 assemblies. Automated UI/input, stacking and isolated Mono checks cover the changes; actual game rendering, controller use and multiplayer validation remain required.
+
 ## 1.6.25
 
 - Fixed repeated crafting errors when the requested craft count exceeds available materials. Queued crafting now checks requirements before calculating the next output, avoiding missing-ingredient errors for recipes such as Raw Fish after the last input is consumed.

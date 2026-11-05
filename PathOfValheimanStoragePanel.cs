@@ -41,11 +41,15 @@ public sealed partial class InventorySlotsPlugin
         Vector3 offset = InventoryPanels.QuickSlotsPanelRuntimeOffset;
         // Saved positions are always normalized to coordinates, including the
         // default. Only that default gains room; do not save the derived offset.
-        if (InventoryPanels.QuickSlotsPanelRuntimeOffset == QuickSlotsPanelFixedOffset &&
+        if (IsQuickSlotPanelAtDefaultPosition() &&
             !InventoryPanels.DraggingQuickSlotsPanelOffset)
             offset.y -= GetPathOfValheimanRingPanelRows() * spacing;
         return offset;
     }
+
+    private static bool IsQuickSlotPanelAtDefaultPosition() =>
+        !InventoryClient.ClientState.Inventory.QuickSlotsPanelManuallyPlaced &&
+        InventoryPanels.QuickSlotsPanelRuntimeOffset == QuickSlotsPanelFixedOffset;
 
     internal static void RestorePathOfValheimanRingIconScale(InventoryGrid grid)
     {

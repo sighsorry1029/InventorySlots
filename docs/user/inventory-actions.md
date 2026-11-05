@@ -10,11 +10,11 @@ Press **F6** during gameplay to cycle **Expanded → Collapsed → Hidden → Ex
 
 The guide uses a fixed screen-relative position near the upper right, including while the inventory is closed. Its top-right corner stays anchored when expanding or collapsing. Placement follows resolution and UI scale; moving or resizing other panels does not move or resize the guide, and overlapping panels are allowed.
 
-**Feature Guide State** lets you choose **Expanded**, **Collapsed**, or **Hidden** directly in Configuration Manager, even with the guide shortcut unset. Find it under **3 - Client UI** in InventorySlots or **2 - Client** in InventoryActions. It defaults to Expanded and is saved in the mod's `.cfg` file across characters and sessions. F6, LT + R3, and the mouse triangle update this same client-only setting.
+**Feature Guide State** lets you choose **Expanded**, **Collapsed**, or **Hidden** directly in Configuration Manager, even with the guide shortcut unset. Find it under **6 - HUD & Guide** in InventorySlots or **2 - Client** in InventoryActions. It defaults to Expanded and is saved in the mod's `.cfg` file across characters and sessions. F6, LT + R3, and the mouse triangle update this same client-only setting.
 
 When updating from a version that saved the guide in ClientState YAML, select Hidden once again if desired. Previous guide preferences are not imported; favorite slots and other ClientState data are retained.
 
-**Toggle Feature Guide Key** is client-only and supports another key or a combination; **None** disables the shortcut. Find it under **4 - Client Keys** in InventorySlots or **2 - Client** in InventoryActions. The key is ignored while typing, using configuration menus, or interacting with dialogs.
+**Toggle Feature Guide Key** is client-only and supports another key or a combination; **None** disables the shortcut. Find it under **7 - Keyboard & Mouse** in InventorySlots or **2 - Client** in InventoryActions. The key is ignored while typing, using configuration menus, or interacting with dialogs.
 
 **Configuration Manager is optional.** F1 opens that separate mod's settings window only when it is installed and uses that binding. You can also edit **Feature Guide State** and the shortcut in `BepInEx/config/sighsorry.InventorySlots.cfg` or `BepInEx/config/sighsorry.InventoryActions.cfg` while the game is closed. To restore a hidden guide with its keyboard shortcut unset, select Expanded or Collapsed in the setting, or use **LT + R3** in the inventory.
 
@@ -30,7 +30,7 @@ The chest's **S** button sorts that chest. Automatic actions retain item metadat
 
 Local Quick Stack, Restock and other native transfers can merge stacks with identical unknown custom data. Different or missing values still block merging unless the data owner has a registered merge policy. Sort merging and favorite filling require policies for every custom-data field because they edit quantities directly. MultiUserChest retains its separate, conservative metadata rules.
 
-**Sort Button Side** places both S buttons on the **Left** (default) or **Right** edge. Find it under **3 - Client UI** in InventorySlots or **2 - Client** in InventoryActions. This client-only setting applies immediately and updates controller navigation. The selection is saved in the current config section. InventoryActions keeps **Sort Button Position** as an additional player-button offset from the selected side; existing values are preserved, with positive X moving right and positive Y moving up. Button placement continues to use the supported inventory mod's displayed rows and grid width.
+**Sort Button Side** places both S buttons on the **Left** (default) or **Right** edge. Find it under **3 - Inventory & Containers** in InventorySlots or **2 - Client** in InventoryActions. This client-only setting applies immediately and updates controller navigation. The selection is saved in the current config section. InventoryActions keeps **Sort Button Position** as an additional player-button offset from the selected side; existing values are preserved, with positive X moving right and positive Y moving up. Button placement continues to use the supported inventory mod's displayed rows and grid width.
 
 ## Container actions
 
@@ -62,7 +62,7 @@ The small mode button beside the quantity cycles through:
 
 Quantities apply **per favorite slot**, from `1` to the item's current maximum stack. For example, `Wood: 30 | IncludeEmpty` can restore up to 30 wood to each remembered wood slot after you consume it. Occupied slots are never replaced. An item with no valid rule uses Existing behavior up to its normal maximum stack.
 
-In Configuration Manager, find **Restock Target Stack Limits** under **6 - Inventory Buttons** in InventorySlots or **3 - Inventory Buttons** in InventoryActions:
+In Configuration Manager, find **Restock Target Stack Limits** under **8 - Inventory Buttons** in InventorySlots or **3 - Inventory Buttons** in InventoryActions:
 
 ```text
 Stone: 10 | Existing, Coins: 500 | IncludeEmpty, Wood: 30 | Off
@@ -105,12 +105,12 @@ The server-synced **1 - General → Enable Inventory Trash Panel** setting contr
 
 ## Button display and editing
 
-The **Restock Button**, **Auto Pickup Exclude Button**, and **Trash Button** settings are under **6 - Inventory Buttons** in InventorySlots or **3 - Inventory Buttons** in InventoryActions:
+The **Restock Button**, **Auto Pickup Exclude Button**, and **Trash Button** settings are under **8 - Inventory Buttons** in InventorySlots or **3 - Inventory Buttons** in InventoryActions:
 
 | Mode | Display |
 | --- | --- |
-| **Auto** — default | Shows the bottom edge; expands on hover or gamepad selection. An open editor keeps its button expanded. |
-| **On** | Always shows the full button. |
+| **Auto** | Shows the bottom edge; expands on hover or gamepad selection. An open editor keeps its button expanded. |
+| **On** — default | Always shows the full button. |
 | **Off** | Hides the button and closes its editor. Saved restock and exclusion rules remain active. |
 
 Holding an item alone does not expand Auto buttons. Enabled buttons pack along the bottom in Restock, Exclude, Trash order from left to right. Hover Restock/Exclude for a preview or click to pin the editor. Long lists scroll, and valid edits save immediately.

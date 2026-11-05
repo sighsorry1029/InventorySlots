@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../QuickSlotRadial.cs" Link="QuickSlotRadial.cs" />
+    <Compile Include="../../QuickSlotInputController.cs" Link="QuickSlotInputController.cs" />
+    <Compile Include="../../InventoryPanelSnapping.cs" Link="InventoryPanelSnapping.cs" />
+    <EmbeddedResource Include="../../Assets/QuickSlotsRadial.png" LogicalName="InventorySlots.QuickSlotsRadial.png" />
+  </ItemGroup>
+</Project>

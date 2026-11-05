@@ -1,4 +1,11 @@
 using ItemData = ItemDrop.ItemData;
+using System.Reflection;
+using System.Reflection.Emit;
+#if EPICLOOT_MODERN
+using EpicEndpoint = EpicLoot.MagicItemData;
+#else
+using EpicEndpoint = EpicLoot.Data.ItemInfo;
+#endif
 #if INVENTORY_SLOTS
 using Plugin = InventorySlots.InventorySlotsPlugin;
 #else
@@ -26,6 +33,11 @@ var a = Item(20, 0); var b = Item(35, 1);
 Check("optional dependency absent", !Plugin.Eligible(a) && !Plugin.Pair(a, b));
 Plugin.Setup();
 Check("public API binding and matching metadata", Plugin.Eligible(a) && Plugin.Pair(a, b));
+#if EPICLOOT_MODERN
+EpicEndpoint.ExpectedExisting = a;
+Check("modern predicate receives destination first", Plugin.Pair(a, b));
+EpicEndpoint.ExpectedExisting = null;
+#endif
 foreach (string kind in new[] { "rune", "shard", "material" }) Check(kind + " eligible", Plugin.Eligible(Item(1, 0, kind: kind)));
 foreach (string token in new[] { "ForestToken", "IronBountyToken", "GoldBountyToken" })
     Check(token + " eligible", Plugin.Eligible(Item(1, 0, null, "token", token)));
@@ -54,9 +66,17 @@ b.m_customData["randyknapp.mods.epicloot#UnknownType"] = "B";
 Check("unresolved EpicLoot data is not blindly trusted", !Plugin.Pair(a, b));
 a = Item(20, 0); b = Item(40, 1);
 a.m_customData["epic.value"] = "1"; b.m_customData["epic.value"] = "9";
+#if EPICLOOT_MODERN
+Check("bool approval does not authorize differing unowned metadata", !Plugin.Pair(a, b));
+b.m_customData["epic.value"] = "1";
+#endif
 var inv = Inventory(a, b); var list = inv.Items.ToList();
 Check("sort merges through native path", Plugin.Sort(inv, list) && inv.Moves == 1 && a.m_stack == 50 && b.m_stack == 10);
+#if EPICLOOT_MODERN
+Check("modern approval does not rewrite metadata", a.m_customData["epic.value"] == "1" && b.m_customData["epic.value"] == "1");
+#else
 Check("native metadata result applied with donor retained", a.m_customData["epic.value"] == "9" && b.m_customData["epic.value"] == "9");
+#endif
 Check("repeat sort does not move items again", !Plugin.Sort(inv, list) && inv.Moves == 1);
 
 a = Item(20, 0); b = Item(30, 1); inv = Inventory(a, b); list = inv.Items.ToList();
@@ -84,13 +104,25 @@ InventorySlots.StackMetadataPolicy.Register("freshness", (left, right) => Math.M
 a = Item(20, 0); b = Item(35, 1); a.m_customData["freshness"] = "10"; b.m_customData["freshness"] = "7";
 inv = Inventory(a, b);
 Check("Slots registered metadata policy remains authoritative", Plugin.Sort(inv, inv.Items.ToList()) && a.m_customData["freshness"] == "7" && b.m_customData["freshness"] == "7");
+InventorySlots.StackMetadataPolicy.Register("blocked", (_, _) => "merged", (_, _) => false);
+a = Item(20, 0); b = Item(35, 1); a.m_customData["blocked"] = b.m_customData["blocked"] = "same";
+Check("registered owner veto wins over EpicLoot approval even for identical values", !Plugin.Pair(a, b));
 a = Item(20, 0); b = Item(35, 1); a.m_customData["epic.value"] = "1"; b.m_customData["epic.value"] = "9";
+#if EPICLOOT_MODERN
+b.m_customData["epic.value"] = "1";
+Check("modern capacity probe leaves metadata and counts unchanged", Plugin.Pair(a, b) && a.m_customData["epic.value"] == "1" && a.m_stack == 20 && b.m_stack == 35);
+Check("modern automatic lookup has no merge output to apply", Plugin.PrepareAuto(a, b) && a.m_customData["epic.value"] == "1" && b.m_customData["epic.value"] == "1" && a.m_stack == 20 && b.m_stack == 35);
+#else
 Check("capacity probe does not write EpicLoot merge output", Plugin.Pair(a, b) && a.m_customData["epic.value"] == "1");
 Check("overridden automatic lookup preserves EpicLoot merge output", Plugin.PrepareAuto(a, b) && a.m_customData["epic.value"] == "9" && a.m_stack == 20 && b.m_stack == 35);
 #endif
+#else
+a = Item(20, 0); b = Item(35, 1); a.m_customData["freshness"] = "10"; b.m_customData["freshness"] = "7";
+Check("Actions retains exact unmerged-data policy for EpicLoot transfers", !Plugin.Pair(a, b));
+#endif
 
 int warnings = Plugin.Log.Warnings;
-EpicLoot.Data.ItemInfo.Fail = true;
+EpicEndpoint.Fail = true;
 Check("API exception refuses merge", !Plugin.Pair(Item(20, 0), Item(30, 1)));
 Check("failed endpoint stays disabled without warning spam", !Plugin.Pair(Item(20, 0), Item(30, 1)) && Plugin.Log.Warnings == warnings + 1);
 first = Item(20, 0, null, "rune", "Runestone"); donor = Item(30, 1, null, "rune", "Runestone"); inv = Inventory(first, donor);
@@ -103,6 +135,12 @@ Check("classification error quarantines item from direct fill", !Plugin.Fill(inv
 first = Item(20, 0, null, "vanilla", "Wood"); donor = Item(30, 1, null, "vanilla", "Wood"); inv = Inventory(first, donor);
 Check("classification error does not block ordinary materials", Plugin.Fill(inv, new() { first }, new() { donor }) && first.m_stack == 50);
 
+Check("modern contract binds regardless of unrelated assembly version", Plugin.CanBind(ModernContract(new Version(99, 7), typeof(bool))));
+Check("fresh assembly identity with same contract binds", Plugin.CanBind(ModernContract(new Version(1, 0), typeof(bool))));
+Check("missing modern predicate rejected", !Plugin.CanBind(ModernContract(new Version(1, 0), null)));
+Check("wrong modern return type rejected", !Plugin.CanBind(ModernContract(new Version(1, 0), typeof(int))));
+Check("partial legacy contract does not silently switch to modern", !Plugin.CanBind(ModernContract(new Version(1, 0), typeof(bool), partialLegacy: true)));
+
 if (args.Length > 0)
 {
     using var assembly = Mono.Cecil.AssemblyDefinition.ReadAssembly(args[0]);
@@ -110,9 +148,39 @@ if (args.Length > 0)
     var info = module.GetType("EpicLoot.Data.ItemInfo");
     var ext = module.GetType("EpicLoot.Data.ItemExtensions");
     var api = module.GetType("EpicLoot.API");
-    Check("original DLL exposes public ItemInfo.Data contract", ext.Methods.Any(m => m.Name == "Data" && m.IsPublic && m.IsStatic && m.Parameters.Count == 1 && m.Parameters[0].ParameterType.FullName == "ItemDrop/ItemData" && m.ReturnType.FullName == info.FullName));
-    Check("original DLL exposes public pair metadata contract", info.Methods.Any(m => m.Name == "IsStackableWithOtherInfo" && m.IsPublic && !m.IsStatic && m.Parameters.Count == 1 && m.Parameters[0].ParameterType.FullName == info.FullName && m.ReturnType.FullName == "System.Collections.Generic.Dictionary`2<System.String,System.String>"));
+    if (ext != null || info != null)
+    {
+        Check("original DLL exposes public ItemInfo.Data contract", info != null && ext != null && ext.Methods.Any(m => m.Name == "Data" && m.IsPublic && m.IsStatic && m.Parameters.Count == 1 && m.Parameters[0].ParameterType.FullName == "ItemDrop/ItemData" && m.ReturnType.FullName == info.FullName));
+        Check("original DLL exposes public pair metadata contract", info!.Methods.Any(m => m.Name == "IsStackableWithOtherInfo" && m.IsPublic && !m.IsStatic && m.Parameters.Count == 1 && m.Parameters[0].ParameterType.FullName == info.FullName && m.ReturnType.FullName == "System.Collections.Generic.Dictionary`2<System.String,System.String>"));
+    }
+    else
+    {
+        var modern = module.GetType("EpicLoot.MagicItemData");
+        Check("original DLL exposes modern internal pair predicate", modern != null && modern.Methods.Any(m => m.Name == "StacksWith" && m.IsAssembly && m.IsStatic && !m.HasGenericParameters && m.Parameters.Count == 2 && m.Parameters.All(p => p.ParameterType.FullName == "ItemDrop/ItemData") && m.ReturnType.FullName == "System.Boolean"));
+    }
     foreach (string name in new[] { "IsShardStone", "IsRunestone", "IsMagicItem", "IsMagicCraftingMaterial" })
         Check("original DLL classifier " + name, api.Methods.Any(m => m.Name == name && m.IsPublic && m.IsStatic && m.ReturnType.FullName == "System.Boolean" && m.Parameters.Count == 1 && m.Parameters[0].ParameterType.FullName == "ItemDrop/ItemData"));
 }
 Console.WriteLine($"PASS {checks} {typeof(Plugin).Namespace} stacking checks; simulated native host, no game execution.");
+
+static Assembly ModernContract(Version version, Type? returnType, bool partialLegacy = false)
+{
+    var assembly = AssemblyBuilder.DefineDynamicAssembly(new AssemblyName("EpicFixture" + Guid.NewGuid().ToString("N")) { Version = version }, AssemblyBuilderAccess.Run);
+    var module = assembly.DefineDynamicModule("fixture");
+    var api = module.DefineType("EpicLoot.API", TypeAttributes.Public | TypeAttributes.Abstract | TypeAttributes.Sealed);
+    foreach (string name in new[] { "IsShardStone", "IsRunestone", "IsMagicItem", "IsMagicCraftingMaterial" })
+    {
+        var method = api.DefineMethod(name, MethodAttributes.Public | MethodAttributes.Static, typeof(bool), new[] { typeof(ItemData) });
+        var il = method.GetILGenerator(); il.Emit(OpCodes.Ldc_I4_0); il.Emit(OpCodes.Ret);
+    }
+    api.CreateType();
+    var modern = module.DefineType("EpicLoot.MagicItemData", TypeAttributes.Public | TypeAttributes.Abstract | TypeAttributes.Sealed);
+    if (returnType != null)
+    {
+        var method = modern.DefineMethod("StacksWith", MethodAttributes.Assembly | MethodAttributes.Static, returnType, new[] { typeof(ItemData), typeof(ItemData) });
+        var il = method.GetILGenerator(); il.Emit(OpCodes.Ldc_I4_1); il.Emit(OpCodes.Ret);
+    }
+    modern.CreateType();
+    if (partialLegacy) module.DefineType("EpicLoot.Data.ItemInfo", TypeAttributes.Public).CreateType();
+    return assembly;
+}

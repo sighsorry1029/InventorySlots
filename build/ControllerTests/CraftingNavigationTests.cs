@@ -75,11 +75,11 @@ internal static partial class Program
             NavigateRecipe(source + "Down");
             NavigateRecipe(source + "Down");
             Check(Plugin.TestRecipeSelected == view[10] && Plugin.TestRecipePage == 1,
-                "Grid short final row uses nearest cell and reveals next page");
+                "Grid short final row uses nearest cell and scrolls one row to reveal it");
             NavigateRecipe(source + "Down");
             Check(Plugin.TestRecipeSelected == view[10], "Grid final row stays selected");
             NavigateRecipe(source + "Up");
-            Check(Plugin.TestRecipeSelected == view[7] && Plugin.TestRecipePage == 0, "Grid up returns in current column");
+            Check(Plugin.TestRecipeSelected == view[7] && Plugin.TestRecipePage == 1, "Grid up retains the visible window and current column");
             Plugin.TestRecipeColumns = 2;
             NavigateRecipe(source + "Up");
             Check(Plugin.TestRecipeSelected == view[5] && Plugin.TestRecipePage == 1, "Grid live size controls row step and page");

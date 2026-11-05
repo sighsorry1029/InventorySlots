@@ -63,7 +63,7 @@ public sealed partial class InventorySlotsPlugin
     }
 
     private static int GetCraftingRecipePageStart() => CraftingViewCore.PageStart(
-        _craftingListViewActive, _craftingRecipePage, GetCraftingRecipeGridCapacity());
+        _craftingRecipePage, GetCraftingRecipeGridDimension());
 
     private static void UpdateCraftingViewControls(InventoryGui gui, RectTransform grid, CraftingTabAdapterState adapter)
     {
@@ -76,15 +76,18 @@ public sealed partial class InventorySlotsPlugin
         if (_craftingViewButton == null || _craftingViewButton.parent != gui.m_crafting)
         {
             if (_craftingViewButton != null) UnityEngine.Object.Destroy(_craftingViewButton.gameObject);
-            _craftingViewButton = new GameObject("InventorySlots_CraftingViewButton", typeof(RectTransform), typeof(Image), typeof(UIInputHandler), typeof(UITooltip)).GetComponent<RectTransform>();
+            _craftingViewButton = new GameObject("InventorySlots_CraftingViewButton", typeof(RectTransform), typeof(Image), typeof(Button)).GetComponent<RectTransform>();
             _craftingViewButton.SetParent(gui.m_crafting, false);
-            Image image = _craftingViewButton.GetComponent<Image>();
-            ApplyVanillaButtonImage(gui.m_variantButton, image);
-            image.color = new Color(0.05f, 0.035f, 0.025f, 0.92f);
-            image.raycastTarget = true;
+            Button button = _craftingViewButton.GetComponent<Button>();
+            ApplyCraftingHeaderButtonStyle(gui, button);
             CreateTextRect("Label", _craftingViewButton, out TMP_Text label);
             _craftingViewButtonLabel = label;
             label.fontSize = 15f;
+            label.enableAutoSizing = true;
+            label.fontSizeMin = 10f;
+            label.fontSizeMax = 15f;
+            label.textWrappingMode = TextWrappingModes.NoWrap;
+            label.overflowMode = TextOverflowModes.Truncate;
             label.alignment = TextAlignmentOptions.Center;
             label.color = new Color(1f, 0.86f, 0.52f, 0.95f);
             label.raycastTarget = false;
@@ -93,27 +96,23 @@ public sealed partial class InventorySlotsPlugin
             label.rectTransform.offsetMin = Vector2.zero;
             label.rectTransform.offsetMax = Vector2.zero;
             _craftingViewButtonLocalizationVersion = -1;
-            _craftingViewButton.GetComponent<UIInputHandler>().m_onLeftClick += _ =>
+            button.onClick.AddListener(() =>
             {
                 if (_craftingViewMode != null)
                     _craftingViewMode.Value = _craftingViewMode.Value == CraftingViewMode.Grid ? CraftingViewMode.List : CraftingViewMode.Grid;
-            };
+            });
         }
 
         _craftingViewButton.gameObject.SetActive(true);
         if (CraftingUi.SearchInputRect != null)
         {
-            const float buttonWidth = 62f;
-            RectTransform search = CraftingUi.SearchInputRect;
-            SetTopLeftRectLayout(gui.m_crafting, _craftingViewButton,
-                search.anchoredPosition - new Vector2(buttonWidth + CraftingSortModeButtonGap, 0f),
-                new Vector2(buttonWidth, search.sizeDelta.y));
+            GetCraftingHeaderButtonLayout(CraftingUi.SearchInputRect, right: false, out Vector2 position, out Vector2 size);
+            SetTopLeftRectLayout(gui.m_crafting, _craftingViewButton, position, size);
         }
         if (_craftingViewButtonLocalizationVersion != _uiLocalizationVersion || _craftingViewButtonShowsList != _craftingListViewActive)
         {
             _craftingViewButtonLabel!.text = _craftingListViewActive ? LocalizeUi("$inventoryslots_view_list", "List") : LocalizeUi("$inventoryslots_view_grid", "Grid");
             ApplyDefaultFontAsset(_craftingViewButtonLabel);
-            ConfigureSimpleTooltip(_craftingViewButton.gameObject, LocalizeUi("$inventoryslots_view_toggle", "Switch between grid and list view"), true);
             _craftingViewButtonLocalizationVersion = _uiLocalizationVersion;
             _craftingViewButtonShowsList = _craftingListViewActive;
         }
@@ -137,7 +136,7 @@ public sealed partial class InventorySlotsPlugin
         name.raycastTarget = false;
         SetTopLeftRectLayout(cell.Rect, name.rectTransform, new Vector2(rowHeight + 2f, 0f), new Vector2(CraftingListWidth - rowHeight - 8f, rowHeight));
         if (cell.Icon != null)
-            SetTopLeftRectLayout(cell.Rect, cell.Icon.rectTransform, new Vector2(3f, -3f), new Vector2(rowHeight - 6f, rowHeight - 6f));
+            SetTopLeftRectLayout(cell.Icon.rectTransform, new Vector2(3f, -3f), new Vector2(rowHeight - 6f, rowHeight - 6f));
         if (cell.Amount != null) cell.Amount.gameObject.SetActive(false);
         if (cell.Quality != null) cell.Quality.gameObject.SetActive(false);
         if (cell.Food != null) cell.Food.gameObject.SetActive(false);

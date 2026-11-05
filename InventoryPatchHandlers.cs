@@ -774,10 +774,6 @@ public sealed partial class InventorySlotsPlugin
     internal static void OnInventoryGuiShow(bool wasAlreadyVisible = false)
     {
         OnRealInventoryGuiShown();
-        if (!wasAlreadyVisible || InventoryPanels.QuickSlotPanelOutroActive)
-        {
-            StartQuickSlotPanelIntroAnimation();
-        }
 
         Player? player = Player.m_localPlayer;
         if (player != null && !player.m_isLoading)
@@ -789,13 +785,16 @@ public sealed partial class InventorySlotsPlugin
     internal static void OnInventoryGuiHide()
     {
         OnInventoryGuiHidden();
-        StartQuickSlotPanelOutroAnimation();
+        StopInventoryPanelDrag();
         PrunePendingSlotActions();
         RestoreContainerUiState();
         ClearCraftingQueue();
         CraftingController.ClearHoveredRecipe();
         HideCraftingPinnedTooltips();
         DeferInventoryClosingLayoutRestore();
+        // Clear the model now; synchronize the field on reopen, without relayout during the outro.
+        UpdateCraftingSearchQuery("");
+        CraftingUi.SearchInputResetPending = true;
         HideInventoryPinnedTooltips();
         HideInventoryOwnedHoverTooltips();
         ClearInventoryHoverTooltipSources();

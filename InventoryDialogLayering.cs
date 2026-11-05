@@ -165,7 +165,7 @@ internal static class InventoryDialogLayering
 
     private static void ConsiderDialog(Transform root, GameObject? dialog, ref Transform? first)
     {
-        // Reparented/foreign hierarchies and quick-slot outro canvases keep their
+        // Reparented/foreign hierarchies keep their
         // owner's ordering; only direct siblings in the native root are handled.
         if (dialog == null || !dialog.activeInHierarchy || dialog.transform.parent != root) return;
         Transform candidate = dialog.transform;

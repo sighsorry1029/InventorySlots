@@ -49,7 +49,7 @@ public sealed partial class InventorySlotsPlugin
         List<SlotDefinition> ordinary = GetQuickPanelSlots(player);
         bool hasPov = CanUsePathOfValheimanHud(player);
         bool followsEquipment = hasPov && _quickSlotHudFollowsPanel?.Value == Toggle.On &&
-            InventoryPanels.QuickSlotsPanelRuntimeOffset == QuickSlotsPanelFixedOffset &&
+            IsQuickSlotPanelAtDefaultPosition() &&
             !InventoryPanels.DraggingQuickSlotsPanelOffset;
         int version = InventoryDefinitions.SlotDefinitionVersion;
         // PoV's existing inventory-change and unlock polling paths invalidate
@@ -112,7 +112,7 @@ public sealed partial class InventorySlotsPlugin
         float now = Time.unscaledTime;
         bool hudFollowsPanel = _quickSlotHudFollowsPanel?.Value == Toggle.On;
         bool visible = QuickHudVisibility.IsVisible(now) && !Hud.IsUserHidden() && Hud.instance.IsVisible() &&
-            !(hudFollowsPanel && (InventoryGui.IsVisible() || InventoryPanels.QuickSlotPanelIntroActive || InventoryPanels.QuickSlotPanelOutroActive));
+            !(hudFollowsPanel && (InventoryGui.IsVisible() || IsInventoryClosingLayoutPending(InventoryGui.instance)));
         // Prepare the combined HUD once even in an initially hidden mode before
         // taking over PoV's native display. Hidden frames do not render tooltips.
         if (!visible && (!CanUsePathOfValheimanHud(player) || _povUnifiedHudPlayer == player &&

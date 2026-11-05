@@ -69,7 +69,7 @@ The open-chest **Take stacks** button fills matching non-favorite stacks. It is 
 
 ## Installation
 
-Install with a Valheim mod manager, or place `InventoryActions.dll` in `BepInEx/plugins`. Requires **BepInExPack Valheim 5.4.2351**. Launch once to generate the config.
+Install with a Valheim mod manager, or place `InventoryActions.dll` in `BepInEx/plugins`. Requires **BepInExPack Valheim 5.4.2360**. Launch once to generate the config.
 
 Guide state and character-specific favorites are saved in `BepInEx/config/InventoryActions.ClientState.yml`. Previous `InventoryActions.Favorites.<playerId>.txt` files are not imported; re-register favorites when updating from that format.
 
@@ -85,7 +85,7 @@ EpicLoot materials, tokens, Runestones, and ShardStones support compatible stack
 
 Press **F6** to cycle the quick guide: **Expanded → Collapsed → Hidden → Expanded**, with the inventory open or closed. Or choose **Feature Guide State** directly under **2 - Client**. Your choice is saved in the config. Change or unset **Toggle Feature Guide Key** in the same section; Configuration Manager is optional. [Guide controls](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/inventory-actions.md#show-or-hide-the-quick-guide).
 
-The three buttons default to **Auto**: each appears on hover or controller focus. Choose **On** to keep a button visible or **Off** to hide it. Saved restock and pickup rules remain active when their button is hidden.
+The three buttons default to **On**: each stays fully visible. Choose **Auto** to expand a button on hover or controller focus, or **Off** to hide it. Saved restock and pickup rules remain active when their button is hidden.
 
 Look under **3 - Inventory Buttons** for button display, restock targets, pickup exclusions, and rule tooltip settings. These preferences are client-side.
 

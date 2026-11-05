@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <StackTarget Condition="'$(StackTarget)' == ''">InventoryActions</StackTarget>
     <DefineConstants Condition="'$(StackTarget)' == 'InventorySlots'">$(DefineConstants);INVENTORY_SLOTS</DefineConstants>
+    <DefineConstants Condition="'$(EpicLootApiFlavor)' == 'Modern'">$(DefineConstants);EPICLOOT_MODERN</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../Shared/Sorting/EpicLootStacking.cs" Link="EpicLootStacking.cs" />

@@ -58,7 +58,11 @@ public sealed partial class InventorySlotsPlugin
 
         int direction = wheel < 0f ? 1 : -1;
         int oldPage = _craftingRecipePage;
-        _craftingRecipePage = Mathf.Clamp(_craftingRecipePage + direction, 0, pageCount - 1);
+        CraftingScrollMode mode = _craftingListViewActive
+            ? _craftingListScrollMode?.Value ?? CraftingScrollMode.Page
+            : _craftingGridScrollMode?.Value ?? CraftingScrollMode.Row;
+        _craftingRecipePage = CraftingViewCore.Scroll(_craftingRecipePage, direction, mode,
+            CraftingRecipes.View.Count, GetCraftingRecipeGridCapacity(), GetCraftingRecipeGridDimension());
         if (_craftingRecipePage == oldPage)
         {
             return false;
@@ -69,9 +73,9 @@ public sealed partial class InventorySlotsPlugin
         if (_craftingListViewActive)
         {
             _craftingListRevealedSelection = GetSelectedCraftingRecipeIndexSafe(gui, acceptOneLevelHigher: false);
-            // Fast-path input can fall through into a full layout in this frame.
-            ConsumeMouseUiScrollForCurrentFrame();
         }
+        // Fast-path input can fall through into a full layout in this frame.
+        ConsumeMouseUiScrollForCurrentFrame();
         int pageStart = GetCraftingRecipePageStart();
         if (!_craftingListViewActive && pageStart >= 0 && pageStart < CraftingRecipes.View.Count)
         {
@@ -113,7 +117,8 @@ public sealed partial class InventorySlotsPlugin
         int viewIndex = FindCraftingRecipeViewIndex(selectedIndex);
         if (viewIndex >= 0)
         {
-            _craftingRecipePage = Mathf.Clamp(viewIndex / GetCraftingRecipeGridCapacity(), 0, Mathf.Max(0, GetCraftingRecipePageCount(gui) - 1));
+            _craftingRecipePage = CraftingViewCore.RevealSelection(_craftingRecipePage, viewIndex,
+                CraftingRecipes.View.Count, GetCraftingRecipeGridCapacity(), GetCraftingRecipeGridDimension());
         }
         else
         {
@@ -290,8 +295,8 @@ public sealed partial class InventorySlotsPlugin
 
         int viewIndex = FindCraftingRecipeViewIndex(selectedIndex);
         int oldPage = _craftingRecipePage;
-        _craftingRecipePage = CraftingViewCore.RevealSelection(_craftingListViewActive, oldPage, viewIndex,
-            CraftingRecipes.View.Count, GetCraftingRecipeGridCapacity());
+        _craftingRecipePage = CraftingViewCore.RevealSelection(oldPage, viewIndex,
+            CraftingRecipes.View.Count, GetCraftingRecipeGridCapacity(), GetCraftingRecipeGridDimension());
         if (_craftingRecipePage != oldPage)
         {
             CraftingController.MarkRecipeGridLayoutDirty();
@@ -311,7 +316,7 @@ public sealed partial class InventorySlotsPlugin
     private static int GetCraftingRecipePageCount(InventoryGui gui)
     {
         int count = CraftingRecipes.View.Count;
-        return CraftingViewCore.PageCount(_craftingListViewActive, count, GetCraftingRecipeGridCapacity());
+        return CraftingViewCore.PageCount(count, GetCraftingRecipeGridCapacity(), GetCraftingRecipeGridDimension());
     }
 
     private static void LayoutCraftingRecipeGrid(InventoryGui gui, RectTransform grid)
@@ -400,6 +405,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         ConfigureCraftingRecipeCellIcon(cell.Icon, pair, cellSize);
+        if (!_craftingListViewActive) RestoreCraftingRecipeCellIconLayer(cell);
         ConfigureCraftingRecipeFoodIcon(gui, cell.Food, pair, cellSize);
         ConfigureCraftingRecipeCellAmountText(cell.Amount, GetCraftingRecipeCellAmountText(gui, pair), cellSize);
         ConfigureCraftingRecipeCellQualityText(cell.Quality, !IsVeiledRecipeMasked(pair) && pair.ItemData != null ? pair.ItemData.m_quality.ToString() : "", cellSize);
@@ -703,6 +709,22 @@ public sealed partial class InventorySlotsPlugin
         icon.raycastTarget = false;
     }
 
+    private static void RestoreCraftingRecipeCellIconLayer(CraftingRecipeGridCell cell)
+    {
+        RectTransform? icon = cell.Icon?.rectTransform;
+        if (icon == null || icon.parent != cell.Rect) return;
+
+        // Reused list cells may have raised the icon above these labels.
+        // Lower only the icon; preserve the order of badges and controls.
+        int current = icon.GetSiblingIndex();
+        int target = current;
+        if (cell.Amount != null && cell.Amount.rectTransform.parent == cell.Rect)
+            target = Mathf.Min(target, cell.Amount.rectTransform.GetSiblingIndex());
+        if (cell.Quality != null && cell.Quality.rectTransform.parent == cell.Rect)
+            target = Mathf.Min(target, cell.Quality.rectTransform.GetSiblingIndex());
+        if (target < current) icon.SetSiblingIndex(target);
+    }
+
     private static void ConfigureCraftingRecipeFoodIcon(InventoryGui gui, Image? foodIcon, InventoryGui.RecipeDataPair pair, float cellSize)
     {
         if (foodIcon == null)
@@ -873,6 +895,43 @@ public sealed partial class InventorySlotsPlugin
         target.sprite = GetSolidUiSprite();
         target.type = Image.Type.Sliced;
         target.color = new Color(0.02f, 0.015f, 0.01f, 0.76f);
+    }
+
+    private static void ApplyCraftingHeaderButtonStyle(InventoryGui gui, Button button)
+    {
+        Button? source = gui.m_tabCraft != null ? gui.m_tabCraft : gui.m_tabUpgrade;
+        Image image = button.GetComponent<Image>();
+        ApplyVanillaButtonImage(source, image);
+        image.raycastTarget = true;
+        button.targetGraphic = image;
+        // The active native tab is disabled; these controls must remain repeatable toggles.
+        button.interactable = true;
+        button.navigation = new Navigation { mode = Navigation.Mode.None };
+
+        if (source != null && source.transition == Selectable.Transition.SpriteSwap)
+        {
+            SpriteState sprites = source.spriteState;
+            sprites.selectedSprite = null;
+            button.spriteState = sprites;
+            button.transition = Selectable.Transition.SpriteSwap;
+        }
+        else
+        {
+            // A foreign tab may use an Animator or no transition. Do not copy its
+            // behavior/components; retain pointer feedback using a color transition.
+            ColorBlock colors = source != null && source.transition == Selectable.Transition.ColorTint
+                ? source.colors : ColorBlock.defaultColorBlock;
+            if (source == null || source.transition != Selectable.Transition.ColorTint)
+            {
+                colors.normalColor = new Color(0.9f, 0.9f, 0.9f, 1f);
+                colors.highlightedColor = Color.white;
+                colors.pressedColor = new Color(0.7f, 0.7f, 0.7f, 1f);
+                colors.fadeDuration = 0.08f;
+            }
+            colors.selectedColor = colors.normalColor;
+            button.colors = colors;
+            button.transition = Selectable.Transition.ColorTint;
+        }
     }
 
     private static Color GetVanillaButtonTextColor(Button? button)

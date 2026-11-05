@@ -65,10 +65,9 @@ public sealed partial class InventoryActionsPlugin
     private static bool PrepareEpicLootAutomaticStack(ItemData target, ItemData source)
     {
         if (!TryGetEpicLootStackMerge(target, source, out var merged)) return false;
-        // Our FindFreeStackItem replacement bypasses EpicLoot's transpiler. Its
-        // original postfix applies these values to the chosen target before the
-        // native AddItem loop increments its stack. Preserve that exact boundary;
-        // capacity checks above remain read-only and never call this method.
+        // Preserve the legacy ItemInfo merge boundary before native AddItem
+        // increments the stack. Modern MagicItemData only approves/rejects the
+        // pair and returns no values here. Capacity probes never apply metadata.
         foreach (var entry in merged!) target.m_customData[entry.Key] = entry.Value;
         return true;
     }
@@ -126,10 +125,11 @@ public sealed partial class InventoryActionsPlugin
         return changed;
     }
 
-    // No compile-time EpicLoot reference: bind its public classifiers and item
-    // data API once per plugin lifetime. Pair checks do not search reflection.
+    // No compile-time EpicLoot reference: bind classifiers and the matching
+    // item-data contract once per plugin lifetime, never during pair checks.
     private sealed class EpicLootStackingApi
     {
+        private static readonly Dictionary<string, string> NoMergedData = new();
         private readonly Func<ItemData, bool> _shard, _rune, _magic, _material;
         private readonly Func<ItemData, ItemData, Dictionary<string, string>?> _merge;
         private bool _failed;
@@ -141,8 +141,30 @@ public sealed partial class InventoryActionsPlugin
             _rune = Classifier(api, "IsRunestone");
             _magic = Classifier(api, "IsMagicItem");
             _material = Classifier(api, "IsMagicCraftingMaterial");
-            Type extensions = assembly.GetType("EpicLoot.Data.ItemExtensions", true)!;
-            Type info = assembly.GetType("EpicLoot.Data.ItemInfo", true)!;
+            Type? extensions = assembly.GetType("EpicLoot.Data.ItemExtensions");
+            Type? info = assembly.GetType("EpicLoot.Data.ItemInfo");
+            if (extensions == null && info == null)
+            {
+                Type modern = assembly.GetType("EpicLoot.MagicItemData", true)!;
+                MethodInfo? stacksWith = modern.GetMethod("StacksWith",
+                    BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly,
+                    null, new[] { typeof(ItemData), typeof(ItemData) }, null);
+                if (stacksWith?.ReturnType != typeof(bool) || stacksWith.ContainsGenericParameters)
+                    throw new MissingMethodException("EpicLoot.MagicItemData", "StacksWith");
+
+                // This is internal in EpicLoot 0.15.6. Use an explicit cached
+                // delegate, not publicized references or a copy of its rules.
+                var canStack = (Func<ItemData, ItemData, bool>)Delegate.CreateDelegate(
+                    typeof(Func<ItemData, ItemData, bool>), stacksWith);
+                _merge = (source, target) => canStack(target, source) ? NoMergedData : null;
+                // A bool approval owns no metadata keys. The caller still checks
+                // every field through Slots' policies / Actions' exact comparison.
+                return;
+            }
+
+            // A partial/broken legacy API is not permission to switch contracts.
+            if (extensions == null || info == null)
+                throw new MissingMethodException("EpicLoot public item-data stacking API");
             MethodInfo? data = extensions.GetMethod("Data", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(ItemData) }, null);
             MethodInfo? merge = info.GetMethod("IsStackableWithOtherInfo", BindingFlags.Public | BindingFlags.Instance, null, new[] { info }, null);
             if (data?.ReturnType != info || merge?.ReturnType != typeof(Dictionary<string, string>))

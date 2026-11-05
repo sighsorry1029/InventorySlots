@@ -18,13 +18,15 @@
 
 아이템 위치를 유지하면서 행과 퀵 슬롯을 해금하고, 핫바를 전환해 더 많은 아이템을 바로 사용합니다.
 
+게임의 기본 원형 메뉴에서 **퀵슬롯**을 선택해 컨트롤러나 마우스로 사용할 수 있으며, 키보드 단축키도 유지됩니다. 장비·퀵슬롯 패널은 인벤토리와 함께 등장·퇴장하고 드래그할 때 가까운 패널 경계에 스냅됩니다. 스냅은 **3 - Inventory & Containers**에서 설정합니다.
+
 <a href="https://i.ibb.co/5XMjS4Cw/keyhint.png"><img src="https://i.ibb.co/5XMjS4Cw/keyhint.png" alt="인벤토리 단축키 안내" width="480"></a>
 
 ### 제작과 강화
 
 <a href="https://i.ibb.co/8gDsSjJM/gridchangeenglish.gif"><img src="https://i.ibb.co/8gDsSjJM/gridchangeenglish.gif" alt="제작 목록과 그리드 보기 전환" width="240"></a>
 
-처음에는 List 보기로 시작합니다. Search 옆 버튼으로 Grid와 즉시 전환할 수 있으며 선택은 로컬에 저장됩니다.
+처음에는 List 보기로 시작합니다. Search 위 버튼으로 Grid와 즉시 전환할 수 있으며 선택은 로컬에 저장됩니다.
 
 <a href="https://i.ibb.co/pBJJ84sJ/craftingpanellook.png"><img src="https://i.ibb.co/pBJJ84sJ/craftingpanellook.png" alt="검색과 분류를 제공하는 제작 화면" width="480"></a>
 
@@ -117,9 +119,9 @@ EpicLoot 아이템 정보와 Jewelcrafting 소켓 정보를 툴팁·비교 패�
 
 ## 설치
 
-Valheim 모드 매니저로 설치하거나 `InventorySlots.dll`을 `BepInEx/plugins`에 넣으세요. **BepInExPack Valheim 5.4.2351**이 필요하며, 한 번 실행하면 설정 파일이 생성됩니다.
+Valheim 모드 매니저로 설치하거나 `InventorySlots.dll`을 `BepInEx/plugins`에 넣으세요. **BepInExPack Valheim 5.4.2360**이 필요하며, 한 번 실행하면 설정 파일이 생성됩니다.
 
-게임 안에서 **F6**를 누르면 인벤토리 개폐 여부와 관계없이 빠른 가이드가 **펼침 → 접힘 → 숨김 → 펼침**으로 전환됩니다. 마지막 상태는 저장됩니다. **4 - Client Keys → Toggle Feature Guide Key**에서 키를 변경하거나 `None`으로 해제할 수 있습니다. 패드에서는 인벤토리를 열고 **LT+R3**로 같은 순환을 사용하며, 삼각형 클릭은 접기·펼치기만 합니다. Configuration Manager 설치는 필수가 아닙니다.
+게임 안에서 **F6**를 누르면 인벤토리 개폐 여부와 관계없이 빠른 가이드가 **펼침 → 접힘 → 숨김 → 펼침**으로 전환됩니다. 마지막 상태는 저장됩니다. **7 - Keyboard & Mouse → Toggle Feature Guide Key**에서 키를 변경하거나 `None`으로 해제할 수 있습니다. 패드에서는 인벤토리를 열고 **LT+R3**로 같은 순환을 사용하며, 삼각형 클릭은 접기·펼치기만 합니다. Configuration Manager 설치는 필수가 아닙니다.
 
 - **클라이언트에만 설치:** 바닐라 서버에 접속할 수 있습니다. 다른 플레이어는 설치할 필요가 없으며 내 로컬 설정이 적용됩니다.
 - **서버에도 설치:** 모든 클라이언트에 같은 버전이 필요하며 서버 동기화 설정은 서버를 따릅니다.

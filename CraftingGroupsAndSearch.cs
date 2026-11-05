@@ -723,6 +723,7 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
+        ResetClosedCraftingSearchInput();
         Vector2 size = GetCraftingSearchInputSize(gui);
         Vector2 position = GetCraftingSearchInputPosition(gui, grid, ref size) +
                            CraftingSearchInputFixedOffset +
@@ -742,6 +743,15 @@ public sealed partial class InventorySlotsPlugin
         SetTopLeftRectLayout(gui.m_crafting, inputRect, position, size);
         ConfigureCraftingSearchInputStyle(gui, inputRect);
         CraftingController.StoreSearchInputStamp(stamp);
+    }
+
+    private static void ResetClosedCraftingSearchInput()
+    {
+        // EnsureCraftingSearchInput reuses existing fields without rewriting their text.
+        // Only consume a close reset here; typing spaces must not be trimmed every frame.
+        if (!CraftingUi.SearchInputResetPending || CraftingUi.SearchInput == null) return;
+        CraftingUi.SearchInput.SetTextWithoutNotify(_craftingSearchQuery);
+        CraftingUi.SearchInputResetPending = false;
     }
 
     private static CraftingSearchInputStamp GetCraftingSearchInputStamp(InventoryGui gui, RectTransform inputRect, Vector2 position, Vector2 size)
@@ -981,21 +991,13 @@ public sealed partial class InventorySlotsPlugin
     private static void UpdateCraftingSortModeButtons(InventoryGui gui, RectTransform grid)
     {
         RectTransform? group = EnsureCraftingSortModeButtonGroup(gui);
-        if (group == null || gui.m_crafting == null)
+        if (group == null || gui.m_crafting == null || CraftingUi.SearchInputRect == null)
         {
             return;
         }
 
-        Vector2 searchSize = GetCraftingSearchInputSize(gui);
-        Vector2 searchPosition = GetCraftingSearchInputPosition(gui, grid, ref searchSize) +
-                                 CraftingSearchInputFixedOffset +
-                                 GetCraftingSearchCompatOffset(gui, searchSize);
-        float buttonSize = Mathf.Clamp(searchSize.y, 26f, 34f);
-        Vector2 size = new(buttonSize * 2f + CraftingSortModeButtonGap, buttonSize);
-        Vector2 position = searchPosition +
-                           new Vector2(0f, buttonSize + CraftingSortModeButtonGap) +
-                           CraftingSortModeButtonsFixedOffset;
-        CraftingSortModeButtonsStamp stamp = GetCraftingSortModeButtonsStamp(gui, group, position, size, buttonSize);
+        GetCraftingHeaderButtonLayout(CraftingUi.SearchInputRect, right: true, out Vector2 position, out Vector2 size);
+        CraftingSortModeButtonsStamp stamp = GetCraftingSortModeButtonsStamp(gui, group, position, size, size.y);
 
         group.gameObject.SetActive(true);
         if (group.GetSiblingIndex() != group.parent.childCount - 1)
@@ -1009,9 +1011,15 @@ public sealed partial class InventorySlotsPlugin
         }
 
         SetTopLeftRectLayout(gui.m_crafting, group, position, size);
-        ConfigureCraftingSortModeButton(gui, group, CraftingGroupFirstSortButtonName, 0, buttonSize, CraftingRecipeSortMode.GroupThenTier);
-        ConfigureCraftingSortModeButton(gui, group, CraftingTierFirstSortButtonName, 1, buttonSize, CraftingRecipeSortMode.TierThenGroup);
+        ConfigureCraftingSortModeButton(gui, group, size, GetCraftingRecipeSortMode());
         CraftingController.StoreSortModeButtonsStamp(stamp);
+    }
+
+    private static void GetCraftingHeaderButtonLayout(RectTransform search, bool right, out Vector2 position, out Vector2 size)
+    {
+        size = new Vector2(Mathf.Max(1f, (search.rect.width - CraftingSortModeButtonGap) * 0.5f), search.rect.height);
+        position = search.anchoredPosition + new Vector2(
+            right ? size.x + CraftingSortModeButtonGap : 0f, size.y + CraftingSortModeButtonGap);
     }
 
     private static CraftingSortModeButtonsStamp GetCraftingSortModeButtonsStamp(InventoryGui gui, RectTransform group, Vector2 position, Vector2 size, float buttonSize)
@@ -1057,27 +1065,19 @@ public sealed partial class InventorySlotsPlugin
         return _craftingSortModeButtonGroup;
     }
 
-    private static void ConfigureCraftingSortModeButton(InventoryGui gui, RectTransform parent, string name, int index, float buttonSize, CraftingRecipeSortMode mode)
+    private static void ConfigureCraftingSortModeButton(InventoryGui gui, RectTransform parent, Vector2 size, CraftingRecipeSortMode mode)
     {
-        RectTransform button = EnsureCraftingSortModeButton(parent, name, mode);
+        RectTransform button = EnsureCraftingSortModeButton(parent);
         button.gameObject.SetActive(true);
         button.anchorMin = new Vector2(0f, 1f);
         button.anchorMax = new Vector2(0f, 1f);
         button.pivot = new Vector2(0f, 1f);
-        button.anchoredPosition = new Vector2(index * (buttonSize + CraftingSortModeButtonGap), 0f);
-        button.sizeDelta = new Vector2(buttonSize, buttonSize);
+        button.anchoredPosition = Vector2.zero;
+        button.sizeDelta = size;
         button.localScale = Vector3.one;
         button.localRotation = Quaternion.identity;
 
-        bool selected = GetCraftingRecipeSortMode() == mode;
-        if (button.GetComponent<Image>() is { } image)
-        {
-            ApplyVanillaButtonImage(gui.m_variantButton, image);
-            image.color = selected
-                ? new Color(1f, 0.55f, 0.04f, 0.92f)
-                : new Color(0.05f, 0.035f, 0.025f, 0.92f);
-            image.raycastTarget = true;
-        }
+        ApplyCraftingHeaderButtonStyle(gui, button.GetComponent<Button>());
 
         TMP_Text? label = button.Find("Label")?.GetComponent<TMP_Text>();
         if (label != null)
@@ -1087,11 +1087,11 @@ public sealed partial class InventorySlotsPlugin
             label.alignment = TextAlignmentOptions.Center;
             label.enableAutoSizing = true;
             label.fontSizeMin = 10f;
-            label.fontSizeMax = Mathf.Clamp(buttonSize * 0.62f, 13f, 18f);
+            label.fontSizeMax = 15f;
             label.textWrappingMode = TextWrappingModes.NoWrap;
             label.overflowMode = TextOverflowModes.Truncate;
-            label.fontStyle = selected ? FontStyles.Bold : FontStyles.Normal;
-            label.color = selected ? Color.white : new Color(1f, 0.86f, 0.52f, 0.95f);
+            label.fontStyle = FontStyles.Normal;
+            label.color = new Color(1f, 0.86f, 0.52f, 0.95f);
             label.raycastTarget = false;
             RectTransform labelRect = label.rectTransform;
             labelRect.anchorMin = Vector2.zero;
@@ -1117,22 +1117,25 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
-    private static RectTransform EnsureCraftingSortModeButton(RectTransform parent, string name, CraftingRecipeSortMode mode)
+    private static RectTransform EnsureCraftingSortModeButton(RectTransform parent)
     {
-        Transform? existing = parent.Find(name);
+        Transform? existing = parent.Find(CraftingSortToggleButtonName);
         RectTransform? button = existing != null ? existing.GetComponent<RectTransform>() : null;
         if (button != null)
         {
             return button;
         }
 
-        button = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(UIInputHandler), typeof(UITooltip)).GetComponent<RectTransform>();
+        button = new GameObject(CraftingSortToggleButtonName, typeof(RectTransform), typeof(Image), typeof(Button), typeof(UITooltip)).GetComponent<RectTransform>();
         button.SetParent(parent, false);
         CreateTextRect("Label", button);
-        UIInputHandler input = button.GetComponent<UIInputHandler>();
-        input.m_onLeftClick += _ => SetCraftingRecipeSortMode(mode);
+        button.GetComponent<Button>().onClick.AddListener(ToggleCraftingRecipeSortMode);
         return button;
     }
+
+    private static void ToggleCraftingRecipeSortMode() => SetCraftingRecipeSortMode(
+        GetCraftingRecipeSortMode() == CraftingRecipeSortMode.GroupThenTier
+            ? CraftingRecipeSortMode.TierThenGroup : CraftingRecipeSortMode.GroupThenTier);
 
     private static void SetCraftingRecipeSortMode(CraftingRecipeSortMode mode)
     {
@@ -1149,7 +1152,9 @@ public sealed partial class InventorySlotsPlugin
         _craftingRecipeSortMode?.Value ?? CraftingRecipeSortMode.TierThenGroup;
 
     private static string GetCraftingSortModeButtonLabel(CraftingRecipeSortMode mode) =>
-        mode == CraftingRecipeSortMode.GroupThenTier ? "G" : "T";
+        mode == CraftingRecipeSortMode.GroupThenTier
+            ? LocalizeUi("$inventoryslots_sort_group", "Group")
+            : LocalizeUi("$inventoryslots_sort_tier", "Tier");
 
     private static string GetCraftingSortModeButtonTopic(CraftingRecipeSortMode mode) =>
         mode == CraftingRecipeSortMode.GroupThenTier

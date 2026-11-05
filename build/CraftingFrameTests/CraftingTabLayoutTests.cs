@@ -16,6 +16,10 @@ internal static class CraftingTabLayoutTests
         string members = string.Join("\n", new[] { "LayoutPathOfValheimanCraftingTab", "GetCraftingTabEdge",
             "PlaceCraftingTab", "RestorePathOfValheimanCraftingTabs" }.Select(name => Read("PathOfValheimanCraftingCompat.cs", name).ToFullString()));
         members += Read("PluginLifecycle.cs", "UpdateInventoryDialogLayering").ToFullString();
+        foreach (string name in new[] { "CaptureCraftingStationLevelLayout", "LayoutCraftingStationLevel", "RestoreCraftingStationLevelLayout" })
+            members += Read("CraftingRedesign.cs", name).ToFullString();
+        members += Read("CraftingGroupsAndSearch.cs", "GetCraftingHeaderButtonLayout").ToFullString();
+        members += Read("CraftingGroupsAndSearch.cs", "ToggleCraftingRecipeSortMode").ToFullString();
         var references = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator)
             .Select(path => MetadataReference.CreateFromFile(path));
         var compilation = CSharpCompilation.Create("CraftingTabLayoutRegression",
@@ -43,6 +47,17 @@ public static class TabHost
     private static InventoryGui? _povCraftingGui;
     private static RectTransformSnapshot? _povTabOriginal, _povVneiTabOriginal;
     private static int Checks;
+    private const float CraftingSortModeButtonGap = 4f;
+    private enum CraftingRecipeSortMode { GroupThenTier, TierThenGroup }
+    private static CraftingRecipeSortMode SortMode;
+    private static CraftingRecipeSortMode GetCraftingRecipeSortMode() => SortMode;
+    private static void SetCraftingRecipeSortMode(CraftingRecipeSortMode mode) => SortMode = mode;
+    private static class CraftingUi
+    {
+        public static InventoryGui? StationLevelOwner;
+        public static Transform? StationLevelParent;
+        public static RectTransformSnapshot? StationLevelSnapshot;
+    }
     private static bool IsDedicatedServer;
     private static void WarnPathOfValheimanCrafting(Exception error) => throw new Exception("Unexpected compatibility warning", error);
     private static bool IsInventoryPanelClosing(InventoryGui gui) => gui.Closing;
@@ -146,7 +161,61 @@ public static class TabHost
         RestorePathOfValheimanCraftingTabs();
         Expect(vnei.parent == popup && Transform.PositionWrites + Transform.SiblingWrites == writes,
             "External reparent is not reversed during cleanup");
-        Console.WriteLine($"Crafting tab layout: {Checks} checks passed (production methods; affine fake host, no Unity/game execution).");
+        var iconParent = new Transform { parent = parent, localPosition = new(20f, 65f, 0f), Scale = new(1.2f, 0.8f, 1f) };
+        var icon = new RectTransform { parent = iconParent, Width = 40f, Height = 60f, Pivot = 0.5f, localPosition = new(30f, -20f, 0f) };
+        var level = new RectTransform { parent = parent, Width = 32f, Height = 32f, Pivot = 0.5f, localPosition = new(500f, 100f, 0f), Scale = new(0.9f, 0.9f, 1f) };
+        level.gameObject.Active = false;
+        gui.m_craftingStationIcon = new Image { rectTransform = icon };
+        gui.m_craftingStationLevelRoot = level;
+        Vector3 original = level.localPosition;
+        CaptureCraftingStationLevelLayout(gui);
+        level.localPosition += new Vector3(0f, 25f, 0f); // Simulate panel height protection after capture.
+        LayoutCraftingStationLevel(gui);
+        Vector3 expected = parent.InverseTransformPoint(icon.TransformPoint(new Vector3(icon.rect.xMax, icon.rect.center.y, 0f))) + new Vector3(4f, 0f, 0f);
+        Vector3 actual = parent.InverseTransformPoint(level.TransformPoint(new Vector3(level.rect.xMin, level.rect.center.y, 0f)));
+        Expect(Math.Abs(actual.x - expected.x) < 0.01f && Math.Abs(actual.y - expected.y) < 0.01f,
+            "Station badge follows icon's right center across parent scales/pivots");
+        Expect(!level.gameObject.Active && level.Width == 32f && level.Scale.x == 0.9f, "Native badge visibility/size/scale retained");
+        writes = Transform.PositionWrites;
+        for (int i = 0; i < 120; i++) LayoutCraftingStationLevel(gui);
+        Expect(writes == Transform.PositionWrites, "Stable header performs no position writes");
+        RestoreCraftingStationLevelLayout(new InventoryGui());
+        Expect(CraftingUi.StationLevelOwner == gui, "Other GUI destruction cannot restore this badge");
+        RestoreCraftingStationLevelLayout(gui);
+        Expect(level.localPosition == original && CraftingUi.StationLevelSnapshot == null, "Header restores pre-extension coordinates");
+        writes = Transform.PositionWrites;
+        RestoreCraftingStationLevelLayout(gui);
+        Expect(writes == Transform.PositionWrites, "Repeated header cleanup is inert");
+        CaptureCraftingStationLevelLayout(gui);
+        LayoutCraftingStationLevel(gui);
+        level.parent = new Transform();
+        writes = Transform.PositionWrites;
+        RestoreCraftingStationLevelLayout();
+        Expect(writes == Transform.PositionWrites && level.parent != parent, "Foreign reparent is respected");
+        level.parent = parent;
+        CaptureCraftingStationLevelLayout(gui);
+        var second = new InventoryGui { m_craftingStationLevelRoot = new RectTransform { parent = parent } };
+        CaptureCraftingStationLevelLayout(second);
+        Expect(CraftingUi.StationLevelOwner == second && CraftingUi.StationLevelSnapshot!.Rect == second.m_craftingStationLevelRoot,
+            "GUI replacement adopts only the new native badge");
+        RestoreCraftingStationLevelLayout();
+
+        foreach (float width in new[] { 136f, 192f, 240f })
+        {
+            var search = new RectTransform { Width = width, Height = 26f, AnchorOrigin = new(100f, 50f, 0f) };
+            search.anchoredPosition = new(200f, -85f, 0f);
+            GetCraftingHeaderButtonLayout(search, false, out Vector2 left, out Vector2 leftSize);
+            GetCraftingHeaderButtonLayout(search, true, out Vector2 right, out Vector2 rightSize);
+            Expect(leftSize == rightSize && leftSize.x * 2f + 4f == width, "Header buttons equally divide search width");
+            Expect(left.x == 200f && right.x + rightSize.x == 200f + width && left.y == -55f && right.y == left.y,
+                "Both header buttons follow the actual search position with one gap above it");
+        }
+        SortMode = CraftingRecipeSortMode.TierThenGroup;
+        ToggleCraftingRecipeSortMode();
+        Expect(SortMode == CraftingRecipeSortMode.GroupThenTier, "First click changes sort preference");
+        ToggleCraftingRecipeSortMode();
+        Expect(SortMode == CraftingRecipeSortMode.TierThenGroup, "Repeated click reads live preference instead of captured creation mode");
+        Console.WriteLine($"Crafting tab/header layout: {Checks} checks passed (production methods; affine fake host, no Unity/game execution).");
     }
 }
 public class InventoryGui
@@ -157,7 +226,10 @@ public class InventoryGui
     public bool Closing;
     public Button m_tabCraft = null!;
     public Grid? m_playerGrid;
+    public Image? m_craftingStationIcon;
+    public RectTransform? m_craftingStationLevelRoot;
 }
+public sealed class Image { public RectTransform rectTransform = null!; }
 public sealed class Grid { public int GetInstanceID() => 1; }
 public sealed class Button { public Button(RectTransform rect) { transform = rect; } public RectTransform transform; public bool interactable = true; }
 public class GameObject { public bool Active = true; public bool activeInHierarchy => Active; }
@@ -165,6 +237,11 @@ public record struct Vector3(float x, float y, float z)
 {
     public static Vector3 operator +(Vector3 a, Vector3 b) => new(a.x+b.x, a.y+b.y, a.z+b.z);
     public static Vector3 operator -(Vector3 a, Vector3 b) => new(a.x-b.x, a.y-b.y, a.z-b.z);
+}
+public record struct Vector2(float x, float y)
+{
+    public static implicit operator Vector3(Vector2 v) => new(v.x, v.y, 0f);
+    public static implicit operator Vector2(Vector3 v) => new(v.x, v.y);
 }
 public static class Mathf { public static float Abs(float f) => Math.Abs(f); public static float Max(float a, float b) => Math.Max(a,b); }
 public class Transform
@@ -199,8 +276,9 @@ public class Transform
 }
 public sealed class RectTransform : Transform
 {
-    public float Width, Pivot;
-    public (float xMin, float xMax, float yMax) rect => (-Width * Pivot, Width * (1f - Pivot), 30f * (1f - Pivot));
+    public float Width, Pivot, Height = 30f;
+    public (float xMin, float xMax, float yMax, float width, float height, Vector2 center) rect =>
+        (-Width * Pivot, Width * (1f - Pivot), Height * (1f - Pivot), Width, Height, new(Width * (0.5f - Pivot), Height * (0.5f - Pivot)));
 }
 public sealed class RectTransformSnapshot
 {

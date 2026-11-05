@@ -43,9 +43,10 @@ public sealed partial class InventorySlotsPlugin
     {
         if (_craftingListViewActive && _craftingListRevealedSelection == TestRecipeSelected) return;
         _craftingListRevealedSelection = TestRecipeSelected;
-        TestRecipePage = CraftingViewCore.RevealSelection(_craftingListViewActive, TestRecipePage,
+        TestRecipePage = CraftingViewCore.RevealSelection(TestRecipePage,
             FindCraftingRecipeViewIndex(TestRecipeSelected), CraftingRecipes.View.Count,
-            _craftingListViewActive ? CraftingViewCore.ListRows : TestRecipeColumns * TestRecipeColumns);
+            _craftingListViewActive ? CraftingViewCore.ListRows : TestRecipeColumns * TestRecipeColumns,
+            GetCraftingRecipeGridDimension());
     }
     public static InventoryGui TestCraftingReset(bool list, params int[] displayedOriginals)
     {

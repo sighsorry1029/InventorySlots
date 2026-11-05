@@ -178,6 +178,7 @@ public sealed partial class InventorySlotsPlugin
             tip.m_text = ItemLinkText("share_help", "Add this tooltip to your chat draft. Press Enter to send; your current text is kept.");
         }
         cache.ItemShareButton.gameObject.SetActive(ItemLinksEnabled);
+        cache.HeaderAction = cache.ItemShareButton.transform as RectTransform;
     }
 
     private static void ItemLinkIconLine(RectTransform parent, Vector2 from, Vector2 to)
@@ -223,7 +224,9 @@ public sealed partial class InventorySlotsPlugin
         RectTransform? extras = PinnedTooltips.Inventory.JewelcraftingTooltipRoots[slot];
         if (item?.m_shared == null || text == null || !text.gameObject.activeInHierarchy) return;
         string name = LocalizeUi(item.m_shared.m_name, item.m_shared.m_name);
-        StringBuilder body = new(text.text);
+        TMP_Text? title = PinnedTooltips.Inventory.Panels[slot]?.GetComponent<PinnedTooltipPanelUiCache>()?.HeaderText;
+        // Keep the wire snapshot's existing title + body form; only the local UI is split.
+        StringBuilder body = new(title != null && title.gameObject.activeSelf ? title.text + "\n" + text.text : text.text);
         // Jewelcrafting's separate textual rows can be preserved without sending
         // custom data or constructing modded items on the receiver.
         if (extras != null && extras.gameObject.activeInHierarchy)
@@ -490,9 +493,13 @@ public sealed partial class InventorySlotsPlugin
             CreateTextRect("ActionHint", view.Panel, out TMP_Text hint);
             ApplyDefaultFontAsset(hint);
             hint.fontSize = 13; hint.color = new Color(0.8f, 0.8f, 0.8f); hint.raycastTarget = false;
-            SetTopLeftRectLayout(hint.rectTransform, new Vector2(100, -20), new Vector2(195, 68));
+            hint.textWrappingMode = TextWrappingModes.Normal;
+            hint.overflowMode = TextOverflowModes.Truncate;
             view.Hint = hint;
             if (pinned) view.Close = CreateItemLinkButton(view.Panel, "Close", "×", () => RemoveSharedItemPin(view));
+            PinnedTooltipPanelUiCache cache = view.Panel.GetComponent<PinnedTooltipPanelUiCache>();
+            cache.HeaderHint = hint;
+            cache.HeaderAction = view.Close != null ? view.Close.transform as RectTransform : null;
         }
         view.Panel!.gameObject.SetActive(true);
         ConfigurePinnedTooltipPanelBackground(view.Panel);
@@ -503,7 +510,8 @@ public sealed partial class InventorySlotsPlugin
         {
             view.Displayed = body; view.Language = _uiLocalizationVersion;
             view.DisplayedSnapshot = view.Snapshot;
-            view.Text!.text = body;
+            TrySplitSharedItemTooltipHeader(body, out string topic, out string content);
+            SetPinnedTooltipContent(view.Panel, view.Text!, topic, content);
             view.Hint!.text = pinned ? ItemLinkText("close_help", "Open chat or inventory to close") :
                 "[Mouse3] " + ItemLinkText("pin_action", "Pin / unpin");
             Sprite? sprite = null;
@@ -518,6 +526,30 @@ public sealed partial class InventorySlotsPlugin
         }
         ApplyPinnedTooltipDynamicTextLayout(view.Panel, view.Text!, 0, Vector2.zero, 102, 18,
             resetScroll: false, sizeLimit: SharedItemPanelMaxSize());
+    }
+
+    private static bool TrySplitSharedItemTooltipHeader(string value, out string topic, out string content)
+    {
+        topic = "";
+        content = value;
+        // Wire sanitization removes size/layout tags. Only recognize the balanced
+        // outer color heading we send; unknown snapshots retain their complete body.
+        if (!value.StartsWith("<color=#", StringComparison.Ordinal)) return false;
+        int depth = 0;
+        for (int position = 0; position < value.Length; position++)
+        {
+            if (value[position] != '<') continue;
+            if (value.IndexOf("<color=", position, StringComparison.Ordinal) == position) depth++;
+            else if (value.IndexOf("</color>", position, StringComparison.Ordinal) == position && --depth == 0)
+            {
+                int end = position + "</color>".Length;
+                if (end >= value.Length || value[end] != '\n') return false;
+                topic = value.Substring(0, end);
+                content = value.Substring(end + 1);
+                return true;
+            }
+        }
+        return false;
     }
 
     private static Vector2 SharedItemPanelMaxSize() => new(

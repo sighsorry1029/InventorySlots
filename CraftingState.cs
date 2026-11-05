@@ -97,6 +97,7 @@ public sealed partial class InventorySlotsPlugin
     {
         public GameObject? HoverTooltip;
         public RectTransform? HoverTooltipPanel;
+        public Image? HoverTooltipIcon;
         public TMP_Text? HoverTooltipTopic;
         public TMP_Text? HoverTooltipText;
         public readonly ScrollableTooltipBodyState HoverTooltipTextScroll = new();
@@ -118,8 +119,12 @@ public sealed partial class InventorySlotsPlugin
         public Transform? RequiredStationLevelOriginalRoot;
         public RectTransform? RequiredStationLevelHitbox;
         public RectTransformSnapshot? PanelRootSnapshot;
+        public InventoryGui? StationLevelOwner;
+        public Transform? StationLevelParent;
+        public RectTransformSnapshot? StationLevelSnapshot;
         public Vector2 PanelOriginalSizeDelta;
         public bool SearchInputDirty = true;
+        public bool SearchInputResetPending;
         public int HoveredRecipeIndex = -1;
         public CraftingSearchInputStamp SearchInputStamp;
         public string HoverTooltipSignature = "";
@@ -386,6 +391,7 @@ public sealed partial class InventorySlotsPlugin
     private static bool _craftingVanillaPanelBackgroundsHidden;
     private static bool _craftingEnglishLocalizationIndexBuilt;
 
+    // Top visible row in both Grid and List; independent of the wheel step mode.
     private static int _craftingRecipePage { get => CraftingGrid.RecipePage; set => CraftingGrid.RecipePage = value; }
     private static int _lastCraftingSelectedVariant = -1;
     private static int _craftingRecipeVariantVersion;

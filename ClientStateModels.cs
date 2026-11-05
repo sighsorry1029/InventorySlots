@@ -25,6 +25,9 @@ internal sealed class InventorySlotsClientInventoryState
     public InventorySlotsClientPanelPosition QuickSlotsPanelPosition { get; set; } = new(
         ClientStateCore.DefaultQuickSlotsPanelX,
         ClientStateCore.DefaultQuickSlotsPanelY);
+    // An explicitly placed panel can coincide with the default coordinates.
+    // It must not then receive PoV's automatic ring spacing on release/reload.
+    public bool QuickSlotsPanelManuallyPlaced { get; set; }
     public InventorySlotsClientPanelPosition? QuickSlotsHudPosition { get; set; }
     public float QuickSlotsHudElementSpace { get; set; } = ClientStateCore.DefaultQuickSlotsHudElementSpace;
 }

@@ -69,6 +69,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void RefreshCraftingPanelDynamicFrameUi(InventoryGui gui, RectTransform grid, CraftingTabAdapterState adapter)
     {
+        LayoutCraftingStationLevel(gui);
         UpdateCraftingQueueLifecycle(gui);
         SuppressCraftingTabAdapterFrameResidue(gui, adapter);
         SuppressJewelcraftingCraftingSocketUiForRedesign(gui);

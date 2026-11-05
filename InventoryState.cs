@@ -48,7 +48,6 @@ public sealed partial class InventorySlotsPlugin
         public readonly Dictionary<int, RectTransform> CustomSlotPanels = new();
         public readonly Dictionary<int, RectTransform> QuickSlotPanels = new();
         public readonly List<MovedPlayerStatPanel> MovedPlayerStatPanels = new();
-        public readonly Dictionary<int, Vector3> QuickSlotPanelOutroStartPositions = new();
         public readonly InventoryKeyHintGroupState InventoryKeyHints = new();
         public readonly InventoryKeyHintGroupState ContainerKeyHints = new();
         public RectTransform? QuickSlotsHotkeyBarRect;
@@ -81,15 +80,9 @@ public sealed partial class InventorySlotsPlugin
         public Vector2 EquipmentSlotsPanelRuntimeOffset = EquipmentSlotsPanelFixedOffset;
         public Vector2 QuickSlotsPanelRuntimeOffset = QuickSlotsPanelFixedOffset;
         public int LastExpandableInventoryRows = BaseRows;
-        public float QuickSlotPanelIntroStartTime = -1f;
-        public float QuickSlotPanelIntroDuration = QuickSlotPanelIntroFallbackDuration;
-        public float QuickSlotPanelOutroStartTime = -1f;
-        public float QuickSlotPanelOutroDuration = QuickSlotPanelIntroFallbackDuration;
         public float QuickSlotHudElementSpace = ClientStateCore.DefaultQuickSlotsHudElementSpace;
         public readonly ContainerHoldActionState ContainerRestockHold = new();
         public readonly ContainerHoldActionState ContainerQuickStackHold = new();
-        public bool QuickSlotPanelIntroActive;
-        public bool QuickSlotPanelOutroActive;
         public bool QuickSlotHudAnchorValid;
         public bool LastExpandableInventoryRowsLoaded;
         public Vector3 QuickSlotHudAnchoredPosition;

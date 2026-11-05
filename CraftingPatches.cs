@@ -11,6 +11,7 @@ internal static class InventoryGuiCraftingViewDestroyPatch
     private static void Prefix(InventoryGui __instance)
     {
         InventorySlotsPlugin.CancelInventoryClosingLayout(__instance);
+        InventorySlotsPlugin.RestoreCraftingStationLevelLayout(__instance);
         InventorySlotsPlugin.DestroyCraftingListViewUi(__instance);
         InventorySlotsPlugin.ClearPathOfValheimanCraftingUi(__instance);
         InventorySlotsPlugin.ClearPathOfValheimanStoragePanels();
