@@ -707,6 +707,7 @@ public sealed partial class InventorySlotsPlugin
         foreach (SlotDefinition slot in SlotDefinitions)
         {
             slot.ApplyArmor = GetYamlSlot(slot.Id)?.ApplyArmor ?? false;
+            slot.SmallSlot = GetYamlSlot(slot.Id)?.SmallSlot ?? false;
         }
 
         InvalidateSlotDefinitionCaches();

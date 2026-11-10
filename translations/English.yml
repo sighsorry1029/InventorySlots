@@ -65,8 +65,8 @@ inventoryslots_multi_user_chest_use_empty_slot: Use an empty slot or a matching 
 inventoryslots_hold_to_restock: Hold to restock
 inventoryslots_reclaim_blocked: Blocked
 inventoryslots_hotbar_switch_hint: "Switch [{key}]"
-inventoryslots_feature_guide: "<b>InventorySlots quick guide</b>\n<color=#FFA94D>[{tooltipKey}]</color> over an inventory or chest item, or a crafting recipe: Pin tooltip\n<color=#FFA94D>[{favoriteKey}]</color> over an inventory slot or crafting recipe: Toggle favorite\nWhile looking at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching items nearby (favorite slots excluded)\nWhile looking at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill existing items in favorite slots from nearby chests up to their targets\nCustom slots and rules: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>"
-inventoryslots_feature_guide_controller: "<b>InventorySlots quick guide</b>\nTap {menuAction} on a selected slot: actions menu; ↑↓ select, {modeAction} apply, {closeAction} back\nFrom the slot beside S (player bottom row / chest top row), press toward S to select it; {modeAction}: sort\nOptional shortcuts on the selected player slot, <color=#FFA94D>[{favoriteAction}]</color>: Favorite · <color=#FFA94D>[{sortAction}]</color>: Sort focused inventory/chest\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: Restock targets / pickup exclusions (register a picked-up player item)\nRelease modifier; D-pad down from the last visible player row: Restock / Exclude / Trash; left/right: enabled buttons\nAuto stays collapsed on gamepad: only the selected button expands; moving away retracts it. On: always expanded; Off: hidden\n{modeAction}: Open Restock/Exclude or register a held player item; Trash: confirm held item deletion\nOn buttons, up: player inventory; down: open chest\nLook at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching non-favorite items nearby\nLook at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill favorites using target quantities and empty-slot modes\nRules: ↑↓ rows; ←→ controls; {modeAction} use/edit; {removeAction} remove; {closeAction} close\nQuantity edit: ↑ increase / ↓ decrease; {modeAction}/{closeAction} finish (auto-saved)\nCustom slots and rules: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>"
+inventoryslots_feature_guide: "<b>InventorySlots quick guide</b>\n<color=#FFA94D>[{tooltipKey}]</color> over an inventory or chest item, or a crafting recipe: Pin tooltip\n<color=#FFA94D>[{favoriteKey}]</color> over an inventory slot or crafting recipe: Toggle favorite\nWhile looking at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching items nearby, including favorite surplus above enabled targets\nWhile looking at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill existing items in favorite slots from nearby chests up to their targets\nCustom slots and rules: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>"
+inventoryslots_feature_guide_controller: "<b>InventorySlots quick guide</b>\nTap {menuAction} on a selected slot: actions menu; ↑↓ select, {modeAction} apply, {closeAction} back\nFrom the slot beside S (player bottom row / chest top row), press toward S to select it; {modeAction}: sort\nOptional shortcuts on the selected player slot, <color=#FFA94D>[{favoriteAction}]</color>: Favorite · <color=#FFA94D>[{sortAction}]</color>: Sort focused inventory/chest\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: Restock targets / pickup exclusions (register a picked-up player item)\nRelease modifier; D-pad down from the last visible player row: Restock / Exclude / Trash; left/right: enabled buttons\nAuto stays collapsed on gamepad: only the selected button expands; moving away retracts it. On: always expanded; Off: hidden\n{modeAction}: Open Restock/Exclude or register a held player item; Trash: confirm held item deletion\nOn buttons, up: player inventory; down: open chest\nLook at a chest, <color=#FFA94D>[Hold {useKey}]</color>: Store matching items nearby, including favorite surplus above enabled targets\nLook at a chest, <color=#FFA94D>[Hold {restockKey}]</color>: Refill favorites using target quantities and empty-slot modes\nRules: ↑↓ rows; ←→ controls; {modeAction} use/edit; {removeAction} remove; {closeAction} close\nQuantity edit: ↑ increase / ↓ decrease; {modeAction}/{closeAction} finish (auto-saved)\nCustom slots and rules: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>"
 inventoryslots_quick_slot_format: "Quick {index}"
 inventoryslots_clear_favorites_hint_format: "{key}: clear favorites"
 inventoryslots_inventory_limit_reached: "{item}: you can carry at most {max}."
@@ -94,6 +94,7 @@ inventoryslots_rules_pad_empty: "{close}: close"
 inventoryslots_rules_pad_edit: "edit"
 inventoryslots_rules_pad_change: "change"
 inventoryslots_rules_restock_scope: "{key} · mode and target per favorite stack"
+inventoryslots_rules_quickstack_surplus: "Hold {useKey}: Store surplus above enabled targets (per favorite stack)."
 inventoryslots_rules_exclude_scope: Manual E pickup is still available
 inventoryslots_rules_quantity: Target quantity
 inventoryslots_rules_quantity_scope: "Target quantity · 1 or more"
@@ -131,3 +132,22 @@ inventoryslots_feature_guide_hidden_controller: "{mod}: Guide hidden. Open the i
 inventoryslots_feature_guide_open_inventory_hint: "Open inventory → {action}"
 inventoryslots_feature_guide_muc: "External MultiUserChest limits area Quick Stack/Restock support. Recommended: disable external MUC and use InventorySlots' Enable Multi User Chest."
 inventoryslots_feature_guide_muc_server_required: "External MultiUserChest limits area Quick Stack/Restock support. The recommended built-in alternative requires InventorySlots on the server and all clients."
+inventoryslots_pov_crafting: Crafting
+inventoryslots_pov_character: Character
+inventoryslots_pov_appearance: Appearance
+inventoryslots_pov_skills: Skills
+inventoryslots_pov_stats: Stats
+inventoryslots_pov_select_target: "Click an equipped item or a hotbar item to change its appearance."
+inventoryslots_pov_select_look: Select an appearance.
+inventoryslots_pov_look_ready: Apply the selected appearance for one Rune of Guise.
+inventoryslots_pov_runes: "Runes of Guise: {0}"
+inventoryslots_pov_original_look: Original look
+inventoryslots_pov_apply_look: Transmog
+inventoryslots_pov_hidden: Hidden
+inventoryslots_pov_current_look: "Current appearance: {0}"
+inventoryslots_pov_current_marker: Applied
+inventoryslots_pov_already: This appearance is already applied.
+inventoryslots_pov_locked_look: This appearance is locked or cannot be used on this item.
+inventoryslots_pov_no_rune: Not enough Runes of Guise.
+inventoryslots_pov_locked_preview: Dismantle an item with this appearance at least once to apply it permanently.
+inventoryslots_pov_unavailable_look: This appearance cannot be applied. Select the item again.

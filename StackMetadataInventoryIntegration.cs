@@ -76,7 +76,10 @@ public sealed partial class InventorySlotsPlugin
             return null;
         }
 
-        if (!StackMetadataPolicy.HasMergeMetadata(source.m_customData))
+        // PoV may normalize a legacy stack before comparison. Capture only the
+        // normalized metadata, including the exceptional-transfer snapshot.
+        if (!PathOfValheimanStackCompatibility.MatchesIdentity(source, source) ||
+            !StackMetadataPolicy.HasMergeMetadata(source.m_customData))
         {
             return null;
         }
@@ -168,10 +171,11 @@ public sealed partial class InventorySlotsPlugin
 
         ItemData? destination = inventory.GetItemAt(x, y);
         if (destination == null) return true;
-        bool compatible = IsEpicLootStackingItem(destination) || IsEpicLootStackingItem(item)
+        bool compatible = PathOfValheimanStackCompatibility.MatchesIdentity(destination, item) &&
+            (IsEpicLootStackingItem(destination) || IsEpicLootStackingItem(item)
             ? CanMergeEpicLootStacks(destination, item)
             : IsTrustedCustomDataStackingItem(item) ||
-              StackMetadataPolicy.AreCompatible(destination.m_customData, item.m_customData);
+              StackMetadataPolicy.AreCompatible(destination.m_customData, item.m_customData));
         if (compatible)
         {
             return true;

@@ -42,6 +42,7 @@ public sealed partial class InventoryActionsPlugin
     {
 #if INVENTORY_SLOTS
         UpdateInventoryDialogLayering();
+        UpdatePathOfValheimanCharacterUi();
 #endif
         Player? player = Player.m_localPlayer;
         if (player == null || FavoriteMemoryAccess.IsLoading(player)) return;

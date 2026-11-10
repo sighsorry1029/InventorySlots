@@ -197,7 +197,6 @@ public sealed partial class InventorySlotsPlugin
             InvalidateInventoryPlacementCaches();
             InvalidateCustomEquipmentProjectionCache();
             EnsureInventoryState(player, InventoryStateEnsureReason.PlayerSpawned);
-            ApplyAutoFavoriteHotbarSwitchRowForPlayer(player);
             ScheduleEpicLootRespawnRuntimeReload(player);
         }
     }
@@ -222,7 +221,6 @@ public sealed partial class InventorySlotsPlugin
         }
 
         EnsureInventoryState(player, InventoryStateEnsureReason.BackupRestore);
-        ApplyAutoFavoriteHotbarSwitchRowForPlayer(player);
     }
 
     internal static void OnPlayerSaving(Player player)
@@ -244,7 +242,6 @@ public sealed partial class InventorySlotsPlugin
         if (player != null && !player.m_isLoading)
         {
             EnsureInventoryState(player, InventoryStateEnsureReason.PlayerSpawned);
-            ApplyAutoFavoriteHotbarSwitchRowForPlayer(player);
             ScheduleEpicLootRespawnRuntimeReload(player);
         }
     }
@@ -773,6 +770,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void OnInventoryGuiShow(bool wasAlreadyVisible = false)
     {
+        if (!wasAlreadyVisible) ClosePathOfValheimanCharacterUi();
         OnRealInventoryGuiShown();
 
         Player? player = Player.m_localPlayer;
@@ -784,6 +782,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void OnInventoryGuiHide()
     {
+        SuspendPathOfValheimanCharacterUi();
         OnInventoryGuiHidden();
         StopInventoryPanelDrag();
         PrunePendingSlotActions();
@@ -792,7 +791,13 @@ public sealed partial class InventorySlotsPlugin
         CraftingController.ClearHoveredRecipe();
         HideCraftingPinnedTooltips();
         DeferInventoryClosingLayoutRestore();
-        // Clear the model now; synchronize the field on reopen, without relayout during the outro.
+        // Clear filters now; redraw on reopen, without relayout during the outro.
+        if (!string.IsNullOrEmpty(_selectedCraftingGroupId))
+        {
+            _selectedCraftingGroupId = "";
+            _craftingRecipePage = 0;
+            InvalidateCraftingRecipeView();
+        }
         UpdateCraftingSearchQuery("");
         CraftingUi.SearchInputResetPending = true;
         HideInventoryPinnedTooltips();

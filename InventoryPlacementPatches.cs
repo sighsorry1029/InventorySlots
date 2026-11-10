@@ -181,6 +181,8 @@ internal static class InventoryAddItemDataPatch
             return false;
         }
 
+        if (InventorySlotsPlugin.TryWalletAutomaticDeposit(__instance, item, ref __result)) return false;
+
         __state = InventorySlotsPlugin.BeginAutomaticStackMetadataMerge(
             __instance,
             item);
@@ -229,6 +231,9 @@ internal static class InventoryAddItemXyPatch
         out InventoryStackMetadataMergeState? __state)
     {
         __state = null;
+        if (InventorySlotsPlugin.TryWalletPositionalDeposit(__instance, item, amount, x, y, ref __result)) return false;
+        if (InventorySlotsPlugin.RejectOversizedWalletInsert(__instance, item, amount))
+        { __result = false; return false; }
         int requestedAmount = Math.Min(Math.Max(0, amount), Math.Max(0, item.m_stack));
         if (!InventorySlotsPlugin.TryValidatePlayerInventoryLimit(__instance, item, requestedAmount, ref __result))
         {
@@ -284,6 +289,9 @@ internal static class InventoryAddItemPosPatch
         out InventoryAddItemStackMetadataState? __state)
     {
         __state = null;
+        if (InventorySlotsPlugin.TryWalletPositionalDeposit(__instance, item, item.m_stack, pos.x, pos.y, ref __result)) return false;
+        if (InventorySlotsPlugin.RejectOversizedWalletInsert(__instance, item, item.m_stack))
+        { __result = false; return false; }
         if (!InventorySlotsPlugin.TryValidatePlayerInventoryLimit(__instance, item, item.m_stack, ref __result))
         {
             return false;
@@ -337,10 +345,11 @@ internal static class InventoryMoveItemToThisPatch
         ref bool __result,
         Inventory fromInventory,
         ItemData item,
-        int amount,
+        ref int amount,
         ref int x,
         ref int y)
     {
+        amount = InventorySlotsPlugin.WalletWithdrawalAmount(fromInventory, item, amount);
         return InventorySlotsPlugin.TryValidatePlayerInventoryMoveItemToThis(__instance, ref __result, fromInventory, item, amount, ref x, ref y);
     }
 
@@ -373,6 +382,7 @@ internal static class InventoryGridDropItemPatch
 {
     private static bool Prefix(InventoryGrid __instance, Inventory fromInventory, ItemData item, int amount, Vector2i pos, ref bool __result)
     {
+        if (InventorySlotsPlugin.TryWalletGridDrop(__instance, fromInventory, item, amount, pos, ref __result)) return false;
         return InventorySlotsPlugin.ShouldAllowInventoryGridDropItem(
             __instance,
             fromInventory,

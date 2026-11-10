@@ -65,8 +65,8 @@ inventoryslots_multi_user_chest_use_empty_slot: 빈 칸이나 같은 아이템 �
 inventoryslots_hold_to_restock: 누르고 있으면 보충
 inventoryslots_reclaim_blocked: 차단됨
 inventoryslots_hotbar_switch_hint: "전환 [{key}]"
-inventoryslots_feature_guide: "<b>InventorySlots 빠른 가이드</b>\n인벤토리·상자 아이템 또는 제작 레시피 위에서 <color=#FFA94D>[{tooltipKey}]</color>: 툴팁 고정\n인벤토리 칸 또는 제작 레시피 위에서 <color=#FFA94D>[{favoriteKey}]</color>: 즐겨찾기 등록/해제\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 일치하는 아이템을 주변 상자에 보관 (즐겨찾기 칸 제외)\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 즐겨찾기 칸에 있는 아이템을 주변 상자에서 목표 수량까지 보충\n커스텀 슬롯·규칙: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>"
-inventoryslots_feature_guide_controller: "<b>InventorySlots 빠른 가이드</b>\n선택한 칸에서 {menuAction} 짧게: 작업 메뉴 · ↑↓ 선택 · {modeAction} 실행 · {closeAction} 뒤로\nS 옆 칸(내 인벤토리 마지막 행 / 상자 첫 행)에서 S 방향키: S 선택 · {modeAction}: 정렬\n선택적 단축키: 선택한 플레이어 칸에서 <color=#FFA94D>[{favoriteAction}]</color>: 즐겨찾기 · <color=#FFA94D>[{sortAction}]</color>: 선택 중인 인벤토리/상자 정렬\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: 보충 대상 / 자동 줍기 제외 열기 (집어 든 내 아이템이 있으면 등록)\n보조키를 놓고 마지막 표시 플레이어 행에서 방향키 아래: 보충/제외/휴지통 버튼 · 왼쪽/오른쪽: 켜진 버튼 선택\nAuto: 게임패드에서도 평소 접힘 · 선택한 버튼만 펼침 · 좌우 이동/이탈 시 이전 버튼 접힘 · On: 항상 펼침 · Off: 숨김\n버튼에서 {modeAction}: 보충/제외 목록 열기 또는 집은 내 아이템 등록 · 휴지통: 집은 아이템 삭제 확인\n버튼에서 위: 플레이어 칸 · 아래: 열린 상자\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 즐겨찾기 외 같은 종류를 주변 상자에 보관\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 목표 수량·빈 칸 보충 모드에 따라 즐겨찾기 보충\n규칙: ↑↓ 행 · ←→ 조작 선택 · {modeAction} 실행/편집 · {removeAction} 제거 · {closeAction} 닫기\n수량 편집: ↑ 증가 / ↓ 감소 · {modeAction}/{closeAction} 편집 종료 (자동 저장)\n커스텀 슬롯·규칙: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>"
+inventoryslots_feature_guide: "<b>InventorySlots 빠른 가이드</b>\n인벤토리·상자 아이템 또는 제작 레시피 위에서 <color=#FFA94D>[{tooltipKey}]</color>: 툴팁 고정\n인벤토리 칸 또는 제작 레시피 위에서 <color=#FFA94D>[{favoriteKey}]</color>: 즐겨찾기 등록/해제\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 일치하는 아이템을 주변 상자에 보관 (활성 목표 초과 즐겨찾기 수량 포함)\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 즐겨찾기 칸에 있는 아이템을 주변 상자에서 목표 수량까지 보충\n커스텀 슬롯·규칙: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>"
+inventoryslots_feature_guide_controller: "<b>InventorySlots 빠른 가이드</b>\n선택한 칸에서 {menuAction} 짧게: 작업 메뉴 · ↑↓ 선택 · {modeAction} 실행 · {closeAction} 뒤로\nS 옆 칸(내 인벤토리 마지막 행 / 상자 첫 행)에서 S 방향키: S 선택 · {modeAction}: 정렬\n선택적 단축키: 선택한 플레이어 칸에서 <color=#FFA94D>[{favoriteAction}]</color>: 즐겨찾기 · <color=#FFA94D>[{sortAction}]</color>: 선택 중인 인벤토리/상자 정렬\n<color=#FFA94D>[{rulesAction}] / [{excludeAction}]</color>: 보충 대상 / 자동 줍기 제외 열기 (집어 든 내 아이템이 있으면 등록)\n보조키를 놓고 마지막 표시 플레이어 행에서 방향키 아래: 보충/제외/휴지통 버튼 · 왼쪽/오른쪽: 켜진 버튼 선택\nAuto: 게임패드에서도 평소 접힘 · 선택한 버튼만 펼침 · 좌우 이동/이탈 시 이전 버튼 접힘 · On: 항상 펼침 · Off: 숨김\n버튼에서 {modeAction}: 보충/제외 목록 열기 또는 집은 내 아이템 등록 · 휴지통: 집은 아이템 삭제 확인\n버튼에서 위: 플레이어 칸 · 아래: 열린 상자\n상자를 보며 <color=#FFA94D>[{useKey} 길게]</color>: 일치하는 아이템을 주변 상자에 보관 (활성 목표 초과 즐겨찾기 수량 포함)\n상자를 보며 <color=#FFA94D>[{restockKey} 길게]</color>: 목표 수량·빈 칸 보충 모드에 따라 즐겨찾기 보충\n규칙: ↑↓ 행 · ←→ 조작 선택 · {modeAction} 실행/편집 · {removeAction} 제거 · {closeAction} 닫기\n수량 편집: ↑ 증가 / ↓ 감소 · {modeAction}/{closeAction} 편집 종료 (자동 저장)\n커스텀 슬롯·규칙: <color=#FFA94D>config/InventorySlots/InventorySlots.yml</color>"
 inventoryslots_quick_slot_format: "퀵 {index}"
 inventoryslots_clear_favorites_hint_format: "{key}: 즐겨찾기 해제"
 inventoryslots_inventory_limit_reached: "{item}: 최대 {max}개까지 지닐 수 있습니다."
@@ -94,6 +94,7 @@ inventoryslots_rules_pad_empty: "{close}: 닫기"
 inventoryslots_rules_pad_edit: "편집"
 inventoryslots_rules_pad_change: "전환"
 inventoryslots_rules_restock_scope: "{key} · 즐겨찾기 칸별 보충 방식과 목표 수량"
+inventoryslots_rules_quickstack_surplus: "{useKey} 길게: 켜진 보충 목표 초과분 보관 (즐겨찾기 스택별)."
 inventoryslots_rules_exclude_scope: E로 직접 줍기는 가능합니다
 inventoryslots_rules_quantity: 목표 수량
 inventoryslots_rules_quantity_scope: "목표 수량 · 1 이상"
@@ -131,3 +132,22 @@ inventoryslots_feature_guide_hidden_controller: "{mod}: 가이드를 숨겼습�
 inventoryslots_feature_guide_open_inventory_hint: "인벤토리 열기 → {action}"
 inventoryslots_feature_guide_muc: "외부 MultiUserChest 사용 시 범위 퀵스택·보충 지원이 제한됩니다. 외부 MUC 대신 InventorySlots의 Enable Multi User Chest 사용을 권장합니다."
 inventoryslots_feature_guide_muc_server_required: "외부 MultiUserChest 사용 시 범위 퀵스택·보충 지원이 제한됩니다. 권장하는 내장 공유 상자 기능은 서버와 모든 클라이언트에 InventorySlots가 필요합니다."
+inventoryslots_pov_crafting: 제작
+inventoryslots_pov_character: 캐릭터
+inventoryslots_pov_appearance: 외형
+inventoryslots_pov_skills: 스킬
+inventoryslots_pov_stats: 능력치
+inventoryslots_pov_select_target: 장착한 장비나 핫바 아이템을 클릭해 외형을 변경합니다.
+inventoryslots_pov_select_look: 적용할 외형을 선택하세요.
+inventoryslots_pov_look_ready: 변장 룬 1개를 사용해 선택한 외형을 적용합니다.
+inventoryslots_pov_runes: "변장 룬: {0}"
+inventoryslots_pov_original_look: 원래 외형
+inventoryslots_pov_apply_look: 외형 변경
+inventoryslots_pov_hidden: 숨김
+inventoryslots_pov_current_look: "현재 외형: {0}"
+inventoryslots_pov_current_marker: 적용 중
+inventoryslots_pov_already: 이미 적용된 외형입니다.
+inventoryslots_pov_locked_look: 해금되지 않았거나 이 아이템에 사용할 수 없는 외형입니다.
+inventoryslots_pov_no_rune: 변장 룬이 부족합니다.
+inventoryslots_pov_locked_preview: 최종 적용하려면 해당 외형의 아이템을 한 번 이상 분해해야 합니다.
+inventoryslots_pov_unavailable_look: 외형을 적용할 수 없습니다. 아이템을 다시 선택하세요.

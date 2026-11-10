@@ -20,6 +20,8 @@ internal static class CraftingTabLayoutTests
             members += Read("CraftingRedesign.cs", name).ToFullString();
         members += Read("CraftingGroupsAndSearch.cs", "GetCraftingHeaderButtonLayout").ToFullString();
         members += Read("CraftingGroupsAndSearch.cs", "ToggleCraftingRecipeSortMode").ToFullString();
+        members += Read("CraftingGroupsAndSearch.cs", "GetCraftingSearchCompatOffset").ToFullString();
+        members += Read("CraftingGroupsAndSearch.cs", "HasVisiblePathOfValheimanEnchantTab").ToFullString();
         var references = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator)
             .Select(path => MetadataReference.CreateFromFile(path));
         var compilation = CSharpCompilation.Create("CraftingTabLayoutRegression",
@@ -45,7 +47,7 @@ public static class TabHost
     private static Instance? _instance = new();
     private static Func<Button>? _povSalvageTab;
     private static InventoryGui? _povCraftingGui;
-    private static RectTransformSnapshot? _povTabOriginal, _povVneiTabOriginal;
+    private static RectTransformSnapshot? _povTabOriginal, _povVneiTabOriginal, _povEnchantTabOriginal;
     private static int Checks;
     private const float CraftingSortModeButtonGap = 4f;
     private enum CraftingRecipeSortMode { GroupThenTier, TierThenGroup }
@@ -59,6 +61,8 @@ public static class TabHost
         public static RectTransformSnapshot? StationLevelSnapshot;
     }
     private static bool IsDedicatedServer;
+    private static bool RecycleTab;
+    private static bool ShouldOffsetCraftingSearchForRecycleNReclaim(InventoryGui gui) => RecycleTab;
     private static void WarnPathOfValheimanCrafting(Exception error) => throw new Exception("Unexpected compatibility warning", error);
     private static bool IsInventoryPanelClosing(InventoryGui gui) => gui.Closing;
     private static void SetActionPanelActive(RectTransform? layer, bool active) { }
@@ -102,6 +106,8 @@ public static class TabHost
         var gui = new InventoryGui { m_tabCraft = craft.Button! };
         InventoryGui.instance = gui;
         _povSalvageTab = () => salvage.Button!;
+        Expect(GetCraftingSearchCompatOffset(gui, new Vector2(100f, 30f)) == Vector2.zero,
+            "Ordinary station does not move search controls");
 
         // Hand-crafting: no upgrade/salvage tabs, arbitrary visual/control siblings.
         LayoutPathOfValheimanCraftingTab(gui);
@@ -132,6 +138,30 @@ public static class TabHost
         UpdateInventoryDialogLayering();
         At(vnei, 432f, 200f, "LateUpdate repairs VNEI's later placement without reopening the native tab");
         Expect(!vnei.Button.interactable, "VNEI remains selected after final layout");
+        var enchant = Tab(parent, "PT_TabEnchant", 500f, 50f, 100f);
+        Expect(GetCraftingSearchCompatOffset(gui, new Vector2(100f, 30f)) == new Vector2(0f, 30f),
+            "Rune Carver reserves the native tab row below search controls");
+        enchant.Button!.interactable = false;
+        for (int i = 0; i < 120; i++)
+        {
+            // Native PoV Tick anchors Enchant to Salvage before our LateUpdate.
+            enchant.anchoredPosition = salvage.anchoredPosition + new Vector3(104f, 0f, 0f);
+            UpdateInventoryDialogLayering();
+            At(salvage, 312f, 200f, "Enchant must not push Salvage further right every frame");
+            At(enchant, 432f, 200f, "Enchant follows corrected Salvage edge");
+            At(vnei, 536f, 200f, "VNEI follows Enchant");
+        }
+        Expect(!enchant.Button.interactable, "Enchant selection remains native-owned");
+        RestorePathOfValheimanCraftingTabs();
+        enchant.gameObject.Active = false;
+        Expect(GetCraftingSearchCompatOffset(gui, new Vector2(100f, 30f)) == Vector2.zero,
+            "Hidden Enchant tab releases the extra search offset");
+        RecycleTab = true;
+        Expect(GetCraftingSearchCompatOffset(gui, new Vector2(100f, 30f)) == new Vector2(0f, 30f),
+            "RecycleNReclaim retains its independent tab-row reservation");
+        RecycleTab = false;
+        // Re-establish original test snapshots after testing Enchant restoration.
+        LayoutPathOfValheimanCraftingTab(gui);
         salvage.gameObject.Active = false; upgrade.gameObject.Active = false; foreign.gameObject.Active = false;
         UpdateInventoryDialogLayering();
         At(vnei, 114f, 200f, "Leaving station closes gaps immediately");
@@ -240,6 +270,7 @@ public record struct Vector3(float x, float y, float z)
 }
 public record struct Vector2(float x, float y)
 {
+    public static Vector2 zero => new(0f, 0f);
     public static implicit operator Vector3(Vector2 v) => new(v.x, v.y, 0f);
     public static implicit operator Vector2(Vector3 v) => new(v.x, v.y);
 }

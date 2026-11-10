@@ -8,7 +8,7 @@ support range changes are included.
 These sections record successive changes. The final "Native controls and live
 editing" section supersedes the earlier Save/Cancel workflow and parchment colors.
 Current setting locations are listed in the [user guide](user/inventory-actions.md):
-InventorySlots now uses `8 - Inventory Buttons`; InventoryActions retains
+InventorySlots now uses `7 - Inventory Buttons`; InventoryActions retains
 `3 - Inventory Buttons`. Section numbers below describe their respective revisions.
 
 ## Player-facing behavior

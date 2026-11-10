@@ -10,6 +10,11 @@
 # Native helmet/chest/legs/cape armor and other equipped effects are unchanged.
 # Existing YAML is not rewritten; add applyArmor: true to retain a custom
 # slot's armor contribution. New files explicitly enable it only for Circlet.
+# smallSlot defaults to false. True displays an equipment slot at half width and
+# height below the full-size equipment cells, wrapping to the panel width.
+# Helmet/chest/legs/cape always stay full-size, even if smallSlot is specified.
+# PoV ring cells remain small automatically. Size does not change item acceptance,
+# unlock rules, equipment effects, or storage coordinates.
 Slots:
   - id: helmet
     name: Helmet
@@ -21,56 +26,69 @@ Slots:
     name: Cape
   - id: utility
     name: Utility
+    smallSlot: false
     applyArmor: false
   - id: trinket
     name: Trinket
+    smallSlot: false
     applyArmor: false
   - id: circlet
     name: Circlet
+    smallSlot: false
     applyArmor: true
     items:
       - HelmetDverger
   - id: hiplantern.lantern
     name: Hip Lantern
+    smallSlot: false
     applyArmor: false
     items:
       - HipLantern
   - id: wishbone
     name: Wishbone
+    smallSlot: false
     applyArmor: false
     items:
       - Wishbone
   - id: demister
     name: Demister
+    smallSlot: false
     applyArmor: false
     items:
       - Demister
   - id: jewelcrafting.necklace
     name: Necklace
+    smallSlot: false
     applyArmor: false
     items: []
   - id: jewelcrafting.ring
     name: Ring
+    smallSlot: false
     applyArmor: false
     items: []
   - id: smoothbrainbackpacks.backpack
     name: Backpack
+    smallSlot: false
     applyArmor: false
     items: []
   - id: adventurebackpacks.backpack
     name: Backpack
+    smallSlot: false
     applyArmor: false
     items: []
   - id: rustybags.bag
     name: Bag
+    smallSlot: false
     applyArmor: false
     items: []
   - id: rustybags.quiver
     name: Quiver
+    smallSlot: false
     applyArmor: false
     items: []
   - id: magicsupremacy.belt
     name: MagicBelt
+    smallSlot: false
     applyArmor: false
     items: []
 

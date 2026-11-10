@@ -18,6 +18,7 @@ public sealed partial class InventoryActionsPlugin
 
     internal static bool TryHandleVanillaPlaceStacks(InventoryGui gui)
     {
+        if (gui != null && InventoryCompatibility.PathOfValheimanActions.IsSpecialContainer(gui.m_currentContainer)) return false;
         if (gui == null || gui.m_currentContainer == null)
         {
             return false;
@@ -35,6 +36,7 @@ public sealed partial class InventoryActionsPlugin
     internal static bool TryHandleContainerStackAll(Container container)
     {
         if (NativeContainerHandoff.IsRequestBlocked(container)) return true;
+        if (InventoryCompatibility.PathOfValheimanActions.IsSpecialContainer(container)) return false;
         Player? player = Player.m_localPlayer;
         // Alt+Use can reach vanilla StackAll while held. Keep it reserved for
         // favorite restock even before a remote container grants ownership.
@@ -93,6 +95,7 @@ public sealed partial class InventoryActionsPlugin
 
     internal static bool TryHandleSafeTakeAll(InventoryGui gui)
     {
+        if (gui != null && InventoryCompatibility.PathOfValheimanActions.IsSpecialContainer(gui.m_currentContainer)) return false;
         Player? player = Player.m_localPlayer;
         if (player == null || player.m_isLoading || gui == null || gui.m_currentContainer == null || gui.m_currentContainer.m_inventory == null)
         {
@@ -152,6 +155,7 @@ public sealed partial class InventoryActionsPlugin
         // Consume moves from PoV-managed cells before delegating to any container
         // protocol, and before the normal Ctrl-move path can unequip the item.
         if (IsPathOfValheimanProtectedCell(grid.GetInventory(), item.m_gridPos)) return true;
+        if (InventoryCompatibility.PathOfValheimanActions.IsSpecialContainer(container)) return false;
         if (player == null ||
             player.IsTeleporting() ||
             container == null ||
@@ -263,7 +267,7 @@ public sealed partial class InventoryActionsPlugin
         List<ItemData> candidates = GetQuickStackCandidates(localPlayer, playerInventory);
         InventoryGui.instance?.SetupDragItem(null, null, 0);
         int moved = !IsUnityNull(container) && container.m_inventory != null
-            ? QuickStackItemsIntoContainer(playerInventory, container.m_inventory, candidates)
+            ? QuickStackItemsIntoContainer(localPlayer, playerInventory, container.m_inventory, candidates)
             : 0;
         if (moved > 0)
         {
@@ -274,16 +278,28 @@ public sealed partial class InventoryActionsPlugin
         return true;
     }
 
-    private static bool ShouldQuickStackItem(Player player, Inventory inventory, ItemData item)
+    private static bool ShouldQuickStackItem(Player player, Inventory inventory, ItemData item) =>
+        GetQuickStackTransferAmount(player, inventory, item) > 0;
+
+    private static int GetQuickStackTransferAmount(Player player, Inventory inventory, ItemData item)
     {
-        return item?.m_shared != null &&
-               // Single materials such as mead bases use a fresh chest cell;
-               // do not include material-type items equipped by other mods.
-               (item.m_shared.m_maxStackSize > 1 ||
-                item.m_shared.m_maxStackSize == 1 && item.m_shared.m_itemType == ItemData.ItemType.Material && !item.m_equipped) &&
-               IsRegularActionItem(inventory, item) &&
-               !IsFavoriteProtected(player, inventory, item) &&
-               CanUseContainerActionStacking(item);
+        if (item?.m_shared == null ||
+            !(item.m_shared.m_maxStackSize > 1 ||
+              item.m_shared.m_maxStackSize == 1 && item.m_shared.m_itemType == ItemData.ItemType.Material) ||
+            !IsRegularActionItem(inventory, item) ||
+            IsEquippedContainerMoveSource(player, item) || !CanUseContainerActionStacking(item)) return 0;
+
+        return IsFavoriteProtected(player, inventory, item)
+            ? RestockTargetLimitCore.ResolveQuickStackAmount(Runtime.RestockTargetStackLimits,
+                GetRestockTargetLookupTokens(item), item.m_shared.m_maxStackSize, item.m_stack)
+            : Math.Max(0, item.m_stack);
+    }
+
+    private static bool IsEquippedContainerMoveSource(Player player, ItemData item)
+    {
+        if (player == null || item == null || item.m_equipped) return true;
+        try { return player.IsItemEquiped(item); }
+        catch { return true; }
     }
 
     private static List<ItemData> GetQuickStackCandidates(Player player, Inventory playerInventory)
@@ -300,7 +316,7 @@ public sealed partial class InventoryActionsPlugin
         return candidates;
     }
 
-    private static int QuickStackItemsIntoContainer(Inventory playerInventory, Inventory containerInventory, List<ItemData> candidates)
+    private static int QuickStackItemsIntoContainer(Player player, Inventory playerInventory, Inventory containerInventory, List<ItemData> candidates)
     {
         if (playerInventory == null || containerInventory == null || candidates.Count == 0)
         {
@@ -323,7 +339,7 @@ public sealed partial class InventoryActionsPlugin
                 continue;
             }
 
-            if (MoveItemToInventoryTopFirst(playerInventory, containerInventory, item) > 0)
+            if (MoveItemToInventoryTopFirst(playerInventory, containerInventory, item, quickStackPlayer: player) > 0)
             {
                 moved++;
             }
@@ -593,6 +609,7 @@ public sealed partial class InventoryActionsPlugin
 
     private static void SortCurrentContainer(Player? player)
     {
+        if (InventoryGui.instance != null && InventoryCompatibility.PathOfValheimanActions.IsSpecialContainer(InventoryGui.instance.m_currentContainer)) return;
         if (player == null || player.m_isLoading || InventoryGui.instance == null)
         {
             return;
@@ -615,6 +632,7 @@ public sealed partial class InventoryActionsPlugin
 
     private static int SortContainerInventory(Container container)
     {
+        if (InventoryCompatibility.PathOfValheimanActions.IsSpecialContainer(container)) return 0;
         if (container == null || container.m_inventory == null)
         {
             return 0;
@@ -813,6 +831,7 @@ public sealed partial class InventoryActionsPlugin
         }
 
         Container currentContainer = InventoryGui.instance.m_currentContainer;
+        if (InventoryCompatibility.PathOfValheimanActions.IsSpecialContainer(currentContainer)) return false;
         if (currentContainer == null || currentContainer.m_inventory == null)
         {
             return false;
@@ -940,6 +959,7 @@ public sealed partial class InventoryActionsPlugin
 
     internal static void AppendContainerActionHoverText(Container container, ref string text)
     {
+        if (InventoryCompatibility.PathOfValheimanActions.IsSpecialContainer(container)) return;
         Player? player = Player.m_localPlayer;
         if (player == null ||
             player.m_isLoading ||
@@ -1122,6 +1142,7 @@ public sealed partial class InventoryActionsPlugin
 
     private static bool IsAreaContainerEligible(Container container)
     {
+        if (InventoryCompatibility.PathOfValheimanActions.IsSpecialContainer(container)) return false;
         if (container == null ||
             IsUnityNull(container) ||
             container.m_inventory == null ||
@@ -1214,6 +1235,7 @@ public sealed partial class InventoryActionsPlugin
 
     private static bool CanMutateContainerDirectly(Container container, bool allowLocalWithoutZNetView = false)
     {
+        if (InventoryCompatibility.PathOfValheimanActions.IsSpecialContainer(container)) return false;
         if (container == null)
         {
             return false;
@@ -1420,7 +1442,8 @@ public sealed partial class InventoryActionsPlugin
         Inventory sourceInventory,
         Inventory targetInventory,
         ItemData source,
-        HashSet<Vector2i>? allowedSlots = null)
+        HashSet<Vector2i>? allowedSlots = null,
+        Player? quickStackPlayer = null)
     {
         if (sourceInventory == null || targetInventory == null || source?.m_shared == null || !sourceInventory.m_inventory.Contains(source) ||
             IsPathOfValheimanProtectedCell(sourceInventory, source.m_gridPos))
@@ -1449,7 +1472,9 @@ public sealed partial class InventoryActionsPlugin
 
                 if (!CanStackIntoTargetForTopFirstMove(target, source)) continue;
 
-                int amount = Math.Min(target.m_shared.m_maxStackSize - target.m_stack, source.m_stack);
+                int available = !ReferenceEquals(quickStackPlayer, null) ? GetQuickStackTransferAmount(quickStackPlayer!, sourceInventory, source) : source.m_stack;
+                if (available <= 0) return movedAmount;
+                int amount = Math.Min(target.m_shared.m_maxStackSize - target.m_stack, available);
                 if (amount <= 0)
                 {
                     continue;
@@ -1479,7 +1504,8 @@ public sealed partial class InventoryActionsPlugin
             }
 
             int before = source.m_stack;
-            int requestedAmount = source.m_stack;
+            int requestedAmount = !ReferenceEquals(quickStackPlayer, null) ? GetQuickStackTransferAmount(quickStackPlayer!, sourceInventory, source) : source.m_stack;
+            if (requestedAmount <= 0) return movedAmount;
             bool movedOk = targetInventory.MoveItemToThis(sourceInventory, source, requestedAmount, slot.x, slot.y);
             int moved = CountMovedFromContainerSource(sourceInventory, source, before, requestedAmount, movedOk);
             movedAmount += moved;

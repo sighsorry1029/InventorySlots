@@ -87,6 +87,16 @@ internal static class RestockTargetLimitCore
         return key == null ? fallback : Math.Min(fallback, Math.Max(0, limits[key]));
     }
 
+    // Only explicitly enabled targets relax favorite protection. Off is stored
+    // as zero by Parse; absent rules and Off must never mean "deposit everything".
+    internal static int ResolveQuickStackAmount(Dictionary<string, int> limits, IEnumerable<string?> lookupTokens,
+        int itemMaxStack, int count)
+    {
+        string? key = ResolveConfiguredKey(limits, lookupTokens);
+        if (key == null || limits[key] <= 0 || itemMaxStack <= 0) return 0;
+        return Math.Max(0, count - Math.Min(itemMaxStack, limits[key]));
+    }
+
     internal static string? ResolveConfiguredKey(Dictionary<string, int> limits, IEnumerable<string?> lookupTokens)
     {
         foreach (string? lookupToken in lookupTokens)

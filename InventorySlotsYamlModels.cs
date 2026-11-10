@@ -26,5 +26,6 @@ internal sealed class YamlSlot
     public string Id { get; set; } = "";
     public string Name { get; set; } = "";
     public bool ApplyArmor { get; set; }
+    public bool SmallSlot { get; set; }
     public List<string> Items { get; set; } = new();
 }

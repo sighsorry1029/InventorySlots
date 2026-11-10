@@ -102,7 +102,14 @@ public readonly record struct Vector2i(int x, int y);
 public class ItemDrop { public class ItemData { } }
 public class Inventory { public int Width = 8; }
 public class Player { public static Player m_localPlayer = new(); public Inventory Inventory = new(); }
-public class Container { public bool Allowed = true; }
+public class Container { public bool Allowed = true; public bool Special; }
+namespace InventoryCompatibility
+{
+    public static class PathOfValheimanActions
+    {
+        public static bool IsSpecialContainer(Container container) => container.Special;
+    }
+}
 public class InventoryGui
 {
     public Container? m_currentContainer;

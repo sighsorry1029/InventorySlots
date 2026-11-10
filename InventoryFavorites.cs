@@ -230,56 +230,6 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
-    private static void ApplyAutoFavoriteHotbarSwitchRowToLocalPlayer()
-    {
-        Player? player = Player.m_localPlayer;
-        if (player != null)
-        {
-            ApplyAutoFavoriteHotbarSwitchRowForPlayer(player);
-        }
-    }
-
-    private static void ApplyAutoFavoriteHotbarSwitchRowForPlayer(Player player)
-    {
-        if (player == null || player != Player.m_localPlayer || !ShouldAutoFavoriteHotbarSwitchRow())
-        {
-            return;
-        }
-
-        EnsureFavoritesLoaded(player);
-        if (ApplyAutoFavoriteHotbarSwitchRow(player))
-        {
-            RefreshFavoriteSlotMemory(player, out _);
-            SaveFavorites(player);
-        }
-    }
-
-    private static bool ApplyAutoFavoriteHotbarSwitchRow(Player player)
-    {
-        if (!ShouldAutoFavoriteHotbarSwitchRow() || player == null)
-        {
-            return false;
-        }
-
-        Inventory inventory = ((Humanoid)player).GetInventory();
-        if (inventory == null || inventory.GetHeight() <= HotbarSwitchFavoriteRow)
-        {
-            return false;
-        }
-
-        int width = Math.Max(1, inventory.GetWidth());
-        bool changed = false;
-        for (int x = 0; x < width; x++)
-        {
-            changed |= FavoriteSlots.Add(new Vector2i(x, HotbarSwitchFavoriteRow));
-        }
-
-        return changed;
-    }
-
-    private static bool ShouldAutoFavoriteHotbarSwitchRow() =>
-        _autoFavoriteHotbarSwitchRow != null && _autoFavoriteHotbarSwitchRow.Value.IsOn();
-
     private static void SaveFavorites(Player player)
     {
         if (player == null)

@@ -9,6 +9,7 @@ public sealed partial class InventorySlotsPlugin
 {
     internal static void UpdateCraftingPanelRedesign(InventoryGui gui, CraftingPanelUpdateReason reason = CraftingPanelUpdateReason.FrameTick)
     {
+        if (IsPathOfValheimanCharacterActive(gui)) return;
         // Vanilla can call UpdateRecipe later in the same frame as Hide because
         // Update cached visibility before closing. Do not rebuild the UI that
         // OnInventoryGuiHide is preserving; IsVisible still has an outro grace.
@@ -380,7 +381,13 @@ public sealed partial class InventorySlotsPlugin
             bool preserveForeignCraftingControls = foreignCraftingTab && ShouldPreserveForeignCraftingControls(gui);
             RestoreCraftingPanelHeightExtension(gui);
             RestoreCraftingStationLevelLayout(gui);
-            RestoreCraftingVanillaState(gui, restoreRecipeUi: !foreignCraftingTab || preserveForeignCraftingControls);
+            // A closed inventory will rebuild its native rows on Show. Re-enabling
+            // thousands of hidden rows here only to hide/destroy them again is wasted
+            // work. Other details/layout still restore normally; foreign tabs retain
+            // their existing explicit restoration below and at recipe-list preflight.
+            bool restoreRecipeElements = gui.m_inventoryRoot == null || gui.m_inventoryRoot.gameObject.activeInHierarchy;
+            RestoreCraftingVanillaState(gui, restoreRecipeUi: !foreignCraftingTab || preserveForeignCraftingControls,
+                restoreRecipeElements: restoreRecipeElements);
             if (preserveForeignCraftingControls)
             {
                 ForceRestoreForeignCraftingVanillaState(gui);
@@ -435,7 +442,7 @@ public sealed partial class InventorySlotsPlugin
         _craftingVanillaPanelBackgroundsHidden = false;
     }
 
-    private static void RestoreCraftingVanillaState(InventoryGui gui, bool restoreRecipeUi)
+    private static void RestoreCraftingVanillaState(InventoryGui gui, bool restoreRecipeUi, bool restoreRecipeElements = true)
     {
         if (_craftingVanillaPanelBackgroundsHidden || CraftingVanillaPanelBackgroundStates.Count > 0)
         {
@@ -447,7 +454,7 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        if (_craftingVanillaRecipeElementsHidden)
+        if (_craftingVanillaRecipeElementsHidden && restoreRecipeElements)
         {
             SetCraftingVanillaRecipeElementsVisible(gui, visible: true);
             _craftingVanillaRecipeElementsHidden = false;
@@ -710,7 +717,7 @@ public sealed partial class InventorySlotsPlugin
     private static bool ShouldPreserveForeignCraftingControls(InventoryGui gui) =>
         ShouldPreserveJewelcraftingForeignCraftingControls(gui);
 
-    private static bool HasActiveForeignCraftingTab(InventoryGui gui)
+    private static bool HasActiveForeignCraftingTab(InventoryGui gui, bool includeHiddenInventory = false)
     {
         if (gui.m_tabCraft == null || gui.m_tabUpgrade == null)
         {
@@ -729,7 +736,7 @@ public sealed partial class InventorySlotsPlugin
                 IsUnityNull(button) ||
                 button == gui.m_tabCraft ||
                 button == gui.m_tabUpgrade ||
-                !button.gameObject.activeInHierarchy)
+                !(includeHiddenInventory ? IsCraftingTabLocallyActive(button.transform, tabRoot) : button.gameObject.activeInHierarchy))
             {
                 continue;
             }
@@ -745,6 +752,16 @@ public sealed partial class InventorySlotsPlugin
             }
         }
 
+        return false;
+    }
+
+    private static bool IsCraftingTabLocallyActive(Transform button, Transform tabRoot)
+    {
+        for (Transform? cursor = button; cursor != null; cursor = cursor.parent)
+        {
+            if (!cursor.gameObject.activeSelf) return false;
+            if (cursor == tabRoot) return true;
+        }
         return false;
     }
 }

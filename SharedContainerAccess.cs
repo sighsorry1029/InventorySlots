@@ -20,6 +20,7 @@ public sealed partial class InventorySlotsPlugin
     internal static bool IsSharedContainerEnabled(Container container) =>
         _sharedContainersActive && !UsesVanillaContainerProtocol && !HasExternalMultiUserChestActive &&
         container != null && SharedContainerEligibility.TryGetValue(container, out Piece piece) &&
+        !InventoryCompatibility.PathOfValheimanActions.IsSpecialContainer(container) &&
         piece != null && piece.IsPlacedByPlayer() &&
         GetContainerAreaView(container)?.IsValid() == true && !IsMultiUserChestIgnored(container);
 

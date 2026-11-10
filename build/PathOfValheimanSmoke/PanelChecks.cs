@@ -35,8 +35,7 @@ internal static partial class Program
             Check((bool)Call("TryGetSlotGridPos", args)!, "slot has a physical coordinate: " + Id(slot));
             return (Vector2i)args[2]!;
         }
-        void Layout(int quick = 3) => Call("UpdatePathOfValheimanPanelSlots", player, bag, quick,
-            ((IList)Call("GetCustomPanelSlots", player, bag)!).Count);
+        void Layout(int quick = 3) => Call("UpdateInventoryPanelSlots", player, bag, quick);
         void Size(int columns, int rows, string scenario) => Check(
             (int)plugin.GetField("_povQuickColumns", Statics)!.GetValue(null)! == columns &&
             (int)plugin.GetField("_povQuickContentRows", Statics)!.GetValue(null)! == rows, scenario);
@@ -52,8 +51,9 @@ internal static partial class Program
             Call("AppendPathOfValheimanSlots");
             Call("InvalidateSlotDefinitionCaches");
             quickRows.SetValue(null, config.Bind("test", "panel-quick-rows", 1, ""));
-            Check(!definitions.Cast<object>().Any(s => Role(s)?.StartsWith("tool.") == true || Role(s)?.StartsWith("key.") == true || Role(s)?.StartsWith("purse.") == true),
-                "Tool/Key/Purse roles create no InventorySlots definitions");
+            Check(!definitions.Cast<object>().Any(s => Role(s)?.StartsWith("tool.") == true || Role(s)?.StartsWith("key.") == true) &&
+                definitions.Cast<object>().Count(s => Role(s)?.StartsWith("purse.") == true) == 1,
+                "Tool/Key roles remain omitted; one wallet cell is hosted");
             Check(!mapped.Contains("utility") && !definitions.Cast<object>().Any(s => Id(s) == "pov.utility"),
                 "PoV does not add a separate generic Utility cell");
             Check(!mapped.Contains("utility.tome") && !mapped.Contains("utility.earring") &&
@@ -138,7 +138,7 @@ internal static partial class Program
             Layout(); Size(4, 1, "removing closed-cell contents shrinks the panel again");
             purseGate.SetValue(null, new Func<Player, bool>(_ => true));
             Layout();
-            Check(!definitions.Cast<object>().Any(s => Role(s)?.StartsWith("purse.") == true), "Magic Purse never adds backpack capacity or display cells");
+            Check(definitions.Cast<object>().Count(s => Role(s)?.StartsWith("purse.") == true) == 1, "Magic Purse adds exactly one wallet cell");
             items.Clear(); Layout(0);
             Size(1, 1, "PoV-only single slot does not reserve three columns");
             Check((Vector3)Call("GetPathOfValheimanActionPosition", 0, 70f)! == Vector3.zero, "no generic quick bank leaves no blank column bank");

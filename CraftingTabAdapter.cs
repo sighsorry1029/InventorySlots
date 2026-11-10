@@ -131,20 +131,22 @@ public sealed partial class InventorySlotsPlugin
         };
     }
 
-    private static int CompareCraftingRecipeViewEntriesForAdapter(CraftingTabAdapterState adapter, CraftingRecipeViewEntry a, CraftingRecipeViewEntry b)
+    private static int CompareCraftingRecipeViewEntriesForAdapter(CraftingTabAdapterState adapter, CraftingRecipeViewEntry a,
+        CraftingRecipeViewEntry b, bool groupVeiled, CraftingRecipeSortMode mode)
     {
         if (adapter.IsRecycleNReclaim || adapter.IsPathOfValheimanSalvage)
         {
             return CompareRecycleNReclaimRecipeViewEntries(a, b);
         }
 
-        int veiledRecipeGrouping = CompareVeiledRecipeMaskGrouping(a.IsVeiledRecipePreview, b.IsVeiledRecipePreview);
+        int veiledRecipeGrouping = groupVeiled && a.IsVeiledRecipePreview != b.IsVeiledRecipePreview
+            ? a.IsVeiledRecipePreview ? 1 : -1
+            : 0;
         if (veiledRecipeGrouping != 0)
         {
             return veiledRecipeGrouping;
         }
 
-        CraftingRecipeSortMode mode = _craftingRecipeSortMode?.Value ?? CraftingRecipeSortMode.TierThenGroup;
         return CraftingRecipeViewCore.CompareWithSortKey(
             a.IsFavorite,
             b.IsFavorite,

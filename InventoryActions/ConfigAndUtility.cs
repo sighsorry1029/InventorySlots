@@ -105,6 +105,9 @@ public sealed partial class InventoryActionsPlugin
             new ConfigDescription("Show hover help for controls in the Restock targets and Auto pickup exclusions panels and restock-entry controls in F1. Applies immediately. Item information tooltips and Configuration Manager setting descriptions remain available.",
                 null, new ConfigurationManagerAttributes { Order = 840 }), synchronizedSetting: false);
         _showRuleTooltips.SettingChanged += RefreshRuleTooltipVisibility;
+        _itemRulePanelScrollMode = ConfigEntry(InventoryButtonsConfigSection, "Item Rule Panel Scroll Mode", ItemRulePanelScrollMode.Row,
+            new ConfigDescription(ItemRulePanelScrollModeDescription, null,
+                new ConfigurationManagerAttributes { Order = 830 }), synchronizedSetting: false);
         _featureGuideState = ConfigEntry(ClientConfigSection, "Feature Guide State", FeatureGuideState.Expanded,
             new ConfigDescription(FeatureGuideStateDescription, null,
                 new ConfigurationManagerAttributes { Order = 800 }), synchronizedSetting: false);
@@ -120,7 +123,7 @@ public sealed partial class InventoryActionsPlugin
             "Restock Target Stack Limits",
             "",
             new ConfigDescription(
-                "Client-only per-item modes and targets for favorite restock (Alt+E). Format: Stone: 10 | Existing, Wood: 30 | IncludeEmpty, Coins: 500 | Off. Off disables restock while retaining the target; Existing tops up remaining favorite stacks; IncludeEmpty also restores remembered empty favorite slots, or one unassigned empty favorite if this item has no remembered slot or existing favorite stack. Target quantities are positive whole numbers. Saved targets may exceed the current max stack; actual restocking is capped by each live item's current max stack. Keys may be prefab, internal, or localized item names. Separate entries with commas, semicolons, or new lines. Unlisted items use normal existing-stack restock to max. Numeric-only entries, zero targets, and the old refill suffix are unsupported and are not converted; re-register them with this format. Existing items are never moved or replaced.",
+                "Client-only per-item modes and per-favorite-stack targets for restock (Alt+E) and surplus Quick Stack (E). Format: Stone: 10 | Existing, Wood: 30 | IncludeEmpty, Coins: 500 | Off. Off disables restock while retaining the target; Existing tops up remaining favorite stacks; IncludeEmpty also restores remembered empty favorite slots, or one unassigned empty favorite if this item has no remembered slot or existing favorite stack. Target quantities are positive whole numbers. Saved targets may exceed the current max stack; actual restocking is capped by each live item's current max stack. Keys may be prefab, internal, or localized item names. Separate entries with commas, semicolons, or new lines. Unlisted items use normal existing-stack restock to max. Numeric-only entries, zero targets, and the old refill suffix are unsupported and are not converted; re-register them with this format. Restocking never moves or replaces occupied items. Quick Stack stores only surplus above enabled targets from eligible favorite stacks. Off or unlisted targets keep favorites fully protected; hotbar and special-slot exclusions still apply.",
                 null,
                 new ConfigurationManagerAttributes
                 {

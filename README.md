@@ -96,7 +96,7 @@ EpicLoot item details and Jewelcrafting sockets work with the tooltip and compar
 | Feature | What it does |
 | --- | --- |
 | More inventory space | Progressive rows, dedicated equipment slots, and quick slots with configurable unlocks. |
-| Favorites and sorting | Protect favorite slots from quick stack. Sort tops up existing favorite stacks, then merges and sorts eligible ordinary stacks. |
+| Favorites and sorting | Protect favorite slots; Quick Stack can store surplus above enabled restock targets. Sort tops up existing favorite stacks, then merges and sorts eligible ordinary stacks. |
 | Chest tools | Contents preview, nearby quick stack, favorite restock, Take stacks, and container sorting. |
 | Crafting browser | Live List/Grid switching, search, categories, recipe favorites, upgrades, and multicraft. |
 | Item comparisons | Scrollable descriptions and up to three pinned tooltips, including supported modded items. |
@@ -118,7 +118,7 @@ These are the default keyboard and mouse controls. In-game hints follow your con
 
 **On a controller:** open the inventory, select a slot without picking up its item, and briefly click and release the **right stick** to open the Favorite/Sort menu. Move down from the last inventory row to reach Restock, Exclude, and Trash. See the [controller guide](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/controller.md) for panel navigation and optional shortcuts.
 
-Favorites protect against quick stack; they do **not** stop crafting, building, or other normal item consumption. Enable **Include empty** for a restock target if you want to restore its remembered favorite slots after they run out. [How favorites and restock work](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/inventory-actions.md).
+Favorites protect against quick stack, except surplus above an explicitly enabled restock target in eligible regular cells. Targets apply **per favorite stack**: with 150 Stone and a target of 100, Quick Stack can store 50. Off or unlisted targets keep favorites fully protected. Favorites do **not** stop crafting, building, or other normal item consumption. Enable **Include empty** for a restock target if you want to restore its remembered favorite slots after they run out. [How favorites and restock work](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/inventory-actions.md).
 
 ## Installation
 
@@ -132,7 +132,7 @@ Want the inventory actions while keeping your existing inventory layout? Use [In
 
 ## Guides and support
 
-Press **F6** to cycle the quick guide: **Expanded → Collapsed → Hidden → Expanded**, with the inventory open or closed. Or choose **Feature Guide State** directly under **6 - HUD & Guide**. Your choice is saved in the config. Change or unset **Toggle Feature Guide Key** under **7 - Keyboard & Mouse**; Configuration Manager is optional. [Guide controls](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/inventory-actions.md#show-or-hide-the-quick-guide).
+Press **F6** to cycle the quick guide: **Expanded → Collapsed → Hidden → Expanded**, with the inventory open or closed. Or choose **Feature Guide State** directly under **6 - HUD & Guide**. Your choice is saved in the config. Change or unset **Toggle Feature Guide Key** under **8 - Keyboard & Mouse**; Configuration Manager is optional. [Guide controls](https://github.com/sighsorry1029/InventorySlots/blob/main/docs/user/inventory-actions.md#show-or-hide-the-quick-guide).
 
 | Guide | Covers |
 | --- | --- |

@@ -9,6 +9,7 @@ public sealed partial class InventorySlotsPlugin
 {
     internal static bool TryHandleSafeTakeAll(InventoryGui gui)
     {
+        if (gui != null && InventoryCompatibility.PathOfValheimanActions.IsSpecialContainer(gui.m_currentContainer)) return false;
         Player player = Player.m_localPlayer;
         if (player == null || player.m_isLoading || gui == null || gui.m_currentContainer == null || gui.m_currentContainer.m_inventory == null)
         {

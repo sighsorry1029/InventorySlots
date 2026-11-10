@@ -94,7 +94,6 @@ public sealed partial class InventorySlotsPlugin : BaseUnityPlugin
     private const float SidePanelBackgroundPadding = 14f;
     private const float PlayerStatPanelGap = -8f;
     private const int HotbarRowsToSwitch = 2;
-    private const int HotbarSwitchFavoriteRow = 1;
     private const float ContainerActionPairButtonWidthMultiplier = 1f;
     private const float SortButtonOutsideGap = 1f;
     private const float ContainerHoverHoldDuration = 0.5f;
@@ -111,8 +110,8 @@ public sealed partial class InventorySlotsPlugin : BaseUnityPlugin
     private const string CraftingConfigSection = "4 - Crafting";
     private const string TooltipConfigSection = "5 - Tooltips & Chat";
     private const string HudConfigSection = "6 - HUD & Guide";
-    private const string KeyboardMouseConfigSection = "7 - Keyboard & Mouse";
-    private const string InventoryButtonsConfigSection = "8 - Inventory Buttons";
+    private const string InventoryButtonsConfigSection = "7 - Inventory Buttons";
+    private const string KeyboardMouseConfigSection = "8 - Keyboard & Mouse";
     private const string ControllerInputConfigSection = "9 - Controller Input";
     private static readonly Vector2 HotbarSwitchHintOffset = new(0f, -32f);
     private static readonly Color HotbarSwitchHintColor = new(174f / 255f, 224f / 255f, 1f, 1f);

@@ -13,17 +13,19 @@ string Methods(string file, params string[] names)
         .Single(method => method.Identifier.ValueText == name).ToFullString()));
 }
 string host = File.ReadAllText(Path.Combine(root.FullName, "build/QuickStackTests/Host.cs.txt"))
-    .Replace("/* SLOTS */", Methods("ContainerQuickStack.cs", "ShouldQuickStackItem", "QuickStackItemsIntoContainer",
+    .Replace("/* SLOTS */", Methods("ContainerQuickStack.cs", "ShouldQuickStackItem", "GetQuickStackTransferAmount", "QuickStackItemsIntoContainer",
         "MoveItemToContainerTopFirst", "IsEquippedContainerMoveSource") +
         Methods("ContainerActions.cs", "CountMovedFromContainerSource"))
-    .Replace("/* ACTIONS */", Methods("InventoryActions/Actions.cs", "ShouldQuickStackItem", "GetQuickStackCandidates",
+    .Replace("/* ACTIONS */", Methods("InventoryActions/Actions.cs", "ShouldQuickStackItem", "GetQuickStackTransferAmount", "IsEquippedContainerMoveSource", "GetQuickStackCandidates",
         "QuickStackItemsIntoContainer", "MoveItemToInventoryTopFirst", "GetInventorySlotsTopFirst",
         "CanStackForTopFirstMove", "CanStackIntoTargetForTopFirstMove", "HasSameStackIdentity", "CountMovedFromContainerSource") +
         Methods("InventoryActions/MultiUserChestTransfer.cs", "TrySendMucQuickStack"))
-    .Replace("/* CORE */", Methods("ContainerActionCore.cs", "CountMovedAmount"));
+    .Replace("/* CORE */", Methods("ContainerActionCore.cs", "CountMovedAmount"))
+    .Replace("/* CONFIG CORE */", Methods("InventorySlotsConfigCore.cs", "NormalizeResourceToken", "CleanPrefabName"));
 var references = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator)
     .Select(path => MetadataReference.CreateFromFile(path));
-var compilation = CSharpCompilation.Create("QuickStackProbe", new[] { CSharpSyntaxTree.ParseText(host) }, references,
+var compilation = CSharpCompilation.Create("QuickStackProbe", new[] { CSharpSyntaxTree.ParseText(host),
+    CSharpSyntaxTree.ParseText(File.ReadAllText(Path.Combine(root.FullName, "RestockTargetLimitCore.cs"))) }, references,
     new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
 using var stream = new MemoryStream();
 var emitted = compilation.Emit(stream);

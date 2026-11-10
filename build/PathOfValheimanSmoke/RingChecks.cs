@@ -50,8 +50,7 @@ internal static partial class Program
         bool Take(string cell) => (bool)contract.GetMethod("TakeOut")!.Invoke(provider, new object[] { player, cell })!;
         bool Open(int index) => (bool)api.GetMethod("IsOpen")!.Invoke(null, new object[] { player, "ring." + index })!;
         ItemData[] Effects() => ((IEnumerable<ItemData>)utility.GetMethod("Rings", Statics)!.Invoke(null, new object[] { player })!).ToArray();
-        void Layout() { Call("InvalidateSlotDefinitionCaches"); Call("UpdatePathOfValheimanPanelSlots", player, bag, 3,
-            ((IList)Call("GetCustomPanelSlots", player, bag)!).Count); }
+        void Layout() { Call("InvalidateSlotDefinitionCaches"); Call("UpdateInventoryPanelSlots", player, bag, 3); }
         IList Visible() => (IList)plugin.GetField("PovVisibleRings", Statics)!.GetValue(null)!;
         Vector2i Pos(int index)
         {
@@ -118,6 +117,11 @@ internal static partial class Program
             items.Add(blocker);
             Check(Put(first, "ring.0") && Put(second, "ring.1"), "fill base ring destinations");
             blocker.m_equipped = true; belt.SetValue(player, blocker);
+            // 6.x refreshes full progression/stat caches from Tick. Keep this
+            // harness focused on the original equipment hand-off, without a
+            // Unity-loaded character or PoV's live XP configuration.
+            hooks.Patch(AccessTools.Method(pov.GetType("PassiveTree.Effects", true), "Refresh", new[] { typeof(Player) }),
+                prefix: new HarmonyMethod(typeof(Program), nameof(NoProgress)));
             hooks.Patch(AccessTools.Method(typeof(Humanoid), "UnequipItem"),
                 prefix: new HarmonyMethod(typeof(Program), nameof(RingUnequip)));
             hooks.CreateClassProcessor(plugin.Assembly.GetType("InventorySlots.HumanoidUnequipItemPatch", true)).Patch();
@@ -146,20 +150,20 @@ internal static partial class Program
             Check(first.m_gridPos == Pos(0) && second.m_gridPos == Pos(5) && items.Count == 2,
                 "native ring save coordinates reproject without cloning, including locked occupied ring");
             Layout();
-            var cols = plugin.GetField("_povEquipmentColumns", Statics)!;
-            var rows = plugin.GetField("_povEquipmentRows", Statics)!;
+            var cols = plugin.GetField("_equipmentPanelColumns", Statics)!;
+            var rows = plugin.GetField("_equipmentPanelRows", Statics)!;
             cols.SetValue(null, 3); rows.SetValue(null, 3);
             ringCapacity = 6; Layout(); cols.SetValue(null, 3); rows.SetValue(null, 3);
-            Check((float)Call("GetPathOfValheimanRingPanelRows")! == .5f &&
-                (Vector3)Call("GetPathOfValheimanRingPosition", 5, 70f, new Rect(0, -70, 70, 70))! == new Vector3(175, -210, 0),
+            Check((float)Call("GetSmallEquipmentPanelRows")! == .5f &&
+                (Vector3)Call("GetSmallEquipmentPanelPosition", 5, 70f, new Rect(0, -70, 70, 70))! == new Vector3(175, -210, 0),
                 "six half-sized rings occupy one half-height row under three equipment columns");
             cols.SetValue(null, 2);
-            Check((float)Call("GetPathOfValheimanRingPanelRows")! == 1f &&
-                (Vector3)Call("GetPathOfValheimanRingPosition", 4, 70f, new Rect(0, -70, 70, 70))! == new Vector3(0, -245, 0),
+            Check((float)Call("GetSmallEquipmentPanelRows")! == 1f &&
+                (Vector3)Call("GetSmallEquipmentPanelPosition", 4, 70f, new Rect(0, -70, 70, 70))! == new Vector3(0, -245, 0),
                 "narrow equipment panel wraps ring five onto second miniature row");
             foreach (Rect rect in new[] { new Rect(0, -70, 70, 70), new Rect(-35, -35, 70, 70), new Rect(-62, 0, 62, 64) })
             {
-                Vector3 point = (Vector3)Call("GetPathOfValheimanRingPosition", 0, 70f, rect)!;
+                Vector3 point = (Vector3)Call("GetSmallEquipmentPanelPosition", 0, 70f, rect)!;
                 Check(point.x + rect.xMin * .5f == rect.xMin && point.y + rect.yMax * .5f == -210 + rect.yMax,
                     "miniature cell preserves original left/top bounds for pivot and size " + rect);
             }

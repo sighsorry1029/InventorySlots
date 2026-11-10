@@ -15,6 +15,23 @@ internal static class PoVActionsChecks
     private static ItemDrop.ItemData protectedItem = null!;
     private static Inventory source = null!;
     private static bool stackSawProtected;
+    private static Container? runeBox, anvilBox;
+    private static Action? pendingAnvil;
+    private static int deposits;
+    private static bool throwDeposit;
+    private static bool RuneIs(Container __0, ref bool __result) { __result = ReferenceEquals(__0, runeBox); return false; }
+    private static bool AnvilIs(Container __0, ref bool __result) { __result = ReferenceEquals(__0, anvilBox); return false; }
+    private static bool BulkSource(ItemDrop.ItemData item, ref bool __result) { __result = !ReferenceEquals(item, protectedItem); return false; }
+    private static bool DeferAnvil(Action __1) { pendingAnvil = __1; return false; }
+    private static bool RecordDeposit()
+    { ++deposits; if (throwDeposit) throw new InvalidOperationException("deposit fixture fault"); return true; }
+    private static IEnumerable<CodeInstruction> DepositBody()
+    {
+        yield return new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(PoVActionsChecks), nameof(RecordDeposit)));
+        yield return new CodeInstruction(OpCodes.Ret);
+    }
+    private static bool Stockable(ref bool __result) { __result = true; return false; }
+    private static bool StockName(ref string __result) { __result = "SmokeStock"; return false; }
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate float NativeTime();
     private static readonly NativeTime Delta = () => 0f;
     [DllImport("mono-2.0-bdwgc.dll", CallingConvention = CallingConvention.Cdecl)]
@@ -50,11 +67,16 @@ internal static class PoVActionsChecks
         Type quick = pov.GetType("PassiveTree.QuickStack", true)!;
         foreach (string name in new[] { "Response", "Keys", "Stack" })
             harmony.CreateClassProcessor(quick.GetNestedType(name, BindingFlags.NonPublic)!).Patch();
+        if (quick.GetNestedType("RuneWait", BindingFlags.NonPublic) is Type wait)
+            harmony.CreateClassProcessor(wait).Patch();
+        if (pov.GetType("PassiveTree.RunicCraft.Anvil+Stack") is Type anvil)
+            harmony.CreateClassProcessor(anvil).Patch();
     }
 
     internal static void Run(Assembly mod, Assembly pov, Action<bool, string> check)
     {
         mono_add_internal_call("UnityEngine.Time::get_deltaTime", Marshal.GetFunctionPointerForDelegate(Delta));
+        mono_add_internal_call("UnityEngine.Time::get_time", Marshal.GetFunctionPointerForDelegate(Delta));
         Type adapter = mod.GetType("InventoryCompatibility.PathOfValheimanActions", true)!;
         Type quick = pov.GetType("PassiveTree.QuickStack", true)!;
         Type api = pov.GetType("Valheiman.Api.QuickStack", true)!;
@@ -80,6 +102,15 @@ internal static class PoVActionsChecks
         FieldInfo stackChest = quick.GetField("stackChest", Static)!;
         try
         {
+            Type? rune = pov.GetType("PassiveTree.RuneChest");
+            if (rune != null)
+            {
+                // Unity component queries are native-engine boundaries; the
+                // original PoV response and queue bodies still run below.
+                fixture.Patch(rune.GetMethod("Is", Static), prefix: new HarmonyMethod(typeof(PoVActionsChecks), nameof(RuneIs)));
+                fixture.Patch(pov.GetType("PassiveTree.RunicCraft.Anvil", true)!.GetMethod("Is", Static),
+                    prefix: new HarmonyMethod(typeof(PoVActionsChecks), nameof(AnvilIs)));
+            }
             fixture.Patch(rpc, prefix: new HarmonyMethod(typeof(PoVActionsChecks), nameof(Gate)) { priority = Priority.First },
                 postfix: new HarmonyMethod(typeof(PoVActionsChecks), nameof(OtherObserver)),
                 transpiler: new HarmonyMethod(typeof(PoVActionsChecks), nameof(RpcBody)));
@@ -107,6 +138,61 @@ internal static class PoVActionsChecks
                     "PoV ignores shared RPC, allowed=" + allowed + ", granted=" + granted);
             }
             check(responseCalls == 2 && otherObservers == 4, "vanilla body and other observers retain normal gate behavior");
+            if (rune != null)
+            {
+                runeBox = box;
+                check((bool)adapter.GetMethod("IsSpecialContainer", Static)!.Invoke(null, new object[] { box })!,
+                    "late-added special storage is detected after ordinary replies");
+                allowResponse = false;
+                rpc.Invoke(box, new object[] { 77L, true });
+                check(asked.Contains(box), "consumed adapter reply never reaches RuneChest");
+                allowResponse = true;
+                rpc.Invoke(box, new object[] { 77L, true });
+                var waits = (System.Collections.IList)quick.GetField("runeWaits", Static)!.GetValue(null)!;
+                check(!asked.Contains(box) && waits.Count == 1 && responseCalls == 2 && stackChest.GetValue(null) == null,
+                    "native RuneChest grant queues ownership wait without vanilla write or ordinary save observer");
+                quick.GetNestedType("RuneWait", BindingFlags.NonPublic)!.GetMethod("Postfix", Static)!.Invoke(null, new object[] { player });
+                check(waits.Count == 0, "native delayed response discards an invalid container without deposit");
+                local.SetValue(null, null);
+                asked.Add(box);
+                rpc.Invoke(box, new object[] { 77L, false });
+                check(!asked.Contains(box) && waits.Count == 0 && responseCalls == 2,
+                    "native denial/disconnected-player branch performs no deposit");
+                local.SetValue(null, player);
+                Type plugin = mod.GetType(mod.GetName().Name + "." + mod.GetName().Name + "Plugin", true)!;
+                fixture.Patch(plugin.GetMethod("CanUsePathOfValheimanBulkSource", Static), prefix: new HarmonyMethod(typeof(PoVActionsChecks), nameof(BulkSource)));
+                object[] filterArgs = { new[] { protectedItem, ordinary } };
+                adapter.GetMethod("FilterRuneStack", Static)!.Invoke(null, filterArgs);
+                check(((IEnumerable<ItemDrop.ItemData>)filterArgs[0]).SequenceEqual(new[] { ordinary }),
+                    "RuneChest bulk input excludes protected items without removing them from inventory");
+                runeBox = null;
+                asked.Add(box);
+                Type anvil = pov.GetType("PassiveTree.RunicCraft.Anvil", true)!;
+                MethodInfo deposit = anvil.GetMethod("Deposit", Static)!;
+                fixture.Patch(anvil.GetMethod("Do", Static), prefix: new HarmonyMethod(typeof(PoVActionsChecks), nameof(DeferAnvil)) { priority = Priority.Last });
+                fixture.Patch(deposit, transpiler: new HarmonyMethod(typeof(PoVActionsChecks), nameof(DepositBody)));
+                fixture.Patch(pov.GetType("PassiveTree.RunicCraft.Defs", true)!.GetMethod("Stockable", Static), prefix: new HarmonyMethod(typeof(PoVActionsChecks), nameof(Stockable)));
+                fixture.Patch(AccessTools.PropertyGetter(typeof(UnityEngine.Object), "name"), prefix: new HarmonyMethod(typeof(PoVActionsChecks), nameof(StockName)));
+                protectedItem.m_dropPrefab = ordinary.m_dropPrefab = (UnityEngine.GameObject)FormatterServices.GetUninitializedObject(typeof(UnityEngine.GameObject));
+                anvilBox = box;
+                // Invoke the real game hook, whose native PoV patch was installed
+                // before our adapter, not the patch method by reflection alone.
+                AccessTools.Method(typeof(Container), "StackAll", Type.EmptyTypes).Invoke(box, null);
+                check(pendingAnvil != null && !(bool)adapter.GetField("_anvilBulk", Static)!.GetValue(null)!,
+                    "real Container.StackAll captures deferred native anvil action and clears immediate scope");
+                deposits = 0;
+                pendingAnvil!();
+                check(deposits == 1 && source.GetAllItems().Count == 2,
+                    "deferred native anvil bulk operation filters protected source without inventory removal (deposits=" + deposits + ", items=" + source.GetAllItems().Count + ", callback=" + pendingAnvil.Method + ")");
+                throwDeposit = true;
+                try { pendingAnvil(); } catch (InvalidOperationException) { }
+                throwDeposit = false;
+                check(!(bool)adapter.GetField("_anvilBulk", Static)!.GetValue(null)!, "anvil callback exception restores bulk scope");
+                int before = deposits;
+                deposit.Invoke(null, new object[] { box, source, protectedItem, 1 });
+                check(deposits == before + 1, "explicit manual anvil deposit retains native behavior outside bulk scope");
+                anvilBox = null;
+            }
             update.Invoke(player, null);
             check(keyCalls == 0, "real Player.Update no longer invokes PoV action key observer");
             foreach (string name in new[] { "Run", "Sort" })
@@ -125,7 +211,11 @@ internal static class PoVActionsChecks
                     "original storage protection restores exact items after StackAll, exception=" + fail);
             }
             asked.Clear();
+            runeBox = null;
             adapter.GetMethod("Dispose", Static)!.Invoke(null, null);
+            int oldDeposits = deposits;
+            pendingAnvil?.Invoke();
+            check(oldDeposits == deposits, "rollback cancels an adapter-wrapped deferred anvil operation");
             check((string)api.GetProperty("ButtonsHostedBy")!.GetValue(null)! == "prior.host" &&
                   Harmony.GetPatchInfo(rpc)!.Finalizers.Any(p => p.owner == native.Id), "rollback restores prior host and exact native observers");
             adapter.GetMethod("Install", Static)!.Invoke(null, new object[] { pov, owner });
@@ -137,6 +227,7 @@ internal static class PoVActionsChecks
         finally
         {
             asked.Clear();
+            runeBox = anvilBox = null; pendingAnvil = null; throwDeposit = false;
             adapter.GetMethod("Dispose", Static)!.Invoke(null, null);
             api.GetMethod("HostButtons")!.Invoke(null, new object?[] { null });
             native.UnpatchSelf();

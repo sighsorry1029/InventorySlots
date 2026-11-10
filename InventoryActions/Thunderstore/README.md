@@ -28,7 +28,7 @@ Choose a target quantity for each item and whether to restore its remembered emp
 
 | Feature | What it does |
 | --- | --- |
-| Favorite slots | Protect selected slots from quick stack and mark their items for restock. |
+| Favorite slots | Protect selected slots and mark their items for restock; Quick Stack can store surplus above enabled targets. |
 | Sorting | Top up existing favorite stacks, then merge and sort eligible ordinary stacks. Favorite slots stay in place and never donate to one another. |
 | Nearby chest actions | Hold the normal Use key at a chest to quick stack; add the restock modifier to refill favorites. |
 | Restock targets | Set a quantity per favorite stack and choose Off, Existing, or Include empty for each item. |
@@ -62,6 +62,8 @@ Each target accepts a **positive whole-number quantity** and one of three modes.
 | **Off** | Disable restocking for this item while keeping its target quantity. |
 | **Existing** | Refill favorite stacks that still contain the item. The default for new targets. |
 | **Include empty** | Also restore the item to its remembered empty favorite slots. Occupied slots are never replaced. |
+
+Quick Stack stores only surplus above an explicitly enabled target from eligible favorite stacks. With 150 Stone and a target of 100, it can store 50. Targets apply **per favorite stack**; Off or unlisted targets keep favorites fully protected. Hotbar and supported special slots remain excluded from Quick Stack.
 
 Favorites do **not** stop crafting, building, or other normal item consumption. Include empty helps restore a favorite slot after its stack runs out. **Restock Leave One Item**, enabled by default, keeps one item of each kind in each source chest so future quick stack can still recognize it.
 

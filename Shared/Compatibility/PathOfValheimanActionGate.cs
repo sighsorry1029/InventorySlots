@@ -18,7 +18,11 @@ public sealed partial class InventoryActionsPlugin
     private static void InitializePathOfValheimanActionGate()
     {
         ResetPathOfValheimanActionGate();
-        if (IsDedicatedServer || !Chainloader.PluginInfos.TryGetValue("treextr.pathofvalheiman", out var plugin)) return;
+        if (!Chainloader.PluginInfos.TryGetValue("treextr.pathofvalheiman", out var plugin)) return;
+        // Server-side ownership/shared-container handlers must respect ledgers too.
+        if (plugin.Instance != null)
+            InventoryCompatibility.PathOfValheimanActions.BindContainers(plugin.Instance.GetType().Assembly);
+        if (IsDedicatedServer) return;
         _povTidyPackRequired = true;
         try
         {
@@ -26,6 +30,21 @@ public sealed partial class InventoryActionsPlugin
             BindPathOfValheimanActionGate(plugin.Instance.GetType().Assembly);
         }
         catch (Exception error) { DisablePathOfValheimanActionGate(error); }
+    }
+
+    internal static bool CanUsePathOfValheimanBulkSource(Inventory inventory, ItemDrop.ItemData item)
+    {
+        Player? player = Player.m_localPlayer;
+        if (player == null || player.m_isLoading || inventory == null || item == null ||
+            !ReferenceEquals(inventory, player.GetInventory()) || !inventory.ContainsItem(item) ||
+            IsFavoriteProtected(player, inventory, item) || IsEquippedContainerMoveSource(player, item)) return false;
+        // Native ledger bulk deposits consume whole stacks. Keep favorite stacks
+        // fully protected here; ordinary chest surplus limits remain unchanged.
+#if INVENTORY_SLOTS
+        return IsRegularActionItem(player, inventory, item);
+#else
+        return IsRegularActionItem(inventory, item);
+#endif
     }
 
     private static void BindPathOfValheimanActionGate(Assembly assembly)

@@ -912,9 +912,18 @@ public sealed partial class InventorySlotsPlugin
 
     private static Vector2 GetCraftingSearchCompatOffset(InventoryGui gui, Vector2 searchSize)
     {
-        return ShouldOffsetCraftingSearchForRecycleNReclaim(gui)
+        // Rune Carver has two native PoV tabs in addition to Craft/Upgrade and
+        // possibly VNEI. Reserve the tab row instead of covering its right end.
+        return ShouldOffsetCraftingSearchForRecycleNReclaim(gui) || HasVisiblePathOfValheimanEnchantTab(gui)
             ? new Vector2(0f, Mathf.Max(0f, searchSize.y))
             : Vector2.zero;
+    }
+
+    private static bool HasVisiblePathOfValheimanEnchantTab(InventoryGui gui)
+    {
+        if (_povSalvageTab == null || gui == null || gui.m_tabCraft == null) return false;
+        Transform? tab = gui.m_tabCraft.transform.parent?.Find("PT_TabEnchant");
+        return tab != null && tab.gameObject.activeInHierarchy && tab.GetComponent<Button>() != null;
     }
 
     private static bool ShouldOffsetCraftingSearchForRecycleNReclaim(InventoryGui gui)

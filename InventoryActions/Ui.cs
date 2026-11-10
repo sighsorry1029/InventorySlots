@@ -56,6 +56,7 @@ public sealed partial class InventoryActionsPlugin
     private static void UpdateContainerActionButtons(InventoryGui gui)
     {
         if (gui.m_currentContainer == null ||
+            InventoryCompatibility.PathOfValheimanActions.IsSpecialContainer(gui.m_currentContainer) ||
             gui.m_takeAllButton == null ||
             gui.m_stackAllButton == null)
         {

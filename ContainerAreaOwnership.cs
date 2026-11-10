@@ -92,6 +92,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static bool IsContainerAreaEligible(Container container, bool requirePlayerPlaced = true)
     {
+        if (InventoryCompatibility.PathOfValheimanActions.IsSpecialContainer(container)) return false;
         ZNetView? view = GetContainerAreaView(container);
         if (view == null || !view.IsValid() || container.GetInventory() == null || container.GetType() != typeof(Container) ||
             container.m_wagon != null || container.GetComponent<TombStone>() != null ||
@@ -679,6 +680,8 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool CanUseContainerAreaTarget(ContainerAreaSession session, Container target, bool requireOwner)
     {
+        if (InventoryCompatibility.PathOfValheimanActions.IsSpecialContainer(target) ||
+            InventoryCompatibility.PathOfValheimanActions.IsSpecialContainer(session.Anchor)) return false;
         if (target == null || !ContainerAreaSessionContextValid(session) || target.GetInventory() == null ||
             !HasContainerPlayerAccess(session.Player, session.Anchor, flashGuardStone: false) ||
             !HasContainerPlayerAccess(session.Player, target, flashGuardStone: false)) return false;

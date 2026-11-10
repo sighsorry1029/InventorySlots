@@ -232,6 +232,7 @@ public sealed partial class InventorySlotsPlugin
         }
 
         Container currentContainer = InventoryGui.instance.m_currentContainer;
+        if (InventoryCompatibility.PathOfValheimanActions.IsSpecialContainer(currentContainer)) return false;
         if (currentContainer == null || currentContainer.m_inventory == null)
         {
             return false;

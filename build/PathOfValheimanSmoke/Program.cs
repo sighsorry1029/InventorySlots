@@ -114,10 +114,12 @@ internal static partial class Program
         Check(!mod.GetReferencedAssemblies().Any(a => a.Name == "PathOfValheiman"), "final IS has no mandatory PoV assembly reference");
         Check(mod.GetTypes().Length > 0, "final IS types enumerate before original PoV assembly loads");
         Assembly pov = Assembly.LoadFrom(args[1]);
+        OverlayLayerChecks.Run(mod.GetType("InventorySlots.InventorySlotsPlugin", true)!, pov, Check);
         PoVTrashChecks.Run(mod, pov, Check);
         PoVTidyPackChecks.Run(mod.GetType("InventorySlots.InventorySlotsPlugin", true)!, pov, Check);
         PoVActionsChecks.Run(mod, pov, Check);
         PoVStackMetadataChecks.Run(mod.GetType("InventorySlots.InventorySlotsPlugin", true)!, pov, Check);
+        PoVCharacterChecks.Run(mod.GetType("InventorySlots.InventorySlotsPlugin", true)!, pov, Check);
         Type bridgeType = mod.GetType("InventorySlots.PathOfValheimanStorageBridge", true)!;
         Type contract = pov.GetType("Valheiman.Api.IStorageProvider", true)!;
         Type equipment = pov.GetType("Valheiman.Api.Equipment", true)!;
@@ -130,6 +132,11 @@ internal static partial class Program
         int nativeCount = Enum.GetValues(slot).Length;
         bool[] baseline = Enumerable.Range(0, nativeCount).Select(i => (bool)isStorage.Invoke(null, new[] { Enum.ToObject(slot, i) })!).ToArray();
         int storageCount = baseline.Count(value => value);
+        bool retiredBolts = Enum.IsDefined(slot, "BoltMagazine") &&
+            pov.GetType("PassiveTree.BallistaMagazine")?.GetMethod("RetireNow", Statics)?.ReturnType == typeof(bool);
+        // PoV 6.0.7 still classifies the legacy role as storage but deliberately
+        // omits it from the active Storage.Cells catalogue during retirement.
+        if (retiredBolts) --storageCount;
         Check(!baseline.Skip(24).Take(8).Any(x => x), "original wallet classification omission present");
         object? oldEquipment = null, oldStorage = null;
         if (args[4] == "warm")
@@ -139,6 +146,7 @@ internal static partial class Program
             Check(((IEnumerable<string>)oldStorage!).Count() == storageCount, "warm original storage cache count");
         }
         var patches = new Harmony("smoke.pov.storage.bridge");
+        InstallNativeWalletSerialization(pov);
         object bridge;
         ConstructorInfo? newer = bridgeType.GetConstructor(Instances, null, new[] { typeof(Assembly) }, null);
         if (newer != null)
@@ -240,6 +248,14 @@ internal static partial class Program
         }
         object currentEquipment = equipment.GetProperty("Cells")!.GetValue(null)!;
         object currentStorage = storage.GetProperty("Cells")!.GetValue(null)!;
+        if (retiredBolts)
+        {
+            Check(((IEnumerable<(string, int)>)bridgeType.GetField("Cells", Instances)!.GetValue(bridge)!).Contains(("siege.bolts", 62)),
+                "retired bolt coordinate is retained for saved-item recovery");
+            Check(((IEnumerable<int>)bridgeType.GetField("UnsupportedOrdinals", Instances)!.GetValue(bridge)!).Contains(62) &&
+                  !((IEnumerable<string>)bridgeType.GetField("UnhostedNativeCells", Instances)!.GetValue(bridge)!).Contains("siege.bolts"),
+                "retired bolt role stays closed without a misleading wearable warning");
+        }
         if (oldEquipment != null) Check(ReferenceEquals(oldEquipment, currentEquipment) && ReferenceEquals(oldStorage, currentStorage), "warm API cache object identities preserved");
         Check(((IEnumerable<string>)currentStorage).Distinct().Count() == storageCount, "original storage cache stays unchanged");
         for (int i = 0; i < nativeCount; i++)
@@ -434,6 +450,7 @@ internal static partial class Program
             Items().Clear(); Items().Add(tool); tool.m_gridPos = new Vector2i(1, fixedRows);
             fixture.Patch(pov.GetType("PassiveTree.Gear.EquipmentApi", true)!.GetMethod("Prefab", Statics)!, prefix: new HarmonyMethod(typeof(Program), nameof(QuiverPrefab)));
             CheckCoinBenefits(pov, plugin, player, bag, enabled, config);
+            CheckCoinWallet(pov, plugin, player, bag, enabled, bridge);
             CheckDeathKeep(pov, plugin, player, bag, enabled, config);
             enabled.Value = false;
             Check(!Put(tool, "arrow.0") && tool.m_gridPos == new Vector2i(1, fixedRows), "Equipment Off rejects insertion with existing coordinate preserved");
@@ -497,6 +514,7 @@ internal static partial class Program
             Check(!Put(quiverFixtureItem, "quiver") && !quiverEquipped && quiverFixtureItem.m_gridPos == new Vector2i(0, 0) && Items().Count == beforeItems && Items().Contains(quiverFixtureItem),
                 "throwing external equip callback restores original item coordinate and removes partial callback state");
             throwEquip = false;
+            CheckNativeQuiverSwap(mod, pov, plugin, player, bag);
             if ((bool)bridgeType.GetProperty("HasExtraTrinkets", Instances)!.GetValue(bridge)!)
                 CheckTrinkets(mod, pov, plugin, bridgeType, bridge, player, bag, enabled, fixture);
             if ((bool)bridgeType.GetProperty("HasBeltLantern", Instances)!.GetValue(bridge)!)

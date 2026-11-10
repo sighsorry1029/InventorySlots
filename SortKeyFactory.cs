@@ -1,10 +1,11 @@
+using System.Collections.Generic;
 using ItemData = ItemDrop.ItemData;
 
 namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
-    private static SortKey CreateCraftingRecipeSortKey(InventoryGui.RecipeDataPair pair)
+    private static SortKey CreateCraftingRecipeSortKey(InventoryGui.RecipeDataPair pair, Dictionary<string, List<string>> groupOrders)
     {
         ItemData? item = GetCraftingRecipeItemData(pair);
         string bigGroupId = GetCraftingRecipeBigGroupId(pair);
@@ -13,7 +14,8 @@ public sealed partial class InventorySlotsPlugin
             item,
             GetCraftingRecipeResourceTier(pair.Recipe),
             bigGroupId,
-            localizedName);
+            localizedName,
+            groupOrders);
     }
 
     private static SortKey GetInventoryItemSortKey(ItemData item)
@@ -31,10 +33,11 @@ public sealed partial class InventorySlotsPlugin
             GetLocalizedItemName(item));
     }
 
-    private static SortKey CreateSortKey(ItemData? item, int resourceTier, string bigGroupId, string localizedName)
+    private static SortKey CreateSortKey(ItemData? item, int resourceTier, string bigGroupId, string localizedName,
+        Dictionary<string, List<string>>? groupOrders = null)
     {
         int bigGroupRank = GetItemBigGroupRank(bigGroupId);
-        int groupRank = GetItemPredefinedGroupRank(item, bigGroupId, bigGroupRank);
+        int groupRank = GetItemPredefinedGroupRank(item, bigGroupId, bigGroupRank, groupOrders);
         return new SortKey(
             resourceTier,
             groupRank,

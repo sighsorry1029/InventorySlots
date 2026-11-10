@@ -113,7 +113,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static ContainerAccessMode GetContainerAccessMode(Container container, bool allowLocalWithoutZNetView = false)
     {
-        if (container == null)
+        if (container == null || InventoryCompatibility.PathOfValheimanActions.IsSpecialContainer(container))
         {
             return ContainerAccessMode.Unavailable;
         }

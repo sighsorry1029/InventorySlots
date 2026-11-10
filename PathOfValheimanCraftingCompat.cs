@@ -13,11 +13,13 @@ namespace InventorySlots;
 public sealed partial class InventorySlotsPlugin
 {
     private delegate void PoVDisenchantReturns(ItemData item, out int azurite, out int divine);
+    private delegate void PoVTypedDisenchantReturns(ItemData item, out string dust, out int amount, out int divine);
     private static Func<bool>? _povSalvaging;
     private static Func<Button>? _povSalvageTab;
     private static Func<Player, bool>? _povRunecarver;
     private static Func<ItemData, Recipe, List<(ItemDrop, int, int)>>? _povSalvageReturns;
     private static PoVDisenchantReturns? _povDisenchantReturns;
+    private static PoVTypedDisenchantReturns? _povTypedDisenchantReturns;
     private static Func<ItemData, string[]>? _povSocketContents;
     private static Func<string, float>? _povReturnChance;
     private static Func<string, string, string>? _povText;
@@ -32,6 +34,7 @@ public sealed partial class InventorySlotsPlugin
     private static RectTransformSnapshot? _povRadiusOriginal;
     private static RectTransformSnapshot? _povTabOriginal;
     private static RectTransformSnapshot? _povVneiTabOriginal;
+    private static RectTransformSnapshot? _povEnchantTabOriginal;
     private static readonly Dictionary<ItemData, PoVCraftingPreview> PoVCraftingPreviews = new();
 
     private sealed class PoVCraftingPreview
@@ -96,6 +99,12 @@ public sealed partial class InventorySlotsPlugin
             RequirePathOfValheimanMethod(salvage, "Returns", typeof(List<(ItemDrop, int, int)>), typeof(ItemData), typeof(Recipe)));
         var disenchant = (PoVDisenchantReturns)Delegate.CreateDelegate(typeof(PoVDisenchantReturns),
             RequirePathOfValheimanMethod(assembly.GetType("PassiveTree.Loot.Disenchant", true)!, "Returns", typeof(void), typeof(ItemData), typeof(int).MakeByRefType(), typeof(int).MakeByRefType()));
+        MethodInfo? typedReturns = AccessTools.DeclaredMethod(assembly.GetType("PassiveTree.Loot.Disenchant", true)!,
+            "Returns", new[] { typeof(ItemData), typeof(string).MakeByRefType(), typeof(int).MakeByRefType(), typeof(int).MakeByRefType() });
+        PoVTypedDisenchantReturns? typedDisenchant = typedReturns == null ? null :
+            (PoVTypedDisenchantReturns)Delegate.CreateDelegate(typeof(PoVTypedDisenchantReturns),
+                RequirePathOfValheimanMethod(typedReturns.DeclaringType!, "Returns", typeof(void),
+                    typeof(ItemData), typeof(string).MakeByRefType(), typeof(int).MakeByRefType(), typeof(int).MakeByRefType()));
         var contents = (Func<ItemData, string[]>)Delegate.CreateDelegate(typeof(Func<ItemData, string[]>),
             RequirePathOfValheimanMethod(assembly.GetType("PassiveTree.Loot.ItemSockets", true)!, "Contents", typeof(string[]), typeof(ItemData)));
         var text = (Func<string, string, string>)Delegate.CreateDelegate(typeof(Func<string, string, string>),
@@ -107,6 +116,7 @@ public sealed partial class InventorySlotsPlugin
         _povSalvageReturns = returns;
         _povReturnChance = chance;
         _povDisenchantReturns = disenchant;
+        _povTypedDisenchantReturns = typedDisenchant;
         _povSocketContents = contents;
         _povText = text;
         _povSalvaging = active;
@@ -179,8 +189,11 @@ public sealed partial class InventorySlotsPlugin
             disenchant ? "Disenchanting returns:" : "Salvaging returns:"));
         if (disenchant)
         {
-            _povDisenchantReturns!(item, out int azurite, out int divine);
-            AddDust("PT_AzuriteDust", azurite);
+            string dust = "PT_AzuriteDust";
+            int azurite, divine;
+            if (_povTypedDisenchantReturns != null) _povTypedDisenchantReturns(item, out dust, out azurite, out divine);
+            else _povDisenchantReturns!(item, out azurite, out divine);
+            AddDust(dust, azurite);
             AddDust("PT_DivineAzuriteDust", divine);
             int sockets = 0;
             foreach (string socket in _povSocketContents!(item)) if (!string.IsNullOrEmpty(socket)) sockets++;
@@ -329,14 +342,16 @@ public sealed partial class InventorySlotsPlugin
             // Do not scan all loaded types or treat its nested content/buttons as tabs.
             RectTransform? vnei = parent.Find("VNEI") as RectTransform;
             if (vnei == null || !vnei.gameObject.activeInHierarchy || vnei.GetComponent<Button>() == null) vnei = null;
-            if (salvage == null && vnei == null) return;
+            RectTransform? enchant = parent.Find("PT_TabEnchant") as RectTransform;
+            if (enchant == null || !enchant.gameObject.activeInHierarchy || enchant.GetComponent<Button>() == null) enchant = null;
+            if (salvage == null && vnei == null && enchant == null) return;
             _povCraftingGui = gui;
             float top = GetCraftingTabEdge(parent, craft, right: false).y;
             float right = GetCraftingTabEdge(parent, craft, right: true).x;
             for (int i = 0; i < parent.childCount; i++)
             {
                 Transform child = parent.GetChild(i);
-                if (child == salvage || child == vnei || child is not RectTransform other || !child.gameObject.activeInHierarchy ||
+                if (child == salvage || child == enchant || child == vnei || child is not RectTransform other || !child.gameObject.activeInHierarchy ||
                     child.GetComponent<Button>() == null) continue;
                 // Respect other mods' tabs on this row, excluding controls on other rows.
                 Vector3 edge = GetCraftingTabEdge(parent, other, right: true);
@@ -347,6 +362,14 @@ public sealed partial class InventorySlotsPlugin
                 if (_povTabOriginal == null || _povTabOriginal.Rect != salvage) _povTabOriginal = new RectTransformSnapshot(salvage);
                 PlaceCraftingTab(parent, salvage, right + 4f, top);
                 right = GetCraftingTabEdge(parent, salvage, right: true).x;
+            }
+            // PoV positions Enchant after Salvage in Update. Reconcile both together
+            // in the existing LateUpdate pass, without changing its selection logic.
+            if (enchant != null)
+            {
+                if (_povEnchantTabOriginal == null || _povEnchantTabOriginal.Rect != enchant) _povEnchantTabOriginal = new RectTransformSnapshot(enchant);
+                PlaceCraftingTab(parent, enchant, right + 4f, top);
+                right = GetCraftingTabEdge(parent, enchant, right: true).x;
             }
             if (vnei != null)
             {
@@ -381,7 +404,8 @@ public sealed partial class InventorySlotsPlugin
         // A recreated/destroyed tab or a foreign reparent is no longer ours to restore.
         if (parent != null && _povTabOriginal?.Rect != null && _povTabOriginal.Rect.parent == parent) _povTabOriginal.Restore();
         if (parent != null && _povVneiTabOriginal?.Rect != null && _povVneiTabOriginal.Rect.parent == parent) _povVneiTabOriginal.Restore();
-        _povTabOriginal = _povVneiTabOriginal = null;
+        if (parent != null && _povEnchantTabOriginal?.Rect != null && _povEnchantTabOriginal.Rect.parent == parent) _povEnchantTabOriginal.Restore();
+        _povTabOriginal = _povVneiTabOriginal = _povEnchantTabOriginal = null;
     }
 
     private static void ClearPathOfValheimanCraftingPreviews() => PoVCraftingPreviews.Clear();
@@ -423,6 +447,7 @@ public sealed partial class InventorySlotsPlugin
         _povSalvageReturns = null;
         _povReturnChance = null;
         _povDisenchantReturns = null;
+        _povTypedDisenchantReturns = null;
         _povSocketContents = null;
         _povText = null;
         _povRadiusButton = null;

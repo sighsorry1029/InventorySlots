@@ -49,7 +49,6 @@ public sealed partial class InventorySlotsPlugin
     private static ConfigEntry<PlayerStatBarLengthScaling> _playerStatBarLengthScaling = null!;
     private static ConfigEntry<Toggle> _containerActionSuccessFx = null!;
     private static ConfigEntry<CraftingRecipeSortMode> _inventorySortMode = null!;
-    private static ConfigEntry<Toggle> _autoFavoriteHotbarSwitchRow = null!;
     private static ConfigEntry<float> _mouseUiScrollMultiplier = null!;
     private static ConfigEntry<Toggle> _enableGamepadUiScroll = null!;
     private static ConfigEntry<GamepadUiScrollSource> _gamepadUiScrollSource = null!;
@@ -102,10 +101,27 @@ public sealed partial class InventorySlotsPlugin
             order: 940, synchronizedSetting: true);
         _foodForkColorMode.SettingChanged += OnFoodForkColorModeChanged;
 
-        // Register sections and related options in display order.
+        // Configuration Manager preserves the first registration order of sections.
+        _progressiveRowsEnabled = ConfigEntry(ProgressiveSlotsConfigSection, "Enable Progressive Rows", Toggle.On, "On: extra inventory rows unlock through item discovery. Off: immediately unlocks all extra rows set by Maximum Extra Rows (3 by default), without item discovery. Haldor's purchased rows remain independent.");
+        _maxExtraRows = ConfigEntry(ProgressiveSlotsConfigSection, "Maximum Extra Rows", 3, new ConfigDescription("Maximum rows added by InventorySlots (0-3). Haldor's purchased rows are added independently. Previous values above 3 are capped at 3; internal slot coordinates remain fixed.", new AcceptableValueRange<int>(0, MaxProgressionExtraRows)));
+        _rowUnlockItems = new[]
+        {
+            ConfigEntry(ProgressiveSlotsConfigSection, "Extra Row 1 Items", "HardAntler", "Comma-separated item prefab names or internal item names. Discovering any listed item unlocks extra row 1."),
+            ConfigEntry(ProgressiveSlotsConfigSection, "Extra Row 2 Items", "CryptKey", "Comma-separated item prefab names or internal item names. Discovering any listed item unlocks extra row 2."),
+            ConfigEntry(ProgressiveSlotsConfigSection, "Extra Row 3 Items", "Wishbone", "Comma-separated item prefab names or internal item names. Discovering any listed item unlocks extra row 3.")
+        };
+
+        _quickSlotRows = ConfigEntry(ProgressiveSlotsConfigSection, "Quick Slot Rows", 3, new ConfigDescription("Number of fixed three-slot quick slot rows reserved after equipment slots.", new AcceptableValueRange<int>(0, QuickSlotPanelRows)));
+        _quickSlotProgressionEnabled = ConfigEntry(ProgressiveSlotsConfigSection, "Enable Quick Slot Progression", Toggle.On, "When enabled, quick slot row 1 is available at start and quick slot rows 2-3 unlock by item discovery.");
+        _quickSlotRowUnlockItems = new[]
+        {
+            ConfigEntry(ProgressiveSlotsConfigSection, "Quick Slot Row 2 Items", "HardAntler", "Comma-separated item prefab names or internal item names. Discovering any listed item unlocks quick slot row 2."),
+            ConfigEntry(ProgressiveSlotsConfigSection, "Quick Slot Row 3 Items", "CryptKey", "Comma-separated item prefab names or internal item names. Discovering any listed item unlocks quick slot row 3.")
+        };
+        _equipmentSlotProgressionEnabled = ConfigEntry(ProgressiveSlotsConfigSection, "Enable Equipment Slot Progression", Toggle.On, "When enabled, equipment slots unlock after the player discovers, carries, or has equipped an item accepted by that slot.");
+
         _inventoryRowsDisplayMode = OrderedConfigEntry(InventoryClientConfigSection, "Inventory Rows Display Mode", InventoryRowsDisplayMode.Expandable, "Client-only regular inventory row display mode. Fixed always shows all unlocked regular inventory rows. Expandable restores the last locally remembered visible row count, reveals newly unlocked rows once, and changes it with mouse wheel while the inventory is open.", order: 1000, synchronizedSetting: false);
         _showInventoryWheelButton = OrderedConfigEntry(InventoryClientConfigSection, "Show Inventory Wheel Hint", Toggle.On, "Show the mouse wheel hint below the player inventory, centered between columns 4 and 5, when expandable rows are available. It follows the displayed row count and hides when an open container occupies that space. Not synced with server.", order: 990, synchronizedSetting: false);
-        _autoFavoriteHotbarSwitchRow = OrderedConfigEntry(InventoryClientConfigSection, "Auto Favorite Hotbar Switch Row", Toggle.Off, "When enabled, marks row 2 as favorite when the local player is loaded or spawned. Turn this Off if you want row 2 favorites to stay manually controlled. Not synced with server.", order: 980, synchronizedSetting: false);
         _inventorySortMode = OrderedConfigEntry(InventoryClientConfigSection, "Inventory Sort Mode", CraftingRecipeSortMode.GroupThenTier, "Sorting mode used by player inventory and container sort buttons. GroupThenTier sorts predefined group first, then biome/resource tier. TierThenGroup sorts biome/resource tier first, then predefined group.", order: 970, synchronizedSetting: false);
         _sortButtonSide = OrderedConfigEntry(InventoryClientConfigSection, "Sort Button Side", SortButtonSide.Left, "Place both inventory and container sort buttons on the Left or Right edge. Controller navigation follows the selected side. Not synced with server.", order: 960, synchronizedSetting: false);
         _containerPreviewCloseDelay = OrderedConfigEntry(InventoryClientConfigSection, "Container Preview Close Delay", 0.3f, new ConfigDescription("Client-only container preview control. 0 disables the preview. Values above 0 enable it and set how many seconds, up to 1 second, the last valid container remains visible after looking away. A zero-sized placeholder inventory is never used.", new AcceptableValueRange<float>(0f, 1f)), order: 950, synchronizedSetting: false);
@@ -125,8 +141,8 @@ public sealed partial class InventorySlotsPlugin
         _showCraftingHoverTooltip = OrderedConfigEntry(TooltipConfigSection, "Show Crafting Hover Tooltip", CraftingHoverTooltipMode.Full, "Controls InventorySlots recipe hover tooltips in the crafting station grid. Full shows the recipe title, item tooltip, and requirement row. TitleOnly shows only the recipe title. Off disables hover tooltips. Pinned crafting tooltips still work when this is Off. Not synced with server.", order: 1000, synchronizedSetting: false);
         _craftingHoverTooltipBackgroundAlpha = OrderedConfigEntry(TooltipConfigSection, "Crafting Hover Tooltip Background Alpha", 0.9f, new ConfigDescription("Alpha for InventorySlots crafting recipe hover tooltip backgrounds. 0 is fully transparent and 1 is fully opaque. Not synced with server.", new AcceptableValueRange<float>(0f, 1f)), order: 990, synchronizedSetting: false);
         _inventoryContainerHoverTooltipBackgroundAlpha = OrderedConfigEntry(TooltipConfigSection, "Inventory Container Hover Tooltip Background Alpha", 0.9f, new ConfigDescription("Alpha for InventorySlots inventory and container hover tooltip backgrounds. 0 is fully transparent and 1 is fully opaque. Not synced with server.", new AcceptableValueRange<float>(0f, 1f)), order: 980, synchronizedSetting: false);
-        _pinnedTooltipSlots = OrderedConfigEntry(TooltipConfigSection, "Pinned Tooltip Slots", PinnedTooltipSlotMode.Two, "Number of comparison tooltip panels available for pinning. Inventory/container panels unfold from the inventory panel edge to the right, and crafting panels unfold from the crafting panel edge to the left.", order: 970, synchronizedSetting: false);
-        _pinnedTooltipBackgroundAlpha = OrderedConfigEntry(TooltipConfigSection, "Pinned Tooltip Background Alpha", 0.9f, new ConfigDescription("Advanced alpha for pinned tooltip panel backgrounds. 0 is fully transparent and 1 is fully opaque. Not synced with server.", new AcceptableValueRange<float>(0f, 1f)), order: 960, synchronizedSetting: false);
+        _pinnedTooltipBackgroundAlpha = OrderedConfigEntry(TooltipConfigSection, "Pinned Tooltip Background Alpha", 0.9f, new ConfigDescription("Advanced alpha for pinned tooltip panel backgrounds. 0 is fully transparent and 1 is fully opaque. Not synced with server.", new AcceptableValueRange<float>(0f, 1f)), order: 970, synchronizedSetting: false);
+        _pinnedTooltipSlots = OrderedConfigEntry(TooltipConfigSection, "Pinned Tooltip Slots", PinnedTooltipSlotMode.Two, "Number of comparison tooltip panels available for pinning. Inventory/container panels unfold from the inventory panel edge to the right, and crafting panels unfold from the crafting panel edge to the left.", order: 960, synchronizedSetting: false);
 
         _quickSlotHudMode = OrderedConfigEntry(HudConfigSection, "Quick Slot HUD Mode", QuickSlotHudMode.AllOnUse,
             "Off hides the HUD. AllOnUse shows all unlocked quick slots when a non-empty quick slot is used. UsedSlotOnUse shows only the used slots, keeping their original positions and separate timers. Both automatic modes show for 3 seconds, then fade out over 0.25 seconds; using a slot again restarts its timer, even if the item cannot currently be used. On keeps the HUD visible. Normal HUD visibility and Quick Slot HUD Follows Panel still apply. Does not affect quick slot inputs or the inventory quick-slot panel. Changes apply live. Not synced with server.",
@@ -136,6 +152,25 @@ public sealed partial class InventorySlotsPlugin
         _featureGuideState = OrderedConfigEntry(HudConfigSection, "Feature Guide State", FeatureGuideState.Expanded, FeatureGuideStateDescription, order: 970, synchronizedSetting: false);
         _playerStatBarLengthScaling = OrderedConfigEntry(HudConfigSection, "Player Stat Bar Length Scaling", PlayerStatBarLengthScaling.Logarithmic, "Controls visual length scaling for player health, food, stamina, eitr, and adrenaline bars. Linear keeps vanilla proportional length. Logarithmic keeps values up to 100 unchanged and compresses higher values with the natural logarithm. Not synced with server.", order: 960, synchronizedSetting: false);
         _featureGuideState.SettingChanged += OnFeatureGuideStateChanged;
+
+        _restockLeaveOneItem = OrderedConfigEntry(InventoryButtonsConfigSection, "Restock Leave One Item", Toggle.On,
+            "Client-only: favorite restock (Alt+E by default) leaves one item of each kind in each source container so it remains a quick-stack destination. Counts all stacks with the same internal item name together. A container with only one remaining item cannot supply it. Off allows restock to take the last item. Does not affect Take stacks, Take All, or manual moves. Changes apply to subsequent transfers immediately.",
+            order: 880, synchronizedSetting: false);
+        _restockTargetStackLimitsConfig = ConfigEntry(
+            InventoryButtonsConfigSection,
+            "Restock Target Stack Limits",
+            "",
+            new ConfigDescription(
+                "Client-only per-item modes and per-favorite-stack targets for restock (Alt+E) and surplus Quick Stack (E). Format: Stone: 10 | Existing, Wood: 30 | IncludeEmpty, Coins: 500 | Off. Off disables restock while retaining the target; Existing tops up remaining favorite stacks; IncludeEmpty also restores remembered empty favorite slots, or one unassigned empty favorite if this item has no remembered slot or existing favorite stack. Target quantities are positive whole numbers. Saved targets may exceed the current max stack; actual restocking is capped by each live item's current max stack. Keys may be prefab, internal, or localized item names. Separate entries with commas, semicolons, or new lines. Unlisted items use normal existing-stack restock to max. Numeric-only entries, zero targets, and the old refill suffix are unsupported and are not converted; re-register them with this format. Restocking never moves or replaces occupied items. Quick Stack stores only surplus above enabled targets from eligible favorite stacks. Off or unlisted targets keep favorites fully protected; hotbar and special-slot exclusions still apply.",
+                null,
+                new ConfigurationManagerAttributes
+                {
+                    Order = 890,
+                    CustomDrawer = DrawRestockTargetStackLimitsConfig
+                }),
+            synchronizedSetting: false);
+        _restockTargetStackLimitsConfig.SettingChanged += (_, _) => RefreshRestockTargetStackLimits();
+        RefreshRestockTargetStackLimits();
 
         _mouseUiScrollMultiplier = OrderedConfigEntry(KeyboardMouseConfigSection, "Mouse UI Scroll Multiplier", 1f, new ConfigDescription("Global multiplier for InventorySlots mouse-wheel UI scrolling. Applies to recipe pages, recipe zoom, expandable inventory rows, and InventorySlots tooltip scrolling. Not synced with server.", new AcceptableValueRange<float>(0.1f, 5f)), order: 1000, synchronizedSetting: false);
         _hotbarSwitchKey = OrderedConfigEntry(KeyboardMouseConfigSection, "Hotbar Switch Key", new KeyboardShortcut(KeyCode.BackQuote), new ConfigDescription("Hotkey used to rotate unlocked regular inventory rows.", new AcceptableShortcuts()), order: 990, synchronizedSetting: false);
@@ -166,46 +201,9 @@ public sealed partial class InventorySlotsPlugin
         _craftingHoverTooltipBackgroundAlpha.SettingChanged += (_, _) => RefreshCraftingHoverTooltipBackground();
         _inventoryContainerHoverTooltipBackgroundAlpha.SettingChanged += (_, _) => RefreshInventoryContainerHoverTooltipBackground();
         _enableInventoryTrashPanel.SettingChanged += (_, _) => OnInventoryTrashPanelConfigChanged();
-        _autoFavoriteHotbarSwitchRow.SettingChanged += (_, _) => ApplyAutoFavoriteHotbarSwitchRowToLocalPlayer();
         _quickSlotHudFollowsPanel.SettingChanged += (_, _) => OnQuickSlotHudFollowsPanelChanged();
 
-        _progressiveRowsEnabled = ConfigEntry(ProgressiveSlotsConfigSection, "Enable Progressive Rows", Toggle.On, "On: extra inventory rows unlock through item discovery. Off: immediately unlocks all extra rows set by Maximum Extra Rows (3 by default), without item discovery. Haldor's purchased rows remain independent.");
-        _maxExtraRows = ConfigEntry(ProgressiveSlotsConfigSection, "Maximum Extra Rows", 3, new ConfigDescription("Maximum rows added by InventorySlots (0-3). Haldor's purchased rows are added independently. Previous values above 3 are capped at 3; internal slot coordinates remain fixed.", new AcceptableValueRange<int>(0, MaxProgressionExtraRows)));
-        _rowUnlockItems = new[]
-        {
-            ConfigEntry(ProgressiveSlotsConfigSection, "Extra Row 1 Items", "HardAntler", "Comma-separated item prefab names or internal item names. Discovering any listed item unlocks extra row 1."),
-            ConfigEntry(ProgressiveSlotsConfigSection, "Extra Row 2 Items", "CryptKey", "Comma-separated item prefab names or internal item names. Discovering any listed item unlocks extra row 2."),
-            ConfigEntry(ProgressiveSlotsConfigSection, "Extra Row 3 Items", "Wishbone", "Comma-separated item prefab names or internal item names. Discovering any listed item unlocks extra row 3.")
-        };
-
-        _quickSlotRows = ConfigEntry(ProgressiveSlotsConfigSection, "Quick Slot Rows", 3, new ConfigDescription("Number of fixed three-slot quick slot rows reserved after equipment slots.", new AcceptableValueRange<int>(0, QuickSlotPanelRows)));
-        _quickSlotProgressionEnabled = ConfigEntry(ProgressiveSlotsConfigSection, "Enable Quick Slot Progression", Toggle.On, "When enabled, quick slot row 1 is available at start and quick slot rows 2-3 unlock by item discovery.");
-        _quickSlotRowUnlockItems = new[]
-        {
-            ConfigEntry(ProgressiveSlotsConfigSection, "Quick Slot Row 2 Items", "HardAntler", "Comma-separated item prefab names or internal item names. Discovering any listed item unlocks quick slot row 2."),
-            ConfigEntry(ProgressiveSlotsConfigSection, "Quick Slot Row 3 Items", "CryptKey", "Comma-separated item prefab names or internal item names. Discovering any listed item unlocks quick slot row 3.")
-        };
-        _equipmentSlotProgressionEnabled = ConfigEntry(ProgressiveSlotsConfigSection, "Enable Equipment Slot Progression", Toggle.On, "When enabled, equipment slots unlock after the player discovers, carries, or has equipped an item accepted by that slot.");
         BindInventoryStateConfigInvalidation();
-
-        _restockLeaveOneItem = OrderedConfigEntry(InventoryButtonsConfigSection, "Restock Leave One Item", Toggle.On,
-            "Client-only: favorite restock (Alt+E by default) leaves one item of each kind in each source container so it remains a quick-stack destination. Counts all stacks with the same internal item name together. A container with only one remaining item cannot supply it. Off allows restock to take the last item. Does not affect Take stacks, Take All, or manual moves. Changes apply to subsequent transfers immediately.",
-            order: 880, synchronizedSetting: false);
-        _restockTargetStackLimitsConfig = ConfigEntry(
-            InventoryButtonsConfigSection,
-            "Restock Target Stack Limits",
-            "",
-            new ConfigDescription(
-                "Client-only per-item modes and targets for favorite restock (Alt+E). Format: Stone: 10 | Existing, Wood: 30 | IncludeEmpty, Coins: 500 | Off. Off disables restock while retaining the target; Existing tops up remaining favorite stacks; IncludeEmpty also restores remembered empty favorite slots, or one unassigned empty favorite if this item has no remembered slot or existing favorite stack. Target quantities are positive whole numbers. Saved targets may exceed the current max stack; actual restocking is capped by each live item's current max stack. Keys may be prefab, internal, or localized item names. Separate entries with commas, semicolons, or new lines. Unlisted items use normal existing-stack restock to max. Numeric-only entries, zero targets, and the old refill suffix are unsupported and are not converted; re-register them with this format. Existing items are never moved or replaced.",
-                null,
-                new ConfigurationManagerAttributes
-                {
-                    Order = 890,
-                    CustomDrawer = DrawRestockTargetStackLimitsConfig
-                }),
-            synchronizedSetting: false);
-        _restockTargetStackLimitsConfig.SettingChanged += (_, _) => RefreshRestockTargetStackLimits();
-        RefreshRestockTargetStackLimits();
 
         _enableGamepadUiScroll = OrderedConfigEntry(ControllerInputConfigSection, "Enable Gamepad UI Scroll", Toggle.On, "Allow gamepad input to emulate InventorySlots UI scrolling while gamepad input is active. Not synced with server.", order: 600, synchronizedSetting: false);
         _gamepadUiScrollSource = OrderedConfigEntry(ControllerInputConfigSection, "Gamepad UI Scroll Source", GamepadUiScrollSource.RightStickY, "Gamepad input used for InventorySlots UI scrolling. RightStickY uses the right stick vertical axis; DPadVertical uses held up/down; RightStickYOrDPadVertical accepts either.", order: 590, synchronizedSetting: false);

@@ -57,6 +57,12 @@ gui.m_currentContainer!.Allowed = false; P.Refresh(gui);
 Check(nativeOriginal.Matches(nativeTake), "owner loss restores native geometry");
 Check(P.Runtime.ContainerButtonLayout == null && !P.Runtime.ContainerSortButton!.gameObject.activeSelf, "owner loss invalidates and hides");
 gui.m_currentContainer.Allowed = true; Relayout(gui, "owner regain lays out");
+gui.m_currentContainer.Special = true; P.Refresh(gui);
+Check(nativeOriginal.Matches(nativeTake), "PoV ledger container restores native button geometry");
+Check(P.Runtime.ContainerButtonLayout == null && !P.Runtime.ContainerSortButton!.gameObject.activeSelf &&
+      !P.Runtime.ContainerRestockButton!.gameObject.activeSelf && !P.Runtime.ContainerStoreAllButton!.gameObject.activeSelf,
+      "PoV ledger container hides owned transfer and sort controls");
+gui.m_currentContainer.Special = false; Relayout(gui, "ordinary container regains action layout after PoV ledger view");
 P.Release(); Check(nativeOriginal.Matches(nativeTake), "hide restores native geometry");
 Relayout(gui, "reopen lays out"); Check(nativeTake.sizeDelta.x == 58, "no cumulative shrink");
 var oldNative = nativeTake;

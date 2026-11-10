@@ -18,7 +18,7 @@ The purchase conditions use progression in the current world. **Maximum Extra Ro
 
 Regular storage coordinates remain reserved, with equipment and quick slots after them. Unlocking or hiding rows does not reshuffle saved items. If a row becomes locked while it contains items, its occupied cells stay accessible for recovery; its empty cells do not become extra storage.
 
-In **3 - Inventory & Containers**, choose **Fixed** to show all unlocked rows or **Expandable** to adjust the visible row count with the mouse wheel. The expandable count is remembered locally. The configured hotbar-switch key rotates the visible hotbar row without moving item coordinates. **Auto Favorite Hotbar Switch Row** defaults to Off; On favorites the second row when the character loads or spawns.
+In **3 - Inventory & Containers**, choose **Fixed** to show all unlocked rows or **Expandable** to adjust the visible row count with the mouse wheel. The expandable count is remembered locally. The configured hotbar-switch key rotates the visible hotbar row without moving item coordinates.
 
 In **3 - Inventory & Containers**, **Sort Button Side** places both inventory and chest S buttons on the Left (default) or Right edge, using the same edge spacing. They appear above the equipment and quick-slot panels and below inventory dialogs. **Show Inventory Wheel Hint** displays the mouse-wheel icon just below the player inventory, centered between columns 4 and 5, when extra expandable rows are available. It follows the panel as rows expand or collapse, does not block clicks, and hides if an open chest occupies that space.
 
@@ -52,6 +52,31 @@ Saved panel positions are preserved. Renumbered `.cfg` sections use their new de
 `QuickSlots` in YAML defines accepted item groups. Defaults include `Melee`, `Ranged`, `Magic`, `healthfood`, `staminafood`, `eitrfood`, `mead`, and `potion`. These rules also affect automatic placement: a matching item's new stack prefers the hotbar before regular rows; a non-matching item prefers regular rows. Compatible partial stacks fill first, and an explicit drag destination is preserved.
 
 ### Add a custom equipment slot
+
+Set `smallSlot: true` on an equipment entry to display it at half width and half
+height (one quarter of the normal area). Omitted or `false` keeps its normal size.
+`helmet`, `chest`, `legs`, and `cape` always remain full-size and ignore this option.
+Small cells appear below the full-size cells: two equipment columns fit four small
+cells per row, and three columns fit six. Locked, empty cells reserve no space.
+PoV rings share this area and remain small automatically, with their own unlock rules.
+If only small cells are visible, they use two cells per row. Their names appear on
+hover when empty; occupied cells show the normal item tooltip.
+
+```yaml
+  - id: demister
+    name: Demister
+    smallSlot: true
+    applyArmor: false
+    items:
+      - Demister
+```
+
+This changes presentation only: item acceptance, armor, progression, slot IDs and
+saved item coordinates stay unchanged. The quick-slot panel's automatic default
+position makes room for the small rows; manually placed panels keep their saved
+positions. Server YAML synchronization also applies this option. Controller
+directional navigation continues to follow the game's underlying inventory grid;
+it does not yet follow the small cells' visual row wrapping.
 
 Edit the `Slots` list in `InventorySlots/InventorySlots.yml`. Preserve existing entries and use a stable, unique `id`; custom slots follow YAML order. The `items` list can reference exact item names, built-in groups, or your custom groups.
 
@@ -100,8 +125,8 @@ Configuration Manager groups settings by feature, in this order:
 | **4 - Crafting** | Grid/List scroll modes, zoom hint, and craftable recipe color. |
 | **5 - Tooltips & Chat** | Crafting hover display and opacity, inventory/container hover opacity, pinned panels and opacity, and item sharing in chat. |
 | **6 - HUD & Guide** | Quick-slot HUD mode and position following, hotbar hint, quick guide, and stat-bar scaling. |
-| **7 - Keyboard & Mouse** | Global mouse UI scroll multiplier, followed by keyboard/mouse shortcuts and quick-slot keys 1–9. |
-| **8 - Inventory Buttons** | Inventory buttons and restock rules. |
+| **7 - Inventory Buttons** | Inventory buttons and restock rules. |
+| **8 - Keyboard & Mouse** | Global mouse UI scroll multiplier, followed by keyboard/mouse shortcuts and quick-slot keys 1–9. |
 | **9 - Controller Input** | Gamepad scrolling and controller bindings. |
 
 Changing a section does not change its defaults or server-sync policy. Values saved under the former section names are not migrated; reapply customized values in the new sections. The crafting view, grid size, and recipe sort preferences are saved under **4 - Crafting** but remain hidden in Configuration Manager because the crafting panel provides those controls. Shared button and restock settings are explained in the inventory-actions guide.
@@ -177,7 +202,9 @@ Search matches display names, English names, internal/prefab names, and recipe m
 
 Craft, Upgrade, Jewelcrafting's Socket, Recycle N Reclaim's Reclaim, and PoV's Salvage tabs support both views and scroll settings. In List, Socket warnings and Reclaim status messages appear above the item description; material costs, returned-item icons, and action buttons stay below. Other external tabs such as VNEI retain their own layouts and scrolling.
 
-Hover tooltips can scroll, and up to three pinned tooltips can compare gear, meals, potions, or recipes. List recipes can still be pinned with the configured pin key. Upgrade tooltips highlight changed values in yellow. **5 - Tooltips & Chat** controls tooltip opacity and pinned-panel options; **7 - Keyboard & Mouse** contains the bindings.
+Hover tooltips can scroll, and up to three pinned tooltips can compare gear, meals, potions, or recipes. List recipes can still be pinned with the configured pin key. Upgrade tooltips highlight changed values in yellow. **5 - Tooltips & Chat** controls tooltip opacity and pinned-panel options; **8 - Keyboard & Mouse** contains the bindings.
+
+**Show Crafting Hover Tooltip** controls recipe hover content in Grid view: **Full** (default) shows the title, icon, description, and requirements; **TitleOnly** shows only the name; **Off** hides the hover tooltip. Tooltips appear at the pointer. Pinned crafting tooltips remain available in every mode, and List view keeps its selected-item details.
 
 ### Sort tiers
 

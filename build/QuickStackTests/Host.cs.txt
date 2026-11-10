@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using InventorySlots;
 
 public readonly record struct Vector2i(int x, int y);
 public class ItemData
@@ -15,12 +16,27 @@ public class ItemData
     public Vector2i m_gridPos = new(0, 1);
     public ItemData Clone() => (ItemData)MemberwiseClone();
 }
-public class Player { public bool IsItemEquiped(ItemData item) => item.m_equipped; }
+public class Player
+{
+    public bool Destroyed;
+    public bool IsItemEquiped(ItemData item) => item.m_equipped;
+    // Model Unity's destroyed-object equality separately from CLR null.
+    public static bool operator ==(Player? a, Player? b)
+    {
+        bool aNull = ReferenceEquals(a, null) || a.Destroyed;
+        bool bNull = ReferenceEquals(b, null) || b.Destroyed;
+        return aNull || bNull ? aNull && bNull : ReferenceEquals(a, b);
+    }
+    public static bool operator !=(Player? a, Player? b) => !(a == b);
+    public override bool Equals(object? other) => ReferenceEquals(this, other);
+    public override int GetHashCode() => base.GetHashCode();
+}
 public class Inventory
 {
     public List<ItemData> m_inventory = new();
     public int Width = 3, Height = 2, Changes, MoveCalls;
     public bool Veto;
+    public Action? AfterMove;
     public int GetWidth() => Width;
     public int GetHeight() => Height;
     public List<ItemData> GetAllItems() => m_inventory;
@@ -40,12 +56,20 @@ public class Inventory
         target.m_stack += moved;
         source.m_stack -= moved;
         if (source.m_stack == 0) from.m_inventory.Remove(source);
+        AfterMove?.Invoke();
         return true;
     }
 }
 public static class ContainerActionCore { /* CORE */ }
+public static class InventorySlotsConfigCore { /* CONFIG CORE */ }
+public static class InventoryDefinitions { public static Dictionary<string, int> RestockTargetStackLimits = new(); }
+public static class Runtime { public static Dictionary<string, int> RestockTargetStackLimits => InventoryDefinitions.RestockTargetStackLimits; }
+// Identity policy is covered by the original-DLL compatibility suite. Keep this
+// boundary permissive only for the metadata-free items constructed here.
+public static class PathOfValheimanStackCompatibility { public static bool MatchesIdentity(ItemData a, ItemData b) => true; }
 public class Boundaries
 {
+    protected static IEnumerable<string?> GetRestockTargetLookupTokens(ItemData item) => new[] { item.m_shared.m_name };
     protected static bool IsRegularActionItem(Inventory inventory, ItemData item) => !item.Special && item.m_gridPos.y > 0;
     protected static bool IsRegularActionItem(Player player, Inventory inventory, ItemData item) => IsRegularActionItem(inventory, item);
     protected static bool IsFavoriteProtected(Player player, Inventory inventory, ItemData item) => item.Favorite;
@@ -64,6 +88,8 @@ public class Slots : Boundaries
     /* SLOTS */
     public static bool Eligible(ItemData item) => ShouldQuickStackItem(new(), new(), item);
     public static int Transfer(Inventory from, Inventory to) => QuickStackItemsIntoContainer(new(), from, to, from.m_inventory.Where(Eligible).ToList());
+    public static int StaleTransfer(Inventory from, Inventory to) => QuickStackItemsIntoContainer(new(), from, to, from.m_inventory.ToList());
+    public static int WithPlayer(Player player, Inventory from, Inventory to) => QuickStackItemsIntoContainer(player, from, to, from.m_inventory.ToList());
 }
 public class Actions : Boundaries
 {
@@ -85,7 +111,9 @@ public class Actions : Boundaries
     { Sent = (source, target, cell, amount); return true; }
     /* ACTIONS */
     public static bool Eligible(ItemData item) => ShouldQuickStackItem(new(), new(), item);
-    public static int Transfer(Inventory from, Inventory to) => QuickStackItemsIntoContainer(from, to, GetQuickStackCandidates(new(), from));
+    public static int Transfer(Inventory from, Inventory to) => QuickStackItemsIntoContainer(new(), from, to, GetQuickStackCandidates(new(), from));
+    public static int StaleTransfer(Inventory from, Inventory to) => QuickStackItemsIntoContainer(new(), from, to, from.m_inventory.ToList());
+    public static int WithPlayer(Player player, Inventory from, Inventory to) => QuickStackItemsIntoContainer(player, from, to, from.m_inventory.ToList());
     public static bool Muc(Inventory from, Inventory to) { Sent = null; return TrySendMucQuickStack(new() { Inventory = from }, new() { m_inventory = to }); }
 }
 public static class Checks
@@ -150,6 +178,92 @@ public static class Checks
                 ReferenceEquals(request.Source, source) && request.Cell == new Vector2i(1, 0) && request.Amount == 1 &&
                 from.m_inventory.Contains(source), "MUC requests one new cell through adapter without locally removing source");
         }
+        CheckSurplus();
         Console.WriteLine($"{Count} quick-stack checks passed for both mods; native transfer and MUC request boundaries are doubles, no game execution.");
+    }
+
+    private static void Rules(string text) => InventoryDefinitions.RestockTargetStackLimits = RestockTargetLimitCore.Parse(text);
+    private static (Inventory From, Inventory To, ItemData Source) Surplus(int count = 150, int seed = 180)
+    {
+        var source = Item("Stone", 200, count); source.Favorite = true;
+        var from = new Inventory(); from.m_inventory.Add(source);
+        var to = new Inventory(); to.m_inventory.Add(Item("Stone", 200, seed, y: 0));
+        return (from, to, source);
+    }
+    private static void CheckSurplus()
+    {
+        foreach (var (name, transfer, stale) in new (string, Func<Inventory, Inventory, int>, Func<Inventory, Inventory, int>)[]
+            { ("Slots", Slots.Transfer, Slots.StaleTransfer), ("Actions", Actions.Transfer, Actions.StaleTransfer) })
+        {
+            foreach (string mode in new[] { "Existing", "IncludeEmpty" })
+            {
+                Rules("Stone: 100 | " + mode);
+                var (from, to, source) = Surplus();
+                Check(transfer(from, to) == 1 && source.m_stack == 100 && to.m_inventory.Sum(i => i.m_stack) == 230,
+                    name + ": per-stack surplus fills partial stack then empty cell: " + mode);
+                Check(to.GetItemAt(0, 0)!.m_stack == 200 && to.GetItemAt(1, 0)!.m_stack == 30, name + ": partial/empty budgets");
+                var nextChest = Surplus().To;
+                Check(transfer(from, nextChest) == 0 && source.m_stack == 100, name + ": subsequent chest preserves target");
+            }
+            foreach (string rule in new[] { "", "Stone: 100 | Off", "Stone: invalid | Existing", "Stone: 0 | Existing" })
+            {
+                Rules(rule); var (from, to, source) = Surplus();
+                Check(transfer(from, to) == 0 && stale(from, to) == 0 && source.m_stack == 150 && to.MoveCalls == 0,
+                    name + ": absent/Off/invalid target protects favorites even with stale candidates: " + rule);
+                source.Favorite = false;
+                Check(transfer(from, to) == 1 && !from.m_inventory.Contains(source), name + ": nonfavorites unchanged: " + rule);
+            }
+            Rules("Stone: 100 | Existing");
+            foreach (int count in new[] { 80, 100 })
+            {
+                var (from, to, source) = Surplus(count);
+                Check(stale(from, to) == 0 && source.m_stack == count && to.MoveCalls == 0, name + ": no surplus below/at target");
+            }
+            var pair = Surplus(); var other = Item("Stone", 200, 80, x: 1); other.Favorite = true; pair.From.m_inventory.Add(other);
+            Check(transfer(pair.From, pair.To) == 1 && pair.Source.m_stack == 100 && other.m_stack == 80, name + ": each favorite protected independently, not inventory total");
+            foreach (Action<ItemData> protect in new Action<ItemData>[] { i => i.m_equipped = true, i => i.Special = true,
+                i => i.m_gridPos = new(0, 0), i => i.MetadataAllowed = false })
+            {
+                pair = Surplus(); protect(pair.Source);
+                Check(stale(pair.From, pair.To) == 0 && pair.Source.m_stack == 150, name + ": enabled target cannot bypass source guard");
+            }
+            pair = Surplus(); pair.To.Width = 1; pair.To.Height = 1;
+            Check(transfer(pair.From, pair.To) == 1 && pair.Source.m_stack == 130, name + ": partial first chest");
+            Check(transfer(pair.From, Surplus(seed: 200).To) == 1 && pair.Source.m_stack == 100, name + ": next chest receives remaining surplus only");
+            foreach (string changed in new[] { "Stone: 140 | Existing", "Stone: 100 | Off" })
+            {
+                Rules("Stone: 100 | Existing"); pair = Surplus();
+                pair.To.AfterMove = () => Rules(changed);
+                Check(transfer(pair.From, pair.To) == 1 && pair.Source.m_stack == 130 && pair.To.MoveCalls == 1,
+                    name + ": rule change after first move stops subsequent writes: " + changed);
+            }
+            Rules("Stone: 100 | Existing"); pair = Surplus(seed: 200); pair.To.Veto = true;
+            Check(transfer(pair.From, pair.To) == 0 && pair.Source.m_stack == 150, name + ": native rejection preserves source");
+            pair = Surplus(seed: 200); pair.Source.m_shared.m_maxStackSize = 80;
+            Check(transfer(pair.From, pair.To) == 1 && pair.Source.m_stack == 80, name + ": effective target clamps to current max stack");
+        }
+        Rules("Stone: 100 | Existing");
+        foreach (var transfer in new Func<Player, Inventory, Inventory, int>[] { Slots.WithPlayer, Actions.WithPlayer })
+        {
+            var pair = Surplus(); var player = new Player();
+            pair.To.AfterMove = () => player.Destroyed = true;
+            Check(transfer(player, pair.From, pair.To) == 1 && pair.Source.m_stack == 130 && pair.To.MoveCalls == 1,
+                "destroyed player must not turn a restricted quick-stack move into an unrestricted move");
+        }
+        var muc = Surplus();
+        Check(Actions.Muc(muc.From, muc.To) && Actions.Sent!.Value.Amount == 20 && muc.Source.m_stack == 150,
+            "MUC: partial request capped without local mutation");
+        // Simulate the adapter's accepted response before requesting the next move.
+        var sent = Actions.Sent!.Value;
+        muc.To.MoveItemToThis(muc.From, muc.Source, sent.Amount, sent.Cell.x, sent.Cell.y);
+        Check(Actions.Muc(muc.From, muc.To) && Actions.Sent!.Value.Amount == 30 && Actions.Sent.Value.Target == null,
+            "MUC: next empty cell request only gets remaining surplus");
+        Rules("Stone: 100 | Off");
+        Check(!Actions.Muc(muc.From, muc.To) && muc.Source.m_stack == 130, "MUC: Off prevents next dispatch");
+        Rules("Stone: 100 | IncludeEmpty");
+        Check(Actions.Muc(muc.From, muc.To) && Actions.Sent!.Value.Amount == 30, "MUC: IncludeEmpty shares surplus policy");
+        sent = Actions.Sent!.Value; muc.To.MoveItemToThis(muc.From, muc.Source, sent.Amount, sent.Cell.x, sent.Cell.y);
+        Check(!Actions.Muc(muc.From, muc.To) && muc.Source.m_stack == 100, "MUC: response reaching target stops dispatch");
+        Rules("");
     }
 }

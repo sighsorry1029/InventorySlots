@@ -170,6 +170,7 @@ public sealed partial class InventorySlotsPlugin
 
     private void OnDisable()
     {
+        ClearPathOfValheimanCharacterUi();
         RestoreCraftingStationLevelLayout();
         SetActionPanelActive(PinnedTooltips.Crafting.Host.Rect, false);
         PathOfValheimanTooltipLayer.Restore();
@@ -183,6 +184,8 @@ public sealed partial class InventorySlotsPlugin
     {
         RestoreCraftingStationLevelLayout();
         _pov?.Unregister();
+        _walletFrame?.Restore();
+        _walletFrame = null;
         PovStoragePatches.UnpatchSelf();
         PathOfValheimanStackCompatibility.Dispose();
         _pov = null;
@@ -195,6 +198,7 @@ public sealed partial class InventorySlotsPlugin
         PovLoading.Clear();
         PovLoadFailed.Clear();
         ClearPathOfValheimanStoragePanels();
+        ClearEquipmentPanelLayout();
         ShutdownPathOfValheimanCompatibility();
         ClearQuickSlotsHud();
         ClearInventoryClosingLayout();

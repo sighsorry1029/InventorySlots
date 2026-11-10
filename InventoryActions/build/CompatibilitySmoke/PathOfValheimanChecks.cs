@@ -37,6 +37,8 @@ internal static class PathOfValheimanChecks
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int NativeHash(IntPtr span);
     private static readonly NativeOffset OffsetStub = () => 0;
     private static readonly NativeHash HashStub = _ => 0;
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate float NativeTime();
+    private static readonly NativeTime TimeStub = () => 1f;
     [DllImport("mono-2.0-bdwgc.dll", CallingConvention = CallingConvention.Cdecl)]
     private static extern void mono_add_internal_call(string name, IntPtr method);
     private static bool ObjectEquality(UnityEngine.Object lhs, UnityEngine.Object rhs, ref bool __result)
@@ -65,6 +67,7 @@ internal static class PathOfValheimanChecks
     {
         mono_add_internal_call("UnityEngine.Animator::StringToHash_Injected", Marshal.GetFunctionPointerForDelegate(HashStub));
         mono_add_internal_call("UnityEngine.Object::GetOffsetOfInstanceIDInCPlusPlusObject", Marshal.GetFunctionPointerForDelegate(OffsetStub));
+        mono_add_internal_call("UnityEngine.Time::get_unscaledTime", Marshal.GetFunctionPointerForDelegate(TimeStub));
         harmony.Patch(AccessTools.Method(typeof(UnityEngine.Object), "CompareBaseObjects"),
             prefix: new HarmonyMethod(typeof(PathOfValheimanChecks), nameof(ObjectEquality)));
         harmony.Patch(AccessTools.PropertyGetter(Assembly.Load("assembly_guiutils").GetType("Localization", true), "instance"),
@@ -208,7 +211,7 @@ internal static class PathOfValheimanChecks
                   equipped.m_gridPos == new Vector2i(1, 1) && hidden.m_stack == 2 && favorite.m_stack == 2,
                 "native PoV Sort is suppressed; IA retains sole control of sorting and reserved cells");
             Check(!(bool)Call("CanMoveItemToInventoryTopFirst", bag, chest, hidden)! &&
-                  (int)Call("MoveItemToInventoryTopFirst", bag, chest, hidden, null)! == 0,
+                  (int)Call("MoveItemToInventoryTopFirst", bag, chest, hidden, null, null)! == 0,
                 "protected source cannot be moved or unequipped through IA");
 
             // Fill ordinary cells: the only available space/partial stack is hidden.
@@ -222,7 +225,7 @@ internal static class PathOfValheimanChecks
                 var full = Item(x, y); full.m_stack = 50; bag.GetAllItems().Add(full);
             }
             Check(!(bool)Call("CanMoveItemToInventoryTopFirst", chest, bag, source)! &&
-                  (int)Call("MoveItemToInventoryTopFirst", chest, bag, source, null)! == 0 && hidden.m_stack == 2 && source.m_stack == 2,
+                  (int)Call("MoveItemToInventoryTopFirst", chest, bag, source, null, null)! == 0 && hidden.m_stack == 2 && source.m_stack == 2,
                 "Ctrl-move cannot merge into hidden partial stacks or occupy hidden empty cells");
 
             owner.SetValue(null, null);

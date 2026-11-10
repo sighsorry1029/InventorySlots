@@ -4,6 +4,8 @@ using InventoryPersistence;
 TestRunner.Run(
     ("Character previews preserve native storage while live players and occupied Quick rows stay protected", PlayerInitializationTests.Run),
     ("YAML matching and equipment unlock preserve live rules with bounded repeated work", YamlMatchingTests.Run),
+    ("Small equipment YAML and panel layout preserve storage and PoV roles", EquipmentPanelLayoutTests.Run),
+    ("Shared item-rule panel wheel modes align rows and adapt pages", ItemRuleScrollTests.Run),
     ("Quick HUD On/Off and empty contexts preserve visibility policy", QuickSlotHudTests.PersistentModes),
     ("Quick HUD whole-panel use holds then fades and restarts", QuickSlotHudTests.WholePanelTiming),
     ("Quick HUD per-slot timers remain independent without packing cells", QuickSlotHudTests.IndependentSlots),
@@ -3576,7 +3578,7 @@ internal static class Tests
         foreach (string policy in new[] { quickStackPolicy, storeAllPolicy })
         {
             Assert.True(
-                policy.Contains("!IsEquippedContainerMoveSource(player, item)", StringComparison.Ordinal),
+                policy.Contains("IsEquippedContainerMoveSource(player, item)", StringComparison.Ordinal),
                 "container actions must never clone or remove an actively equipped item");
         }
     }

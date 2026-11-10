@@ -15,6 +15,7 @@ namespace InventorySlots;
 // would make the otherwise optional dependency mandatory at type-load time.
 internal sealed class PathOfValheimanStorageBridge
 {
+    internal bool HasWallet;
     internal const string Owner = "sighsorry.InventorySlots";
     internal readonly Assembly Assembly;
     internal readonly Func<bool> Enabled;
@@ -132,7 +133,14 @@ internal sealed class PathOfValheimanStorageBridge
                 // Purse remains the existing intentional omission, handled by coin benefits.
                 bool purse = position >= 24 && position <= 31 && key == "purse." + (position - 24) &&
                              kind == "Purse" && worn && !contract.Item4;
-                if (purse || contract.Item4) UnsupportedOrdinals.Add(position);
+                // 6.0.7 retires the bolt magazine and recovers its saved items in
+                // BallistaMagazine.RetireNow. Keep the coordinate for load recovery,
+                // without advertising a wearable role or creating a panel cell.
+                bool retiredMagazine = key == "siege.bolts" && contract == (62, "Siege", false, false) &&
+                    Enum.GetName(slotType, position) == "BoltMagazine" &&
+                    AccessTools.DeclaredMethod(assembly.GetType("PassiveTree.BallistaMagazine"), "RetireNow", new[] { typeof(Player) }) is { IsStatic: true, ReturnType: var returns } &&
+                    returns == typeof(bool);
+                if (purse || retiredMagazine || contract.Item4) UnsupportedOrdinals.Add(position);
                 else UnhostedNativeCells.Add(key);
                 if (contract.Item4 && kind == "Utility" && key != "utility") UnhostedUtilityCells.Add(key);
             }
@@ -190,7 +198,7 @@ internal sealed class PathOfValheimanStorageBridge
             harmony.Patch(Require(plates.FullName!, "Column", typeof(void), typeof(InventoryGui), typeof(UnityEngine.RectTransform)),
                 prefix: new HarmonyMethod(typeof(InventorySlotsPlugin), "KeepPathOfValheimanStatPanelLayout"));
         }
-        // Coins stay in ordinary backpack cells. Public API queries retain PoV's
+        // Coins in ordinary cells and the wallet retain PoV's
         // node/option policy; field injection respects the original private field.
         harmony.Patch(AccessTools.DeclaredMethod(typeof(Inventory), "UpdateTotalWeight", Type.EmptyTypes),
             postfix: new HarmonyMethod(typeof(InventorySlotsPlugin), "ApplyPathOfValheimanCoinWeight"));
@@ -204,6 +212,8 @@ internal sealed class PathOfValheimanStorageBridge
                 InventorySlotsPlugin.FindPathOfValheimanUtilityUnequip(PatchProcessor.GetOriginalInstructions(target).ToList(), "PutRing");
             harmony.Patch(target, transpiler: new HarmonyMethod(typeof(InventorySlotsPlugin), "DeferPathOfValheimanUtilityUnequip"));
         }
+        HasWallet = InventorySlotsPlugin.InstallPathOfValheimanWallet(this, harmony);
+        if (!HasWallet) UnsupportedOrdinals.Add(24);
     }
 
     internal static bool SupportsCell(string id) => SupportedCells.ContainsKey(id);
@@ -221,7 +231,8 @@ internal sealed class PathOfValheimanStorageBridge
             ["trinket.1"] = (45, "Trinket", true, false),
             ["trinket.2"] = (46, "Trinket", true, false),
             ["trinket.hand"] = (47, "Trinket", true, false),
-            ["belt.lantern"] = (60, "Utility", true, false)
+            ["belt.lantern"] = (60, "Utility", true, false),
+            ["purse.0"] = (24, "Purse", true, false)
         };
         for (int i = 0; i < 3; i++)
         {

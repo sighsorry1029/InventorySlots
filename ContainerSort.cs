@@ -19,6 +19,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static void SortCurrentContainer(Player? player)
     {
+        if (InventoryGui.instance != null && InventoryCompatibility.PathOfValheimanActions.IsSpecialContainer(InventoryGui.instance.m_currentContainer)) return;
         if (player == null || player.m_isLoading || InventoryGui.instance == null)
         {
             return;
@@ -67,6 +68,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static int SortContainerInventory(Container container)
     {
+        if (InventoryCompatibility.PathOfValheimanActions.IsSpecialContainer(container)) return 0;
         if (container == null || container.m_inventory == null)
         {
             return 0;

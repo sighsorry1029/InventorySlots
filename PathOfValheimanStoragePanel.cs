@@ -9,9 +9,6 @@ public sealed partial class InventorySlotsPlugin
 {
     private static readonly List<SlotDefinition> PovVisibleActions = new();
     private static readonly List<SlotDefinition> PovVisibleRings = new();
-    private const float PovRingScale = 0.5f;
-    private static int _povEquipmentColumns = 1;
-    private static int _povEquipmentRows = CustomSlotPanelRows;
     private static int _povActionColumnOffset;
     private static int _povQuickColumns = QuickSlotPanelColumns;
     private static int _povQuickContentRows;
@@ -28,29 +25,6 @@ public sealed partial class InventorySlotsPlugin
     private static bool IsPathOfValheimanRingSlot(SlotDefinition slot) =>
         slot.PovCell != null && slot.PovCell.StartsWith("ring.", StringComparison.Ordinal);
 
-    private static float GetPathOfValheimanRingPanelRows() =>
-        Mathf.CeilToInt(PovVisibleRings.Count / (float)(_povEquipmentColumns * 2)) * PovRingScale;
-
-    private static Vector3 GetPathOfValheimanRingPosition(int index, float spacing, Rect cellRect) =>
-        new Vector3(index % (_povEquipmentColumns * 2) * spacing * PovRingScale,
-            -(_povEquipmentRows + index / (_povEquipmentColumns * 2) * PovRingScale) * spacing, 0f) +
-        new Vector3(cellRect.xMin, cellRect.yMax, 0f) * (1f - PovRingScale);
-
-    private static Vector3 GetQuickSlotPanelDisplayOffset(float spacing)
-    {
-        Vector3 offset = InventoryPanels.QuickSlotsPanelRuntimeOffset;
-        // Saved positions are always normalized to coordinates, including the
-        // default. Only that default gains room; do not save the derived offset.
-        if (IsQuickSlotPanelAtDefaultPosition() &&
-            !InventoryPanels.DraggingQuickSlotsPanelOffset)
-            offset.y -= GetPathOfValheimanRingPanelRows() * spacing;
-        return offset;
-    }
-
-    private static bool IsQuickSlotPanelAtDefaultPosition() =>
-        !InventoryClient.ClientState.Inventory.QuickSlotsPanelManuallyPlaced &&
-        InventoryPanels.QuickSlotsPanelRuntimeOffset == QuickSlotsPanelFixedOffset;
-
     internal static void RestorePathOfValheimanRingIconScale(InventoryGrid grid)
     {
         if (_pov?.HasRings != true || InventoryGui.instance == null ||
@@ -64,7 +38,7 @@ public sealed partial class InventorySlotsPlugin
             if (index < 0 || index >= grid.m_elements.Count) continue;
             InventoryElement element = grid.m_elements[index];
             if (!IsUnityNull(element) && element.m_icon != null &&
-                element.gameObject.transform.localScale.x == PovRingScale)
+                element.gameObject.transform.localScale.x == SmallEquipmentSlotScale)
                 element.m_icon.rectTransform.localScale = Vector3.one;
         }
     }
@@ -81,13 +55,7 @@ public sealed partial class InventorySlotsPlugin
     private static bool IsOccupiedSlot(Inventory? inventory, SlotDefinition slot) =>
         inventory != null && TryGetSlotGridPos(inventory, slot, out Vector2i pos) && inventory.GetItemAt(pos.x, pos.y) != null;
 
-    private static void UpdatePathOfValheimanPanelSlots(Player player, Inventory inventory, int quickCount, int equipmentCount)
-    {
-        UpdatePathOfValheimanActionSlots(player, inventory, quickCount);
-        UpdatePathOfValheimanEquipmentPanelSlots(player, inventory, equipmentCount);
-    }
-
-    private static void UpdatePathOfValheimanEquipmentPanelSlots(Player player, Inventory inventory, int equipmentCount)
+    private static void UpdatePathOfValheimanRingSlots(Player player, Inventory inventory)
     {
         PovVisibleRings.Clear();
         foreach (SlotDefinition slot in SlotDefinitions)
@@ -96,8 +64,6 @@ public sealed partial class InventorySlotsPlugin
             // Keep an occupied, now-locked cell reachable for withdrawal.
             if (IsQuickSlotUnlocked(player, slot) || IsOccupiedSlot(inventory, slot)) PovVisibleRings.Add(slot);
         }
-        _povEquipmentColumns = Math.Max(1, GetCustomPanelColumns(equipmentCount));
-        _povEquipmentRows = equipmentCount > 0 ? CustomSlotPanelRows : 0;
     }
 
     private static void UpdatePathOfValheimanActionSlots(Player player, Inventory inventory, int quickCount)
@@ -106,6 +72,7 @@ public sealed partial class InventorySlotsPlugin
         foreach (SlotDefinition slot in SlotDefinitions)
         {
             if (slot.PovCell == null || IsEquipmentPanelSlot(slot) || IsUnsupportedPathOfValheimanCell(slot.PovCell)) continue;
+            if (IsPathOfValheimanWalletSlot(slot)) continue;
             if (!IsQuickSlotUnlocked(player, slot) && !IsOccupiedSlot(inventory, slot)) continue;
             PovVisibleActions.Add(slot);
         }
@@ -159,8 +126,7 @@ public sealed partial class InventorySlotsPlugin
     {
         PovVisibleActions.Clear();
         PovVisibleRings.Clear();
-        _povEquipmentColumns = 1;
-        _povEquipmentRows = CustomSlotPanelRows;
+        SmallEquipmentPanelSlots.RemoveAll(IsPathOfValheimanRingSlot);
         _povQuiverCatalog = null;
         _povQuiverCatalogCount = -1;
         _povQuiverCatalogNextCheck = 0;

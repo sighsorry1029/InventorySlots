@@ -121,8 +121,8 @@ public sealed partial class InventorySlotsPlugin
 
         Vector3 origin = GetGridOrigin(playerGrid);
         List<SlotDefinition> quickPanelSlots = GetQuickPanelSlots(player);
-        List<SlotDefinition> customPanelSlots = GetCustomPanelSlots(player, inventory);
-        UpdatePathOfValheimanPanelSlots(player, inventory, quickPanelSlots.Count, customPanelSlots.Count);
+        UpdateInventoryPanelSlots(player, inventory, quickPanelSlots.Count);
+        List<SlotDefinition> customPanelSlots = FullEquipmentPanelSlots;
         float displayedRows = viewportRows;
         playerGrid.m_gridRoot.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, displayedRows * playerGrid.m_elementSpace);
         if (UpdateInventoryPanelDragging() && TryUpdateDraggedInventoryPanelPositionOnly(playerGrid, origin, width))
@@ -133,10 +133,11 @@ public sealed partial class InventorySlotsPlugin
 
         UpdatePlayerInventoryPanelBackground(viewportRows);
         UpdateContainerPanelPosition(viewportRows, playerGrid.m_elementSpace);
-        bool hasEquipmentPanel = customPanelSlots.Count + PovVisibleRings.Count > 0;
+        bool hasEquipmentPanel = customPanelSlots.Count + SmallEquipmentPanelSlots.Count > 0;
         RectTransform? customPanel = hasEquipmentPanel ? EnsureSlotPanel(playerGrid, CustomSlotPanelName, InventoryPanels.CustomSlotPanels) : DisableSlotPanel(playerGrid, CustomSlotPanelName, InventoryPanels.CustomSlotPanels);
         bool hasQuickPanel = quickPanelSlots.Count + PovVisibleActions.Count > 0;
         RectTransform? quickPanel = hasQuickPanel ? EnsureSlotPanel(playerGrid, QuickSlotPanelName, InventoryPanels.QuickSlotPanels) : DisableSlotPanel(playerGrid, QuickSlotPanelName, InventoryPanels.QuickSlotPanels);
+        PrepareWalletFrame(playerGrid);
         for (int i = 0; i < playerGrid.m_elements.Count; i++)
         {
             InventoryElement element = playerGrid.m_elements[i];
@@ -176,11 +177,16 @@ public sealed partial class InventorySlotsPlugin
                 }
 
                 SlotDefinition slot = SlotDefinitions[slotIndex];
-                bool ringSlot = IsPathOfValheimanRingSlot(slot);
+                if (IsPathOfValheimanWalletSlot(slot))
+                {
+                    LayoutPathOfValheimanWallet(playerGrid, element!, player, inventory, slot, origin, viewportRows);
+                    continue;
+                }
+                bool smallSlot = IsSmallEquipmentPanelSlot(slot);
                 bool equipmentPanelSlot = IsEquipmentPanelSlot(slot);
                 bool povQuickSlot = slot.PovCell != null && !equipmentPanelSlot;
                 RectTransform? targetPanel = equipmentPanelSlot ? customPanel : quickPanel;
-                List<SlotDefinition> visibleSlots = ringSlot ? PovVisibleRings : equipmentPanelSlot ? customPanelSlots :
+                List<SlotDefinition> visibleSlots = smallSlot ? SmallEquipmentPanelSlots : equipmentPanelSlot ? customPanelSlots :
                     povQuickSlot ? PovVisibleActions : quickPanelSlots;
                 int visibleIndex = visibleSlots.IndexOf(slot);
                 if (targetPanel == null || visibleIndex < 0)
@@ -198,10 +204,10 @@ public sealed partial class InventorySlotsPlugin
                 {
                     elementRect.SetParent(targetPanel, false);
                 }
-                elementRect.localScale = Vector3.one * (ringSlot ? PovRingScale : 1f);
-                if (ringSlot && element.m_icon != null) element.m_icon.rectTransform.localScale = Vector3.one;
+                elementRect.localScale = Vector3.one * (smallSlot ? SmallEquipmentSlotScale : 1f);
+                if (smallSlot && element.m_icon != null) element.m_icon.rectTransform.localScale = Vector3.one;
                 elementRect.localRotation = Quaternion.identity;
-                elementRect.localPosition = ringSlot ? GetPathOfValheimanRingPosition(visibleIndex, playerGrid.m_elementSpace, elementRect.rect) :
+                elementRect.localPosition = smallSlot ? GetSmallEquipmentPanelPosition(visibleIndex, playerGrid.m_elementSpace, elementRect.rect) :
                     equipmentPanelSlot ? GetCustomSlotPanelElementPosition(visibleIndex, playerGrid.m_elementSpace) :
                     povQuickSlot ? GetPathOfValheimanActionPosition(visibleIndex, playerGrid.m_elementSpace) :
                     GetQuickSlotPanelElementPosition(visibleIndex, playerGrid.m_elementSpace);
@@ -214,7 +220,11 @@ public sealed partial class InventorySlotsPlugin
 
                 bool equipmentSlotOccupied = UpdateEquipmentSlotElementState(element, player, inventory, slot, new Vector2i(x, y));
                 if (equipmentPanelSlot && slot.Kind == SlotKind.Quick) equipmentSlotOccupied = IsOccupiedSlot(inventory, slot);
-                UpdateSlotBindingLabel(element, slot, ringSlot || equipmentPanelSlot && equipmentSlotOccupied);
+                if (smallSlot && !equipmentSlotOccupied && element.m_tooltip != null)
+                {
+                    SetEmptySmallEquipmentSlotTooltip(element, slot);
+                }
+                UpdateSlotBindingLabel(element, slot, smallSlot || equipmentPanelSlot && equipmentSlotOccupied);
                 UpdateFavoriteBorder(element, player, inventory, new Vector2i(x, y));
                 UpdateInventoryPinnedTooltipBorder(playerGrid, element, new Vector2i(x, y));
             }
@@ -245,11 +255,11 @@ public sealed partial class InventorySlotsPlugin
 
         if (customPanel != null)
         {
-            int columns = _povEquipmentColumns;
+            int columns = _equipmentPanelColumns;
             Vector3 sidePanelBasePosition = GetSidePanelBasePosition(origin, width, playerGrid.m_elementSpace);
             customPanel.localPosition = sidePanelBasePosition + (Vector3)InventoryPanels.EquipmentSlotsPanelRuntimeOffset;
             UpdateVanillaPanelBackground(customPanel, columns * playerGrid.m_elementSpace,
-                (_povEquipmentRows + GetPathOfValheimanRingPanelRows()) * playerGrid.m_elementSpace);
+                (_equipmentPanelRows + GetSmallEquipmentPanelRows()) * playerGrid.m_elementSpace);
             customPanel.gameObject.SetActive(hasEquipmentPanel);
             UpdatePlayerStatPanels(customPanel, columns, playerGrid.m_elementSpace);
         }
@@ -275,6 +285,15 @@ public sealed partial class InventorySlotsPlugin
         EnsureInventoryPinnedTooltipHandlers(InventoryGui.instance?.m_containerGrid);
         UpdateInventoryPinnedTooltipGridBorders(InventoryGui.instance?.m_containerGrid);
         UpdateContainerWeightPanelPosition();
+    }
+
+    private static void SetEmptySmallEquipmentSlotTooltip(InventoryElement element, SlotDefinition slot)
+    {
+        // A nonempty slot-name tooltip must not reuse the previous item's
+        // custom hover source (including Jewelcrafting gem details).
+        InventoryHoverTooltipItems.Remove(element.m_tooltip);
+        element.m_tooltip.m_topic = "";
+        element.m_tooltip.m_text = slot.Name;
     }
 
 }

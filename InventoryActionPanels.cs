@@ -34,7 +34,8 @@ public sealed partial class InventorySlotsPlugin
 
     private static void UpdateContainerActionPanel(InventoryGui gui)
     {
-        if (gui.m_currentContainer == null || gui.m_takeAllButton == null || gui.m_stackAllButton == null)
+        if (gui.m_currentContainer == null || gui.m_takeAllButton == null || gui.m_stackAllButton == null ||
+            InventoryCompatibility.PathOfValheimanActions.IsSpecialContainer(gui.m_currentContainer))
         {
             RestoreContainerActionButtonLayout();
             HideContainerActionButtons();

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.1
+
+- Quick Stack now stores only the surplus above an explicitly enabled restock target from eligible favorite stacks, including nearby and supported MultiUserChest transfers. Targets protect each favorite stack separately; with 150 Stone and a target of 100, up to 50 can be stored. Off, unlisted or invalid targets keep favorites fully protected, and hotbar/equipment/special-cell exclusions remain unchanged.
+- Added Row/Page scrolling for Restock targets and Auto pickup exclusions, defaulting to Row. Long lists show a thin scrollbar, wheel input works over the panel and scrollbar, and redundant Saved/Registered messages no longer reserve footer space. Updated the panel and guide hints for favorite surplus.
+- Updated Path of Valheiman stack compatibility to run its current native metadata comparison and implicit settlement before applying registered metadata-owner rules. Item identity, unrelated metadata, partial-transfer accounting and conservative fallback remain protected.
+- Leave PoV Rune Chests and Runic Anvils to their native ledger handling instead of ordinary container sorting and transfers. Delegated PoV bulk actions retain favorite, equipped-item and reserved-cell protection; normal chest access and ownership rules remain unchanged.
+- Added regression coverage for favorite-surplus transfers, panel scrolling and current PoV contracts. Build and isolated checks are separate from actual game UI and multiplayer validation.
+
 ## 1.2.0
 
 - Restored EpicLoot material stacking with the modern MagicItemData contract, including EpicLoot 0.15.6, while retaining the legacy adapter. EpicLoot must approve the pair and additional metadata must match; this does not broaden InventoryActions' metadata policy or delete item data.

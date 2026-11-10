@@ -335,12 +335,14 @@ public sealed partial class InventoryActionsPlugin
             if (!accepted.Contains(source.m_shared.m_name)) continue;
             ItemData? target = chest.GetAllItems().Where(i => CanUseMucActionStacking(i) && CanStackIntoTargetForTopFirstMove(i, source))
                 .OrderBy(i => i.m_gridPos.y).ThenBy(i => i.m_gridPos.x).FirstOrDefault();
+            int available = GetQuickStackTransferAmount(session.Player, session.Inventory, source);
+            if (available <= 0 || !session.Inventory.m_inventory.Contains(source)) continue;
             if (target != null)
                 return SendMucTransfer(session, container, source, target, target.m_gridPos,
-                    Math.Min(source.m_stack, target.m_shared.m_maxStackSize - target.m_stack));
+                    Math.Min(available, target.m_shared.m_maxStackSize - target.m_stack));
             foreach (Vector2i cell in GetInventorySlotsTopFirst(chest))
                 if (chest.GetItemAt(cell.x, cell.y) == null)
-                    return SendMucTransfer(session, container, source, null, cell, source.m_stack);
+                    return SendMucTransfer(session, container, source, null, cell, available);
         }
         return false;
     }

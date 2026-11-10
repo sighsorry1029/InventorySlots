@@ -523,6 +523,7 @@ public sealed partial class InventoryActionsPlugin
                 session.Player,
                 session.PlayerInventory);
             return QuickStackItemsIntoContainer(
+                session.Player,
                 session.PlayerInventory,
                 target.m_inventory,
                 candidates);

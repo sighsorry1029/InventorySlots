@@ -365,6 +365,7 @@ public sealed partial class InventorySlotsPlugin
     private static bool CanAddItemToUsablePlayerSlots(Player player, Inventory inventory, ItemData item, int stack)
     {
         int requestedStack = stack <= 0 ? item.m_stack : stack;
+        if (ExceedsWalletCoinTotal(inventory, item, requestedStack)) return false;
         if (requestedStack <= 0)
         {
             return true;
@@ -384,6 +385,7 @@ public sealed partial class InventorySlotsPlugin
 
         int maxStack = Math.Max(1, item.m_shared.m_maxStackSize);
         long capacity = CountStackSpaceForIncomingItem(inventory, item);
+        if (CanDepositWallet(inventory, item, requestedStack, out _, out _)) return true;
         if (capacity >= requestedStack)
         {
             return true;
@@ -508,6 +510,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static bool TryValidatePlayerInventoryLimit(Inventory inventory, ItemData item, int amount, ref bool result)
     {
+        if (ExceedsWalletCoinTotal(inventory, item, amount)) { result = false; return false; }
         if (CanAddWithinInventoryLimits(inventory, item, amount, out int maxAllowed))
         {
             return true;
@@ -768,6 +771,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void OnInventoryAddItemData(Inventory inventory, ItemData item, ref bool result)
     {
+        if (IsWalletWithdrawal(Player.m_localPlayer?.GetInventory(), item) || ExceedsWalletCoinTotal(inventory, item, item.m_stack)) return;
         if (result || item == null || !TryGetLocalPlayerInventory(inventory, out Player? player))
         {
             return;

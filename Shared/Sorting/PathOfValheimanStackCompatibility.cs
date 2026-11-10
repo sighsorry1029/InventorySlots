@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Reflection.Emit;
 using HarmonyLib;
 using ItemData = ItemDrop.ItemData;
 
@@ -68,7 +69,7 @@ internal static class PathOfValheimanStackCompatibility
         try
         {
             if (warning == null)
-                harmony.Patch(same, prefix: new HarmonyMethod(typeof(PathOfValheimanStackCompatibility), nameof(Compare)));
+                harmony.Patch(same, postfix: new HarmonyMethod(typeof(PathOfValheimanStackCompatibility), nameof(Compare)));
 #if INVENTORY_SLOTS
             // IS already decides destinations, including locked cells, cheat identity
             // and owner policies. PoV must not replace a rejected result by rescanning.
@@ -95,26 +96,25 @@ internal static class PathOfValheimanStackCompatibility
     {
         if (!Active) return true;
         if (left.m_variant != right.m_variant) return false;
-        if (canCompose) return true;
-        // Unknown comparison behavior gets no extra permission. Retain its native
-        // gate AND our slot/owner policy, rather than aborting character loading.
-        try { return nativeComparison!(left, right); }
+        // Run PoV first, including its normalization of obsolete implicit rolls,
+        // before callers inspect or snapshot metadata. Unknown comparison behavior
+        // retains its native gate in addition to our slot/owner policy.
+        try { bool matches = nativeComparison!(left, right); return canCompose || matches; }
         catch { return false; }
     }
 
-    private static bool Compare(ItemData __0, ItemData __1, ref bool __result)
+    private static void Compare(ItemData __0, ItemData __1, ref bool __result)
     {
         if (!Active || source == null || __0 == null || __1 == null ||
             !(ReferenceEquals(__0, source) && (target == null || ReferenceEquals(__1, target)) ||
               ReferenceEquals(__1, source) && (target == null || ReferenceEquals(__0, target))) ||
             !StackMetadataPolicy.HasMergeMetadata(__0.m_customData) &&
-            !StackMetadataPolicy.HasMergeMetadata(__1.m_customData)) return true;
+            !StackMetadataPolicy.HasMergeMetadata(__1.m_customData)) return;
         // An untracked nested AddItem must not borrow its caller's permission.
         ItemData? incoming = readIncoming?.Invoke();
-        if (incoming != null && !ReferenceEquals(incoming, source)) return true;
+        if (incoming != null && !ReferenceEquals(incoming, source)) return;
         __result = __0.m_variant == __1.m_variant && __0.m_cheated == __1.m_cheated &&
                    StackMetadataPolicy.AreCompatible(__0.m_customData, __1.m_customData);
-        return false;
     }
 
 #if INVENTORY_SLOTS
@@ -134,18 +134,36 @@ internal static class PathOfValheimanStackCompatibility
         // using additional item state must not silently lose those checks here.
         // This bounds the inputs/calls; it is not proof of semantic equivalence.
         var code = PatchProcessor.GetOriginalInstructions(method).ToList();
+        var normalizedArguments = new HashSet<OpCode>();
         var fields = code.Select(i => i.operand).OfType<FieldInfo>().ToArray();
         if (!fields.Any(f => f.Name == "m_variant") || !fields.Any(f => f.Name == "m_customData") ||
             fields.Any(f => f.DeclaringType != typeof(ItemData) || f.Name != "m_variant" && f.Name != "m_customData"))
             throw new NotSupportedException("PoV metadata comparison uses additional item state");
-        foreach (var call in code.Select(i => i.operand).OfType<MethodInfo>())
+        foreach (var call in code.Select(i => i.operand).OfType<MethodInfo>().Distinct())
         {
+            // SameData still executes this complete native implementation. Do not
+            // emulate it or remove pt.implicit ourselves: corruption and prefab
+            // preview exclusions belong to PoV.
+            if (call.DeclaringType == method.DeclaringType!.Assembly.GetType("PassiveTree.Implicits") &&
+                call.Name == "Settle" && call.IsPublic && call.IsStatic && call.ReturnType == typeof(bool) &&
+                call.GetParameters().Select(p => p.ParameterType).SequenceEqual(new[] { typeof(ItemData) }))
+            {
+                foreach (int index in Enumerable.Range(0, code.Count).Where(i => code[i].Calls(call)))
+                {
+                    if (index == 0 || index + 1 >= code.Count || code[index + 1].opcode != OpCodes.Pop ||
+                        code[index - 1].opcode != OpCodes.Ldarg_0 && code[index - 1].opcode != OpCodes.Ldarg_1 ||
+                        !normalizedArguments.Add(code[index - 1].opcode))
+                        throw new NotSupportedException("PoV metadata normalization flow changed");
+                }
+                continue;
+            }
             if (call.DeclaringType == method.DeclaringType && call.Name == "Bookkeeping")
             {
                 var helper = PatchProcessor.GetOriginalInstructions(call).ToList();
                 if (helper.Any(i => i.operand is FieldInfo) ||
                     helper.Select(i => i.operand).OfType<MethodInfo>().Any(m => m.DeclaringType != typeof(string)) ||
-                    helper.Select(i => i.operand).OfType<string>().Any(s => s != "pt.work." && s != "pt.born" && s != "pt.bonus"))
+                    helper.Select(i => i.operand).OfType<string>().Any(s => s != "pt.work." && s != "pt.born" && s != "pt.bonus" &&
+                        s != "valheiman.equipment.v1.cell" && s != "pt.fish.caught"))
                     throw new NotSupportedException("PoV metadata exclusions changed");
                 continue;
             }
@@ -158,5 +176,7 @@ internal static class PathOfValheimanStackCompatibility
                 !(declaring == typeof(IDisposable) && call.Name == "Dispose"))
                 throw new NotSupportedException("PoV metadata comparison logic changed: " + call.Name);
         }
+        if (normalizedArguments.Count == 1)
+            throw new NotSupportedException("PoV metadata normalization is asymmetric");
     }
 }

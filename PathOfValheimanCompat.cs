@@ -169,6 +169,9 @@ public sealed partial class InventorySlotsPlugin
         InstallPathOfValheimanCapability("item-presentation", _ => BindPathOfValheimanItemPresentation(assembly));
         InitializePathOfValheimanNativeHud(assembly);
         InitializePathOfValheimanCrafting(assembly);
+        InstallPathOfValheimanCapability("overlay-idle", InstallPathOfValheimanOverlayLayers);
+        InitializePathOfValheimanCharacter(assembly);
+        InstallPathOfValheimanCapability("quiver-swap", InstallPathOfValheimanQuiverSwap);
         InstallPathOfValheimanCapability("tooltip", _ => BindPathOfValheimanTooltip(assembly));
 
         InstallPathOfValheimanCapability("tree-input", _ =>
@@ -386,7 +389,16 @@ public sealed partial class InventorySlotsPlugin
         _povDeathKeepWarning = false;
         foreach (Harmony harmony in PathOfValheimanPatches) harmony.UnpatchSelf();
         PathOfValheimanPatches.Clear();
+        _povOverlayShapeWarned = false;
         ShutdownPathOfValheimanCrafting();
+        ClearPathOfValheimanCharacterUi();
+        _povLooks = null;
+        _povRefreshLookVisuals = null;
+        _povNativeQuiver = null; _povNativeQuiverItem = null; _povQuiverPrefab = null; _povExternalQuivers = null;
+        _povQuiverSwapFailed = false;
+        _povSkillsFactory = _povStatsFactory = null;
+        _povCloseEnchant = null;
+        _povEnchantOpen = null;
         ClearPathOfValheimanItemPresentation();
         ClearPathOfValheimanNativeHud();
         _pathOfValheimanTreeOpen = null;

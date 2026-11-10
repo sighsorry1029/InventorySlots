@@ -1838,7 +1838,7 @@ public sealed partial class InventorySlotsPlugin
 
     private static bool CanAutoPlaceItemInSpecialSlot(Player player, Inventory inventory, ItemData item, SlotDefinition slot)
     {
-        return CanAutoAdoptGridSlot(item, slot) &&
+        return !IsPathOfValheimanWalletSlot(slot) && CanAutoAdoptGridSlot(item, slot) &&
                CanUseEmptySpecialSlot(player, inventory, item, slot);
     }
 

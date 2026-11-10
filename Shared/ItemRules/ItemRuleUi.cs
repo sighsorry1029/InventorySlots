@@ -28,6 +28,10 @@ public sealed partial class InventoryActionsPlugin
 #endif
 {
     private enum InventoryButtonMode { Off, Auto, On }
+    private enum ItemRulePanelScrollMode { Row, Page }
+    private static ConfigEntry<ItemRulePanelScrollMode> _itemRulePanelScrollMode = null!;
+    private const float ItemRuleRowHeight = 38f;
+    private const string ItemRulePanelScrollModeDescription = "Mouse wheel distance in both Restock targets and Auto pickup exclusions panels. Row moves one row; Page moves the number of complete rows currently visible. Wheel movement aligns to row boundaries, except at the bottom edge. Client-only; applies immediately. Scrollbar dragging and controller navigation are unchanged.";
     private static ConfigEntry<InventoryButtonMode> _restockButtonMode = null!;
     private static ConfigEntry<InventoryButtonMode> _autoPickupButtonMode = null!;
     private static ConfigEntry<InventoryButtonMode> _trashButtonMode = null!;
@@ -228,21 +232,67 @@ public sealed partial class InventoryActionsPlugin
         new((Mathf.Max(0, columns - 1 - columnsFromRight) + 0.5f) * spacing - size * 0.5f,
             -Mathf.Max(1, rows) * spacing - 8f, 0f);
 
+    private static float GetItemRuleScrollOffset(float offset, float contentHeight, float viewportHeight,
+        int steps, ItemRulePanelScrollMode mode)
+    {
+        float maximum = Mathf.Max(0, contentHeight - viewportHeight);
+        offset = Mathf.Clamp(offset, 0, maximum);
+        if (steps == 0 || maximum == 0) return offset;
+        int rows = mode == ItemRulePanelScrollMode.Page
+            ? Mathf.Max(1, Mathf.FloorToInt(viewportHeight / ItemRuleRowHeight)) : 1;
+        // A freely dragged scrollbar can stop between rows. Move toward the next
+        // boundary in the requested direction, without skipping an extra row.
+        float row = offset / ItemRuleRowHeight;
+        float start = steps > 0 ? Mathf.Floor(row + 0.0001f) : Mathf.Ceil(row - 0.0001f);
+        return Mathf.Clamp((start + steps * rows) * ItemRuleRowHeight, 0, maximum);
+    }
+
+    private sealed class ItemRuleScrollRect : ScrollRect
+    {
+        public override void OnScroll(PointerEventData eventData)
+        {
+            if (!IsActive() || content == null || viewport == null) return;
+            // Match a vertical ScrollRect's dominant-axis interpretation. TMP's
+            // single-line quantity field already forwards its wheel input here.
+            // Valheim 1.0.21's EventSystem serializes 0.05 UI units per wheel
+            // tick (different from Unity's code default); normalize via its module.
+            Vector2 delta = eventData.currentInputModule != null
+                ? eventData.currentInputModule.ConvertPointerEventScrollDeltaToTicks(eventData.scrollDelta)
+                : eventData.scrollDelta;
+            float wheel = Mathf.Abs(delta.x) > Mathf.Abs(delta.y) ? delta.x : -delta.y;
+            if (wheel == 0 || float.IsNaN(wheel) || float.IsInfinity(wheel)) return;
+            ItemRulePanelScrollMode mode = _itemRulePanelScrollMode?.Value ?? ItemRulePanelScrollMode.Row;
+            float offset = content.anchoredPosition.y;
+            // UI input actions can scale a physical wheel tick below one. This
+            // is discrete row/page navigation: react to every nonzero event,
+            // rather than leaving it apparently inert until a unit accumulates.
+            int steps = Mathf.Max(1, Mathf.RoundToInt(Mathf.Abs(wheel))) * (wheel > 0 ? 1 : -1);
+            StopMovement();
+            Vector2 position = content.anchoredPosition;
+            position.y = GetItemRuleScrollOffset(offset, content.rect.height, viewport.rect.height, steps, mode);
+            SetContentAnchoredPosition(position);
+            eventData.Use();
+        }
+    }
+
     // One GUI-owned component owns the toolbar and event listeners. Quantity
     // saves keep the existing rows and input focus; list changes rebuild rows.
     private sealed class ItemRuleEditor : MonoBehaviour
     {
-        private const float RowHeight = 38f;
+        private const float RowHeight = ItemRuleRowHeight;
         private const float PopupWidth = 300f;
-        private const float PopupChromeHeight = 116f;
+        private const float PopupBaseHeaderHeight = 78f;
+        private float PopupHeaderHeight = PopupBaseHeaderHeight;
+        private float PopupChromeHeight => PopupHeaderHeight + (string.IsNullOrEmpty(_status.text) ? 10f : 38f);
         internal InventoryGui Owner = null!;
         internal bool Pinned { get; private set; }
-        private RectTransform _root = null!, _toolbar = null!, _popup = null!, _content = null!, _viewport = null!;
+        private RectTransform _root = null!, _toolbar = null!, _popup = null!, _content = null!, _viewport = null!, _scrollbarRect = null!;
         private Button _restockButton = null!, _excludeButton = null!, _backdrop = null!;
         private Sprite _restockIcon = null!, _excludeIcon = null!;
         private Sprite? _ruleButtonSprite;
         private int _visibleRowCount = 1;
-        private TMP_Text _title = null!, _scope = null!, _status = null!;
+        private TMP_Text _title = null!, _scope = null!, _quickStackHint = null!, _status = null!;
+        private float _nextScopeRefresh, _hintWidth = -1f;
         private TMP_FontAsset _font = null!;
         private Material _fontMaterial = null!;
         private readonly List<Button> _rowButtons = new();
@@ -333,16 +383,43 @@ public sealed partial class InventoryActionsPlugin
             Frame(_title.rectTransform, 12, -10, PopupWidth - 24, 28);
             _scope = Text(_popup, "Scope", "", 13f);
             Frame(_scope.rectTransform, 12, -39, PopupWidth - 24, 34);
-            _viewport = Rect("Viewport", _popup, new Vector2(PopupWidth - 24, 38), new Vector2(12, -78));
+            _quickStackHint = Text(_popup, "QuickStackHint", "", 13f);
+            _quickStackHint.gameObject.SetActive(false);
+            _viewport = Rect("Viewport", _popup, new Vector2(PopupWidth - 24, 38), new Vector2(12, -PopupHeaderHeight));
             _viewport.gameObject.AddComponent<Image>().color = Color.clear;
             _viewport.gameObject.AddComponent<RectMask2D>();
             _content = Rect("Content", _viewport, new Vector2(PopupWidth - 24, 38), Vector2.zero);
-            _scroll = _viewport.gameObject.AddComponent<ScrollRect>();
+            _scroll = _viewport.gameObject.AddComponent<ItemRuleScrollRect>();
             _scroll.viewport = _viewport; _scroll.content = _content;
             _scroll.horizontal = false; _scroll.vertical = true;
             _scroll.movementType = ScrollRect.MovementType.Clamped;
-            _scroll.inertia = false; _scroll.scrollSensitivity = 30f;
+            _scroll.inertia = false;
+            // Use the existing right padding so showing the bar never shifts row controls.
+            _scrollbarRect = Rect("Scrollbar", _popup, new Vector2(6, 38), new Vector2(PopupWidth - 10, -PopupHeaderHeight));
+            _scrollbarRect.gameObject.AddComponent<Image>().color = new Color(0, 0, 0, 0.25f);
+            RectTransform slidingArea = Rect("SlidingArea", _scrollbarRect, Vector2.zero, Vector2.zero);
+            Stretch(slidingArea);
+            slidingArea.offsetMin = new Vector2(1, 0); slidingArea.offsetMax = new Vector2(-1, 0);
+            RectTransform handle = Rect("Handle", slidingArea, Vector2.zero, Vector2.zero);
+            Stretch(handle);
+            Image handleImage = handle.gameObject.AddComponent<Image>();
+            handleImage.color = new Color(_gold.r, _gold.g, _gold.b, 0.8f);
+            Scrollbar scrollbar = _scrollbarRect.gameObject.AddComponent<Scrollbar>();
+            scrollbar.handleRect = handle; scrollbar.targetGraphic = handleImage;
+            scrollbar.direction = Scrollbar.Direction.BottomToTop;
+            scrollbar.navigation = new Navigation { mode = Navigation.Mode.None };
+            _scroll.verticalScrollbar = scrollbar;
+            _scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+            EventTrigger scrollbarInput = _scrollbarRect.gameObject.AddComponent<EventTrigger>();
+            EventTrigger.Entry press = new() { eventID = EventTriggerType.PointerDown };
+            press.callback.AddListener(_ => Pin());
+            scrollbarInput.triggers.Add(press);
+            // The bar is outside the viewport, so forward wheel input explicitly.
+            EventTrigger.Entry wheel = new() { eventID = EventTriggerType.Scroll };
+            wheel.callback.AddListener(data => _scroll.OnScroll((PointerEventData)data));
+            scrollbarInput.triggers.Add(wheel);
             _status = Text(_popup, "Status", "", 12f);
+            _status.gameObject.SetActive(false);
             _popup.gameObject.SetActive(false);
             return true;
         }
@@ -403,14 +480,65 @@ public sealed partial class InventoryActionsPlugin
 
         private void ResizePopupViewport(float height)
         {
-            if (Mathf.Abs(_viewport.rect.height - height) < 0.1f) return;
             float inner = _popup.rect.width - 24f;
+            bool showStatus = !string.IsNullOrEmpty(_status.text);
+            if (_status.gameObject.activeSelf != showStatus) _status.gameObject.SetActive(showStatus);
+            if (Mathf.Abs(_viewport.rect.height - height) < 0.1f &&
+                Mathf.Abs(_viewport.rect.width - inner) < 0.1f &&
+                Mathf.Abs(_popup.rect.height - (PopupChromeHeight + height)) < 0.1f) return;
             _popup.sizeDelta = new Vector2(_popup.rect.width, PopupChromeHeight + height);
-            Frame(_viewport, 12, -78, inner, height);
-            Frame(_status.rectTransform, 12, -82 - height, inner, 30);
+            Frame(_viewport, 12, -PopupHeaderHeight, inner, height);
+            Frame(_scrollbarRect, _popup.rect.width - 10, -PopupHeaderHeight, 6, height);
+            Frame(_status.rectTransform, 12, -PopupHeaderHeight - 4 - height, inner, 30);
             Vector2 scroll = _content.anchoredPosition;
             scroll.y = Mathf.Clamp(scroll.y, 0, Mathf.Max(0, _content.rect.height - height));
             _content.anchoredPosition = scroll;
+            if (_controllerActive)
+                ScrollRowIntoView(_controllerFocus.Row);
+            else
+                for (int i = 0; i < _controllerRows.Count; i++)
+                    if (_controllerRows[i].Quantity?.isFocused == true)
+                    {
+                        ScrollRowIntoView(i);
+                        break;
+                    }
+        }
+
+        private void RefreshScope()
+        {
+            _nextScopeRefresh = Time.unscaledTime + 0.25f;
+            _mouseScope = _registration != null ? L("quantity_scope", "Target quantity · 1 or more")
+                : _restock ? L("restock_scope", "{key} · mode and target per favorite stack").Replace("{key}", GetContainerRestockKeyDisplayText())
+                : L("exclude_scope", "Manual E pickup is still available");
+            if (!_controllerActive) _scope.text = _mouseScope;
+            // Keep this explanation separate from the subtitle, which is also
+            // used for controller navigation. Refresh bindings without rebuilding rows.
+            string hint = _restock && _registration == null
+                ? L("quickstack_surplus", "Hold {useKey}: Store surplus above enabled targets (per favorite stack).")
+#if INVENTORY_SLOTS
+                    .Replace("{useKey}", GetContainerQuickStackKeyDisplayText())
+#else
+                    .Replace("{useKey}", GetFeatureGuideUseKeyDisplayText())
+#endif
+                : "";
+            float width = _popup.rect.width - 24f;
+            if (_quickStackHint.text == hint && Mathf.Abs(_hintWidth - width) < 0.1f) return;
+            _hintWidth = width;
+            _quickStackHint.text = hint;
+            _quickStackHint.gameObject.SetActive(hint.Length > 0);
+            PopupHeaderHeight = PopupBaseHeaderHeight;
+            if (hint.Length == 0) return;
+            float height = Mathf.Max(18f, Mathf.Ceil(_quickStackHint.GetPreferredValues(hint, width, 0f).y));
+            Frame(_quickStackHint.rectTransform, 12, -PopupBaseHeaderHeight, width, height);
+            PopupHeaderHeight += height + 6f;
+        }
+
+        private void SetStatus(string text, bool controllerStatus = false)
+        {
+            _status.text = text;
+            _controllerStatus = controllerStatus;
+            // Resize before controller focus scrolling uses the available list height.
+            if (Open) PositionPopup();
         }
 
         private bool CanRegisterHeldItem()
@@ -591,8 +719,7 @@ public sealed partial class InventoryActionsPlugin
             }
             else if (_controllerStatus)
             {
-                _status.text = "";
-                _controllerStatus = false;
+                SetStatus("");
             }
             // Deactivation can run onEndEdit and report a failed save. Keep
             // that message instead of replacing it with the selected mode.
@@ -629,15 +756,20 @@ public sealed partial class InventoryActionsPlugin
             if (!_controllerActive || row == null) return;
             if (updateStatus)
             {
-                _status.text = _controllerFocus.Column switch
+                SetStatus(_controllerFocus.Column switch
                 {
                     ItemRuleControllerState.Control.Quantity => L("quantity", "Target quantity") + ": " + row.Entry.Amount,
                     ItemRuleControllerState.Control.Remove => L("remove_help", "Remove this entry from the list."),
                     _ => _restock ? GetRestockModeTitle(row.Entry.Mode) : GetExclusionTitle(row.Entry.Excluded)
-                };
-                _controllerStatus = true;
+                }, controllerStatus: true);
             }
-            float top = _controllerFocus.Row * RowHeight;
+            ScrollRowIntoView(_controllerFocus.Row);
+        }
+
+        private void ScrollRowIntoView(int row)
+        {
+            if (row < 0 || row >= _controllerRows.Count) return;
+            float top = row * RowHeight;
             float offset = _content.anchoredPosition.y;
             if (top < offset) offset = top;
             else if (top + RowHeight > offset + _viewport.rect.height) offset = top + RowHeight - _viewport.rect.height;
@@ -691,6 +823,11 @@ public sealed partial class InventoryActionsPlugin
             if (HasBlockingDialog)
             { Close(); return; }
             UpdateControllerInput();
+            if (Open && Time.unscaledTime >= _nextScopeRefresh)
+            {
+                RefreshScope();
+                PositionPopup();
+            }
             if (Open && Pinned && (ZInput.GetKeyDown(KeyCode.Escape) ||
                 IsControllerInputUpdated() && TakeControllerButton("JoyButtonB")))
             { Close(); return; }
@@ -781,7 +918,6 @@ public sealed partial class InventoryActionsPlugin
             else
             {
                 Render();
-                _status.text = L("registered", "Registered") + ": " + GetLocalizedItemName(item);
                 ScrollTo(entry.Key);
             }
         }
@@ -793,9 +929,8 @@ public sealed partial class InventoryActionsPlugin
 
         private bool Save()
         {
-            _controllerStatus = false;
             if (!string.Equals(Setting.Value, _snapshot, StringComparison.Ordinal))
-            { _status.text = L("conflict", "Config changed. Finish editing to reload."); return false; }
+            { SetStatus(L("conflict", "Config changed. Finish editing to reload.")); return false; }
             string next = ItemRuleConfigCore.Write(_snapshot, _entries, _restock);
             List<ItemRuleConfigCore.Entry> saved = ItemRuleConfigCore.Read(next, _restock);
             // Validate before touching the config: a prefab containing config
@@ -803,17 +938,17 @@ public sealed partial class InventoryActionsPlugin
             if (!_entries.Where(entry => !entry.Removed)
                     .Select(entry => (entry.Key, entry.Excluded))
                     .SequenceEqual(saved.Select(entry => (entry.Key, entry.Excluded))))
-            { _status.text = L("save_failed", "Could not save config."); return false; }
+            { SetStatus(L("save_failed", "Could not save config.")); return false; }
             try
             {
                 if (next != _snapshot && !ItemRuleConfigStore.Save(Setting, _snapshot, next))
-                { _status.text = L("conflict", "Config changed. Finish editing to reload."); return false; }
+                { SetStatus(L("conflict", "Config changed. Finish editing to reload.")); return false; }
             }
             catch (Exception error)
-            { Log.LogWarning("Could not save item rules: " + error.Message); _status.text = L("save_failed", "Could not save config."); return false; }
+            { Log.LogWarning("Could not save item rules: " + error.Message); SetStatus(L("save_failed", "Could not save config.")); return false; }
             ItemRuleConfigCore.AcceptSaved(_entries, saved);
             _snapshot = next;
-            _status.text = L("saved", "Saved");
+            SetStatus("");
             return true;
         }
 
@@ -873,6 +1008,8 @@ public sealed partial class InventoryActionsPlugin
                 ? _controllerRows[_controllerFocus.Row].Entry.Key : null;
             _controllerFocus.EndEditing();
             ClearRows();
+            _status.text = "";
+            _controllerStatus = false;
             float width = Mathf.Clamp(_root.rect.width - 16f, 260f, PopupWidth);
             float inner = width - 24f;
             List<ItemRuleConfigCore.Entry> visible = _registration != null ? new() { _registration } : _entries.Where(e => !e.Removed).ToList();
@@ -883,19 +1020,16 @@ public sealed partial class InventoryActionsPlugin
                     .Select(group => group.LastOrDefault(entry => entry.Excluded) ?? group.Last()).ToList();
             _visibleRowCount = Mathf.Max(1, visible.Count);
             float viewHeight = Mathf.Max(1, Mathf.Min(6, visible.Count)) * RowHeight;
-            _popup.sizeDelta = new Vector2(width, PopupChromeHeight + viewHeight);
+            _popup.sizeDelta = new Vector2(width, _popup.sizeDelta.y);
             Frame(_title.rectTransform, 12, -10, inner, 28);
             Frame(_scope.rectTransform, 12, -39, inner, 34);
             _title.text = _restock ? L("restock_title", "Restock targets") : L("exclude_title", "Auto pickup exclusions");
             _title.color = _gold;
-            _mouseScope = _registration != null ? L("quantity_scope", "Target quantity · 1 or more")
-                : _restock ? L("restock_scope", "{key} · mode and target per favorite stack").Replace("{key}", GetContainerRestockKeyDisplayText()) : L("exclude_scope", "Manual E pickup is still available");
+            RefreshScope();
             _scope.text = _mouseScope;
-            Frame(_viewport, 12, -78, inner, viewHeight);
             _content.sizeDelta = new Vector2(inner, Mathf.Max(1, visible.Count) * RowHeight);
             _content.anchoredPosition = Vector2.zero;
-            Frame(_status.rectTransform, 12, -82 - viewHeight, inner, 30);
-            _status.text = "";
+            ResizePopupViewport(viewHeight);
             if (visible.Count == 0)
             {
                 TMP_Text empty = Text(_content, "Empty", L("empty", "No registered items"), 16);
@@ -1085,7 +1219,7 @@ public sealed partial class InventoryActionsPlugin
                 // An empty/invalid edit buffer must never disable restock or be
                 // written to config. Keep the last successfully saved quantity.
                 if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int amount) || amount < 1)
-                { _status.text = L("invalid", "Enter a positive whole number."); return; }
+                { SetStatus(L("invalid", "Enter a positive whole number.")); return; }
                 string previous = entry.Amount;
                 entry.Amount = text;
                 if (!Save()) { entry.Amount = previous; input.SetTextWithoutNotify(previous); }
@@ -1096,7 +1230,7 @@ public sealed partial class InventoryActionsPlugin
                 if (normalized.Length == 0)
                 {
                     input.SetTextWithoutNotify(entry.Amount);
-                    _status.text = L("restored", "Last saved quantity restored");
+                    SetStatus(L("restored", "Last saved quantity restored"));
                     return;
                 }
                 if (normalized == entry.Amount)

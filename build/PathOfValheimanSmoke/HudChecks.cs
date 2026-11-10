@@ -117,6 +117,29 @@ internal static partial class Program
                 Check(hudEquipmentQueries == 1, "following default panel refreshes ring spacing before first Tab");
                 follow.BoxedValue = Enum.Parse(follow.SettingType, "Off"); Sync();
                 Check(hudEquipmentQueries == 1, "switching back to independent HUD stops equipment queries");
+                FieldInfo povField = plugin.GetField("_pov", Statics)!;
+                object? savedPov = povField.GetValue(null);
+                try
+                {
+                    povField.SetValue(null, null);
+                    follow.BoxedValue = Enum.Parse(follow.SettingType, "On"); Sync();
+                    int queries = hudEquipmentQueries;
+                    Sync(); Sync();
+                    Check(hudEquipmentQueries == queries, "following HUD without PoV reuses unchanged equipment layout");
+                    Call("InvalidateInventoryPlacementCaches"); Sync();
+                    Check(hudEquipmentQueries == ++queries, "pickup invalidates small-row layout without PoV");
+                    var known = (HashSet<string>)AccessTools.Field(typeof(Player), "m_knownMaterial").GetValue(player);
+                    known.Add("smoke.smallSlot.discovery"); Sync();
+                    Check(hudEquipmentQueries == ++queries, "item discovery refreshes small-row layout without PoV");
+                    known.Remove("smoke.smallSlot.discovery"); Sync(); queries++;
+                    Call("ClearEquipmentPanelLayout"); Sync();
+                    Check(hudEquipmentQueries == ++queries, "GUI teardown rebuilds following HUD before reopening inventory");
+                }
+                finally
+                {
+                    povField.SetValue(null, savedPov);
+                    follow.BoxedValue = Enum.Parse(follow.SettingType, "Off"); Sync(true);
+                }
             }
             finally { offsetField.SetValue(panels, oldOffset); }
             FieldInfo rootField = panels.GetType().GetField("QuickSlotsHotkeyBarRect")!;

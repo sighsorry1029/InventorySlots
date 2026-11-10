@@ -1,5 +1,6 @@
 using System;
 using HarmonyLib;
+using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
@@ -10,11 +11,13 @@ internal static class InventoryGuiCraftingViewDestroyPatch
 {
     private static void Prefix(InventoryGui __instance)
     {
+        InventorySlotsPlugin.ClearPathOfValheimanCharacterUi();
         InventorySlotsPlugin.CancelInventoryClosingLayout(__instance);
         InventorySlotsPlugin.RestoreCraftingStationLevelLayout(__instance);
         InventorySlotsPlugin.DestroyCraftingListViewUi(__instance);
         InventorySlotsPlugin.ClearPathOfValheimanCraftingUi(__instance);
         InventorySlotsPlugin.ClearPathOfValheimanStoragePanels();
+        InventorySlotsPlugin.ClearEquipmentPanelLayout();
     }
 }
 
@@ -89,9 +92,17 @@ internal static class InventoryGuiCraftingRecipeVariantSelectedPatch
 [HarmonyBefore(new[] { "org.bepinex.plugins.jewelcrafting" })]
 internal static class InventoryGuiJewelcraftingRecipeListPrimaryTabPreflightPatch
 {
-    private static void Prefix(InventoryGui __instance)
+    private static void Prefix(InventoryGui __instance, out GameObject? __state)
     {
+        __state = null;
         InventorySlotsPlugin.NormalizeJewelcraftingSocketTabForPrimaryCraftingTab(__instance);
+        __state = InventorySlotsPlugin.PrepareCraftingRecipeListRebuild(__instance);
+    }
+
+    private static Exception? Finalizer(InventoryGui __instance, GameObject? __state, Exception? __exception)
+    {
+        if (__exception != null) InventorySlotsPlugin.RestoreFailedCraftingRecipeListRebuild(__instance, __state);
+        return __exception;
     }
 }
 
@@ -113,7 +124,7 @@ internal static class InventoryGuiCraftingQueueStartPatch
 {
     private static bool Prefix(InventoryGui __instance)
     {
-        if (!InventorySlotsPlugin.CanStartCraftingAction(__instance))
+        if (InventorySlotsPlugin.IsPathOfValheimanCharacterActive(__instance) || !InventorySlotsPlugin.CanStartCraftingAction(__instance))
         {
             return false;
         }

@@ -73,7 +73,8 @@ internal static partial class Program
                   !((List<string>)bridgeType.GetField("UnhostedUtilityCells", Instances)!.GetValue(bridge)!).Contains("utility.future") &&
                   !(bool)bridgeType.GetMethod("SupportsCell", Statics)!.Invoke(null, new object[] { "utility.future" })!,
                 "new native role retains original behavior and recovery without creating a panel cell or blocking initialization");
-            Check(((HashSet<int>)bridgeType.GetField("UnsupportedOrdinals", Instances)!.GetValue(bridge)!).Contains(24), "existing purse omission remains disabled");
+            Check(!((HashSet<int>)bridgeType.GetField("UnsupportedOrdinals", Instances)!.GetValue(bridge)!).Contains(24) &&
+                ((HashSet<int>)bridgeType.GetField("UnsupportedOrdinals", Instances)!.GetValue(bridge)!).Contains(25), "wallet first cell is hosted; remaining native purse cells stay closed");
             fixtureStorageCells = storageIds.Concat(new[] { "utility.future" }).ToArray();
             Set("Worn", false);
             Set("Id", "helmet");

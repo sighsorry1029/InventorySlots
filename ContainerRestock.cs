@@ -67,6 +67,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void AppendContainerRestockHoverText(Container container, ref string text)
     {
+        if (InventoryCompatibility.PathOfValheimanActions.IsSpecialContainer(container)) return;
         Player? player = Player.m_localPlayer;
         if (player == null || player.m_isLoading || container == null || string.IsNullOrWhiteSpace(text))
         {

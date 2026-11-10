@@ -120,6 +120,13 @@ public sealed partial class InventorySlotsPlugin
             SlotDefinitions.Add(lantern);
             PovSlots.Add("belt.lantern", lantern);
         }
+        if (_pov.HasWallet)
+        {
+            var wallet = new SlotDefinition("pov.purse", "Coins", SlotKind.Quick,
+                item => item != null && IsPathOfValheimanCoin(item), povCell: PovWalletCell);
+            SlotDefinitions.Add(wallet);
+            PovSlots.Add(PovWalletCell, wallet);
+        }
     }
 
     private static string PovCellLabel(string id)
@@ -207,8 +214,7 @@ public sealed partial class InventorySlotsPlugin
         if (_povCoinWeightInventory == inventory && _povCoinsWeightless == weightless) return;
         _povCoinWeightInventory = inventory;
         _povCoinsWeightless = weightless;
-        // No purse cell exists in the unlock stamp. Recalculate on node changes
-        // even when none of the ordinary inventory items moved.
+        // Recalculate on node changes even when ordinary coins did not move.
         inventory.Changed();
     }
 
@@ -227,12 +233,29 @@ public sealed partial class InventorySlotsPlugin
         Inventory inventory = player.GetInventory();
         if (!IsSpecialSlotUnlocked(player, inventory, slot)) return false;
         if (!ContainsExactItemReference(inventory, item) || !TryGetSlotGridPos(inventory, slot, out Vector2i target)) return false;
+        if (IsPathOfValheimanWalletSlot(slot))
+            return IsWalletItem(inventory, item) || DepositWallet(inventory, item, item.m_stack);
         if (IsPathOfValheimanTrinketSlot(slot)) return TryEquipPathOfValheimanTrinket(player, inventory, item, slot);
         bool nativeEquipment = IsPathOfValheimanNativeEquipmentSlot(slot);
         if (inventory.GetItemAt(target.x, target.y) == item && !nativeEquipment) return true;
         // Empty destinations only for API calls. UI inventory moves retain their
         // existing stack/swap transaction; a rejected API call changes nothing.
-        if (inventory.GetItemAt(target.x, target.y) is ItemData occupant && occupant != item) return false;
+        if (inventory.GetItemAt(target.x, target.y) is ItemData occupant && occupant != item)
+        {
+            if (!CanSwapPathOfValheimanQuiver(player, inventory, item, occupant, slot)) return false;
+            // The native equip completion wrapper owns the paired move. A queued
+            // action must leave both cells untouched until it actually equips.
+            try
+            {
+                return _pov.Equip(player, cell, item) &&
+                    (player.IsEquipActionQueued(item) || ReferenceEquals(_pov.NativeItem(player, cell), item) && item.m_gridPos == target);
+            }
+            catch (Exception error)
+            {
+                Log.LogWarning("PoV quiver replacement failed: " + error.GetBaseException().Message);
+                return false;
+            }
+        }
         Vector2i oldPosition = item.m_gridPos;
         var snapshots = CaptureSlotEquipItemSnapshots(player, inventory, item, slot, target);
         var equipment = CaptureHumanoidEquipmentSnapshot(player);
@@ -305,6 +328,12 @@ public sealed partial class InventorySlotsPlugin
         ItemData? item = ReadPathOfValheimanItem(player, cell);
         if (item == null) return true;
         Inventory inventory = player.GetInventory();
+        if (cell == PovWalletCell)
+        {
+            int before = item.m_stack;
+            WithdrawWalletAutomatically(inventory, inventory, item);
+            return item.m_stack < before;
+        }
         if (!TryFindFreeRegularCell(player, inventory, out Vector2i destination)) return false;
         _povMutationDepth++;
         try { item.m_gridPos = destination; }

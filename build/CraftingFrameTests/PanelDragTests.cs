@@ -16,8 +16,8 @@ internal static class PanelDragTests
             "CommitDraggedInventoryPanelOffset", "SaveInventoryPanelPosition", "UpdateInventoryPanelDragging" }
             .Select(name => Method("InventorySlotPanels.cs", name)));
         methods += Method("InventoryQuickSlotPanels.cs", "PositionQuickSlotPanel");
-        methods += Method("PathOfValheimanStoragePanel.cs", "GetQuickSlotPanelDisplayOffset");
-        methods += Method("PathOfValheimanStoragePanel.cs", "IsQuickSlotPanelAtDefaultPosition");
+        methods += Method("EquipmentPanelLayout.cs", "GetQuickSlotPanelDisplayOffset");
+        methods += Method("EquipmentPanelLayout.cs", "IsQuickSlotPanelAtDefaultPosition");
         var references = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator)
             .Select(path => MetadataReference.CreateFromFile(path));
         var compilation = CSharpCompilation.Create("PanelDragRegression", [CSharpSyntaxTree.ParseText(Host.Replace("/* PRODUCTION */", methods))],
@@ -98,7 +98,7 @@ public static class PanelHost
     private static void EnsureClientStateLoaded() { }
     private static void SaveClientState()=>Saves++;
     private static void SaveQuickSlotHudAnchor()=>HudSaves++;
-    private static float GetPathOfValheimanRingPanelRows()=>RingRows;
+    private static float GetSmallEquipmentPanelRows()=>RingRows;
     private static void CaptureQuickSlotHudAnchor(RectTransform panel,Vector3 target,float spacing) { }
     /* PRODUCTION */
     private static void Check(bool value,string name) { if(!value)throw new Exception(name); Checks++; }

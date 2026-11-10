@@ -162,6 +162,9 @@ public sealed partial class InventorySlotsPlugin
         }
 
         CraftingRecipes.View.Clear();
+        // These lists depend only on group policy during this rebuild. Do not
+        // retain them across live YAML/configuration changes.
+        var groupOrders = new Dictionary<string, List<string>>(StringComparer.Ordinal);
         for (int i = 0; i < gui.m_availableRecipes.Count; i++)
         {
             InventoryGui.RecipeDataPair pair = gui.m_availableRecipes[i];
@@ -176,12 +179,15 @@ public sealed partial class InventorySlotsPlugin
                 i,
                 pair,
                 !adapter.IsRecycleNReclaim && IsFavoriteCraftingRecipe(pair),
-                GetCraftingRecipeSortKey(pair),
+                GetCraftingRecipeSortKey(pair, groupOrders),
                 isVeiledRecipeMasked,
                 IsVeiledRecipePreview(pair)));
         }
 
-        CraftingRecipes.View.Sort((a, b) => CompareCraftingRecipeViewEntriesForAdapter(adapter, a, b));
+        bool groupVeiled = !adapter.IsRecycleNReclaim && !adapter.IsPathOfValheimanSalvage &&
+                           ShouldGroupVeiledRecipePreviewsBelowKnownRecipes();
+        CraftingRecipeSortMode sortMode = _craftingRecipeSortMode?.Value ?? CraftingRecipeSortMode.TierThenGroup;
+        CraftingRecipes.View.Sort((a, b) => CompareCraftingRecipeViewEntriesForAdapter(adapter, a, b, groupVeiled, sortMode));
         RebuildCraftingRecipeViewIndexCache();
         CraftingController.StoreRecipeViewSignature(signature);
         CraftingController.MarkRecipeGridLayoutDirty();
@@ -229,7 +235,7 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
-    private static SortKey GetCraftingRecipeSortKey(InventoryGui.RecipeDataPair pair)
+    private static SortKey GetCraftingRecipeSortKey(InventoryGui.RecipeDataPair pair, Dictionary<string, List<string>> groupOrders)
     {
         CraftingRecipePairCacheKey cacheKey = GetCraftingRecipePairCacheKey(pair);
         if (cacheKey.IsValid && CraftingRecipes.SortKeyCache.TryGetValue(cacheKey, out SortKey cached))
@@ -237,7 +243,7 @@ public sealed partial class InventorySlotsPlugin
             return cached;
         }
 
-        SortKey key = CreateCraftingRecipeSortKey(pair);
+        SortKey key = CreateCraftingRecipeSortKey(pair, groupOrders);
         if (cacheKey.IsValid)
         {
             CraftingRecipes.SortKeyCache[cacheKey] = key;
@@ -311,14 +317,19 @@ public sealed partial class InventorySlotsPlugin
         }
     }
 
-    private static int GetItemPredefinedGroupRank(ItemData? item, string bigGroupId, int bigGroupRank)
+    private static int GetItemPredefinedGroupRank(ItemData? item, string bigGroupId, int bigGroupRank,
+        Dictionary<string, List<string>>? groupOrders = null)
     {
         if (item?.m_shared == null)
         {
             return int.MaxValue;
         }
 
-        List<string> order = GetPredefinedGroupOrderForCraftingGroup(bigGroupId);
+        if (groupOrders == null || !groupOrders.TryGetValue(bigGroupId, out List<string> order))
+        {
+            order = GetPredefinedGroupOrderForCraftingGroup(bigGroupId);
+            if (groupOrders != null) groupOrders[bigGroupId] = order;
+        }
         for (int i = 0; i < order.Count; i++)
         {
             if (ItemMatchesPredefinedGroup(item, order[i]))
@@ -356,10 +367,22 @@ public sealed partial class InventorySlotsPlugin
 
     private static string GetCraftingRecipeBigGroupId(InventoryGui.RecipeDataPair pair)
     {
+        ItemData? item = GetCraftingRecipeItemData(pair);
+        if (item == null) return "";
+        // The group rail may already have classified part of this recipe list.
+        // Reuse its results without extending their lifetime or rechecking precedence.
+        CraftingRecipePairCacheKey cacheKey = GetCraftingRecipePairCacheKey(pair);
+        Dictionary<string, bool>? knownMatches = null;
+        if (cacheKey.IsValid) CraftingRecipes.GroupMatchCache.TryGetValue(cacheKey, out knownMatches);
         for (int i = 0; i < CraftingRecipeGroupFilters.Count; i++)
         {
             CraftingRecipeGroupFilter filter = CraftingRecipeGroupFilters[i];
-            if (filter.Id != "favorite" && RecipeMatchesCraftingGroup(pair, filter))
+            if (filter.Id == "favorite") continue;
+            // This traversal already selects the first match. The selected-group
+            // filter still uses RecipeMatchesCraftingGroup and its precedence guard.
+            bool matches = knownMatches != null && knownMatches.TryGetValue(NormalizeGroupId(filter.Id), out bool cached)
+                ? cached : filter.Matches(item);
+            if (matches)
             {
                 return filter.Id;
             }

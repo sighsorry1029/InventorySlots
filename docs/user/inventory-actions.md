@@ -14,7 +14,7 @@ The guide uses a fixed screen-relative position near the upper right, including 
 
 When updating from a version that saved the guide in ClientState YAML, select Hidden once again if desired. Previous guide preferences are not imported; favorite slots and other ClientState data are retained.
 
-**Toggle Feature Guide Key** is client-only and supports another key or a combination; **None** disables the shortcut. Find it under **7 - Keyboard & Mouse** in InventorySlots or **2 - Client** in InventoryActions. The key is ignored while typing, using configuration menus, or interacting with dialogs.
+**Toggle Feature Guide Key** is client-only and supports another key or a combination; **None** disables the shortcut. Find it under **8 - Keyboard & Mouse** in InventorySlots or **2 - Client** in InventoryActions. The key is ignored while typing, using configuration menus, or interacting with dialogs.
 
 **Configuration Manager is optional.** F1 opens that separate mod's settings window only when it is installed and uses that binding. You can also edit **Feature Guide State** and the shortcut in `BepInEx/config/sighsorry.InventorySlots.cfg` or `BepInEx/config/sighsorry.InventoryActions.cfg` while the game is closed. To restore a hidden guide with its keyboard shortcut unset, select Expanded or Collapsed in the setting, or use **LT + R3** in the inventory.
 
@@ -22,7 +22,7 @@ When updating from a version that saved the guide in ClientState YAML, select Hi
 
 Hold **Left Alt** and left-click a player inventory cell to toggle its blue favorite border. The favorite belongs to the **slot**, so it remains when that slot becomes empty. The modifier is configurable.
 
-Favorite slots are protected from automatic quick stack, player sorting movement, and trash. They are also the targets for favorite restock. InventorySlots permits favorites in regular rows, the hotbar, and quick slots. InventoryActions permits them in supported player rows, including the hotbar; the external-slot integrations described in the compatibility guide apply.
+Favorite slots are protected from player sorting movement and trash. Quick Stack protects them too, except surplus above an explicitly enabled restock target in eligible regular cells. They are also the targets for favorite restock. InventorySlots permits favorites in regular rows, the hotbar, and quick slots. InventoryActions permits them in supported player rows, including the hotbar; the external-slot integrations described in the compatibility guide apply.
 
 Press the player's **S** button to sort. Sorting first fills existing favorite stacks from compatible non-favorite stacks outside the hotbar, then merges and sorts the remaining ordinary stacks. It fills favorites from top to bottom, left to right, up to their current maximum stack size. Favorite stacks stay in place, never donate to one another, and empty favorite slots remain empty. This filling step is always enabled and does not use restock target quantities.
 
@@ -36,9 +36,9 @@ Local Quick Stack, Restock and other native transfers can merge stacks with iden
 
 | Control | Effect |
 | --- | --- |
-| Hold **Use** while looking at a chest; **E** by default | Quick stack matching, eligible non-favorite items into that chest and nearby eligible chests. |
+| Hold **Use** while looking at a chest; **E** by default | Quick stack matching, eligible items into that chest and nearby eligible chests, including favorite surplus above enabled targets. |
 | Hold **Alt + E** by default while looking at a chest | Refill favorite stacks from that chest and nearby eligible chests. |
-| **Place stacks** in an open chest | Quick stack matching, eligible non-favorite player items into that chest only. |
+| **Place stacks** in an open chest | The same Quick Stack rules, into that chest only. |
 | **Take stacks** in an open chest | Fill matching non-favorite partial player stacks from that chest only. |
 | **Place all** in an open chest | Move eligible non-favorite regular inventory items into that chest. |
 
@@ -46,7 +46,7 @@ Quick stack also moves non-stackable materials, such as mead bases, into empty c
 
 Nearby-container ranges are centered on the chest you interact with. A range of `0` removes the nearby portion of that action. Access restrictions and wards still apply. Occupied, unsupported, or inaccessible targets may be skipped; see the compatibility guide for shared chests.
 
-**Take stacks and favorite restock have different targets.** Restock rules below apply to the favorite-restock shortcut, not Take stacks, Take All, manual moves, or crafting material use. Non-stackable favorite items are not restocked.
+**Take stacks and favorite restock have different targets.** Restock rules below apply to favorite restock and Quick Stack's favorite-surplus limit, not Take stacks, Take All, Place all, sorting, manual moves, or crafting material use. Non-stackable favorite items are not restocked.
 
 ## Restock targets
 
@@ -62,7 +62,9 @@ The small mode button beside the quantity cycles through:
 
 Quantities apply **per favorite slot**, from `1` to the item's current maximum stack. For example, `Wood: 30 | IncludeEmpty` can restore up to 30 wood to each remembered wood slot after you consume it. Occupied slots are never replaced. An item with no valid rule uses Existing behavior up to its normal maximum stack.
 
-In Configuration Manager, find **Restock Target Stack Limits** under **8 - Inventory Buttons** in InventorySlots or **3 - Inventory Buttons** in InventoryActions:
+**Quick Stack stores only the excess from favorites with an enabled target.** Both Existing and IncludeEmpty protect the target quantity in each eligible favorite stack. With 150 Stone and a target of 100, Hold E or Place stacks can store 50; with two favorite stacks of 150 and 80, it leaves 100 and 80. This is not a total-inventory limit. Saved targets are capped by the item's current maximum stack, just as for restock. Off, unlisted, or invalid rules keep favorite stacks fully protected from Quick Stack. Hotbar, equipment, and quick-slot protections remain unchanged. A matching item must already be present in the destination chest, and capacity, access, and metadata restrictions still apply; surplus stays with you if it cannot be stored.
+
+In Configuration Manager, find **Restock Target Stack Limits** under **7 - Inventory Buttons** in InventorySlots or **3 - Inventory Buttons** in InventoryActions:
 
 ```text
 Stone: 10 | Existing, Coins: 500 | IncludeEmpty, Wood: 30 | Off
@@ -105,7 +107,7 @@ The server-synced **1 - General → Enable Inventory Trash Panel** setting contr
 
 ## Button display and editing
 
-The **Restock Button**, **Auto Pickup Exclude Button**, and **Trash Button** settings are under **8 - Inventory Buttons** in InventorySlots or **3 - Inventory Buttons** in InventoryActions:
+The **Restock Button**, **Auto Pickup Exclude Button**, and **Trash Button** settings are under **7 - Inventory Buttons** in InventorySlots or **3 - Inventory Buttons** in InventoryActions:
 
 | Mode | Display |
 | --- | --- |
@@ -114,5 +116,14 @@ The **Restock Button**, **Auto Pickup Exclude Button**, and **Trash Button** set
 | **Off** | Hides the button and closes its editor. Saved restock and exclusion rules remain active. |
 
 Holding an item alone does not expand Auto buttons. Enabled buttons pack along the bottom in Restock, Exclude, Trash order from left to right. Hover Restock/Exclude for a preview or click to pin the editor. Long lists scroll, and valid edits save immediately.
+
+**Item Rule Panel Scroll Mode** applies to both Restock targets and Auto pickup
+exclusions. **Row** (default) moves one row per wheel unit; **Page** moves the number
+of complete rows currently visible, adapting to the available screen space.
+Wheel movement aligns to row boundaries and still exposes the entire last row at
+the bottom. The thin scrollbar appears only when the list overflows; dragging it
+and controller navigation retain their usual behavior. Find this client-only,
+live setting under **7 - Inventory Buttons** in InventorySlots or **3 - Inventory
+Buttons** in InventoryActions.
 
 **Show Rule Tooltips** controls help in the rule panels and F1 restock controls. It does not disable item-information tooltips or Configuration Manager descriptions. Rules and button settings are client-only; changing them in game applies immediately. Editing a `.cfg` file on disk requires a configuration reload or game restart.

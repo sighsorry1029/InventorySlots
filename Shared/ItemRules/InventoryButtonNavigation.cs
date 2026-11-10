@@ -190,6 +190,9 @@ public sealed partial class InventoryActionsPlugin
         int rows = GetControllerInventoryButtonRows(gui);
         bool downFromGrid = ControllerDirectionDown("Down"), upFromGrid = ControllerDirectionDown("Up");
         bool rightFromGrid = ControllerDirectionDown("Right"), leftFromGrid = ControllerDirectionDown("Left");
+#if INVENTORY_SLOTS
+        if (NavigateWallet(gui, grid, cell, rows, upFromGrid, downFromGrid, leftFromGrid, rightFromGrid)) return true;
+#endif
         // Native grid navigation may move onto the last row between our entry
         // points, or onto the last column beside Sort. That same input must not
         // also enter either external button afterwards.

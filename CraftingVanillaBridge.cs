@@ -8,6 +8,51 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
+    internal static GameObject? PrepareCraftingRecipeListRebuild(InventoryGui gui)
+    {
+        if (IsDedicatedServer || gui == null || gui != InventoryGui.instance || Player.m_localPlayer == null ||
+            gui.m_recipeListRoot == null) return null;
+
+        // Show calls UpdateRecipeList before the inventory animator activates its
+        // hierarchy. Test the selected tabs locally, not IsVisible/activeInHierarchy.
+        bool primary = IsCraftingPrimaryTabSelected(gui) &&
+                       !IsPathOfValheimanSalvageTab(gui) && !IsJewelcraftingCraftingRedesignTab(gui) &&
+                       !IsRecycleNReclaimReclaimTabActive(gui) &&
+                       !HasActiveForeignCraftingTab(gui, includeHiddenInventory: true);
+        if (!primary)
+        {
+            // The previous close may have kept our native rows suppressed. Give
+            // foreign rebuilds their original input UI state before they run.
+            if (_craftingVanillaRecipeElementsHidden)
+            {
+                SetCraftingVanillaRecipeElementsVisible(gui, visible: true);
+                _craftingVanillaRecipeElementsHidden = false;
+            }
+            return null;
+        }
+
+        GameObject root = gui.m_recipeListRoot.gameObject;
+        if (!root.activeSelf) return null;
+        root.SetActive(false);
+        // Do not mark the rows hidden: vanilla is about to create new row objects.
+        return root;
+    }
+
+    internal static void RestoreFailedCraftingRecipeListRebuild(InventoryGui gui, GameObject? changedRoot)
+    {
+        // Restore only the exact hierarchy changed by this invocation. Never
+        // swallow the original exception or restore over a replacement GUI/root.
+        try
+        {
+            if (gui == InventoryGui.instance && changedRoot != null && gui.m_recipeListRoot != null &&
+                gui.m_recipeListRoot.gameObject == changedRoot) changedRoot.SetActive(true);
+        }
+        catch (Exception error)
+        {
+            Log.LogWarning($"Crafting recipe UI cleanup failed: {error.Message}");
+        }
+    }
+
     private static bool IsForeignCraftingUiTransform(InventoryGui gui, Transform transform)
     {
         if (transform == null || gui.m_crafting == null || !transform.IsChildOf(gui.m_crafting))

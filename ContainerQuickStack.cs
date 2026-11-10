@@ -12,6 +12,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static bool TryHandleVanillaPlaceStacks(InventoryGui gui)
     {
+        if (gui != null && InventoryCompatibility.PathOfValheimanActions.IsSpecialContainer(gui.m_currentContainer)) return false;
         if (gui == null || gui.m_currentContainer == null)
         {
             return false;
@@ -39,6 +40,7 @@ public sealed partial class InventorySlotsPlugin
     internal static bool TryHandleContainerStackAll(Container container)
     {
         if (NativeContainerHandoff.IsRequestBlocked(container)) return true;
+        if (InventoryCompatibility.PathOfValheimanActions.IsSpecialContainer(container)) return false;
         if (ShouldSuppressContainerStackAllForRestock(container))
         {
             return true;
@@ -220,16 +222,21 @@ public sealed partial class InventorySlotsPlugin
         ShowContainerActionResult(localPlayer, "$inventoryslots_action_stack", "Stack", moved);
     }
 
-    private static bool ShouldQuickStackItem(Player player, Inventory inventory, ItemData item)
+    private static bool ShouldQuickStackItem(Player player, Inventory inventory, ItemData item) =>
+        GetQuickStackTransferAmount(player, inventory, item) > 0;
+
+    private static int GetQuickStackTransferAmount(Player player, Inventory inventory, ItemData item)
     {
-        return item?.m_shared != null &&
-               // Single materials such as mead bases use a fresh chest cell.
-               (item.m_shared.m_maxStackSize > 1 ||
-                item.m_shared.m_maxStackSize == 1 && item.m_shared.m_itemType == ItemData.ItemType.Material) &&
-               IsRegularActionItem(player, inventory, item) &&
-               !IsEquippedContainerMoveSource(player, item) &&
-               !IsFavoriteProtected(player, inventory, item) &&
-               CanUseContainerActionStacking(item);
+        if (item?.m_shared == null ||
+            !(item.m_shared.m_maxStackSize > 1 ||
+              item.m_shared.m_maxStackSize == 1 && item.m_shared.m_itemType == ItemData.ItemType.Material) ||
+            !IsRegularActionItem(player, inventory, item) ||
+            IsEquippedContainerMoveSource(player, item) || !CanUseContainerActionStacking(item)) return 0;
+
+        return IsFavoriteProtected(player, inventory, item)
+            ? RestockTargetLimitCore.ResolveQuickStackAmount(InventoryDefinitions.RestockTargetStackLimits,
+                GetRestockTargetLookupTokens(item), item.m_shared.m_maxStackSize, item.m_stack)
+            : Math.Max(0, item.m_stack);
     }
 
     private static int QuickStackItemsIntoContainer(Player player, Inventory playerInventory, Inventory containerInventory, List<ItemData> candidates)
@@ -255,7 +262,7 @@ public sealed partial class InventorySlotsPlugin
                 continue;
             }
 
-            if (MoveItemToContainerTopFirst(player, playerInventory, containerInventory, item) > 0)
+            if (MoveItemToContainerTopFirst(player, playerInventory, containerInventory, item, quickStack: true) > 0)
             {
                 moved++;
             }
@@ -314,7 +321,8 @@ public sealed partial class InventorySlotsPlugin
         Player player,
         Inventory sourceInventory,
         Inventory targetInventory,
-        ItemData source)
+        ItemData source,
+        bool quickStack = false)
     {
         if (sourceInventory == null ||
             targetInventory == null ||
@@ -362,9 +370,9 @@ public sealed partial class InventorySlotsPlugin
                     continue;
                 }
 
-                int amount = Math.Min(
-                    target.m_shared.m_maxStackSize - target.m_stack,
-                    source.m_stack);
+                int available = quickStack ? GetQuickStackTransferAmount(player, sourceInventory, source) : source.m_stack;
+                if (available <= 0) return movedAmount;
+                int amount = Math.Min(target.m_shared.m_maxStackSize - target.m_stack, available);
                 if (amount <= 0)
                 {
                     continue;
@@ -405,7 +413,8 @@ public sealed partial class InventorySlotsPlugin
                 }
 
                 int before = source.m_stack;
-                int requestedAmount = source.m_stack;
+                int requestedAmount = quickStack ? GetQuickStackTransferAmount(player, sourceInventory, source) : source.m_stack;
+                if (requestedAmount <= 0) return movedAmount;
                 bool movedOk = targetInventory.MoveItemToThis(
                     sourceInventory,
                     source,

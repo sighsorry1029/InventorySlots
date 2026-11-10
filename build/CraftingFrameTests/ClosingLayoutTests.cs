@@ -55,9 +55,12 @@ public static class InventorySlotsPlugin
 {
     /* PRODUCTION */
     internal static void ClearPathOfValheimanCraftingUi(InventoryGui gui) { }
+    internal static void ClearPathOfValheimanCharacterUi() { }
+    internal static void SuspendPathOfValheimanCharacterUi() { }
     internal static void ClearPathOfValheimanStoragePanels() { }
+    internal static void ClearEquipmentPanelLayout() { }
     internal static void RestoreCraftingStationLevelLayout(InventoryGui gui) { }
-    private static string _craftingSearchQuery = "";
+    private static string _craftingSearchQuery = "", _selectedCraftingGroupId = "";
     private static int _craftingRecipePage, SearchDirty, ViewInvalidations;
     private static void InvalidateCraftingRecipeView() => ViewInvalidations++;
     private static int Checks, StatRestores, CraftRestores, QueueClears, PinHides, HoverClears, StatLayouts;
@@ -74,6 +77,7 @@ public static class InventorySlotsPlugin
         StatRestores = CraftRestores = QueueClears = PinHides = HoverClears = StatLayouts = 0;
         var gui = new InventoryGui();
         _craftingSearchQuery = "";
+        _selectedCraftingGroupId = "";
         SearchDirty = ViewInvalidations = 0;
         CraftingUi.SearchInputResetPending = false;
         gui.m_inventoryRoot!.gameObject.activeInHierarchy = active;
@@ -178,6 +182,30 @@ public static class InventorySlotsPlugin
         CraftingUi.SearchInput = new InputField();
         ResetClosedCraftingSearchInput();
         Expect(!CraftingUi.SearchInputResetPending && CraftingUi.SearchInput.text == "", "Recreated input also consumes the pending clear");
+
+        gui = Fresh();
+        _selectedCraftingGroupId = "food";
+        _craftingRecipePage = 3;
+        gui.m_animator.Visible = false;
+        OnInventoryGuiHide();
+        Expect(_selectedCraftingGroupId == "" && _craftingRecipePage == 0 && ViewInvalidations == 1 && SearchDirty == 0,
+            "Hide resets category even when search was already empty");
+        Expect(CraftRestores == 0 && !RecipePrefix(gui), "Category reset preserves the frozen closing layout");
+        OnInventoryGuiHide();
+        Expect(ViewInvalidations == 1, "Repeated Hide does not invalidate an already cleared category");
+        ShowPrefix(gui, out _);
+        Expect(_selectedCraftingGroupId == "" && !IsInventoryClosingLayoutPending(gui),
+            "Rapid reopen retains the All category before deferred cleanup completes");
+
+        gui = Fresh();
+        _selectedCraftingGroupId = "favorite";
+        _craftingSearchQuery = CraftingUi.SearchInput.text = "bronze";
+        gui.m_animator.Visible = false;
+        OnInventoryGuiHide();
+        Expect(_selectedCraftingGroupId == "" && _craftingSearchQuery == "" && _craftingRecipePage == 0,
+            "Hide resets favorite category and search together");
+        Expect(CraftingUi.SearchInput.text == "bronze" && CraftRestores == 0,
+            "Combined filter reset leaves visible outro contents unchanged");
         Console.WriteLine($"Closing layout lifecycle: {Checks} checks passed.");
     }
     private static bool IsInventoryPanelClosing(InventoryGui? gui) => gui != null && !gui.m_animator.Visible;

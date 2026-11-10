@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Serialization;
 using HarmonyLib;
 using ItemData = ItemDrop.ItemData;
 
@@ -13,6 +14,12 @@ internal static class PoVStackMetadataChecks
     private const string Expiry = "sighsorry.FineDining.ExpiryWorldTicks";
     private const string Lifetime = "sighsorry.FineDining.AssignedLifetimeTicks";
     private static bool withPoV;
+    private static bool templateFixture;
+    private static bool Template(ref bool __result) { __result = templateFixture; return false; }
+    private static bool PrefabName(ref string __result) { __result = "SmokeImplicitBase"; return false; }
+    private static bool NoRegistration() => false;
+    private static bool NoColorParser(ref UnityEngine.Color color, ref bool __result)
+    { color = UnityEngine.Color.white; __result = true; return false; }
 
     internal static void Run(Type plugin, Assembly? pov, Action<bool, string> check)
     {
@@ -24,13 +31,17 @@ internal static class PoVStackMetadataChecks
             {
                 bridge.GetMethod("Dispose", Static)!.Invoke(null, null);
                 bool lateNative = Environment.GetEnvironmentVariable("INVENTORY_TEST_POV_PATCH_ORDER") == "late";
-                if (lateNative) bridge.GetMethod("Install", Static)!.Invoke(null, new object[] { pov, "smoke." + plugin.Namespace });
+                if (lateNative) check(bridge.GetMethod("Install", Static)!.Invoke(null, new object[] { pov, "smoke." + plugin.Namespace }) == null,
+                    "reviewed native comparison enables composition without fallback warning");
                 foreach (string name in new[] { "StackContext", "MatchMetadata", "MetadataSpace", "ItemData_IsSameType" })
                     native.CreateClassProcessor(pov.GetType("PassiveTree.StackRules+" + name, true)!).Patch();
-                if (!lateNative) bridge.GetMethod("Install", Static)!.Invoke(null, new object[] { pov, "smoke." + plugin.Namespace });
+                if (!lateNative) check(bridge.GetMethod("Install", Static)!.Invoke(null, new object[] { pov, "smoke." + plugin.Namespace }) == null,
+                    "reviewed native comparison enables composition without fallback warning");
                 check((bool)bridge.GetProperty("Active", Static)!.GetValue(null)!, "metadata bridge installs with native PoV hooks " + (lateNative ? "registered later" : "registered first"));
             }
             RunCore(plugin, pov, check);
+            if (pov?.GetType("PassiveTree.Implicits")?.GetMethod("Settle", Static) != null)
+                CheckNormalization(plugin, pov, bridge, check);
             if (pov?.GetType("PassiveTree.StackRules")?.GetMethod("SameData", Static) != null)
                 CheckNativeComparison(plugin, pov, bridge, native, check);
         }
@@ -39,6 +50,66 @@ internal static class PoVStackMetadataChecks
             bridge.GetMethod("Dispose", Static)!.Invoke(null, null);
             native.UnpatchSelf();
         }
+    }
+
+    private static void CheckNormalization(Type plugin, Assembly pov, Type bridge, Action<bool, string> check)
+    {
+        Type implicitType = pov.GetType("PassiveTree.Implicits", true)!;
+        var boundary = new Harmony("smoke.pov.normalization-boundaries");
+        var bases = (System.Collections.IDictionary)implicitType.GetField("bases", Static)!.GetValue(null)!;
+        try
+        {
+            // Stub prefab inspection and asset registration, not SameData, Settle,
+            // corruption checks, or the inventory mod's metadata policy.
+            boundary.Patch(AccessTools.Method(typeof(UnityEngine.ColorUtility), "TryParseHtmlString"),
+                prefix: new HarmonyMethod(typeof(PoVStackMetadataChecks), nameof(NoColorParser)));
+            boundary.Patch(implicitType.GetMethod("IsTemplate", Static), prefix: new HarmonyMethod(typeof(PoVStackMetadataChecks), nameof(Template)));
+            boundary.Patch(AccessTools.PropertyGetter(typeof(UnityEngine.Object), "name"), prefix: new HarmonyMethod(typeof(PoVStackMetadataChecks), nameof(PrefabName)));
+            foreach (string name in new[] { "Belts", "Rings", "JewelImplicits", "StaffImplicits", "BaseImplicits" })
+                boundary.Patch(pov.GetType("PassiveTree." + name, true)!.GetMethod("Touch", Static), prefix: new HarmonyMethod(typeof(PoVStackMetadataChecks), nameof(NoRegistration)));
+            object def = implicitType.GetField("Food", Static)!.GetValue(null)!;
+            implicitType.GetMethod("Register", Static)!.Invoke(null, new[] { "SmokeImplicitBase", def, (object)1, 3 });
+            var prefab = (UnityEngine.GameObject)FormatterServices.GetUninitializedObject(typeof(UnityEngine.GameObject));
+            ItemData first = Item(5, "a", "1"), second = Item(5, "b", "2");
+            first.m_dropPrefab = second.m_dropPrefab = prefab;
+            first.m_customData["pt.implicit"] = "old-a";
+            second.m_customData["pt.implicit"] = "old-b";
+            bridge.GetMethod("MatchesIdentity", Static)!.Invoke(null, new object[] { first, second });
+            check(!first.m_customData.ContainsKey("pt.implicit") && !second.m_customData.ContainsKey("pt.implicit") &&
+                  first.m_customData["pt.food"] == "1.1" && second.m_customData["pt.work.made.id"] == "b",
+                "direct identity check executes native Settle on both stacks without stripping other metadata");
+            second.m_customData["pt.implicit"] = "legacy";
+            second.m_customData["pt.corrupt.imp"] = "replacement!";
+            bridge.GetMethod("MatchesIdentity", Static)!.Invoke(null, new object[] { first, second });
+            check(second.m_customData.ContainsKey("pt.implicit"), "native corruption override excludes implicit normalization");
+            second.m_customData.Remove("pt.corrupt.imp");
+            templateFixture = true;
+            bridge.GetMethod("MatchesIdentity", Static)!.Invoke(null, new object[] { first, second });
+            check(second.m_customData.ContainsKey("pt.implicit"), "native template exclusion remains effective");
+            templateFixture = false;
+            second.m_shared.m_maxStackSize = 1;
+            bridge.GetMethod("MatchesIdentity", Static)!.Invoke(null, new object[] { first, second });
+            check(second.m_customData.ContainsKey("pt.implicit"), "non-stackable equipment retains implicit rolls");
+            second.m_shared.m_maxStackSize = 20;
+            if (plugin.Namespace == "InventorySlots")
+            {
+                first.m_customData["pt.implicit"] = "older";
+                object?[] args = { Bag(first), second, 1, 0, 0, false, null };
+                bool allowed = (bool)plugin.GetMethod("TryPreparePositionalStackMetadataMerge", Static)!.Invoke(null, args)!;
+                object state = args[6]!;
+                var snapshot = (Dictionary<string, string>)state.GetType().GetProperty("SourceCustomData", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(state)!;
+                check(allowed && !snapshot.ContainsKey("pt.implicit") && !first.m_customData.ContainsKey("pt.implicit"),
+                    "positional merge normalizes before rejection checks and exceptional source snapshot");
+                plugin.GetMethod("CompletePositionalStackMetadataMerge", Static)!.Invoke(null, new[] { args[0], state });
+            }
+            else
+            {
+                using ((IDisposable)bridge.GetMethod("Begin", Static)!.Invoke(null, new object[] { second, first })!)
+                    check((bool)pov.GetType("PassiveTree.StackRules", true)!.GetMethod("SameData", Static)!.Invoke(null, new object[] { first, second })! &&
+                          !second.m_customData.ContainsKey("pt.implicit"), "owned native comparison still executes Settle before composition");
+            }
+        }
+        finally { bases.Remove("SmokeImplicitBase"); templateFixture = false; boundary.UnpatchSelf(); }
     }
 
     private static void RunCore(Type plugin, Assembly? pov, Action<bool, string> check)

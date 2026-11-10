@@ -48,6 +48,7 @@ internal sealed class SlotDefinition
     // but has its own unlock rules and PoV-owned input bindings.
     public string? PovCell { get; }
     public bool ApplyArmor { get; set; }
+    public bool SmallSlot { get; set; }
 
     public bool Accepts(ItemData? item) => _accepts(item);
 }

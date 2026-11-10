@@ -43,6 +43,8 @@ public static class EntryHost
     private static int ReachedPreflight, Checks;
     private static Editor? _itemRuleEditor;
     private static bool PendingClose;
+    private static bool CharacterActive;
+    private static bool IsPathOfValheimanCharacterActive(InventoryGui gui) => CharacterActive;
     private static bool IsInventoryClosingLayoutPending(InventoryGui gui) => PendingClose;
     /* ENTRY */
     /* CLOSING */
@@ -57,6 +59,10 @@ public static class EntryHost
     {
         Player.m_localPlayer = new Player();
         var gui = new InventoryGui();
+        CharacterActive = true;
+        Expect(gui, CraftingPanelUpdateReason.StateChanged, false, "Character page must stop crafting preflight and rebuilding");
+        Expect(gui, CraftingPanelUpdateReason.RecipeListChanged, false, "Recipe events must not replace an active Character page");
+        CharacterActive = false;
         // Native Hide sets the animator false while the panel is still active
         // and InventoryGui.IsVisible can still be true during its grace period.
         gui.Animator.Visible = false;

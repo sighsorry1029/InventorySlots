@@ -45,7 +45,10 @@ public sealed partial class InventorySlotsPlugin
             marker.Initialized = true;
         }
 
-        SetTopLeftRectLayout(gui.m_crafting, rect, GetCraftingRecipeScrollbarPosition(gui, grid), new Vector2(_craftingListViewActive ? CraftingListScrollbarWidth : 16f, CraftingRecipeIconRows * CraftingRecipeGridCellSpace - 6f));
+        float height = _craftingListViewActive
+            ? GetCraftingRecipeIconAreaSize()
+            : CraftingRecipeIconRows * CraftingRecipeGridCellSpace - 6f;
+        SetTopLeftRectLayout(gui.m_crafting, rect, GetCraftingRecipeScrollbarPosition(gui, grid), new Vector2(_craftingListViewActive ? CraftingListScrollbarWidth : 16f, height));
         SetCraftingRecipeScrollbarGraphicsVisible(rect, visible: true);
         scrollbar.direction = Scrollbar.Direction.BottomToTop;
         int visibleRows = CraftingViewCore.VisibleRows(GetCraftingRecipeGridCapacity(), GetCraftingRecipeGridDimension());
@@ -243,24 +246,20 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
-        if (IsOwnedCraftingUiTransform(transform) || IsForeignCraftingUiTransform(gui, transform))
-        {
-            return false;
-        }
-
+        // Most graphics belong to recipe rows, not scrollbars. Reject those
+        // before foreign-UI classification, which may scan every recipe row.
         if (gui.m_recipeListScroll != null &&
             (transform == gui.m_recipeListScroll.transform || transform.IsChildOf(gui.m_recipeListScroll.transform)))
         {
-            return true;
+            return !IsOwnedCraftingUiTransform(transform) && !IsForeignCraftingUiTransform(gui, transform);
         }
 
         Transform? cursor = transform;
         while (cursor != null && cursor != gui.m_crafting)
         {
-            string lowerName = cursor.name.ToLowerInvariant();
-            if (lowerName.Contains("scroll"))
+            if (cursor.name.IndexOf("scroll", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                return true;
+                return !IsOwnedCraftingUiTransform(transform) && !IsForeignCraftingUiTransform(gui, transform);
             }
 
             cursor = cursor.parent;
