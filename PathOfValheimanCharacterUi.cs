@@ -28,6 +28,8 @@ public sealed partial class InventorySlotsPlugin
         internal InventoryGui Gui = null!;
         internal Player Player = null!;
         internal RectTransform Root = null!;
+        internal RectTransform Background = null!;
+        internal RectTransform? CraftingBackground;
         internal Button Toggle = null!;
         internal readonly Button[] Tabs = new Button[3];
         internal readonly RectTransform[] Pages = new RectTransform[3];
@@ -63,6 +65,7 @@ public sealed partial class InventorySlotsPlugin
         if (IsDedicatedServer) return;
         InstallPathOfValheimanCapability("character-appearance", _ => _povLooks = new PathOfValheimanLooksBridge(assembly));
         InstallPathOfValheimanCapability("character-preview", InstallPathOfValheimanLookPreview);
+        InstallPathOfValheimanCapability("character-camera", InstallPathOfValheimanAppearanceCamera);
         InstallPathOfValheimanCapability("character-skills", harmony =>
         {
             var factory = new PathOfValheimanCharacterPanelFactory(assembly, skills: true);
@@ -106,14 +109,30 @@ public sealed partial class InventorySlotsPlugin
     private static void UpdatePathOfValheimanCharacterUiCore()
     {
         if (IsDedicatedServer) return;
+        ValidatePathOfValheimanAppearanceCamera();
         InventoryGui gui = InventoryGui.instance;
         Player player = Player.m_localPlayer;
         if (_povCharacterView != null && (_povCharacterView.Gui != gui || _povCharacterView.Player != player))
             ClearPathOfValheimanCharacterUi();
+        if (IsPathOfValheimanAnvilActive(gui))
+        {
+            ClosePathOfValheimanCharacterUi();
+            return;
+        }
         // IsVisible ends before the animator's outro. Preserve the page and the
         // masked crafting panel until the actual inventory root has disappeared.
         if (_povCharacterView is { Closing: true } closing && gui != null &&
-            gui.m_inventoryRoot != null && gui.m_inventoryRoot.gameObject.activeInHierarchy) return;
+            gui.m_inventoryRoot != null && gui.m_inventoryRoot.gameObject.activeInHierarchy)
+        {
+            // This runs in LateUpdate, after the native animator. Keep following its
+            // pose without refreshing content, enabling input or reopening the page.
+            if (closing.Active && gui.m_crafting != null && closing.Root != null)
+            {
+                CopyPovCharacterRect(gui.m_crafting, closing.Root);
+                SyncPathOfValheimanCharacterBackground(closing);
+            }
+            return;
+        }
         if (gui == null || !CanShowPathOfValheimanCharacter(player) || !InventoryGui.IsVisible())
         {
             ClosePathOfValheimanCharacterUi();
@@ -127,7 +146,13 @@ public sealed partial class InventorySlotsPlugin
         RectTransform craft = gui.m_crafting;
         RectTransform toggle = (RectTransform)view.Toggle.transform;
         CopyPovCharacterRect(craft, view.Root);
-        toggle.position = craft.TransformPoint(new Vector3(craft.rect.xMin - 4f, craft.rect.yMax, 0f));
+        SyncPathOfValheimanCharacterBackground(view);
+        // Keep the mode switch in the gap below the player-info header, in both modes.
+        // It remains a sibling so hiding the crafting CanvasGroup cannot hide the button.
+        RectTransform header = gui.m_info;
+        toggle.position = header != null && header.gameObject.activeInHierarchy
+            ? header.TransformPoint(new Vector3(header.rect.xMin, header.rect.yMin - 2f, 0f))
+            : craft.TransformPoint(new Vector3(craft.rect.xMin, craft.rect.yMax + toggle.rect.height + 2f, 0f));
         toggle.localScale = craft.localScale;
         view.Toggle.gameObject.SetActive(craft.gameObject.activeInHierarchy);
         view.Toggle.interactable = PovCharacterCraftTimer(gui) < 0f && PovCharacterDragItem(gui) == null &&
@@ -172,16 +197,33 @@ public sealed partial class InventorySlotsPlugin
         _povCharacterView = view;
         RectTransform craft = gui.m_crafting;
         view.Root = NewPovCharacterRect("InventorySlots PoV Character", craft.parent);
-        Image background = view.Root.gameObject.AddComponent<Image>();
-        Image? original = craft.GetComponent<Image>();
-        if (original != null) { background.sprite = original.sprite; background.type = original.type; background.color = original.color; }
+        // Content follows the crafting layout root, while its visible wood follows Bkg's margins.
+        view.Background = NewPovCharacterRect("Background", view.Root);
+        view.CraftingBackground = craft.Find("Bkg") as RectTransform;
+        SyncPathOfValheimanCharacterBackground(view);
+        Image background = view.Background.gameObject.AddComponent<Image>();
+        // Native panels keep their wooden Image on Bkg, not on the layout root.
+        Image? original = craft.Find("Bkg")?.GetComponent<Image>();
+        if (original == null || original.sprite == null) original = craft.GetComponent<Image>();
+        if (original == null || original.sprite == null) original = gui.m_player?.Find("Bkg")?.GetComponent<Image>();
+        if (original == null || original.sprite == null) original = gui.m_splitDialog?.transform.Find("win_bkg/border (1)")?.GetComponent<Image>();
+        if (original != null && original.sprite != null)
+        {
+            background.sprite = original.sprite;
+            background.type = original.type;
+            background.material = original.material;
+            background.color = original.color;
+            background.pixelsPerUnitMultiplier = original.pixelsPerUnitMultiplier;
+            background.fillCenter = original.fillCenter;
+            background.preserveAspect = original.preserveAspect;
+        }
         else background.color = new Color(0.13f, 0.09f, 0.055f, 0.98f);
         view.CraftingGroup = craft.GetComponent<CanvasGroup>();
         view.OwnGroup = view.CraftingGroup == null;
         if (view.OwnGroup) view.CraftingGroup = craft.gameObject.AddComponent<CanvasGroup>();
         view.Toggle = NewPovCharacterButton(gui, craft.parent, "Character mode", () => SetPathOfValheimanCharacter(view, !view.Active, view.Tab));
         RectTransform toggle = (RectTransform)view.Toggle.transform;
-        toggle.pivot = new Vector2(1f, 1f);
+        toggle.pivot = new Vector2(0f, 1f);
         toggle.sizeDelta = new Vector2(90f, 30f);
         for (int i = 0; i < 3; i++)
         {
@@ -255,6 +297,21 @@ public sealed partial class InventorySlotsPlugin
         target.anchorMin = source.anchorMin; target.anchorMax = source.anchorMax; target.pivot = source.pivot;
         target.sizeDelta = source.sizeDelta; target.anchoredPosition3D = source.anchoredPosition3D;
         target.localScale = source.localScale; target.localRotation = source.localRotation;
+    }
+
+    private static void SyncPathOfValheimanCharacterBackground(PovCharacterView view)
+    {
+        if (view.CraftingBackground != null && view.CraftingBackground.parent == view.Gui.m_crafting)
+        {
+            CopyPovCharacterRect(view.CraftingBackground, view.Background);
+            return;
+        }
+        // A theme may omit the native Bkg. Other panels supply style only, never their coordinates.
+        view.Background.anchorMin = Vector2.zero;
+        view.Background.anchorMax = Vector2.one;
+        view.Background.offsetMin = view.Background.offsetMax = Vector2.zero;
+        view.Background.localScale = Vector3.one;
+        view.Background.localRotation = Quaternion.identity;
     }
 
     private static void PlacePovCharacterAfter(Transform anchor, Transform target)
@@ -335,10 +392,12 @@ public sealed partial class InventorySlotsPlugin
 
     private static void SetPathOfValheimanCharacter(PovCharacterView view, bool active, int tab)
     {
+        if (IsPathOfValheimanAnvilActive(view.Gui)) return;
         if (view.Closing || !CanShowPathOfValheimanCharacter(view.Player) || PovCharacterCraftTimer(view.Gui) >= 0f || PovCharacterDragItem(view.Gui) != null) return;
         if (!active) { view.CharacterSelected = false; ClosePathOfValheimanCharacterUi(); return; }
         if (view.Failed[tab]) return;
         if (view.Active && view.Tab == tab) return;
+        ResetPathOfValheimanAppearanceCamera();
         ClearPathOfValheimanLookPreview();
         if (!view.Active)
         {
@@ -548,6 +607,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void SuspendPathOfValheimanCharacterUi()
     {
+        ResetPathOfValheimanAppearanceCamera();
         ClearPathOfValheimanLookPreview();
         if (_povCharacterView is not { } view) return;
         view.Closing = true;
@@ -563,6 +623,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void ClosePathOfValheimanCharacterUi()
     {
+        ResetPathOfValheimanAppearanceCamera();
         ClearPathOfValheimanLookPreview();
         if (_povCharacterView is not { } view) return;
         if (!view.Active && !view.Closing) { if (view.Toggle != null) view.Toggle.gameObject.SetActive(false); return; }
@@ -586,6 +647,8 @@ public sealed partial class InventorySlotsPlugin
 
     internal static void ClearPathOfValheimanCharacterUi()
     {
+        ResetPathOfValheimanAppearanceCamera();
+        _povAppearanceCameraFailedView = null;
         if (_povCharacterView is not { } view) return;
         ClosePathOfValheimanCharacterUi();
         foreach (var panel in view.Native)

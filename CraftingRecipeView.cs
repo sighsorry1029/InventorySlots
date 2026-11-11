@@ -11,6 +11,35 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
+    // Repeated recipes share materials. Cache both hits and misses only during
+    // one synchronous view rebuild; the next rebuild reads live names/tier rules.
+    private sealed class CraftingResourceTierPass : IDisposable
+    {
+        private readonly CraftingResourceTierPass? _previous = _craftingResourceTierPass;
+        private readonly Dictionary<ItemDrop, int?> _tiers = new();
+        private int _epoch = ItemClassifierRuntime.Epoch;
+
+        internal Dictionary<ItemDrop, int?> Tiers
+        {
+            get
+            {
+                // YAML/resource-map reload clears classifier caches as well.
+                // A nested callback must not leave stale results in its parent.
+                if (_epoch != ItemClassifierRuntime.Epoch)
+                {
+                    _tiers.Clear();
+                    _epoch = ItemClassifierRuntime.Epoch;
+                }
+                return _tiers;
+            }
+        }
+
+        internal CraftingResourceTierPass() => _craftingResourceTierPass = this;
+        public void Dispose() => _craftingResourceTierPass = _previous;
+    }
+
+    private static CraftingResourceTierPass? _craftingResourceTierPass;
+
     // GetSelectedRecipeIndex is private in the original Valheim assembly.
     // Cache the accessor, not its changing selection result.
     private static readonly Func<InventoryGui, bool, int> CraftingSelectedRecipeIndex =
@@ -161,6 +190,8 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
+        using var classifications = new ItemClassificationPass();
+        using var resourceTiers = new CraftingResourceTierPass();
         CraftingRecipes.View.Clear();
         // These lists depend only on group policy during this rebuild. Do not
         // retain them across live YAML/configuration changes.
@@ -289,32 +320,42 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
+        Dictionary<ItemDrop, int?>? tiers = _craftingResourceTierPass?.Tiers;
+        if (tiers != null && tiers.TryGetValue(itemDrop, out int? cached))
+        {
+            tier = cached.GetValueOrDefault();
+            return cached.HasValue;
+        }
+
         foreach (string token in GetResourceTokens(itemDrop))
         {
             if (ResourceTierByToken.TryGetValue(token, out tier))
             {
+                if (tiers != null) tiers[itemDrop] = tier;
                 return true;
             }
         }
 
+        if (tiers != null) tiers[itemDrop] = null;
         return false;
     }
 
     private static IEnumerable<string> GetResourceTokens(ItemDrop itemDrop)
     {
-        string prefabName = CleanPrefabName(itemDrop.name);
-        string itemPrefabName = GetItemPrefabName(itemDrop.m_itemData);
+        // Preserve the first-matching-token policy, deferring localization and
+        // later normalizations until earlier identities actually miss.
+        string token = NormalizeResourceToken(CleanPrefabName(itemDrop.name));
+        if (!string.IsNullOrWhiteSpace(token)) yield return token;
+        token = NormalizeResourceToken(GetItemPrefabName(itemDrop.m_itemData));
+        if (!string.IsNullOrWhiteSpace(token)) yield return token;
         string sharedName = itemDrop.m_itemData.m_shared.m_name ?? "";
+        token = NormalizeResourceToken(sharedName);
+        if (!string.IsNullOrWhiteSpace(token)) yield return token;
+        token = NormalizeResourceToken(StripLocalizationToken(sharedName));
+        if (!string.IsNullOrWhiteSpace(token)) yield return token;
         string localizedName = Localization.instance != null ? Localization.instance.Localize(sharedName) : sharedName;
-
-        foreach (string value in new[] { prefabName, itemPrefabName, sharedName, StripLocalizationToken(sharedName), localizedName })
-        {
-            string token = NormalizeResourceToken(value);
-            if (!string.IsNullOrWhiteSpace(token))
-            {
-                yield return token;
-            }
-        }
+        token = NormalizeResourceToken(localizedName);
+        if (!string.IsNullOrWhiteSpace(token)) yield return token;
     }
 
     private static int GetItemPredefinedGroupRank(ItemData? item, string bigGroupId, int bigGroupRank,

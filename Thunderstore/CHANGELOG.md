@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.7.2
+
+- Reuse compatible vanilla recipe rows instead of destroying and recreating them on each rebuild. Reduced repeated item classification, YAML matching and tier lookups within crafting rebuilds, including large no-cost recipe lists. Rows still refresh their contents and selection callbacks; unrelated gameplay rules are unchanged.
+- Limit row-reuse compatibility checks to the active row/list hooks and their relevant helpers. Reviewed InteropFixes lookup substitutions can coexist with reuse, while unknown or changed row behavior falls back to ordinary rebuilding.
+- Give PoV's Runic Anvil its native workspace without overlapping the ordinary recipe list, details or crafting controls. Switching away restores the regular crafting view while PoV retains ownership of forging and materials.
+- Match the PoV Character background to the crafting panel's wooden theme, bounds and closing animation. Removed the duplicate Skills backdrop border and placed the Crafting/Character switch below the upper panel's left edge.
+- Added a front-facing Appearance camera with left-button drag rotation in the empty central area. Slots, buttons, tooltips and held items remain protected; the invisible native interaction-label area no longer blocks rotation. Leaving Appearance restores normal camera behavior without changing player facing or saved appearance. Armoire is not required.
+- Simplified Restock targets and Auto pickup exclusions headers by removing repeated explanatory text. Quantity-registration prompts and controller instructions remain available when needed, and the English/Korean guides now clarify that targets and surplus apply per favorite stack.
+
 ## 1.7.1
 
 - Added `smallSlot` to YAML equipment entries. Small cells use half the normal width and height and wrap below the full-size equipment cells alongside PoV rings. The default is false; helmet, chest, legs and cape always remain full-size. Acceptance rules, progression and saved coordinates are unchanged.

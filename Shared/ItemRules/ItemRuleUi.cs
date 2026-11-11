@@ -281,8 +281,7 @@ public sealed partial class InventoryActionsPlugin
     {
         private const float RowHeight = ItemRuleRowHeight;
         private const float PopupWidth = 300f;
-        private const float PopupBaseHeaderHeight = 78f;
-        private float PopupHeaderHeight = PopupBaseHeaderHeight;
+        private float PopupHeaderHeight => 44f + (_scope.gameObject.activeSelf ? 34f : 0f);
         private float PopupChromeHeight => PopupHeaderHeight + (string.IsNullOrEmpty(_status.text) ? 10f : 38f);
         internal InventoryGui Owner = null!;
         internal bool Pinned { get; private set; }
@@ -291,8 +290,8 @@ public sealed partial class InventoryActionsPlugin
         private Sprite _restockIcon = null!, _excludeIcon = null!;
         private Sprite? _ruleButtonSprite;
         private int _visibleRowCount = 1;
-        private TMP_Text _title = null!, _scope = null!, _quickStackHint = null!, _status = null!;
-        private float _nextScopeRefresh, _hintWidth = -1f;
+        private TMP_Text _title = null!, _scope = null!, _status = null!;
+        private float _nextScopeRefresh;
         private TMP_FontAsset _font = null!;
         private Material _fontMaterial = null!;
         private readonly List<Button> _rowButtons = new();
@@ -383,8 +382,7 @@ public sealed partial class InventoryActionsPlugin
             Frame(_title.rectTransform, 12, -10, PopupWidth - 24, 28);
             _scope = Text(_popup, "Scope", "", 13f);
             Frame(_scope.rectTransform, 12, -39, PopupWidth - 24, 34);
-            _quickStackHint = Text(_popup, "QuickStackHint", "", 13f);
-            _quickStackHint.gameObject.SetActive(false);
+            _scope.gameObject.SetActive(false);
             _viewport = Rect("Viewport", _popup, new Vector2(PopupWidth - 24, 38), new Vector2(12, -PopupHeaderHeight));
             _viewport.gameObject.AddComponent<Image>().color = Color.clear;
             _viewport.gameObject.AddComponent<RectMask2D>();
@@ -507,30 +505,19 @@ public sealed partial class InventoryActionsPlugin
         private void RefreshScope()
         {
             _nextScopeRefresh = Time.unscaledTime + 0.25f;
-            _mouseScope = _registration != null ? L("quantity_scope", "Target quantity · 1 or more")
-                : _restock ? L("restock_scope", "{key} · mode and target per favorite stack").Replace("{key}", GetContainerRestockKeyDisplayText())
-                : L("exclude_scope", "Manual E pickup is still available");
-            if (!_controllerActive) _scope.text = _mouseScope;
-            // Keep this explanation separate from the subtitle, which is also
-            // used for controller navigation. Refresh bindings without rebuilding rows.
-            string hint = _restock && _registration == null
-                ? L("quickstack_surplus", "Hold {useKey}: Store surplus above enabled targets (per favorite stack).")
-#if INVENTORY_SLOTS
-                    .Replace("{useKey}", GetContainerQuickStackKeyDisplayText())
-#else
-                    .Replace("{useKey}", GetFeatureGuideUseKeyDisplayText())
-#endif
-                : "";
-            float width = _popup.rect.width - 24f;
-            if (_quickStackHint.text == hint && Mathf.Abs(_hintWidth - width) < 0.1f) return;
-            _hintWidth = width;
-            _quickStackHint.text = hint;
-            _quickStackHint.gameObject.SetActive(hint.Length > 0);
-            PopupHeaderHeight = PopupBaseHeaderHeight;
-            if (hint.Length == 0) return;
-            float height = Mathf.Max(18f, Mathf.Ceil(_quickStackHint.GetPreferredValues(hint, width, 0f).y));
-            Frame(_quickStackHint.rectTransform, 12, -PopupBaseHeaderHeight, width, height);
-            PopupHeaderHeight += height + 6f;
+            _mouseScope = _registration != null ? L("quantity_scope", "Target quantity · 1 or more") : "";
+            if (!_controllerActive) SetScope(_mouseScope);
+        }
+
+        private void SetScope(string text)
+        {
+            _scope.text = text;
+            bool visible = !string.IsNullOrEmpty(text);
+            if (_scope.gameObject.activeSelf == visible) return;
+            // Ordinary lists have only a title. Reserve subtitle space only for
+            // quantity registration or the current gamepad controls.
+            _scope.gameObject.SetActive(visible);
+            if (Open) PositionPopup();
         }
 
         private void SetStatus(string text, bool controllerStatus = false)
@@ -743,7 +730,7 @@ public sealed partial class InventoryActionsPlugin
             bool korean = string.Equals(Localization.instance?.GetSelectedLanguage(), "Korean", StringComparison.OrdinalIgnoreCase);
             string action = _controllerFocus.Column == ItemRuleControllerState.Control.Quantity ? L("pad_edit", korean ? "편집" : "edit") :
                 _controllerFocus.Column == ItemRuleControllerState.Control.Remove ? L("remove", "Remove") : L("pad_change", korean ? "전환" : "change");
-            _scope.text = !_controllerActive ? _mouseScope : (row == null
+            SetScope(!_controllerActive ? _mouseScope : (row == null
                 ? L("pad_empty", korean ? "{close}: 닫기" : "{close}: close")
                 : _controllerFocus.EditingQuantity
                     ? L("pad_quantity_edit", korean ? "↑: 증가 · ↓: 감소\n{submit}/{close}: 편집 종료" : "↑: increase · ↓: decrease\n{submit}/{close}: finish editing")
@@ -752,7 +739,7 @@ public sealed partial class InventoryActionsPlugin
                 .Replace("{submit}", GetInventoryControllerActionDisplay("JoyButtonA"))
                 .Replace("{action}", action)
                 .Replace("{remove}", GetInventoryControllerActionDisplay("JoyButtonX"))
-                .Replace("{close}", GetInventoryControllerActionDisplay("JoyButtonB"));
+                .Replace("{close}", GetInventoryControllerActionDisplay("JoyButtonB")));
             if (!_controllerActive || row == null) return;
             if (updateStatus)
             {
@@ -1026,7 +1013,7 @@ public sealed partial class InventoryActionsPlugin
             _title.text = _restock ? L("restock_title", "Restock targets") : L("exclude_title", "Auto pickup exclusions");
             _title.color = _gold;
             RefreshScope();
-            _scope.text = _mouseScope;
+            SetScope(_mouseScope);
             _content.sizeDelta = new Vector2(inner, Mathf.Max(1, visible.Count) * RowHeight);
             _content.anchoredPosition = Vector2.zero;
             ResizePopupViewport(viewHeight);

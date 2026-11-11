@@ -12,6 +12,9 @@ public sealed partial class InventorySlotsPlugin
 
     private static CraftingTabAdapterState GetCraftingTabAdapterState(InventoryGui? gui)
     {
+        // Anvil owns the whole panel without selecting an ordinary tab button.
+        if (IsPathOfValheimanAnvilActive(gui))
+            return new CraftingTabAdapterState(CraftingTabAdapterKind.Foreign);
         if (gui == null ||
             IsUnityNull(gui) ||
             gui.m_crafting == null ||

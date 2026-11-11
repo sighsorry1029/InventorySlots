@@ -552,6 +552,7 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
+        using var classifications = new ItemClassificationPass();
         foreach (CraftingRecipeGroupFilter filter in CraftingRecipeGroupFilters)
         {
             bool isFavorite = string.Equals(filter.Id, "favorite", StringComparison.OrdinalIgnoreCase);

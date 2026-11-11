@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 using ItemData = ItemDrop.ItemData;
 using AnimationState = ItemDrop.ItemData.AnimationState;
@@ -23,10 +24,48 @@ public sealed partial class InventorySlotsPlugin
     {
         public readonly Dictionary<string, ItemClassification> Cache = new(StringComparer.OrdinalIgnoreCase);
         public readonly HashSet<string> FeastMaterialTokens = new(StringComparer.OrdinalIgnoreCase);
-        public string FeastMaterialSignature = "";
+        public bool FeastMaterialStampInitialized;
+        public int FeastMaterialSceneId;
+        public int FeastMaterialPrefabCount;
         public int Version;
         public int AppliedVersion = -1;
+        public int Epoch;
     }
+
+    // Only used by synchronous, read-only recipe classification passes. Never
+    // retain ItemData references across frames, mutations or inventory sessions.
+    private sealed class ItemClassificationPass : IDisposable, IEqualityComparer<ItemData>
+    {
+        private readonly ItemClassificationPass? _previous = _itemClassificationPass;
+        private readonly Dictionary<ItemData, ItemClassification> _items;
+        private int _epoch = ItemClassifierRuntime.Epoch;
+
+        internal ItemClassificationPass()
+        {
+            _items = new Dictionary<ItemData, ItemClassification>(this);
+            _itemClassificationPass = this;
+        }
+
+        internal Dictionary<ItemData, ItemClassification> Items
+        {
+            get
+            {
+                // An inner pass may invalidate the classifier while a parent is suspended.
+                if (_epoch != ItemClassifierRuntime.Epoch)
+                {
+                    _items.Clear();
+                    _epoch = ItemClassifierRuntime.Epoch;
+                }
+                return _items;
+            }
+        }
+
+        public bool Equals(ItemData? x, ItemData? y) => ReferenceEquals(x, y);
+        public int GetHashCode(ItemData item) => RuntimeHelpers.GetHashCode(item);
+        public void Dispose() => _itemClassificationPass = _previous;
+    }
+
+    private static ItemClassificationPass? _itemClassificationPass;
 
     private static readonly ItemClassifierRuntimeState ItemClassifierRuntime = new();
     private static readonly Dictionary<string, Func<ItemData, bool>> BuiltInGroupMatchers = new(StringComparer.OrdinalIgnoreCase)
@@ -165,14 +204,18 @@ public sealed partial class InventorySlotsPlugin
     {
         ItemClassifierRuntime.Cache.Clear();
         ItemClassifierRuntime.AppliedVersion = ItemClassifierRuntime.Version;
+        unchecked { ItemClassifierRuntime.Epoch++; }
     }
 
     private static ItemClassification GetItemClassification(ItemData item)
     {
         EnsureItemClassifierCacheFresh();
+        Dictionary<ItemData, ItemClassification>? pass = _itemClassificationPass?.Items;
+        if (pass != null && pass.TryGetValue(item, out ItemClassification hit)) return hit;
         string itemKey = GetItemClassifierCacheKey(item);
         if (ItemClassifierRuntime.Cache.TryGetValue(itemKey, out ItemClassification cached))
         {
+            if (pass != null) pass[item] = cached;
             return cached;
         }
 
@@ -183,6 +226,7 @@ public sealed partial class InventorySlotsPlugin
 
         ItemClassification classification = new();
         ItemClassifierRuntime.Cache[itemKey] = classification;
+        if (pass != null) pass[item] = classification;
         return classification;
     }
 
@@ -196,6 +240,7 @@ public sealed partial class InventorySlotsPlugin
 
         ItemClassifierRuntime.Cache.Clear();
         ItemClassifierRuntime.AppliedVersion = version;
+        unchecked { ItemClassifierRuntime.Epoch++; }
     }
 
     private static bool MatchMeleeCategory(ItemData item) =>
@@ -313,14 +358,11 @@ public sealed partial class InventorySlotsPlugin
     private static IEnumerable<string> GetItemIdentityTokens(ItemData item)
     {
         string prefabName = GetItemPrefabName(item);
+        if (!string.IsNullOrWhiteSpace(prefabName)) yield return prefabName;
+        string normalizedPrefab = NormalizeResourceToken(prefabName);
+        if (!string.IsNullOrWhiteSpace(normalizedPrefab)) yield return normalizedPrefab;
         string sharedName = item.m_shared.m_name ?? "";
-        foreach (string value in new[] { prefabName, NormalizeResourceToken(prefabName), sharedName })
-        {
-            if (!string.IsNullOrWhiteSpace(value))
-            {
-                yield return value;
-            }
-        }
+        if (!string.IsNullOrWhiteSpace(sharedName)) yield return sharedName;
     }
 
     private static bool MatchConsumableCategory(ItemData item) =>
@@ -333,27 +375,29 @@ public sealed partial class InventorySlotsPlugin
         !MatchMeadBaseCategory(item) &&
         ItemMatchesStationInput(FermenterOutputTokens, item);
 
+    // Reject ineligible kinds before the more expensive food/conversion checks.
+    // Food/mead exclusions still apply to eligible and YAML-defined items.
     private static bool MatchPotionCategory(ItemData item) =>
+        (item.m_shared.m_itemType == ItemType.Material || item.m_shared.m_itemType == ItemType.Consumable) &&
+        item.m_shared.m_consumeStatusEffect != null &&
         !MatchPrimaryFoodCategory(item) &&
         !MatchMeadCategory(item) &&
-        !MatchMeadBaseCategory(item) &&
-        (item.m_shared.m_itemType == ItemType.Material || item.m_shared.m_itemType == ItemType.Consumable) &&
-        item.m_shared.m_consumeStatusEffect != null;
+        !MatchMeadBaseCategory(item);
 
     private static bool MatchMeadBaseCategory(ItemData item) =>
         ItemMatchesStationInput(FermenterInputTokens, item) ||
         MatchConfiguredCustomGroupInCraftingGroup(item, "meadbase");
 
     private static bool MatchToolCategory(ItemData item) =>
-        !MatchPrimaryFoodCategory(item) &&
-        !MatchConsumableCategory(item) &&
-        !MatchMeadBaseCategory(item) &&
         (item.m_shared.m_itemType == ItemType.Tool ||
          MatchTorchCategory(item) ||
          item.m_shared.m_skillType == Skills.SkillType.Pickaxes ||
          item.m_shared.m_skillType == Skills.SkillType.Fishing ||
          item.m_shared.m_skillType == Skills.SkillType.Farming ||
-         MatchConfiguredCustomGroupInCraftingGroup(item, "tool"));
+         MatchConfiguredCustomGroupInCraftingGroup(item, "tool")) &&
+        !MatchPrimaryFoodCategory(item) &&
+        !MatchConsumableCategory(item) &&
+        !MatchMeadBaseCategory(item);
 
     private static bool MatchMiscCategory(ItemData item) =>
         !MatchMeleeCategory(item) &&
@@ -492,15 +536,23 @@ public sealed partial class InventorySlotsPlugin
 
     private static void EnsureFeastMaterialTokens()
     {
-        string signature = GetFeastMaterialTokenSignature();
-        if (string.Equals(ItemClassifierRuntime.FeastMaterialSignature, signature, StringComparison.Ordinal))
+        // Keep checking freshness before classification cache hits, without
+        // allocating a scene/count string on every group lookup.
+        ZNetScene? scene = ZNetScene.instance;
+        bool hasPrefabs = !IsUnityNull(scene) && scene!.m_prefabs != null;
+        int sceneId = hasPrefabs ? scene!.GetInstanceID() : 0;
+        int prefabCount = hasPrefabs ? scene!.m_prefabs!.Count : -1;
+        if (ItemClassifierRuntime.FeastMaterialStampInitialized &&
+            ItemClassifierRuntime.FeastMaterialSceneId == sceneId &&
+            ItemClassifierRuntime.FeastMaterialPrefabCount == prefabCount)
         {
             return;
         }
 
-        ItemClassifierRuntime.FeastMaterialSignature = signature;
-        HashSet<string> tokens = new(StringComparer.OrdinalIgnoreCase);
-        if (IsUnityNull(ZNetScene.instance) || ZNetScene.instance!.m_prefabs == null)
+        ItemClassifierRuntime.FeastMaterialStampInitialized = true;
+        ItemClassifierRuntime.FeastMaterialSceneId = sceneId;
+        ItemClassifierRuntime.FeastMaterialPrefabCount = prefabCount;
+        if (!hasPrefabs)
         {
             if (ItemClassifierRuntime.FeastMaterialTokens.Count > 0)
             {
@@ -511,7 +563,8 @@ public sealed partial class InventorySlotsPlugin
             return;
         }
 
-        foreach (GameObject prefab in ZNetScene.instance.m_prefabs)
+        HashSet<string> tokens = new(StringComparer.OrdinalIgnoreCase);
+        foreach (GameObject prefab in scene!.m_prefabs!)
         {
             if (IsUnityNull(prefab))
             {
@@ -547,16 +600,6 @@ public sealed partial class InventorySlotsPlugin
         ItemClassifierRuntime.FeastMaterialTokens.Clear();
         ItemClassifierRuntime.FeastMaterialTokens.UnionWith(tokens);
         ItemClassifierRuntime.Version++;
-    }
-
-    private static string GetFeastMaterialTokenSignature()
-    {
-        if (IsUnityNull(ZNetScene.instance) || ZNetScene.instance!.m_prefabs == null)
-        {
-            return "none";
-        }
-
-        return $"{ZNetScene.instance.GetInstanceID()}|{ZNetScene.instance.m_prefabs.Count}";
     }
 
     private static bool MatchBombCategory(ItemData item) =>

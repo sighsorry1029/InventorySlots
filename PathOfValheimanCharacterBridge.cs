@@ -4,6 +4,7 @@ using System.Reflection;
 using HarmonyLib;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 using ItemData = ItemDrop.ItemData;
 
 namespace InventorySlots;
@@ -93,6 +94,19 @@ internal sealed class PathOfValheimanCharacterPanelFactory
         try
         {
             instance = _constructor.Invoke(_skills ? new object[] { parent, font, gui } : new object[] { gui, parent, font });
+            if (_skills && _root?.GetValue(instance) is RectTransform root && root != null && root.IsChildOf(parent))
+            {
+                // Our host already supplies the crafting wood. Hide only this owned Skills
+                // instance's decorative backing; leave its board, header and input intact.
+                foreach (string name in new[] { "Opaque underlay", "Crafting wood", "Wood" })
+                {
+                    Image? background = root.Find(name)?.GetComponent<Image>();
+                    if (background == null) continue;
+                    Color color = background.color;
+                    color.a = 0f;
+                    background.color = color;
+                }
+            }
             return new Panel(instance, _show, _fit, _tick, _dispose, _closed);
         }
         catch

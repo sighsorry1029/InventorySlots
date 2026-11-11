@@ -54,11 +54,14 @@ using System;
 public static class InventorySlotsPlugin
 {
     /* PRODUCTION */
+    private static bool IsPathOfValheimanAnvilActive(InventoryGui gui) => false;
+    internal static void ClearPathOfValheimanAnvilUi(InventoryGui gui) { }
     internal static void ClearPathOfValheimanCraftingUi(InventoryGui gui) { }
     internal static void ClearPathOfValheimanCharacterUi() { }
     internal static void SuspendPathOfValheimanCharacterUi() { }
     internal static void ClearPathOfValheimanStoragePanels() { }
     internal static void ClearEquipmentPanelLayout() { }
+    private static class CraftingRecipeRowReuse { internal static void Clear(InventoryGui gui) { } }
     internal static void RestoreCraftingStationLevelLayout(InventoryGui gui) { }
     private static string _craftingSearchQuery = "", _selectedCraftingGroupId = "";
     private static int _craftingRecipePage, SearchDirty, ViewInvalidations;

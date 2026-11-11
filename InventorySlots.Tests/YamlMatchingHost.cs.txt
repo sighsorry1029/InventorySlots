@@ -80,7 +80,7 @@ namespace InventorySlots
         };
         private static readonly Dictionary<string, string> ItemNameTokens = new(StringComparer.OrdinalIgnoreCase);
         private static readonly Dictionary<string, List<string>> PredefinedGroupDefinitions = new(StringComparer.OrdinalIgnoreCase);
-        private static int Normalizations, Classifications, Checks;
+        private static int Normalizations, Classifications, Checks, PrefabReads;
         private static bool Progression = true;
         private static ItemClassification GetItemClassification(ItemData item) { Classifications++; return new(); }
         private static string CleanPrefabName(string s) => InventorySlotsConfigCore.CleanPrefabName(s);
@@ -88,7 +88,7 @@ namespace InventorySlots
         private static string NormalizeResourceToken(string? s) { Normalizations++; return InventorySlotsConfigCore.NormalizeResourceToken(s); }
         private static string NormalizeGroupId(string? s) => InventorySlotsConfigCore.NormalizeGroupId(s);
         private static bool TryNormalizeGroupSectionId(string? s, out string id) => ItemGroupRegistry.TryNormalizeSectionId(s, out id);
-        private static string GetItemPrefabName(ItemData item) => CleanPrefabName(item.m_dropPrefab?.name ?? "");
+        private static string GetItemPrefabName(ItemData item) { PrefabReads++; return CleanPrefabName(item.m_dropPrefab?.name ?? ""); }
         private static string GetSharedName(ItemData item) => item.m_shared.m_name ?? "";
         private static bool IsUnityNull(object? value) => value == null;
         private static bool IsEquipmentSlotProgressionEnabled() => Progression;
@@ -120,6 +120,17 @@ namespace InventorySlots
         {
             Reset();
             var crown = Item("HelmetCircletBronze_TW(Clone)", "$item_bronze_circlet", "helmet");
+            PrefabReads = 0;
+            Require(ItemMatchesPredefinedGroup(crown, "Helmet") && PrefabReads == 0, "built-in predicate does not prepare YAML identity");
+            PredefinedGroupDefinitions["helmet"] = new();
+            Require(!ItemMatchesPredefinedGroup(crown, "helmet"), "empty custom override blocks built-in fallback");
+            PredefinedGroupDefinitions["helmet"].Add("LateHelmetAlias");
+            Require(!ItemMatchesPredefinedGroup(crown, "helmet"), "custom override rejects unregistered alias");
+            ItemNameTokens["LateHelmetAlias"] = "$item_bronze_circlet";
+            Require(ItemMatchesPredefinedGroup(crown, "helmet"), "custom override picks up late alias");
+            PredefinedGroupDefinitions.Remove("helmet");
+            PrefabReads = 0;
+            Require(ItemMatchesPredefinedGroup(crown, "helmet") && PrefabReads == 0, "removing override immediately restores built-in path");
             Require(Match(crown, "helmetcircletbronze_tw"), "case insensitive prefab");
             Require(Match(crown, "Helmet Circlet-Bronze.TW"), "normalized punctuation");
             Require(Match(crown, "$ITEM_bronze_circlet") && Match(crown, "bronze circlet"), "shared/localization identity");

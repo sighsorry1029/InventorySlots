@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.2
+
+- Simplified the Restock targets and Auto pickup exclusions headers by removing repeated explanatory text and reclaiming unused space. Quantity-registration prompts and active controller instructions remain visible when needed.
+- Clarified the English and Korean mouse/controller guides: restock targets and surplus Quick Stack apply separately to each favorite stack. Existing transfer, target and exclusion rules are unchanged.
+
 ## 1.2.1
 
 - Quick Stack now stores only the surplus above an explicitly enabled restock target from eligible favorite stacks, including nearby and supported MultiUserChest transfers. Targets protect each favorite stack separately; with 150 Stone and a target of 100, up to 50 can be stored. Off, unlisted or invalid targets keep favorites fully protected, and hotbar/equipment/special-cell exclusions remain unchanged.

@@ -18,8 +18,6 @@ Click any image or animation to view the original.
 
 Unlock rows and quick slots without reshuffling saved items, and switch hotbar rows to keep more items within reach.
 
-Use **Quick slots** in the game's main radial menu with a controller or mouse; keyboard shortcuts remain available. Equipment and quick-slot panels move with the inventory and snap to nearby panel edges while dragging. Configure snapping in **3 - Inventory & Containers**.
-
 <a href="https://i.ibb.co/5XMjS4Cw/keyhint.png"><img src="https://i.ibb.co/5XMjS4Cw/keyhint.png" alt="Inventory shortcut hints" width="480"></a>
 
 ### Crafting and upgrades

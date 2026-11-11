@@ -52,6 +52,8 @@ public static class InventorySlotsPlugin
 {
     /* PRODUCTION */
     static bool IsDedicatedServer, Primary = true, Salvage, Jewel, Reclaim, Foreign, Preserve;
+    static bool Anvil;
+    static bool IsPathOfValheimanAnvilActive(InventoryGui gui) => Anvil;
     static bool _craftingVanillaRecipeElementsHidden, _craftingVanillaDetailHidden,
         _craftingVanillaRecipeScrollbarsHidden, _craftingVanillaPanelBackgroundsHidden, _craftingRedesignApplied;
     static List<int> CraftingVanillaPanelBackgroundStates = new();
@@ -106,6 +108,10 @@ public static class InventorySlotsPlugin
     }
     public static void Check() {
         var gui = Fresh();
+        Anvil = true;
+        Expect(PrepareCraftingRecipeListRebuild(gui) == null && gui.m_recipeListRoot!.gameObject.activeSelf,
+            "Anvil preflight leaves native recipe visibility to PoV even with stale Craft selection");
+        Anvil = false;
         // Show calls SetupCrafting before the animator activates the inventory.
         gui.m_inventoryRoot!.gameObject.SetActive(false);
         var changed = PrepareCraftingRecipeListRebuild(gui);

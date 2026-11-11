@@ -391,6 +391,8 @@ public sealed partial class InventorySlotsPlugin
         PathOfValheimanPatches.Clear();
         _povOverlayShapeWarned = false;
         ShutdownPathOfValheimanCrafting();
+        ClearPathOfValheimanAnvilUi();
+        _povIsAnvil = _povIsAnvilCache = _povViewingAnvil = null;
         ClearPathOfValheimanCharacterUi();
         _povLooks = null;
         _povRefreshLookVisuals = null;

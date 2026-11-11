@@ -182,6 +182,7 @@ public sealed partial class InventorySlotsPlugin
 
     private void OnDestroy()
     {
+        CraftingRecipeRowReuse.Clear();
         RestoreCraftingStationLevelLayout();
         _pov?.Unregister();
         _walletFrame?.Restore();

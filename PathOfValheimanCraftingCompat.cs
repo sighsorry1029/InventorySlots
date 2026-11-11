@@ -49,6 +49,8 @@ public sealed partial class InventorySlotsPlugin
 
     private static void InitializePathOfValheimanCrafting(Assembly assembly)
     {
+        if (!IsDedicatedServer)
+            InstallPathOfValheimanCapability("runic-anvil-ui", harmony => InstallPathOfValheimanAnvilUi(harmony, assembly));
         InstallPathOfValheimanCapability("crafting-tabs", harmony =>
         {
             MethodInfo inUse = RequirePathOfValheimanMethod(assembly.GetType("PassiveTree.CraftSalvage", true)!,

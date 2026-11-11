@@ -44,6 +44,8 @@ public static class EntryHost
     private static Editor? _itemRuleEditor;
     private static bool PendingClose;
     private static bool CharacterActive;
+    private static bool AnvilActive;
+    private static bool TryYieldCraftingToPathOfValheimanAnvil(InventoryGui gui) => AnvilActive;
     private static bool IsPathOfValheimanCharacterActive(InventoryGui gui) => CharacterActive;
     private static bool IsInventoryClosingLayoutPending(InventoryGui gui) => PendingClose;
     /* ENTRY */
@@ -59,6 +61,11 @@ public static class EntryHost
     {
         Player.m_localPlayer = new Player();
         var gui = new InventoryGui();
+        AnvilActive = true;
+        Expect(gui, CraftingPanelUpdateReason.StateChanged, false, "Anvil Show skips normal crafting initialization");
+        Expect(gui, CraftingPanelUpdateReason.RecipeListChanged, false, "Anvil recipe callbacks do not replace native window");
+        Expect(gui, CraftingPanelUpdateReason.FrameTick, false, "Anvil idle frames keep native UI ownership");
+        AnvilActive = false;
         CharacterActive = true;
         Expect(gui, CraftingPanelUpdateReason.StateChanged, false, "Character page must stop crafting preflight and rebuilding");
         Expect(gui, CraftingPanelUpdateReason.RecipeListChanged, false, "Recipe events must not replace an active Character page");

@@ -211,6 +211,7 @@ internal static partial class Program
         Check(((ICollection)returns.DynamicInvoke(new object?[] { null, null })!).Count == 0, "private original Returns delegate executes on original Mono for empty recipe");
         plugin.GetMethod("BindPathOfValheimanCraftingChests", Statics)!.Invoke(null, new object[] { pov });
         Check(true, "actual crafting chest method/field bindings succeed");
+        CheckAnvilUiBindings(plugin, pov);
         plugin.GetField("_pov", Statics)!.SetValue(null, bridge);
         plugin.GetMethod("BindPathOfValheimanItemPresentation", Statics)!.Invoke(null, new object[] { pov });
         Check(true, "public Tooltip Describe out-list and item rarity expressions compile on original Mono");

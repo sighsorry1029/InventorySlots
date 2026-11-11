@@ -9,6 +9,7 @@ public sealed partial class InventorySlotsPlugin
 {
     internal static void UpdateCraftingPanelRedesign(InventoryGui gui, CraftingPanelUpdateReason reason = CraftingPanelUpdateReason.FrameTick)
     {
+        if (TryYieldCraftingToPathOfValheimanAnvil(gui)) return;
         if (IsPathOfValheimanCharacterActive(gui)) return;
         // Vanilla can call UpdateRecipe later in the same frame as Hide because
         // Update cached visibility before closing. Do not rebuild the UI that

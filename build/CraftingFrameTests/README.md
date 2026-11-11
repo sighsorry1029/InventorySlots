@@ -69,7 +69,33 @@ default-placement methods. It checks shared grid parenting, animation gates,
 no-motion clicks, snap commit, independent equipment placement, HUD following,
 and preserving an explicitly placed quick panel even at the default coordinates.
 
+The recipe-metadata regression executes production classification predicates,
+identity/tier token enumeration, the scoped resource-tier cache and feast-token
+freshness check. It covers native/custom tool exclusions, potion eligibility,
+first-token tier precedence, direct-requirement maxima, zero and missing tiers,
+mutable names/language between rebuilds, nested policy invalidation/exception
+cleanup and scene replacement. Counted lookups verify shared-material reuse and
+deferred normalization/localization; these counts are not game timing results.
+
 Unity and crafting operations are doubles. These checks are not a frame-time
 benchmark or a replacement for in-game crafting/refinement/controller testing.
 Also verify rapid Tab, death/logout while an input is focused, chest preview,
 and VNEI/Jewelcrafting/Reclaim tabs during closing in the game.
+
+The Appearance camera regression runs the production session/input/pose code
+with game/physics/UI boundary doubles. It checks framing across aspect ratios,
+tab/player/GUI/camera replacement and closing/focus/freefly states, modal and
+item-drag cancellation, left-only rotation, panel-drag isolation, button release, single input consumption per frame, exact outside-drop
+surface exemption, exact native hover-label exemption and HUD replacement,
+other UI hits, wall constraints and feature-local failures.
+Harmony private-field/out-parameter binding runs separately in
+`build/AppearanceCameraSmoke` against the original game DLLs on game Mono.
+
+The native recipe-row reuse regression extracts the production ownership,
+lease, reset and cleanup code. A counted Unity boundary exercises 1,801 rows
+over 20 rebuilds with changing order/name/count/requirements, one click callback,
+preserved prefab listeners, duplicate keys, distinct upgrade items and quality,
+nocost list shrink, special-tab round trips, partial patch readiness, failed
+initialization/postfix, reentrancy, foreign destruction/reparenting and GUI,
+player, template/root replacement. Hook/IL checks run separately in
+`build/RecipeRowReuseSmoke` against original game/mod DLLs on game Mono.

@@ -202,7 +202,7 @@ public sealed partial class InventorySlotsPlugin
 
     internal static bool CanStartCraftingAction(InventoryGui gui)
     {
-        if (IsInventoryClosingLayoutPending(gui)) return false;
+        if (IsInventoryClosingLayoutPending(gui) || IsPathOfValheimanAnvilActive(gui)) return false;
         if (!IsJewelcraftingSocketTabActive(gui))
         {
             return true;

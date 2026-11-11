@@ -194,8 +194,17 @@ public sealed partial class InventorySlotsPlugin
             return false;
         }
 
+        string id = NormalizeGroupId(groupId);
+        if (string.IsNullOrWhiteSpace(id)) return false;
+        // A custom definition (including an empty one) overrides the built-in.
+        // Built-in predicates do not need a cleaned YAML item identity.
+        if (!PredefinedGroupDefinitions.ContainsKey(id))
+        {
+            return BuiltInGroupMatchers.ContainsKey(id) && ItemMatchesBuiltInPredefinedGroup(item, id);
+        }
+
         YamlItemIdentity identity = new(item);
-        return ItemMatchesPreparedGroup(item, ref identity, NormalizeGroupId(groupId));
+        return ItemMatchesPreparedGroup(item, ref identity, id);
     }
 
     private static bool ItemMatchesPreparedGroup(ItemData item, ref YamlItemIdentity identity, string id)

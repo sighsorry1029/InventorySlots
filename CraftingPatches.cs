@@ -11,6 +11,8 @@ internal static class InventoryGuiCraftingViewDestroyPatch
 {
     private static void Prefix(InventoryGui __instance)
     {
+        CraftingRecipeRowReuse.Clear(__instance);
+        InventorySlotsPlugin.ClearPathOfValheimanAnvilUi(__instance);
         InventorySlotsPlugin.ClearPathOfValheimanCharacterUi();
         InventorySlotsPlugin.CancelInventoryClosingLayout(__instance);
         InventorySlotsPlugin.RestoreCraftingStationLevelLayout(__instance);

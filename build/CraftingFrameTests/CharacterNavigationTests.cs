@@ -40,12 +40,21 @@ public static class Host
     /* PRODUCTION */
     private static PovCharacterView _povCharacterView;
     private static bool IsDedicatedServer, Available = true, Preview;
+    private static bool Anvil;
+    private static bool IsPathOfValheimanAnvilActive(InventoryGui gui) => Anvil;
     private static int Checks, LookRefreshes;
+    private static int PoseFollows, BackgroundFollows;
+    private static void CopyPovCharacterRect(RectTransform source, RectTransform target)
+    { target.Position = source.Position; PoseFollows++; }
+    private static void SyncPathOfValheimanCharacterBackground(PovCharacterView view) => BackgroundFollows++;
     private static Func<bool> _povEnchantOpen = () => false;
     private static Action _povCloseEnchant = () => { };
     private static Factory _povSkillsFactory = new(), _povStatsFactory = new();
     private static bool CanShowPathOfValheimanCharacter(Player p) => p != null && Available;
     private static bool IsInventoryPanelClosing(InventoryGui gui) => gui.Closing;
+    private static object _povAppearanceCameraFailedView;
+    private static void ResetPathOfValheimanAppearanceCamera() { }
+    private static void ValidatePathOfValheimanAppearanceCamera() { }
     private static float PovCharacterCraftTimer(InventoryGui gui) => gui.Timer;
     private static object PovCharacterDragItem(InventoryGui gui) => gui.Drag;
     private static void ClearPathOfValheimanLookPreview() => Preview = false;
@@ -106,9 +115,25 @@ public static class Host
         {
             var view = Fresh(); SetPathOfValheimanCharacter(view, true, tab);
             var native = view.Native[tab];
+            // The omitted open-frame renderer masks Crafting before the user closes it.
+            view.CraftingGroup.alpha = 0;
+            view.CraftingGroup.interactable = view.CraftingGroup.blocksRaycasts = false;
             Preview = true; view.Target = view.Picked = new object(); view.Looks.Add(new());
             Hide(false);
             Expect(view.Active && view.Closing && !Preview, "Outro retains rendered page but cancels preview immediately");
+            int beforePose = PoseFollows, beforeBackground = BackgroundFollows, beforeRefresh = LookRefreshes;
+            for (int frame = 1; frame <= 3; frame++)
+            {
+                InventoryGui.instance.m_crafting.Position = -100 * frame;
+                UpdatePathOfValheimanCharacterUiCore();
+                Expect(view.Root.Position == InventoryGui.instance.m_crafting.Position,
+                    "Visible Character outro follows each animated crafting pose");
+                Expect(view.Active && view.Closing && view.Tab == tab && !view.Toggle.gameObject.activeInHierarchy &&
+                    view.CraftingGroup.alpha == 0 && !view.CraftingGroup.blocksRaycasts && !Preview,
+                    "Following outro cannot restore Crafting, controls or appearance preview");
+            }
+            Expect(PoseFollows == beforePose + 3 && BackgroundFollows == beforeBackground + 3 && LookRefreshes == beforeRefresh,
+                "Closing follows geometry without refreshing Character content");
             InventoryGui.instance.m_inventoryRoot.gameObject.SetActive(false);
             UpdatePathOfValheimanCharacterUiCore();
             Expect(!view.Active && view.CharacterSelected && view.Tab == tab, "Hidden UI retains only navigation choice");
@@ -132,6 +157,15 @@ public static class Host
             Expect(view.Active && view.Tab == tab, "Returning from Crafting remembers the Character subtab");
             Hide(false); Show();
             Expect(view.Active && !view.Closing && view.Tab == tab, "Rapid reopen during outro restores the same page");
+            Anvil = true; Preview = true;
+            UpdatePathOfValheimanCharacterUiCore();
+            Expect(!view.Active && view.CharacterSelected && view.Tab == tab && !Preview &&
+                view.CraftingGroup.alpha == 1 && view.CraftingGroup.blocksRaycasts,
+                "Anvil releases Character alpha/raycast ownership and preview but retains navigation");
+            SetPathOfValheimanCharacter(view, true, tab);
+            Expect(!view.Active, "Character callbacks cannot reopen over an active anvil");
+            Anvil = false; UpdatePathOfValheimanCharacterUiCore();
+            Expect(view.Active && view.Tab == tab, "Leaving anvil restores remembered Character page");
         }
         var current = Fresh(); SetPathOfValheimanCharacter(current, true, 2); Hide(true);
         InventoryGui.instance.Timer = 1; Show();
@@ -169,7 +203,7 @@ public class InventoryGui
     public RectTransform m_inventoryRoot = new(), m_crafting = new();
 }
 public class GameObject { public bool activeInHierarchy = true; public void SetActive(bool value) => activeInHierarchy = value; }
-public class RectTransform { public GameObject gameObject = new(); public Rect rect = new(); }
+public class RectTransform { public GameObject gameObject = new(); public Rect rect = new(); public float Position; }
 public class Rect { public object size = new(); }
 public class Button { public bool interactable; public GameObject gameObject = new(); public object font; }
 public class CanvasGroup { public float alpha = 1; public bool interactable = true, blocksRaycasts = true; }

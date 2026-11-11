@@ -8,10 +8,18 @@ namespace InventorySlots;
 
 public sealed partial class InventorySlotsPlugin
 {
+    internal static bool CanReuseNativeCraftingRows(InventoryGui gui) =>
+        !IsDedicatedServer && gui != null && gui == InventoryGui.instance && Player.m_localPlayer != null &&
+        gui.m_recipeListRoot != null && gui.m_recipeElementPrefab != null &&
+        !IsPathOfValheimanAnvilActive(gui) && IsCraftingPrimaryTabSelected(gui) &&
+        !IsPathOfValheimanSalvageTab(gui) && !IsJewelcraftingCraftingRedesignTab(gui) &&
+        !IsRecycleNReclaimReclaimTabActive(gui) && !HasActiveForeignCraftingTab(gui, includeHiddenInventory: true);
+
     internal static GameObject? PrepareCraftingRecipeListRebuild(InventoryGui gui)
     {
         if (IsDedicatedServer || gui == null || gui != InventoryGui.instance || Player.m_localPlayer == null ||
             gui.m_recipeListRoot == null) return null;
+        if (IsPathOfValheimanAnvilActive(gui)) return null;
 
         // Show calls UpdateRecipeList before the inventory animator activates its
         // hierarchy. Test the selected tabs locally, not IsVisible/activeInHierarchy.
